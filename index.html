@@ -1218,7 +1218,7 @@ body.layout-edit .panel.dragging{opacity:.4}
           <div class="qa-btn"><span class="ico">🐾</span><span class="lbl">Pets</span></div>
           <div class="qa-btn"><span class="ico">⚒️</span><span class="lbl">Forge</span></div>
           <div class="qa-btn"><span class="ico">🪓</span><span class="lbl">Missions</span></div>
-          <div class="qa-btn"><span class="ico">🧭</span><span class="lbl">Market</span></div>
+          <div class="qa-btn"><span class="ico">🔨</span><span class="lbl">Auction House</span></div>
           <div class="qa-btn"><span class="ico">✉️</span><span class="lbl">Mail</span></div>
           <div class="qa-btn"><span class="ico">🛡️</span><span class="lbl">Guild</span></div>
         </div>
@@ -1283,6 +1283,32 @@ body.layout-edit .panel.dragging{opacity:.4}
         </div>
         <div class="settings-row">
           <div>
+            <div>Core Sounds</div>
+            <div class="desc">The melody the core plays while you hold.</div>
+          </div>
+          <button class="btn-neutral" id="snd-sfx">On</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div>Music</div>
+            <div class="desc">The generative background track. Starts on your first hold.</div>
+          </div>
+          <button class="btn-neutral" id="snd-music">On</button>
+        </div>
+        <div class="settings-row">
+          <div style="flex:1">
+            <div>Core Volume</div>
+            <input type="range" id="vol-sfx" min="0" max="100" value="70" style="width:100%;accent-color:var(--cyan)">
+          </div>
+        </div>
+        <div class="settings-row">
+          <div style="flex:1">
+            <div>Music Volume</div>
+            <input type="range" id="vol-music" min="0" max="100" value="35" style="width:100%;accent-color:var(--cyan)">
+          </div>
+        </div>
+        <div class="settings-row">
+          <div>
             <div>Layout Edit Mode</div>
             <div class="desc">Drag panels to move them, pull the bottom grip to resize. PC only.</div>
           </div>
@@ -1302,7 +1328,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.12.3 — MÖRKA LISTER</div>
+            <div class="desc">GENESIS v0.13.2 — LEVANDE RING</div>
           </div>
         </div>
       </div>
@@ -1328,7 +1354,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.12.3 — MÖRKA LISTER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.13.2 — LEVANDE RING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1407,6 +1433,7 @@ let S = {
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
   premium: {offlineHours: 0},   // 0-4 -> 6/12/16/20/24h offlinetak
+  snd: {sfx: true, music: true, sv: 0.7, mv: 0.35},
   credits: 0,
   mil: {},              // "buildId:step" -> true
   savedAt: 0
@@ -1446,6 +1473,12 @@ function load(){
       S.credits = Math.max(0, +d.credits || 0);
       if (d.premium && typeof d.premium === 'object'){
         S.premium.offlineHours = Math.min(4, Math.max(0, Math.floor(+d.premium.offlineHours) || 0));
+      }
+      if (d.snd && typeof d.snd === 'object'){
+        S.snd.sfx = d.snd.sfx !== false;
+        S.snd.music = d.snd.music !== false;
+        if (isFinite(+d.snd.sv)) S.snd.sv = Math.min(1, Math.max(0, +d.snd.sv));
+        if (isFinite(+d.snd.mv)) S.snd.mv = Math.min(1, Math.max(0, +d.snd.mv));
       }
     }
   } catch(e){}
@@ -1732,6 +1765,8 @@ function refreshShelf(){
 let holding = false, holdT = 0, tickAcc = 0, floatGate = 0;
 function holdRate(){ return HOLD.baseRate * (1 + 0.05 * S.up.holdRate); }
 function startHold(e){ if (editMode) return; e.preventDefault(); holding = true;
+  Sound.resume().then(ok => { if (ok && Sound.musicEnabled) Sound.startMusic(); });
+  Sound.play('tap', {holding: true});
   el.coreWrap.classList.add('core-holding');
   el.hex.classList.add('core-hit');
   setTimeout(() => el.hex.classList.remove('core-hit'), 90);
@@ -1754,18 +1789,279 @@ function collectTick(){
   const crit = Math.random() < critChance;
   if (crit){
     gain *= HOLD.critMult;
+    Sound.play('crit', {holding: true});
     el.coreSpark.classList.remove('core-spark-anim');
     el.coreSpark.getBoundingClientRect();
     el.coreSpark.classList.add('core-spark-anim');
   }
   S.data += gain; S.totalData += gain; S.ticks++;
   grantXP(1);
+  if (!crit) Sound.play('tap', {holding: true});
   if (crit || performance.now() - floatGate > 180){
     floatGate = performance.now();
     spawnFloat({ text: '+' + fmt(gain), crit: crit });
     if (crit && !reduceMotion) critBurst();
   }
 }
+
+/* ---------- LJUDMOTORN ----------
+   Referensen från spelarens andra bygge, integrerad. ALLT syntetiseras i
+   stunden — inga ljudfiler, inget kan 404:a. Bakgrundslåt: generativ lo-fi
+   72 BPM, fyra ackord, schemalagd 180ms i förväg. Kärnan spelar ackordets
+   melodistämma när man håller — GRINDEN låser ljudet till åttondelsnätet,
+   så våra 4-24 ticks/s hörs alltid i låtens eget tempo. Crit = samma ton
+   sjungen hårdare (oktav + kvint), aldrig ovanpå. Utan musik: pentatonisk
+   reservskala som inte kan låta surt. */
+const NOTE_SEMI = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+function noteFreq(name){
+  const m = /^([A-G]#?)(-?\d+)$/.exec(name);
+  if (!m) return 440;
+  const midi = NOTE_SEMI[m[1]] + (parseInt(m[2],10) + 1) * 12;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+const MUSIC = {
+  bpm: 72, stepsPerBar: 8, barsPerChord: 2,
+  progression: [
+    {bass:'A1', pad:['A3','C4','E4','G4','B4'], arp:['A4','C5','E5','B4','G4','E5'], lead:['E5','G5','A5','B5','A5','G5','E5','D5']},
+    {bass:'F1', pad:['F3','A3','C4','E4'],      arp:['F4','A4','C5','E5','C5','A4'], lead:['F5','A5','C6','A5','G5','F5','E5','F5']},
+    {bass:'C2', pad:['C4','E4','G4','B4','D5'], arp:['G4','C5','E5','D5','B4','G4'], lead:['G5','B5','D6','C6','B5','G5','E5','G5']},
+    {bass:'G1', pad:['G3','B3','D4','E4'],      arp:['D5','B4','G4','B4','E5','D5'], lead:['D5','E5','G5','B5','A5','G5','E5','D5']}
+  ],
+  arpPattern:[1,0,1,1,0,1,0,1], hatPattern:[0,1,0,1,0,1,0,1], kickPattern:[1,0,0,0,1,0,0,0]
+};
+const TAP_SCALE = ['A4','C5','D5','E5','G5','A5','G5','E5','D5','C5'];
+
+const Sound = {
+  ctx:null, master:null, sfx:null, music:null, verb:null, verbSend:null,
+  enabled:true, musicEnabled:true, sfxVolume:0.7, musicVolume:0.35, ready:false,
+  _tapStep:0, _tapLast:0, _chordIdx:0, _leadStep:0, _lastLeadAt:0,
+  _pendingCrit:false, _musicTimer:null, _step:0, _nextTime:0, _playing:false,
+
+  init(){
+    if (Sound.ctx) return true;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      const ctx = new AC();
+      Sound.ctx = ctx;
+      Sound.master = ctx.createGain();
+      Sound.master.gain.value = 0.9;
+      Sound.master.connect(ctx.destination);
+      // Genererat rumseko: 2.2s avklingande brus i stället för en impulsfil
+      const secs = 2.2, len = Math.floor(ctx.sampleRate * secs);
+      const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++){
+        const d = buf.getChannelData(ch);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.8);
+      }
+      Sound.verb = ctx.createConvolver();
+      Sound.verb.buffer = buf;
+      Sound.verbSend = ctx.createGain();
+      Sound.verbSend.gain.value = 0.32;
+      Sound.verbSend.connect(Sound.verb);
+      Sound.verb.connect(Sound.master);
+      Sound.sfx = ctx.createGain();
+      Sound.sfx.gain.value = Sound.sfxVolume;
+      Sound.sfx.connect(Sound.master);
+      Sound.sfx.connect(Sound.verbSend);
+      Sound.music = ctx.createGain();
+      Sound.music.gain.value = 0;
+      Sound.music.connect(Sound.master);
+      Sound.music.connect(Sound.verbSend);
+      Sound.ready = true;
+      // iOS låser inte upp ljudet förrän något spelats INUTI gesten — en tyst sampel räcker
+      try {
+        const b = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = b;
+        src.connect(ctx.destination);
+        src.start(0);
+      } catch(e){}
+      return true;
+    } catch(e){ return false; }
+  },
+
+  resume(){
+    if (!Sound.init()) return Promise.resolve(false);
+    if (Sound.ctx.state === 'running') return Promise.resolve(true);
+    return Sound.ctx.resume().then(() => Sound.ctx.state === 'running').catch(() => false);
+  },
+
+  _env(node, t, o){
+    const a = o.a ?? 0.005, d = o.d ?? 0.1, peak = o.peak ?? 0.3, hold = o.hold ?? 0;
+    const g = node.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(0.0001, t);
+    g.exponentialRampToValueAtTime(Math.max(0.0001, peak), t + a);
+    g.setValueAtTime(Math.max(0.0001, peak), t + a + hold);
+    g.exponentialRampToValueAtTime(0.0001, t + a + hold + d);
+  },
+  _tone(dest, o){
+    const ctx = Sound.ctx;
+    const a = o.a ?? 0.005, d = o.d ?? 0.12, peak = o.peak ?? 0.25, hold = o.hold ?? 0;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = o.type || 'sine';
+    osc.detune.value = o.detune || 0;
+    osc.frequency.setValueAtTime(o.freq, o.t);
+    if (o.sweepTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.sweepTo), o.t + a + hold + d);
+    Sound._env(g, o.t, {a, d, peak, hold});
+    osc.connect(g); g.connect(dest);
+    osc.start(o.t); osc.stop(o.t + a + hold + d + 0.05);
+  },
+  _noise(dest, o){
+    const ctx = Sound.ctx;
+    const d = o.d ?? 0.2, peak = o.peak ?? 0.2;
+    const len = Math.max(1, Math.floor(ctx.sampleRate * (d + 0.05)));
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const flt = ctx.createBiquadFilter();
+    flt.type = o.type || 'highpass';
+    flt.Q.value = o.q ?? 1;
+    flt.frequency.setValueAtTime(o.f0 ?? 1200, o.t);
+    if (o.f1) flt.frequency.exponentialRampToValueAtTime(Math.max(20, o.f1), o.t + d);
+    const g = ctx.createGain();
+    Sound._env(g, o.t, {a: 0.006, d, peak});
+    src.connect(flt); flt.connect(g); g.connect(dest);
+    src.start(o.t); src.stop(o.t + d + 0.05);
+  },
+
+  play(key, opts){
+    if (!Sound.enabled) return;
+    if (!Sound.ready && !Sound.init()) return;
+    const ctx = Sound.ctx;
+    if (!ctx) return;
+    if (ctx.state !== 'running'){
+      ctx.resume().then(() => { if (Sound.musicEnabled) Sound.startMusic(); }).catch(() => {});
+      return;
+    }
+    if (Sound.musicEnabled && !Sound._playing) Sound.startMusic();
+    const t = ctx.currentTime + 0.001;
+    const D = Sound.sfx;
+
+    if (key === 'tap' || key === 'crit'){
+      const isCrit = key === 'crit';
+      const holding = !!(opts && opts.holding);
+      // GRINDEN: hållandet begränsas till låtens åttondelsnät — oavsett tickstakt
+      const stepDur = 60 / MUSIC.bpm / (MUSIC.stepsPerBar / 4);
+      if (holding && t - Sound._lastLeadAt < stepDur * 0.92){
+        if (isCrit) Sound._pendingCrit = true;   // minns, spelar inte ovanpå
+        return;
+      }
+      const accent = isCrit || Sound._pendingCrit;
+      Sound._pendingCrit = false;
+      Sound._lastLeadAt = t;
+      const chord = MUSIC.progression[Sound._chordIdx % MUSIC.progression.length];
+      const usingMusic = Sound._playing && Sound.musicEnabled && chord && chord.lead;
+      let f;
+      if (usingMusic){
+        if (t - Sound._tapLast > 1.2) Sound._leadStep = 0;
+        f = noteFreq(chord.lead[Sound._leadStep % chord.lead.length]);
+        Sound._leadStep += 1;
+      } else {
+        if (t - Sound._tapLast > 0.5) Sound._tapStep = 0;
+        f = noteFreq(TAP_SCALE[Sound._tapStep % TAP_SCALE.length]);
+        Sound._tapStep += 1;
+      }
+      Sound._tapLast = t;
+      if (accent){
+        Sound._tone(D, {freq: f,       type:'triangle', t: t,         a:0.006, d:0.62, peak:0.2});
+        Sound._tone(D, {freq: f * 2,   type:'sine',     t: t + 0.015, a:0.008, d:0.55, peak:0.09});
+        Sound._tone(D, {freq: f * 1.5, type:'sine',     t: t + 0.03,  a:0.01,  d:0.48, peak:0.05});
+        Sound._tone(D, {freq: f / 2,   type:'sine',     t: t,         a:0.012, d:0.4,  peak:0.045});
+      } else {
+        Sound._tone(D, {freq: f,     type:'triangle', t: t, a:0.012, d: holding ? 0.42 : 0.3, peak: holding ? 0.1 : 0.115});
+        Sound._tone(D, {freq: f / 2, type:'sine',     t: t, a:0.014, d:0.3, peak:0.035});
+      }
+    }
+  },
+
+  _voice(t, freq, o){
+    Sound._tone(o.dest, {freq, type:o.type, t, a:o.a, d:o.d, peak:o.peak, detune:o.detune || 0});
+  },
+  // Schemaläggaren: skriver noter 180ms in i framtiden var 25:e ms — kan aldrig stamma
+  _schedule(){
+    const ctx = Sound.ctx;
+    if (!ctx) return;
+    const stepDur = 60 / MUSIC.bpm / (MUSIC.stepsPerBar / 4);
+    while (Sound._nextTime < ctx.currentTime + 0.18){
+      const t = Math.max(Sound._nextTime, ctx.currentTime + 0.02);
+      const stepsPerChord = MUSIC.stepsPerBar * MUSIC.barsPerChord;
+      const total = stepsPerChord * MUSIC.progression.length;
+      const st = Sound._step % total;
+      const chordIdx = Math.floor(st / stepsPerChord);
+      Sound._chordIdx = chordIdx;
+      const inBar = st % MUSIC.stepsPerBar;
+      const inChord = st % stepsPerChord;
+      const ch = MUSIC.progression[chordIdx];
+      const M = Sound.music;
+      if (inChord === 0){
+        ch.pad.forEach((n, i) => {
+          const f = noteFreq(n);
+          Sound._voice(t, f, {type:'sine',     peak:0.055, a:0.9, d: stepDur * stepsPerChord * 0.9,  dest:M, detune:-5});
+          Sound._voice(t, f, {type:'triangle', peak:0.03,  a:1.1, d: stepDur * stepsPerChord * 0.85, dest:M, detune:6 + i});
+        });
+      }
+      if (inBar === 0 || inBar === 4){
+        Sound._voice(t, noteFreq(ch.bass), {type:'sine', peak:0.12, a:0.02, d:0.85, dest:M});
+      }
+      if (MUSIC.arpPattern[inBar]){
+        const note = ch.arp[(st + chordIdx) % ch.arp.length];
+        Sound._voice(t, noteFreq(note), {type:'triangle', peak:0.045, a:0.006, d:0.5, dest:M});
+      }
+      if (MUSIC.kickPattern[inBar]){
+        Sound._tone(M, {freq:110, type:'sine', t, a:0.004, d:0.16, peak:0.13, sweepTo:45});
+      }
+      if (MUSIC.hatPattern[inBar]){
+        Sound._noise(M, {t, d:0.035, peak:0.022, type:'highpass', f0:7500});
+      }
+      Sound._step += 1;
+      Sound._nextTime = t + stepDur;
+    }
+  },
+  startMusic(){
+    if (!Sound.musicEnabled || Sound._playing) return;
+    if (!Sound.init()) return;
+    if (Sound.ctx.state !== 'running'){
+      Sound.resume().then(ok => { if (ok && Sound.musicEnabled && !Sound._playing) Sound.startMusic(); });
+      return;
+    }
+    Sound._playing = true;
+    Sound._nextTime = Sound.ctx.currentTime + 0.1;
+    Sound.music.gain.cancelScheduledValues(Sound.ctx.currentTime);
+    Sound.music.gain.setValueAtTime(0.0001, Sound.ctx.currentTime);
+    Sound.music.gain.linearRampToValueAtTime(Sound.musicVolume, Sound.ctx.currentTime + 2.5);
+    Sound._musicTimer = setInterval(() => Sound._schedule(), 25);
+  },
+  stopMusic(){
+    if (!Sound._playing) return;
+    Sound._playing = false;
+    if (Sound._musicTimer) clearInterval(Sound._musicTimer);
+    Sound._musicTimer = null;
+    if (Sound.ctx && Sound.music){
+      const now = Sound.ctx.currentTime;
+      Sound.music.gain.cancelScheduledValues(now);
+      Sound.music.gain.setValueAtTime(Sound.music.gain.value, now);
+      Sound.music.gain.linearRampToValueAtTime(0.0001, now + 0.6);
+    }
+  },
+  setEnabled(v){ Sound.enabled = !!v; },
+  setMusicEnabled(v){
+    Sound.musicEnabled = !!v;
+    if (v) Sound.resume().then(() => Sound.startMusic());
+    else Sound.stopMusic();
+  },
+  setSfxVolume(v){
+    Sound.sfxVolume = Math.min(1, Math.max(0, v));
+    if (Sound.sfx) Sound.sfx.gain.value = Sound.sfxVolume;
+  },
+  setMusicVolume(v){
+    Sound.musicVolume = Math.min(1, Math.max(0, v));
+    if (Sound.music && Sound._playing) Sound.music.gain.setTargetAtTime(Sound.musicVolume, Sound.ctx.currentTime, 0.1);
+  }
+};
 
 /* ---------- SIFFERSPRUTAN ----------
    Referenskonsten från spelarens andra bygge. Fast vinkellista (alla uppåt/
@@ -2477,9 +2773,25 @@ function setMapMode(m){
 function viewRegion(id){ viewedRegion = id; setMapMode('region'); }
 $('map-mode').addEventListener('click', () => setMapMode(mapMode === 'world' ? 'region' : 'world'));
 
-function zonePos(i, n){
-  const a = -Math.PI / 2 + (i * 2 * Math.PI / n);
-  return {x: 50 + 34 * Math.cos(a), y: 50 + 33 * Math.sin(a)};
+/* Varje zon får sin egen naturliga plats: grundvinkeln jittras och avståndet
+   varierar, styrt av en hash på zonens namn — samma zon landar alltid på
+   samma ställe, men ringen ser levande ut i stället för klockren. */
+function zoneHash(str){
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 1000) / 1000;
+}
+function zonePos(i, n, regionId, zoneName){
+  const h1 = zoneHash(regionId + '|' + zoneName);
+  const h2 = zoneHash(zoneName + '|' + regionId);
+  const jitter = (h1 - 0.5) * (Math.PI / 5);          // ±18 grader
+  const a = -Math.PI / 2 + (i * 2 * Math.PI / n) + jitter;
+  const rx = 25 + h2 * 15;                            // 25-40% ut
+  const ry = 24 + ((h1 + h2) % 1) * 14;               // 24-38% ut
+  return {x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a)};
 }
 function renderRegionView(){
   const id = viewedRegion || S.world.current;
@@ -2487,7 +2799,7 @@ function renderRegionView(){
   // Ekrar från regionkärnan ut till zonerna
   let lines = '';
   R.zones.forEach((z, i) => {
-    const p = zonePos(i, R.zones.length);
+    const p = zonePos(i, R.zones.length, id, z);
     lines += '<line x1="50%" y1="50%" x2="' + p.x + '%" y2="' + p.y + '%" stroke="#2a3670" stroke-width="1"/>';
   });
   mapLines.innerHTML = lines;
@@ -2502,7 +2814,7 @@ function renderRegionView(){
   mapNodes.appendChild(core);
   // Zonerna runt dig
   R.zones.forEach((z, i) => {
-    const p = zonePos(i, R.zones.length);
+    const p = zonePos(i, R.zones.length, id, z);
     const here = (id === S.world.current && S.world.zone === z);
     const n = document.createElement('div');
     const zd = zoneDesig(id, z);
@@ -2740,6 +3052,36 @@ $('reset-step0').addEventListener('click', () => resetShow(1));
 $('reset-cancel-1').addEventListener('click', () => resetShow('main'));
 $('reset-yes-1').addEventListener('click', () => resetShow(2));
 $('reset-cancel-2').addEventListener('click', () => resetShow('main'));
+function applySoundPrefs(){
+  Sound.setEnabled(S.snd.sfx);
+  Sound.musicEnabled = S.snd.music;
+  Sound.setSfxVolume(S.snd.sv);
+  Sound.setMusicVolume(S.snd.mv);
+  $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
+  $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
+  $('vol-sfx').value = Math.round(S.snd.sv * 100);
+  $('vol-music').value = Math.round(S.snd.mv * 100);
+}
+$('snd-sfx').addEventListener('click', () => {
+  S.snd.sfx = !S.snd.sfx;
+  Sound.setEnabled(S.snd.sfx);
+  $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
+  save();
+});
+$('snd-music').addEventListener('click', () => {
+  S.snd.music = !S.snd.music;
+  Sound.setMusicEnabled(S.snd.music);
+  $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
+  save();
+});
+$('vol-sfx').addEventListener('input', () => {
+  S.snd.sv = (+$('vol-sfx').value) / 100;
+  Sound.setSfxVolume(S.snd.sv);
+});
+$('vol-music').addEventListener('input', () => {
+  S.snd.mv = (+$('vol-music').value) / 100;
+  Sound.setMusicVolume(S.snd.mv);
+});
 $('layout-toggle').addEventListener('click', () => setEditMode(!editMode));
 $('layout-reset').addEventListener('click', () => {
   try { localStorage.removeItem(LAYOUT_KEY); } catch(e){}
@@ -2753,6 +3095,7 @@ $('reset-yes-2').addEventListener('click', () => {
 let resetInProgress = false;
 
 load();
+applySoundPrefs();
 const offlinePending = computeOffline();
 applyLayout();
 buildPremiumOffline();
@@ -2768,7 +3111,14 @@ refreshShelf();
 updateUI(true);
 window.addEventListener('pagehide', () => { if (!resetInProgress) save(); });
 window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && !resetInProgress) save(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden'){
+    Sound.stopMusic();
+    if (!resetInProgress) save();
+  } else if (Sound.musicEnabled && Sound.ctx && Sound.ctx.state === 'running'){
+    Sound.startMusic();
+  }
+});
 requestAnimationFrame(loop);
 
 /* Buy amount-chips */
