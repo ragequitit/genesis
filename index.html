@@ -438,54 +438,52 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   position:relative;flex:1;width:100%;min-height:220px;
   display:flex;align-items:center;justify-content:center;
 }
-/* Datanoden efter spelarens foto: glödande hexagonRAM med koncentriska ringar,
-   vit kärna, ljuspelare ur toppen och en plattform av ringar under. */
-.core-stage{overflow:visible}
-/* Ljuspelaren som stiger ur hexagonens topp */
-.core-stage::before{
-  content:'';position:absolute;left:50%;top:0;transform:translateX(-50%);
-  height:calc(50% - 80px);min-height:16px;width:24px;z-index:1;pointer-events:none;
-  background:linear-gradient(180deg, rgba(170,230,255,.03), rgba(150,220,255,.22));
-  filter:blur(5px);
+/* Datakärnan — referenskonsten från spelarens andra bygge, integrerad rakt av.
+   Svävande hexagonprisma med vitt hjärta, två motroterande streckade ringar,
+   mjuk glöd som blommar vid håll, och långsam andning. */
+.core-wrap{
+  position:relative;display:grid;place-items:center;
+  min-height:240px;margin-bottom:10px;   /* lyfter prismat över piedestalen i bakgrunden */
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
 }
-/* Hexagonramen: ljus kant, mörk inneryta */
+.core-wrap::before{
+  content:'';position:absolute;left:50%;top:50%;
+  width:340px;height:340px;
+  transform:translate(-50%,-50%) scale(0.6);
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(34,211,238,0.45), rgba(34,211,238,0.14) 38%, transparent 68%);
+  opacity:0;pointer-events:none;
+  transition:opacity .18s ease-out, transform .18s ease-out;
+  z-index:0;
+}
+.core-wrap.core-holding::before{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .core-hex{
-  width:158px;height:178px;position:relative;z-index:2;
-  transform:translateY(-16px);   /* svävar över bakgrundens piedestal */
-  display:flex;align-items:center;justify-content:center;
-  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  background:linear-gradient(180deg, rgba(160,225,255,.85), rgba(90,150,255,.70));
-  filter:drop-shadow(0 0 14px rgba(90,190,255,.55)) drop-shadow(0 0 44px rgba(56,140,255,.30));
-  animation:corePulse 3.2s ease-in-out infinite;
+  position:relative;z-index:1;cursor:pointer;touch-action:none;
+  transition:transform .09s ease-out;
 }
-/* Hologram-inre: staden ska synas igenom, som i konstbilden */
-.core-hex::before{
-  content:'';position:absolute;inset:2.5px;
-  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  background:linear-gradient(180deg, rgba(16,26,64,.38), rgba(10,16,44,.30));
-  backdrop-filter:blur(1px);
+.core-hex svg{pointer-events:none;touch-action:none;display:block}
+.core-wrap.core-holding .core-hex{transform:scale(1.03)}
+.core-hex.core-hit{transform:scale(1.07)}
+.core-svg{filter:drop-shadow(0 0 26px rgba(34,211,238,.4))}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinr{to{transform:rotate(-360deg)}}
+.core-ring-slow{animation:spin 26s linear infinite;transform-origin:100px 100px}
+.core-ring-rev{animation:spinr 16s linear infinite;transform-origin:100px 100px}
+@keyframes coreBreath{
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-5px) scale(1.015)}
 }
-@keyframes corePulse{0%,100%{filter:drop-shadow(0 0 16px rgba(90,190,255,.55)) drop-shadow(0 0 55px rgba(56,140,255,.35)) brightness(1)}50%{filter:drop-shadow(0 0 20px rgba(90,190,255,.7)) drop-shadow(0 0 70px rgba(56,140,255,.45)) brightness(1.18)}}
-@media (prefers-reduced-motion: reduce){.core-hex{animation:none}}
-/* Kärnan: vitt öga med två koncentriska ringar, som i fotot */
-.core-eye{
-  width:50px;height:50px;border-radius:50%;position:relative;z-index:2;
-  background:radial-gradient(circle, #fff 0 22%, rgba(170,235,255,.95) 45%, rgba(56,140,255,.25) 75%, transparent);
-  box-shadow:0 0 42px rgba(170,235,255,.9), 0 0 100px rgba(80,180,255,.45);
-}
-.core-eye::before{
-  content:'';position:absolute;inset:-14px;border-radius:50%;
-  border:1.5px solid rgba(160,225,255,.75);
-  pointer-events:none;
-}
-.core-eye::after{
-  content:'';position:absolute;inset:-29px;border-radius:50%;
-  border:1.5px solid rgba(120,200,255,.45);
-  pointer-events:none;
+.core-alive{animation:coreBreath 5.5s ease-in-out infinite;will-change:transform}
+.core-alive.core-holding{animation-play-state:paused}
+@keyframes sparkle{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+.core-spark-anim{animation:sparkle .3s ease}
+@media (prefers-reduced-motion: reduce){
+  .core-alive,.core-ring-slow,.core-ring-rev,.core-spark-anim{animation:none}
 }
 .float-num{
   position:absolute;font-family:var(--font-mono);font-size:13px;color:var(--cyan);
   text-shadow:0 0 8px rgba(56,232,255,.7);opacity:.9;pointer-events:none;
+  z-index:6;   /* över hålltexten och mätaren */
 }
 .mascot{position:absolute;bottom:8px;right:14%;font-size:40px;filter:drop-shadow(0 0 10px rgba(164,92,255,.5))}
 
@@ -654,7 +652,6 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 
 /* Håll-mätare + spel-UI-lägen */
-.core-hex{cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
 .hold-hint{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
 .hold-hint.full{color:var(--gold)}
 .float-num{font-size:15px;font-weight:700}
@@ -1017,7 +1014,43 @@ body.layout-edit .panel.dragging{opacity:.4}
 
         <!-- Placeholder-yta: byt mot canvas/animation i spelet -->
         <div class="core-stage" id="core-stage">
-          <div class="core-hex" id="core-hex"><div class="core-eye"></div></div>
+          <div class="core-wrap core-alive" id="core-wrap">
+            <div class="core-hex" id="core-hex">
+              <svg viewBox="0 0 200 200" width="212" height="212" class="core-svg">
+                <defs>
+                  <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#e0f7ff" stop-opacity="0.8"/>
+                    <stop offset="55%" stop-color="#22d3ee" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+                  </radialGradient>
+                  <linearGradient id="facetA" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#a855f7" stop-opacity="0.35"/>
+                  </linearGradient>
+                  <linearGradient id="facetB" x1="1" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#312e81" stop-opacity="0.5"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="100" cy="100" r="95" fill="url(#coreGlow)"/>
+                <g class="core-ring-slow">
+                  <polygon points="100,18 171,59 171,141 100,182 29,141 29,59" fill="none" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="6 10" opacity="0.7"/>
+                </g>
+                <g class="core-ring-rev">
+                  <polygon points="100,34 158,67 158,133 100,166 42,133 42,67" fill="none" stroke="#a855f7" stroke-width="1.6" stroke-dasharray="3 7" opacity="0.75"/>
+                </g>
+                <polygon points="100,44 150,72 150,128 100,156 50,128 50,72" fill="url(#facetB)" stroke="#22d3ee" stroke-width="1.5"/>
+                <polygon points="100,44 150,72 100,100 50,72" fill="url(#facetA)" opacity="0.9"/>
+                <polygon points="50,72 100,100 100,156 50,128" fill="#22d3ee" opacity="0.2"/>
+                <polygon points="150,72 150,128 100,156 100,100" fill="#a855f7" opacity="0.22"/>
+                <g id="core-spark">
+                  <circle cx="100" cy="100" r="16" fill="#e0f7ff" opacity="0.9"/>
+                  <circle cx="100" cy="100" r="26" fill="none" stroke="#e0f7ff" stroke-width="1.5" opacity="0.55"/>
+                </g>
+                <circle cx="100" cy="100" r="34" fill="none" stroke="#fbbf24" stroke-width="0.8" opacity="0.4" stroke-dasharray="2 6"/>
+              </svg>
+            </div>
+          </div>
         </div>
 
         <div class="tap-block">
@@ -1205,7 +1238,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.11.2 — SVÄVANDE NOD</div>
+            <div class="desc">GENESIS v0.12.0 — REFERENSNODEN</div>
           </div>
         </div>
       </div>
@@ -1231,7 +1264,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.11.2 — SVÄVANDE NOD</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.12.0 — REFERENSNODEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1488,7 +1521,7 @@ function maxAffordable(b){
 const $ = id => document.getElementById(id);
 const el = {
   data: $('res-data'), dps: $('res-dps'),
-  hex: $('core-hex'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
+  hex: $('core-hex'), coreWrap: $('core-wrap'), coreSpark: $('core-spark'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
   crit: $('crit-now'), rate: $('rate-now'), mult: $('mult-now'),
   list: $('machine-list'), shelf: $('milestone-shelf'), core: $('core-upgrades'),
   stage: $('core-stage'), saveStatus: $('save-status'), nextSave: $('next-save'),
@@ -1634,9 +1667,16 @@ function refreshShelf(){
 /* ---------- HÅLL-MEKANIKEN ---------- */
 let holding = false, holdT = 0, tickAcc = 0, floatGate = 0;
 function holdRate(){ return HOLD.baseRate * (1 + 0.05 * S.up.holdRate); }
-function startHold(e){ if (editMode) return; e.preventDefault(); holding = true; holdT = 0; tickAcc = 0; el.meter.classList.remove('full'); }
+function startHold(e){ if (editMode) return; e.preventDefault(); holding = true;
+  el.coreWrap.classList.add('core-holding');
+  el.hex.classList.add('core-hit');
+  setTimeout(() => el.hex.classList.remove('core-hit'), 90);
+  el.coreSpark.classList.remove('core-spark-anim');
+  void el.coreSpark.getBBox && el.coreSpark.getBoundingClientRect();
+  el.coreSpark.classList.add('core-spark-anim'); holdT = 0; tickAcc = 0; el.meter.classList.remove('full'); }
 function fullNow(){ return holding && holdT >= HOLD.duration; }
-function stopHold(){ holding = false; }
+function stopHold(){
+  el.coreWrap.classList.remove('core-holding'); holding = false; }
 el.hex.addEventListener('pointerdown', startHold);
 window.addEventListener('pointerup', stopHold);
 el.hex.addEventListener('pointercancel', stopHold);
@@ -1648,10 +1688,15 @@ function collectTick(){
   const mult = 1 + (HOLD.incomeMaxMult - 1) * p;
   let gain = tapGain(S.up.tapPower) * mult;
   const crit = Math.random() < critChance;
-  if (crit) gain *= HOLD.critMult;
+  if (crit){
+    gain *= HOLD.critMult;
+    el.coreSpark.classList.remove('core-spark-anim');
+    el.coreSpark.getBoundingClientRect();
+    el.coreSpark.classList.add('core-spark-anim');
+  }
   S.data += gain; S.totalData += gain; S.ticks++;
   grantXP(1);
-  if (!reduceMotion && (crit || performance.now() - floatGate > 200)){
+  if (!reduceMotion && (crit || performance.now() - floatGate > 320)){
     floatGate = performance.now();
     const n = document.createElement('span');
     n.className = 'float-num' + (crit ? ' float-crit' : '');
@@ -1663,13 +1708,14 @@ function collectTick(){
     const dist = crit ? 170 + Math.random()*60 : 120 + Math.random()*60;
     const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
     n.style.transform = 'translate(-50%,-50%) scale(' + (crit ? 0.4 : 0.6) + ')';
-    n.style.transition = 'transform .9s cubic-bezier(.18,.89,.32,1.28), opacity .9s ease-out';
+    // Utfärd 2s med snabb start som bromsar till sväv; fadar först under sista biten
+    n.style.transition = 'transform 2s cubic-bezier(.16,.84,.24,1), opacity 2s cubic-bezier(.7,0,.9,1)';
     el.stage.appendChild(n);
     requestAnimationFrame(() => {
       n.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(' + (crit ? 1.35 : 1) + ')';
       n.style.opacity = '0';
     });
-    setTimeout(() => n.remove(), 950);
+    setTimeout(() => n.remove(), 2050);
   }
 }
 
