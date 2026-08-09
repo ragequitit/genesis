@@ -1,0 +1,3377 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Whippen Runner — UI Framework</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS — ändra allt tema här
+   ============================================================ */
+:root{
+  --bg-page:        #05060d;
+  --bg-panel:       #0a0d18;
+  --bg-panel-2:     #0d1120;
+  --bg-inset:       #070a13;
+  --bg-row:         #0c1020;
+  --bg-row-hover:   #121732;
+
+  --border:         #1b2140;
+  --border-soft:    #141a33;
+  --border-glow:    #2a3670;
+
+  --cyan:           #38e8ff;
+  --cyan-dim:       #1ba8c9;
+  --purple:         #a45cff;
+  --violet:         #7b6cff;
+  --magenta:        #ff4fd8;
+  --gold:           #ffc542;
+  --green:          #3dff9e;
+  --red:            #ff4d6d;
+  --orange:         #ff9040;
+
+  --text:           #e8ecff;
+  --text-dim:       #8a93b8;
+  --text-faint:     #565e80;
+
+  /* Sällsynthetsstege (beslutad): Common → Uncommon → Rare → Epic → Legendary → Mythic */
+  --rarity-common:     #9aa3c0;
+  --rarity-uncommon:   #3dff9e;
+  --rarity-rare:       #38a8ff;
+  --rarity-epic:       #a45cff;
+  --rarity-legendary:  #ffc542;
+  --rarity-mythic:     #ff4fd8;
+
+  --radius:         12px;
+  --radius-sm:      8px;
+  --gap:            10px;
+
+  --font-display:   'Segoe UI', 'Inter', system-ui, sans-serif;
+  --font-mono:      'Consolas', 'Roboto Mono', monospace;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg-page);color:var(--text);font-family:var(--font-display);font-size:13px}
+html,body{
+  user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:manipulation;
+  overscroll-behavior-y:contain;
+}
+::selection{background:transparent}
+::-webkit-selection{background:transparent}
+input,select,textarea{user-select:text;-webkit-user-select:text}
+
+/* ============================================================
+   PANEL BAS — alla ramar/frames använder denna
+   ============================================================ */
+.panel{
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.03);
+}
+.panel-title{
+  font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text);font-weight:700;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.panel-title .sub{font-size:10px;letter-spacing:.05em;color:var(--text-dim);font-weight:500;text-transform:none}
+.panel-title .link{font-size:10px;color:var(--cyan);cursor:pointer;letter-spacing:.06em}
+
+/* ============================================================
+   HUVUDGRID — 3 kolumner: vänster / mitt / höger
+   ============================================================ */
+.app{
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  min-height:100vh;
+  gap:var(--gap);
+  padding:var(--gap);
+  max-width:1600px;margin:0 auto;
+}
+.layout{
+  display:grid;
+  grid-template-columns:minmax(320px,470px) minmax(340px,1fr) minmax(320px,470px);
+  gap:var(--gap);
+  align-items:start;
+}
+.col{display:flex;flex-direction:column;gap:var(--gap)}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.topbar{
+  display:flex;flex-direction:row;flex-wrap:wrap;
+  gap:var(--gap);
+  align-items:stretch;
+}
+/* Grupprutor i toppraden: horisontella, kompakta, flyttbara som andra rutor */
+.hpanel{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  padding:5px 8px;width:auto;flex:0 0 auto;
+}
+/* Små avrundade knappar för varje resurs/knapp, inuti grupprutan */
+.hpanel .res-pill{
+  border:1px solid var(--border);background:var(--bg-inset);
+  border-radius:9px;padding:2px;
+  width:72px;height:58px;   /* samma mått som navknapparna (Events-mallen) */
+  flex-direction:column;justify-content:center;gap:1px;
+}
+.hpanel .res-pill .res-icon{font-size:13px}
+.hpanel .nav-btn{
+  border:1px solid var(--border);background:var(--bg-inset);
+  border-radius:9px;padding:4px 3px;
+  width:72px;height:58px;   /* Events-knappens mått är mallen — alla lika */
+}
+#panel-nav{margin-left:auto}
+
+/* Spelarkort */
+
+.avatar{
+  width:52px;height:52px;border-radius:10px;
+  background:radial-gradient(circle at 30% 30%, #2a1a55, #0d0a20);
+  border:1px solid var(--border-glow);
+  position:relative;display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+}
+.avatar .lvl-badge{
+  position:absolute;bottom:-5px;left:-5px;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--purple);color:#fff;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg-page);
+}
+.player-info{display:flex;flex-direction:column;gap:3px;min-width:150px}
+.player-name{font-weight:800;letter-spacing:.05em;font-size:14px}
+.player-sub{font-size:9px;letter-spacing:.12em;color:var(--purple);font-weight:700;text-transform:uppercase}
+.xp-bar{height:7px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border-soft);overflow:hidden;margin-top:2px}
+.xp-fill{height:100%;width:88%;border-radius:99px;background:linear-gradient(90deg,var(--purple),var(--magenta))}
+.xp-label{font-size:9px;color:var(--text-dim);text-align:right;font-family:var(--font-mono)}
+
+/* Resurspiller */
+
+.res-pill{
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:6px 14px;min-width:92px;
+}
+.res-icon{font-size:16px}
+.res-body{display:flex;flex-direction:column;line-height:1.2}
+.res-value{font-weight:800;font-size:14px;font-family:var(--font-mono)}
+.res-label{font-size:8px;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase}
+.res-pill[data-color="cyan"]   .res-value{color:var(--cyan)}
+.res-pill[data-color="gold"]   .res-value{color:var(--gold)}
+.res-pill[data-color="purple"] .res-value{color:var(--purple)}
+.res-pill[data-color="orange"] .res-value{color:var(--orange)}
+.res-pill[data-color="blue"]   .res-value{color:var(--violet)}
+
+/* Nav-ikoner */
+.nav-btn{
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  width:76px;background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:8px 4px;cursor:pointer;transition:border-color .15s;
+}
+.nav-btn:hover{border-color:var(--border-glow)}
+.nav-btn .ico{font-size:18px}
+.nav-btn .lbl{font-size:8px;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;text-align:center}
+.nav-btn .lbl small{display:block;color:var(--gold);font-size:8px;text-transform:none}
+/* Glödram: "tryck här, något väntar" */
+.nav-btn.glow-gold{border-color:var(--gold)}
+@keyframes goldPulse{
+  0%,100%{box-shadow:0 0 4px rgba(255,199,64,.35)}
+  50%{box-shadow:0 0 13px rgba(255,199,64,.85)}
+}
+.nav-btn.glow-gold{animation:goldPulse 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){
+  .nav-btn.glow-gold{animation:none;box-shadow:0 0 9px rgba(255,199,64,.6)}
+}
+.nav-btn .notif{
+  position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;
+  border-radius:99px;background:var(--red);color:#fff;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-page);
+}
+
+/* ============================================================
+   VÄNSTER KOLUMN
+   ============================================================ */
+
+/* --- CHARACTER --- */
+/* Karaktärsbladet: gubben i mitten, utrustning flankerar, stats under */
+.char-layout{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.char-portrait{
+  position:relative;
+  height:100%;min-height:120px;border-radius:var(--radius-sm);
+  background:radial-gradient(circle at 50% 30%, #241a4a, #0a0818);
+  border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:36px;
+}
+.vehicle-row{display:flex;justify-content:center;margin-top:4px}
+.vehicle-slot{
+  width:120px;height:46px;font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+}
+.char-stats-btn{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  margin:0;white-space:nowrap;
+  background:rgba(7,10,19,.75);
+}
+.key-stats{
+  display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;
+  background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:7px 9px;
+}
+/* Statspopupen: lägger sig direkt under karaktärsrutan, lika bred */
+.stats-popup{
+  position:fixed;z-index:60;display:none;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);border-radius:var(--radius);
+  padding:12px;box-shadow:0 16px 44px rgba(0,0,0,.6);
+}
+.stats-popup.open{display:block}
+.stats-popup .sp-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;margin-bottom:8px}
+.stats-popup .key-stats{grid-template-columns:1fr 1fr}
+.stats-popup .sp-note{font-size:9px;color:var(--text-faint);margin-top:8px;text-align:center}
+.key-stat{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.key-stat .k{color:var(--text-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.key-stat .v{font-family:var(--font-mono);font-weight:800}
+.btn-ghost{
+  border:1px solid var(--cyan-dim);background:transparent;color:var(--cyan);
+  border-radius:99px;padding:6px 14px;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer;
+}
+.equip-col{display:flex;flex-direction:column;gap:7px}
+.equip-slot{
+  width:52px;height:52px;border-radius:var(--radius-sm);
+  background:var(--bg-inset);border:1px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+}
+.equip-slot.empty{border-color:var(--border);opacity:.6}
+
+/* --- ECHO TEAM --- */
+.echo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:7px}
+.echo-slot{
+  height:76px;border-radius:var(--radius-sm);
+  background:var(--bg-inset);border:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  cursor:pointer;position:relative;font-size:22px;
+}
+.echo-slot .stars{font-size:8px;color:var(--gold);letter-spacing:1px}
+.echo-slot .elvl{font-size:8px;color:var(--text-dim);font-family:var(--font-mono)}
+.echo-slot.rare{border-color:var(--purple)}
+.echo-slot.epic{border-color:var(--cyan)}
+.echo-slot.locked{opacity:.45}
+.echo-slot.empty{border-style:dashed;color:var(--text-faint);font-size:16px}
+.section-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);font-weight:700;margin:2px 0 6px}
+.buff-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.buff{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:6px 2px;text-align:center;
+}
+.buff .b-ico{font-size:12px}
+.buff .b-val{font-size:10px;font-weight:800;color:var(--green);font-family:var(--font-mono)}
+.buff .b-lbl{font-size:7.5px;color:var(--text-dim);letter-spacing:.03em}
+
+/* --- MACHINES --- */
+.machines-controls{display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase}
+.chip{
+  border:1px solid var(--border);background:var(--bg-inset);color:var(--text-dim);
+  border-radius:6px;padding:2px 9px;font-size:10px;cursor:pointer;font-family:var(--font-mono);
+}
+.chip.active{border-color:var(--cyan);color:var(--cyan)}
+.machine-list{display:flex;flex-direction:column;gap:5px}
+.machine-row{
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr) auto 92px;
+  align-items:center;gap:10px;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:11px 10px;cursor:pointer;transition:background .15s;
+}
+.machine-row:hover{background:var(--bg-row-hover)}
+.m-ico{width:38px;height:38px;border-radius:8px;background:var(--bg-inset);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px}
+.m-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-lvl{font-size:9px;color:var(--text-dim);font-family:var(--font-mono)}
+.m-rate{font-size:11px;color:var(--cyan);font-family:var(--font-mono);text-align:right;font-weight:700}
+.m-delta{font-size:9px;color:var(--text-faint);font-family:var(--font-mono);text-align:right}
+.m-bonus{font-size:9px;color:var(--gold);font-family:var(--font-mono);text-align:right}
+.m-sub{font-size:9px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-sub .mx{color:var(--gold)}
+/* Köpknappen: 3D-känsla — lyser när man har råd, trycks ner fysiskt vid köp */
+.m-cost{
+  font-size:11px;font-weight:900;font-family:var(--font-mono);text-align:center;
+  background:linear-gradient(180deg,#0f3d2a,#0a2419);
+  border:1px solid var(--green);border-radius:8px;
+  padding:10px 4px;color:var(--green);
+  box-shadow:0 3px 0 #063a26, inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .05s, box-shadow .05s;
+}
+.m-cost:not(.cant):active{transform:translateY(3px);box-shadow:0 0 0 #063a26, inset 0 1px 0 rgba(255,255,255,.08)}
+.m-cost.cant{
+  background:var(--bg-inset);border-color:var(--border);color:var(--text-faint);
+  box-shadow:none;cursor:default;
+}
+.u-buy{transition:transform .05s, box-shadow .05s;box-shadow:0 3px 0 rgba(6,58,38,.6)}
+.u-buy:not(.cant):not(.maxed):active{transform:translateY(3px);box-shadow:0 0 0 rgba(6,58,38,.6)}
+.u-buy.maxed,.u-buy.cant{box-shadow:none}
+.unlock-bar{
+  margin-top:8px;text-align:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--border-glow);border-radius:99px;padding:7px;color:var(--cyan);cursor:pointer;
+  background:linear-gradient(180deg,rgba(56,232,255,.05),transparent);
+}
+
+/* --- NETWORK MAP --- */
+.map-area{
+  position:relative;height:190px;border-radius:var(--radius-sm);
+  cursor:grab;touch-action:none;user-select:none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(123,108,255,.08), transparent 40%),
+    radial-gradient(circle at 75% 65%, rgba(56,232,255,.06), transparent 45%),
+    var(--bg-inset);
+  border:1px solid var(--border-soft);overflow:hidden;
+}
+.map-node{
+  position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;
+  transform:translate(-50%,-50%);cursor:pointer;z-index:2;
+}
+.map-dot{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--bg-panel);display:flex;align-items:center;justify-content:center;font-size:11px;
+  border:2px solid var(--border-glow);
+}
+.map-node.home .map-dot{border-color:var(--cyan);box-shadow:0 0 12px rgba(56,232,255,.5);width:32px;height:32px}
+.map-node.active .map-dot{border-color:var(--green)}
+.map-node.corrupted .map-dot{border-color:var(--red)}
+.map-node.hidden-n .map-dot{border-color:var(--text-faint);border-style:dashed}
+.map-name{font-size:8px;color:var(--text-dim);white-space:nowrap}
+.map-lines{position:absolute;inset:0;z-index:1;overflow:visible}
+.map-world{position:absolute;inset:0;transform-origin:0 0}
+.map-area.panning{cursor:grabbing}
+.map-tip{
+  position:absolute;z-index:7;display:none;pointer-events:none;
+  max-width:200px;padding:9px 11px;border-radius:9px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);box-shadow:0 10px 26px rgba(0,0,0,.55);
+  font-size:9.5px;line-height:1.55;color:var(--text-dim);
+}
+.map-tip b{color:var(--text);font-size:11px;letter-spacing:.04em}
+.map-tip .t-hint{color:var(--cyan);margin-top:3px;font-size:8.5px;letter-spacing:.06em;text-transform:uppercase}
+.map-zoom{position:absolute;right:8px;top:8px;z-index:5;display:flex;flex-direction:column;gap:5px}
+.map-zoom-btn{
+  width:28px;height:28px;border-radius:7px;border:1px solid var(--border-glow);
+  background:var(--bg-panel);color:var(--cyan);font-size:15px;font-weight:800;cursor:pointer;
+}
+.map-node.zone .map-dot{width:30px;height:30px;font-size:12px;border-color:var(--violet)}
+.map-node.zone-here .map-dot{border-color:var(--cyan);box-shadow:0 0 12px rgba(56,232,255,.6)}
+.map-node.zone-pvp .map-dot{border-color:var(--red)}
+.map-node.zone-pvp .map-name{color:var(--red)}
+.map-node.core .map-dot{width:46px;height:46px;font-size:20px}
+.desig-note{
+  border:1px dashed;border-radius:8px;padding:7px 10px;margin-bottom:10px;
+  font-size:9.5px;letter-spacing:.05em;font-weight:700;
+}
+.map-node.fog .map-dot{border-color:var(--text-faint);border-style:dashed;opacity:.75}
+.map-node.fog .map-name{color:var(--text-faint);font-style:italic}
+.map-node.visited .map-dot{border-color:var(--green)}
+.map-node.known .map-dot{border-color:var(--violet)}
+.map-node.current .map-dot{border-color:var(--cyan);box-shadow:0 0 14px rgba(56,232,255,.6)}
+.travel-go.busy{background:var(--bg-inset);border-color:var(--border);color:var(--text-dim);box-shadow:none;cursor:default}
+.region-kv{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.zone-crumb{
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);
+  font-weight:700;cursor:pointer;margin-bottom:10px;
+}
+.zone-crumb:hover{text-shadow:0 0 8px rgba(56,232,255,.6)}
+.region-zone.clickable{cursor:pointer;transition:border-color .12s}
+.region-zone.clickable:hover{border-color:var(--border-glow)}
+.region-zone.clickable .z-note{
+  color:var(--cyan);border:1px solid var(--cyan-dim);border-radius:99px;
+  padding:3px 10px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+}
+.region-zone .z-note.here{color:var(--green);border-color:var(--green)}
+.region-zone{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:8px;
+  padding:8px 10px;font-size:11px;font-weight:700;
+}
+.region-zone .z-note{font-size:9px;color:var(--text-faint);font-weight:400}
+.region-actions{display:flex;gap:8px;margin-top:10px}
+.region-actions .btn-primary{flex:1;width:auto}
+.region-actions .btn-neutral{flex:1}
+.map-legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--text-dim)}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* ============================================================
+   MITTKOLUMN — HERO + TAP CORE
+   ============================================================ */
+.hero{
+  position:relative;min-height:480px;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;
+  /* Spelarens bakgrundsbild överst; gradienterna under som fallback om filen saknas */
+  background:
+    linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6)),
+    url('assets/bg/bg_data_node.png?v=2') center/cover no-repeat,
+    radial-gradient(ellipse at 50% 15%, rgba(56,140,255,.16), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(123,108,255,.14), transparent 60%),
+    linear-gradient(180deg,#0b1024,#070a16);
+}
+@media (max-width:820px){
+  .hero{
+    background:
+      linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6)),
+      url('assets/bg/bg_data_node_mobile.png?v=2') center/cover no-repeat,
+      linear-gradient(180deg,#0b1024,#070a16);
+  }
+}
+.hero-head{text-align:center;padding-top:6px;z-index:2}
+.hero-title{font-size:30px;font-weight:900;letter-spacing:.06em;margin:0 0 2px;text-shadow:0 0 24px rgba(56,232,255,.35)}
+.hero-bonus{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
+.hero-bonus b{color:var(--green)}
+
+/* Core-visualisering (placeholder-yta för animation/canvas) */
+.core-stage{
+  position:relative;flex:1;width:100%;min-height:220px;
+  display:flex;align-items:center;justify-content:center;
+}
+/* Datakärnan — referenskonsten från spelarens andra bygge, integrerad rakt av.
+   Svävande hexagonprisma med vitt hjärta, två motroterande streckade ringar,
+   mjuk glöd som blommar vid håll, och långsam andning. */
+.core-wrap{
+  position:relative;display:grid;place-items:center;
+  min-height:240px;margin-bottom:10px;   /* lyfter prismat över piedestalen i bakgrunden */
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+.core-wrap::before{
+  content:'';position:absolute;left:50%;top:50%;
+  width:340px;height:340px;
+  transform:translate(-50%,-50%) scale(0.6);
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(34,211,238,0.45), rgba(34,211,238,0.14) 38%, transparent 68%);
+  opacity:0;pointer-events:none;
+  transition:opacity .18s ease-out, transform .18s ease-out;
+  z-index:0;
+}
+.core-wrap.core-holding::before{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.core-hex{
+  position:relative;z-index:1;cursor:pointer;touch-action:none;
+  transition:transform .09s ease-out;
+}
+.core-hex svg{pointer-events:none;touch-action:none;display:block}
+.core-wrap.core-holding .core-hex{transform:scale(1.03)}
+.core-hex.core-hit{transform:scale(1.07)}
+.core-svg{filter:drop-shadow(0 0 26px rgba(34,211,238,.4))}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinr{to{transform:rotate(-360deg)}}
+.core-ring-slow{animation:spin 26s linear infinite;transform-origin:100px 100px}
+.core-ring-rev{animation:spinr 16s linear infinite;transform-origin:100px 100px}
+@keyframes coreBreath{
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-5px) scale(1.015)}
+}
+.core-alive{animation:coreBreath 5.5s ease-in-out infinite;will-change:transform}
+.core-alive.core-holding{animation-play-state:paused}
+@keyframes sparkle{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+.core-spark-anim{animation:sparkle .3s ease}
+@media (prefers-reduced-motion: reduce){
+  .core-alive,.core-ring-slow,.core-ring-rev,.core-spark-anim{animation:none}
+}
+/* Siffrorna som sprutar ur kärnan — referenskonsten från spelarens andra bygge.
+   Flyger alltid uppåt/utåt (aldrig ner under tummen), fasta vinklar i sekvens
+   så två siffror aldrig landar på varandra, crits får badge + burst, och
+   idle-siffror droppar tyst när maskinerna jobbar själva. */
+.float{
+  position:absolute;left:50%;top:46%;
+  pointer-events:none;white-space:nowrap;text-align:center;
+  display:flex;flex-direction:column;align-items:center;line-height:1.1;
+  font-weight:800;font-size:16px;color:#67e8f9;
+  text-shadow:0 0 12px rgba(34,211,238,.85);
+  z-index:6;
+  animation:floatOut .9s cubic-bezier(.15,.7,.3,1) forwards;
+}
+.float-amt{font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+.float-idle{font-size:12px;font-weight:700;opacity:.72;text-shadow:0 0 8px currentColor;color:var(--theme, #22d3ee)}
+@keyframes floatOut{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
+  18%{opacity:1;transform:translate(calc(-50% + var(--fx) * .22), calc(-50% + var(--fy) * .22)) scale(1.18)}
+  70%{opacity:1}
+  100%{opacity:0;transform:translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(.92)}
+}
+.float-crit{
+  font-size:26px;color:var(--gold);
+  text-shadow:0 0 20px rgba(251,191,36,1), 0 0 40px rgba(251,191,36,.5);
+  animation:floatOutCrit 1.15s cubic-bezier(.12,.75,.25,1) forwards;
+}
+.crit-word{
+  font-size:11px;letter-spacing:.18em;
+  background:var(--gold);color:#1a1200;border-radius:5px;padding:1px 6px;margin-bottom:2px;
+  text-shadow:none;
+}
+@keyframes floatOutCrit{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}
+  14%{opacity:1;transform:translate(calc(-50% + var(--fx) * .18), calc(-50% + var(--fy) * .18)) scale(1.45)}
+  26%{transform:translate(calc(-50% + var(--fx) * .3), calc(-50% + var(--fy) * .3)) scale(1.12)}
+  75%{opacity:1}
+  100%{opacity:0;transform:translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(1)}
+}
+.crit-ring{
+  position:absolute;left:50%;top:46%;
+  width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;
+  border:3px solid var(--gold);pointer-events:none;z-index:5;
+  box-shadow:0 0 34px rgba(251,191,36,.7), inset 0 0 26px rgba(251,191,36,.35);
+  animation:critRingK .62s cubic-bezier(.15,.75,.3,1) forwards;
+}
+.crit-ring-2{border-width:1.5px;opacity:0;animation:critRingK .62s cubic-bezier(.15,.75,.3,1) .1s forwards}
+@keyframes critRingK{0%{transform:scale(.3);opacity:.95}100%{transform:scale(2.3);opacity:0}}
+.crit-shard{
+  position:absolute;left:50%;top:46%;
+  width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:2px;
+  background:var(--gold);pointer-events:none;z-index:5;
+  box-shadow:0 0 12px var(--gold);
+  animation:critShardK .66s cubic-bezier(.15,.7,.3,1) forwards;
+}
+@keyframes critShardK{
+  0%{transform:rotate(var(--a)) translateX(20px) scale(1.2);opacity:1}
+  100%{transform:rotate(var(--a)) translateX(160px) scale(0);opacity:0}
+}
+@media (prefers-reduced-motion: reduce){
+  .float{animation-duration:.55s}
+  .float-crit{animation-duration:.6s}
+  .crit-ring,.crit-shard{display:none}
+}
+.mascot{position:absolute;bottom:8px;right:14%;font-size:40px;filter:drop-shadow(0 0 10px rgba(164,92,255,.5))}
+
+/* Tap-sektionen */
+.tap-block{z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:4px;width:100%}
+.tap-btn{
+  min-width:230px;padding:16px 40px;border-radius:14px;cursor:pointer;
+  font-size:20px;font-weight:900;letter-spacing:.08em;color:#fff;
+  background:linear-gradient(180deg,#1a3f7a,#122a55);
+  border:1px solid var(--cyan);
+  box-shadow:0 0 24px rgba(56,180,255,.45), inset 0 1px 0 rgba(255,255,255,.15);
+  transition:transform .06s;
+}
+.tap-btn:active{transform:scale(.97)}
+.tap-meta{
+  display:flex;gap:14px;align-items:center;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:7px 16px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);
+}
+.tap-meta b{color:var(--text);font-family:var(--font-mono)}
+.tap-counter{
+  display:flex;gap:12px;align-items:center;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:7px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);
+}
+.tap-counter b{color:var(--text);font-family:var(--font-mono);font-size:13px}
+
+/* --- Nedre mittrad: Scanner / Current server / Travel --- */
+.travel-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft);
+}
+.travel-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
+.travel-select{flex:1;min-width:150px;width:auto}
+.travel-kv{font-size:11px;font-family:var(--font-mono);color:var(--violet);white-space:nowrap}
+.travel-go{width:auto;padding:9px 16px}
+.btn-wide{
+  width:100%;text-align:center;border:1px solid var(--border-glow);border-radius:var(--radius-sm);
+  background:var(--bg-inset);color:var(--text);padding:9px;cursor:pointer;
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+}
+.kv-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
+.kv{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.kv .k{color:var(--text-dim)}
+.kv .v{font-weight:700;font-family:var(--font-mono)}
+.kv .v.good{color:var(--green)}
+.kv .v.warn{color:var(--orange)}
+.kv .v.free{color:var(--cyan)}
+.server-thumb{
+  height:64px;border-radius:var(--radius-sm);margin-bottom:10px;
+  background:radial-gradient(circle at 60% 40%, rgba(164,92,255,.25), transparent 60%), var(--bg-inset);
+  border:1px solid var(--border-soft);
+  display:flex;align-items:flex-end;padding:6px 10px;
+  font-weight:800;letter-spacing:.04em;font-size:13px;
+}
+.select{
+  width:100%;background:var(--bg-inset);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--radius-sm);padding:8px 10px;font-size:11px;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text-dim) 50%),linear-gradient(135deg,var(--text-dim) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+  background-size:5px 5px;background-repeat:no-repeat;
+}
+.form-row{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;margin-bottom:8px}
+.form-row label{font-size:10px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase}
+.btn-primary{
+  width:100%;padding:11px;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;
+  background:linear-gradient(90deg,#5a2bd0,#a45cff);border:1px solid var(--purple);
+  box-shadow:0 0 16px rgba(164,92,255,.35);
+}
+
+/* ============================================================
+   HÖGER KOLUMN
+   ============================================================ */
+
+/* --- UPGRADES --- */
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:99px;overflow:hidden;margin-bottom:10px}
+.tabs.three{grid-template-columns:1fr 1fr 1fr}
+/* Fast höjd på flikinnehållet i maskinramen: panelen står stilla oavsett flik */
+#panel-production .tab-pane{height:700px;overflow-y:auto;overflow-x:hidden}
+.tab{padding:7px;text-align:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;background:var(--bg-inset)}
+.tab.active{background:rgba(56,232,255,.1);color:var(--cyan);font-weight:800}
+.upgrade-list{display:flex;flex-direction:column;gap:6px}
+.upgrade-row{
+  display:grid;grid-template-columns:38px 1fr 74px;align-items:center;gap:9px;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:8px;
+}
+.u-ico{width:34px;height:34px;border-radius:8px;background:var(--bg-inset);border:1px solid var(--purple);display:flex;align-items:center;justify-content:center;font-size:14px}
+.u-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.u-name{font-size:11px;font-weight:800}
+.u-name .u-lvl{font-weight:500;color:var(--text-dim);font-size:9px;font-family:var(--font-mono)}
+.u-desc{font-size:9px;color:var(--text-dim);line-height:1.3}
+.u-effect{font-size:9px;font-family:var(--font-mono)}
+.u-effect .from{color:var(--text-faint)}
+.u-effect .to{color:var(--green)}
+.u-buy{
+  padding:9px 4px;text-align:center;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:11px;font-weight:900;font-family:var(--font-mono);
+  background:linear-gradient(180deg,rgba(61,255,158,.12),transparent);
+  border:1px solid var(--green);color:var(--green);
+}
+.u-buy.maxed{border-color:var(--border);color:var(--text-faint);background:var(--bg-inset);cursor:default}
+.u-buy.prisms{border-color:var(--violet);color:var(--violet)}
+
+/* --- EXPEDITIONS --- */
+.exp-list{display:flex;flex-direction:column;gap:8px}
+.exp-row{
+  display:grid;grid-template-columns:44px 1fr auto;gap:9px;align-items:center;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:8px;
+}
+.exp-art{width:44px;height:44px;border-radius:8px;background:radial-gradient(circle at 40% 30%,rgba(255,79,216,.3),transparent 60%),var(--bg-inset);border:1px solid var(--magenta);display:flex;align-items:center;justify-content:center;font-size:16px}
+.exp-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.exp-name{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exp-loc{font-size:9px;color:var(--text-dim)}
+.exp-team{display:flex;gap:3px;font-size:11px}
+.exp-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.exp-timer{font-family:var(--font-mono);font-size:12px;font-weight:800;color:var(--cyan)}
+.exp-success{font-size:9px;color:var(--green);font-family:var(--font-mono)}
+.btn-small{
+  border:1px solid var(--cyan);background:transparent;color:var(--cyan);border-radius:6px;
+  padding:4px 12px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;cursor:pointer;
+}
+.exp-add{
+  display:flex;justify-content:space-between;align-items:center;
+  border:1px dashed var(--border-glow);border-radius:var(--radius-sm);padding:9px 12px;
+  font-size:11px;color:var(--text-dim);cursor:pointer;
+}
+.exp-add .cost{color:var(--violet);font-family:var(--font-mono);font-weight:800}
+
+/* --- QUICK ACCESS --- */
+.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.qa-btn{
+  position:relative;aspect-ratio:1/0.95;border-radius:var(--radius-sm);cursor:pointer;
+  background:var(--bg-row);border:1px solid var(--border-soft);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  transition:border-color .15s;
+}
+.qa-btn:hover{border-color:var(--border-glow)}
+.qa-btn .ico{font-size:22px}
+.qa-btn .lbl{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.qa-btn .notif{
+  position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;
+  border-radius:99px;background:var(--red);color:#fff;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-page);
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer{
+  display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:8px 14px;font-size:10px;color:var(--text-dim);
+}
+.footer .grp{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.footer .center{justify-content:center;display:flex;gap:14px;align-items:center}
+.badge{border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-family:var(--font-mono);color:var(--text-dim)}
+.footer b{color:var(--text);font-family:var(--font-mono)}
+.footer .on{color:var(--green);font-weight:700}
+.footer .link{color:var(--text);cursor:pointer}
+.help-circle{
+  width:22px;height:22px;border-radius:50%;background:var(--cyan);color:#04202b;
+  display:flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer;
+}
+
+/* Håll-mätare + spel-UI-lägen */
+.hold-hint{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
+.hold-hint.full{color:var(--gold)}
+.machine-row.cant{opacity:.55}
+.m-cost{cursor:pointer}
+
+.hold-meter{width:230px;height:10px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border);overflow:hidden}
+.hold-meter-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--magenta));border-radius:99px}
+.hold-meter.full .hold-meter-fill{background:var(--gold)}
+.tap-btn{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:5px;vertical-align:middle}
+.m-cost.cant{color:var(--text-faint)}
+.u-buy.cant{opacity:.45;cursor:default}
+.shelf-empty{font-size:10px;color:var(--text-faint);padding:10px;text-align:center;border:1px dashed var(--border-soft);border-radius:8px}
+.level-up{
+  position:absolute;left:50%;z-index:6;   /* fästet sätts i koden: strax under regionnamnet */
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-family:var(--font-mono);font-weight:900;
+  color:var(--gold);text-shadow:0 0 18px rgba(255,197,66,.9);
+  pointer-events:none;text-align:center;
+  animation:levelUp 3.4s ease-out forwards;
+}
+.level-up .ding{font-size:15px;letter-spacing:.3em;color:#ffe9b0}
+.level-up .lvl{font-size:32px;letter-spacing:.08em}
+@keyframes levelUp{
+  0%   {transform:translate(-50%,10px) scale(.4);opacity:0}
+  10%  {transform:translate(-50%,0) scale(1.3);opacity:1}
+  16%  {transform:translate(-50%,0) scale(1.15)}
+  80%  {transform:translate(-50%,-4px) scale(1.15);opacity:1}
+  100% {transform:translate(-50%,-12px) scale(1.1);opacity:0}
+}
+/* Ljuspelaren: skjuter snabbt upp ur kärnans mitt, kraftig vid peak, tonar direkt */
+.level-pillar{
+  position:absolute;left:50%;bottom:45%;z-index:5;
+  width:56px;height:52%;
+  transform:translateX(-50%) scaleY(0);transform-origin:bottom center;
+  background:linear-gradient(180deg,
+    rgba(255,245,200,.1) 0%,
+    rgba(255,214,100,.55) 35%,
+    rgba(255,236,170,.9) 80%,
+    rgba(255,252,230,1) 100%);
+  box-shadow:0 0 34px rgba(255,205,90,.8);
+  filter:blur(4px);border-radius:40px;
+  pointer-events:none;
+  animation:pillarRise 1.3s ease-out forwards;
+}
+@keyframes pillarRise{
+  0%   {transform:translateX(-50%) scaleY(0);opacity:.6}
+  22%  {transform:translateX(-50%) scaleY(1);opacity:1}
+  45%  {transform:translateX(-50%) scaleY(1.02);opacity:1}
+  100% {transform:translateX(-50%) scaleY(1.06);opacity:0}
+}
+/* Basblixten: en snabb ljusring vid kärnan när pelaren tänds */
+.pillar-burst{
+  position:absolute;left:50%;top:45%;z-index:5;
+  width:120px;height:120px;border-radius:50%;
+  transform:translate(-50%,-50%) scale(.2);
+  background:radial-gradient(circle, rgba(255,250,220,.95) 0%, rgba(255,205,90,.5) 45%, transparent 70%);
+  pointer-events:none;
+  animation:burstOut .55s ease-out forwards;
+}
+@keyframes burstOut{
+  0%{transform:translate(-50%,-50%) scale(.2);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1.8);opacity:0}
+}
+/* Gnistorna: virvlar uppåt runt pelaren och tonar vid toppen */
+.pillar-spark{
+  position:absolute;left:50%;top:45%;z-index:5;
+  width:5px;height:16px;border-radius:99px;
+  background:linear-gradient(180deg,#fff7d8,#ffc542);
+  box-shadow:0 0 8px rgba(255,197,66,.9);
+  pointer-events:none;opacity:0;
+}
+.pillar-spark.a{animation:swirlA 1.15s ease-out forwards}
+.pillar-spark.b{animation:swirlB 1.15s ease-out forwards}
+@keyframes swirlA{
+  0%  {transform:translate(-50%,0) rotate(8deg);opacity:0}
+  12% {opacity:1}
+  35% {transform:translate(calc(-50% + 26px),-70px) rotate(14deg)}
+  65% {transform:translate(calc(-50% - 20px),-150px) rotate(-10deg)}
+  100%{transform:translate(calc(-50% + 10px),-230px) rotate(6deg);opacity:0}
+}
+@keyframes swirlB{
+  0%  {transform:translate(-50%,0) rotate(-8deg);opacity:0}
+  12% {opacity:1}
+  35% {transform:translate(calc(-50% - 26px),-70px) rotate(-14deg)}
+  65% {transform:translate(calc(-50% + 20px),-150px) rotate(10deg)}
+  100%{transform:translate(calc(-50% - 10px),-230px) rotate(-6deg);opacity:0}
+}
+
+/* ============================================================
+   LÅST STANDARDLAYOUT (spelarens möblering 2026-08-07)
+   Målet: hela spelet synligt utan att scrolla sidan på dator.
+   Rutor med fast höjd rullar sitt innehåll inuti.
+   Layoutredigeringen kan fortfarande skriva över detta lokalt.
+   ============================================================ */
+@media (min-width:821px){
+  #panel-data-res, #panel-currency, #panel-nav{height:80px;overflow-y:auto;overflow-x:hidden}
+  #panel-character{height:392px;overflow:hidden;padding-bottom:8px}
+  #panel-pet-team{height:238px;overflow-y:auto;overflow-x:hidden}
+  #panel-current-region, #panel-active-buffs{height:275px;overflow-y:auto;overflow-x:hidden}
+  #panel-home-server{height:397px;min-height:0}
+  #panel-network-map{height:516px;overflow-y:auto;overflow-x:hidden}
+  #panel-production{height:396px;overflow-y:auto;overflow-x:hidden}
+  #panel-production .tab-pane{height:auto;min-height:0}
+  #panel-expeditions{height:242px;overflow-y:auto;overflow-x:hidden}
+  #panel-expeditions .tab-pane{height:auto;min-height:0}
+  #panel-quick-access{height:264px;overflow-y:auto;overflow-x:hidden}
+}
+
+/* Rullningslister i spelets färger — aldrig mer vit systemlist */
+*{scrollbar-width:thin;scrollbar-color:#26356b var(--bg-inset)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:var(--bg-inset);border-radius:99px}
+::-webkit-scrollbar-thumb{background:#26356b;border-radius:99px;border:2px solid var(--bg-inset)}
+::-webkit-scrollbar-thumb:hover{background:#3a55a8}
+::-webkit-scrollbar-corner{background:transparent}
+
+/* Layoutredigering: dra rutor, ändra höjd, låses sen i koden */
+body.layout-edit .panel{outline:1.5px dashed var(--cyan);position:relative}
+/* En ruta med egen vald storlek: innehållet rullar inuti i stället för att spärra krympning */
+.panel.sized{overflow-y:auto;overflow-x:hidden}
+.panel.sized .tab-pane{height:auto;min-height:0}
+body.layout-edit .panel.dragging{opacity:.4}
+.drag-handle{
+  position:absolute;top:6px;right:6px;z-index:20;
+  width:26px;height:26px;border-radius:6px;cursor:grab;
+  background:var(--bg-inset);border:1px solid var(--cyan);color:var(--cyan);
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+}
+.resize-grip{
+  position:absolute;bottom:3px;left:50%;transform:translateX(-50%);z-index:20;
+  width:52px;height:9px;border-radius:99px;cursor:ns-resize;
+  background:var(--border-glow);border:1px solid var(--cyan);
+}
+.col.drop-hint{outline:2px solid var(--magenta);outline-offset:4px;border-radius:var(--radius)}
+.layout-code{
+  font-family:var(--font-mono);font-size:9px;color:var(--cyan);
+  background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;
+  padding:8px;margin-top:8px;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto;
+  user-select:text;-webkit-user-select:text;
+}
+
+/* Nivåprickar för premiumstegen */
+.pips{display:flex;gap:5px;margin-top:5px}
+.pip{width:9px;height:9px;border-radius:50%;background:var(--bg-inset);border:1px solid var(--border-glow)}
+.pip.lit{background:var(--violet);border-color:var(--violet);box-shadow:0 0 6px rgba(155,92,255,.7)}
+
+/* Ryktet på regionen */
+.zone-line{font-size:9px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin:-4px 0 6px}
+.zone-line span{color:var(--cyan);font-weight:700}
+.rep-block{display:flex;flex-direction:column;gap:7px;margin-top:2px}
+.rep-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
+.rep-stars{font-size:13px;color:var(--gold);letter-spacing:2px}
+.rep-bar{height:8px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border-soft);overflow:hidden}
+.rep-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--orange))}
+.rep-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)}
+.rep-meta .v{color:var(--green);font-family:var(--font-mono);font-weight:700}
+.bonus-title{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;margin-top:6px}
+.bonus-list{display:flex;flex-direction:column;gap:5px}
+.bonus-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700}
+.bonus-row span:last-child{color:var(--green);font-family:var(--font-mono);font-weight:800;font-size:14px}
+
+/* Parhållaren: två små riktiga rutor sida vid sida */
+.panel-pair{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+.panel-pair > .panel{display:flex;flex-direction:column;min-width:0}
+.panel-pair .btn-wide{margin-top:auto}
+.panel-pair .kv-list{margin-bottom:8px}
+.buff-scroll{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:5px}
+.exp-slots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.exp-slot{
+  height:60px;border:1px dashed var(--border-glow);border-radius:var(--radius-sm);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--text-faint);font-size:16px;cursor:pointer;
+}
+.exp-slot span{font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.exp-run{
+  border:1px solid var(--border-glow);border-radius:var(--radius-sm);
+  padding:8px 9px;display:flex;flex-direction:column;gap:6px;
+  background:var(--bg-row);
+}
+.exp-run.done{border-color:var(--green)}
+.er-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.er-name{font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.er-zone{font-size:8.5px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase}
+.er-bar{height:6px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border-soft);overflow:hidden}
+.er-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:99px}
+.exp-run.done .er-fill{background:var(--green)}
+.er-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim);font-family:var(--font-mono)}
+.er-claim{
+  border:1px solid var(--green);background:rgba(52,211,153,.12);color:var(--green);
+  border-radius:8px;padding:6px;font-size:10px;font-weight:800;cursor:pointer;
+  letter-spacing:.06em;font-family:var(--font-mono);
+}
+.exp-found-list{display:flex;flex-direction:column;gap:6px}
+.exp-found{
+  border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:7px 9px;background:var(--bg-row);
+}
+.ef-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:3px}
+.ef-name{font-size:10.5px;font-weight:800}
+.ef-status{font-size:8.5px;letter-spacing:.06em}
+.ef-status.running{color:var(--cyan)}
+.ef-status.here{color:var(--green)}
+.ef-status.away{color:var(--text-faint)}
+.ef-meta{display:flex;gap:10px;font-size:9px;color:var(--text-dim);font-family:var(--font-mono)}
+.zx-row{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:8px;
+  padding:7px 9px;margin-bottom:6px;
+}
+.zx-info{min-width:0}
+.zx-name{font-size:10.5px;font-weight:800}
+.zx-meta{font-size:8.5px;color:var(--text-dim);font-family:var(--font-mono)}
+.zx-btn{
+  border:1px solid var(--cyan);background:rgba(56,232,255,.1);color:var(--cyan);
+  border-radius:8px;padding:5px 12px;font-size:9px;font-weight:800;cursor:pointer;
+  letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+}
+.zx-btn.cant{opacity:.45;cursor:default;border-color:var(--border);color:var(--text-dim);background:var(--bg-inset)}
+.zx-btn.running{border-color:var(--violet);color:var(--violet);background:rgba(155,92,255,.1)}
+.active-buff{
+  display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:6px 8px;
+}
+.active-buff .ab-ico{width:26px;height:26px;border-radius:6px;background:var(--bg-inset);border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:12px}
+.active-buff .ab-name{font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.active-buff .ab-effect{font-size:8.5px;color:var(--text-dim)}
+.active-buff .ab-timer{font-size:10px;font-family:var(--font-mono);color:var(--cyan);font-weight:700}
+
+/* Inställningsmodalen */
+.modal-overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(3,4,10,.75);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  width:100%;max-width:420px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);border-radius:var(--radius);
+  padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-title{font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
+.modal-close{
+  width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
+  background:var(--bg-inset);color:var(--text-dim);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+}
+.settings-row{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:12px;
+}
+.settings-row:last-child{border-bottom:none}
+.settings-row .desc{font-size:10px;color:var(--text-dim);margin-top:2px}
+.btn-danger{
+  border:1px solid var(--red);background:linear-gradient(180deg,rgba(255,77,109,.15),transparent);
+  color:var(--red);border-radius:8px;padding:8px 14px;cursor:pointer;
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;
+  box-shadow:0 3px 0 rgba(120,20,40,.5);transition:transform .05s, box-shadow .05s;
+}
+.btn-danger:active{transform:translateY(3px);box-shadow:0 0 0 rgba(120,20,40,.5)}
+.reset-confirm{display:none;text-align:center;padding:8px 0}
+.reset-confirm.open{display:block}
+.reset-confirm p{font-size:12px;margin-bottom:12px;line-height:1.5}
+.reset-confirm .warn{color:var(--red);font-weight:800}
+.confirm-btns{display:flex;gap:10px;justify-content:center}
+.btn-neutral{
+  border:1px solid var(--border-glow);background:var(--bg-inset);color:var(--text);
+  border-radius:8px;padding:8px 18px;cursor:pointer;
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+}
+
+/* ============================================================
+   RESPONSIVT
+   ============================================================ */
+@media (max-width:1280px){
+  .layout{grid-template-columns:1fr 1fr}
+  .col-mid{grid-column:1 / -1;order:-1}
+}
+@media (max-width:820px){
+  #panel-production .tab-pane{height:auto;min-height:480px}
+  .layout{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="topbar col col-top">
+
+    <!-- Spelarkortet -->
+    <div class="panel hpanel" id="panel-player">
+      <div class="avatar">🥷<span class="lvl-badge" id="lvl-badge">1</span></div>
+      <div class="player-info">
+        <div class="player-name">WHIPPEN RUNNER</div>
+        <div class="player-sub" id="player-level-text">Runner Level 1</div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+        <div class="xp-label" id="xp-label">0 / 100 XP</div>
+      </div>
+    </div>
+
+    <!-- Data hör ihop med Data/sec -->
+    <div class="panel hpanel" id="panel-data-res">
+      <div class="res-pill" data-color="cyan"><span class="res-icon">💠</span><span class="res-body"><span class="res-value" id="res-data">0</span><span class="res-label">Data</span></span></div>
+      <div class="res-pill" data-color="cyan"><span class="res-icon">⚡</span><span class="res-body"><span class="res-value" id="res-dps">0/s</span><span class="res-label">Data / Sec</span></span></div>
+    </div>
+
+    <!-- Valutorna hör ihop -->
+    <div class="panel hpanel" id="panel-currency">
+      <div class="res-pill" data-color="gold"><span class="res-icon">🪙</span><span class="res-body"><span class="res-value">0</span><span class="res-label">Gold</span></span></div>
+      <div class="res-pill" data-color="blue"><span class="res-icon">💳</span><span class="res-body"><span class="res-value" id="res-credits">0</span><span class="res-label">Credits</span></span></div>
+      <div class="res-pill" data-color="purple"><span class="res-icon">🔷</span><span class="res-body"><span class="res-value" id="res-fragments">0</span><span class="res-label">Fragments</span></span></div>
+    </div>
+
+    <!-- Navigeringen -->
+    <div class="panel hpanel" id="panel-nav">
+      <div class="nav-btn"><span class="ico">📩</span><span class="lbl">Inbox</span></div>
+      <div class="nav-btn"><span class="ico">🏆</span><span class="lbl">Achievements</span></div>
+      <div class="nav-btn"><span class="ico">🌟</span><span class="lbl">Events<small>2d 14h</small></span></div>
+      <div class="nav-btn glow-gold"><span class="ico">🎁</span><span class="lbl">Daily Rewards</span></div>
+      <div class="nav-btn"><span class="ico">🛒</span><span class="lbl">Shop</span></div>
+      <div class="nav-btn"><span class="ico">🔨</span><span class="lbl">Auction House</span></div>
+      <div class="nav-btn" id="nav-settings"><span class="ico">⚙️</span><span class="lbl">Settings</span></div>
+    </div>
+  </header>
+
+  <!-- ================= HUVUDLAYOUT: 3 KOLUMNER ================= -->
+  <main class="layout">
+
+    <!-- ============ VÄNSTER KOLUMN ============ -->
+    <div class="col col-left">
+
+      <!-- CHARACTER -->
+      <section class="panel" id="panel-character">
+        <div class="panel-title">Character</div>
+        <div class="char-layout">
+          <div class="equip-col">
+            <div class="equip-slot" title="Head">🧢</div>
+            <div class="equip-slot" title="Neck">📿</div>
+            <div class="equip-slot" title="Chest">🎽</div>
+            <div class="equip-slot" title="Legs">👖</div>
+            <div class="equip-slot" title="Feet">👟</div>
+          </div>
+          <div class="char-portrait">🥷
+            <button class="btn-ghost char-stats-btn" id="view-stats-btn">View Stats</button>
+          </div>
+          <div class="equip-col">
+            <div class="equip-slot" title="Gloves">🧤</div>
+            <div class="equip-slot" title="Waist">🪢</div>
+            <div class="equip-slot" title="Ring">💍</div>
+            <div class="equip-slot" title="Weapon">🗡️</div>
+            <div class="equip-slot" title="Focus">🔮</div>
+          </div>
+        </div>
+        <div class="vehicle-row">
+          <div class="equip-slot vehicle-slot" title="Vehicle">🛞</div>
+        </div>
+      </section>
+
+      <!-- ACTIVE PET TEAM -->
+      <section class="panel" id="panel-pet-team">
+        <div class="panel-title">Active Pet Team <span class="sub">0/3</span></div>
+        <div class="echo-grid">
+          <div class="echo-slot empty">＋</div>
+          <div class="echo-slot locked">🔒</div>
+          <div class="echo-slot locked">🔒</div>
+        </div>
+        <div class="section-label">Active Pet Buffs</div>
+        <div class="shelf-empty">No active pets</div>
+      </section>
+
+      <!-- CURRENT REGION + ACTIVE BUFFS: två små rutor sida vid sida -->
+      <div class="panel-pair" id="pair-region-buffs">
+        <section class="panel" id="panel-current-region">
+          <div class="panel-title">Region Reputation</div>
+          <div class="server-thumb" id="region-thumb">NEON HUB</div>
+          <div class="zone-line">📍 <span id="current-zone">No zone entered</span></div>
+          <div class="rep-block">
+            <div class="rep-head"><span>Reputation</span><span class="rep-stars" id="rep-stars">☆☆☆☆☆</span></div>
+            <div class="rep-bar"><div class="rep-fill" id="rep-fill"></div></div>
+            <div class="rep-meta"><span id="rep-next">Next rank in —</span></div>
+            <div class="bonus-title">Region Bonus</div>
+            <div class="bonus-list">
+              <div class="bonus-row"><span>Production</span><span id="rep-bonus">+0%</span></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel" id="panel-active-buffs">
+          <div class="panel-title">Active Buffs</div>
+          <div class="buff-scroll" id="active-buffs">
+            <div class="shelf-empty">No active buffs</div>
+          </div>
+        </section>
+      </div>
+
+
+    </div>
+
+    <!-- ============ MITTKOLUMN ============ -->
+    <div class="col col-mid">
+
+      <!-- HERO / HOME SERVER + TAP CORE -->
+      <section class="panel hero" id="panel-home-server">
+        <div class="hero-head">
+          <h1 class="hero-title" id="hero-title">NEON HUB</h1>
+        </div>
+
+        <!-- Placeholder-yta: byt mot canvas/animation i spelet -->
+        <div class="core-stage" id="core-stage">
+          <div class="core-wrap core-alive" id="core-wrap">
+            <div class="core-hex" id="core-hex">
+              <svg viewBox="0 0 200 200" width="212" height="212" class="core-svg">
+                <defs>
+                  <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#e0f7ff" stop-opacity="0.8"/>
+                    <stop offset="55%" stop-color="#22d3ee" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+                  </radialGradient>
+                  <linearGradient id="facetA" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#a855f7" stop-opacity="0.35"/>
+                  </linearGradient>
+                  <linearGradient id="facetB" x1="1" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#312e81" stop-opacity="0.5"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="100" cy="100" r="95" fill="url(#coreGlow)"/>
+                <g class="core-ring-slow">
+                  <polygon points="100,18 171,59 171,141 100,182 29,141 29,59" fill="none" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="6 10" opacity="0.7"/>
+                </g>
+                <g class="core-ring-rev">
+                  <polygon points="100,34 158,67 158,133 100,166 42,133 42,67" fill="none" stroke="#a855f7" stroke-width="1.6" stroke-dasharray="3 7" opacity="0.75"/>
+                </g>
+                <polygon points="100,44 150,72 150,128 100,156 50,128 50,72" fill="url(#facetB)" stroke="#22d3ee" stroke-width="1.5"/>
+                <polygon points="100,44 150,72 100,100 50,72" fill="url(#facetA)" opacity="0.9"/>
+                <polygon points="50,72 100,100 100,156 50,128" fill="#22d3ee" opacity="0.2"/>
+                <polygon points="150,72 150,128 100,156 100,100" fill="#a855f7" opacity="0.22"/>
+                <g id="core-spark">
+                  <circle cx="100" cy="100" r="16" fill="#e0f7ff" opacity="0.9"/>
+                  <circle cx="100" cy="100" r="26" fill="none" stroke="#e0f7ff" stroke-width="1.5" opacity="0.55"/>
+                </g>
+                <circle cx="100" cy="100" r="34" fill="none" stroke="#fbbf24" stroke-width="0.8" opacity="0.4" stroke-dasharray="2 6"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="tap-block">
+          <div class="hold-hint" id="hold-hint">HOLD CORE TO COLLECT DATA</div>
+          <div class="hold-meter" id="hold-meter"><div class="hold-meter-fill" id="hold-meter-fill"></div></div>
+          <div class="tap-meta"><span>CRIT ×5 · <b id="crit-now">5%</b></span><span>RATE <b id="rate-now">4.0/s</b></span><span>BONUS <b id="mult-now">×1.00</b></span></div>
+        </div>
+      </section>
+
+      <!-- NEDRE MITTRAD: KARTAN + RESANDET (hör ihop) -->
+      <section class="panel" id="panel-network-map">
+        <div class="panel-title">Network Map <span class="sub" id="map-hint">Drag to pan · scroll or ± to zoom · click a region</span></div>
+        <div class="map-area" id="map-area" style="height:340px">
+          <div class="map-world" id="map-world">
+            <svg class="map-lines" id="map-lines" width="100%" height="100%"></svg>
+            <div id="map-nodes"></div>
+          </div>
+          <div class="map-tip" id="map-tip"></div>
+          <div class="map-zoom">
+            <button class="map-zoom-btn" id="map-mode" title="World / Region">🌐</button>
+            <button class="map-zoom-btn" id="map-zoom-in">＋</button>
+            <button class="map-zoom-btn" id="map-zoom-out">－</button>
+          </div>
+        </div>
+        <div class="map-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--cyan)"></span>Current</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Visited</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--violet)"></span>Discovered</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Corrupted</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--text-faint)"></span>Unknown</div>
+        </div>
+        <div class="travel-bar" id="panel-travel">
+          <span class="travel-label">Travel to</span>
+          <select class="select travel-select" id="travel-select"></select>
+          <span class="travel-kv" id="travel-cost">—</span>
+          <span class="travel-kv" id="travel-time">—</span>
+          <button class="btn-primary travel-go" id="travel-go">🚀 Initiate Travel</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ HÖGER KOLUMN ============ -->
+    <div class="col col-right">
+
+      <!-- MACHINES / UPGRADES / PREMIUM (flikram) -->
+      <section class="panel" id="panel-production">
+        <div class="tabs three" id="production-tabs">
+          <div class="tab active" data-pane="pane-machines">Machines</div>
+          <div class="tab" data-pane="pane-upgrades">Upgrades</div>
+          <div class="tab" data-pane="pane-premium">Premium</div>
+        </div>
+
+        <!-- FLIK 1: MACHINES -->
+        <div class="tab-pane" id="pane-machines">
+          <div class="machines-controls" style="justify-content:flex-end;display:flex;margin-bottom:8px">Buy amount
+            <span class="chip active" data-amount="1">1</span><span class="chip" data-amount="10">10</span><span class="chip" data-amount="max">MAX</span>
+          </div>
+          <div class="machine-list" id="machine-list"></div>
+        </div>
+
+        <!-- FLIK 2: UPGRADES -->
+        <div class="tab-pane" id="pane-upgrades" style="display:none">
+          <div class="section-label">Available Upgrades</div>
+          <div class="upgrade-list" id="milestone-shelf"></div>
+          <div class="section-label" style="margin-top:12px">Core Upgrades</div>
+          <div class="upgrade-list" id="core-upgrades"></div>
+        </div>
+
+        <!-- FLIK 3: PREMIUM -->
+        <div class="tab-pane" id="pane-premium" style="display:none">
+          <div class="section-label">Offline Cap</div>
+          <div class="kv" style="margin-bottom:8px"><span class="k">Current offline cap</span><span class="v" id="prem-cap" style="color:var(--cyan)">6h</span></div>
+          <div class="upgrade-list" id="premium-offline"></div>
+          <div class="shelf-empty" style="margin-top:12px">More premium upgrades will arrive with pets and missions.</div>
+        </div>
+      </section>
+
+      <!-- EXPEDITIONS -->
+      <section class="panel" id="panel-expeditions">
+        <div class="tabs" id="expedition-tabs">
+          <div class="tab active" data-pane="pane-exp-active">Active <span class="sub" style="text-transform:none">0/2</span></div>
+          <div class="tab" data-pane="pane-exp-discovered">Discovered</div>
+        </div>
+        <div class="tab-pane" id="pane-exp-active">
+          <div class="exp-slots" id="exp-active-list"></div>
+        </div>
+        <div class="tab-pane" id="pane-exp-discovered" style="display:none">
+          <div class="exp-found-list" id="exp-found-list"></div>
+        </div>
+      </section>
+
+      <!-- QUICK ACCESS -->
+      <section class="panel" id="panel-quick-access">
+        <div class="panel-title">Quick Access</div>
+        <div class="qa-grid">
+          <div class="qa-btn"><span class="ico">🎒</span><span class="lbl">Inventory</span></div>
+          <div class="qa-btn"><span class="ico">🐾</span><span class="lbl">Pets</span></div>
+          <div class="qa-btn"><span class="ico">⚒️</span><span class="lbl">Forge</span></div>
+          <div class="qa-btn"><span class="ico">🪓</span><span class="lbl">Missions</span></div>
+          <div class="qa-btn"><span class="ico">🔨</span><span class="lbl">Auction House</span></div>
+          <div class="qa-btn"><span class="ico">✉️</span><span class="lbl">Mail</span></div>
+          <div class="qa-btn"><span class="ico">🛡️</span><span class="lbl">Guild</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================= STATS-POPUP ================= -->
+  <div class="stats-popup" id="stats-popup">
+    <div class="sp-title">All Stats</div>
+    <div class="key-stats">
+      <div class="key-stat"><span class="k">Power</span><span class="v">12.74K</span></div>
+      <div class="key-stat"><span class="k">Health</span><span class="v">18.6K</span></div>
+      <div class="key-stat"><span class="k">Crit Chance</span><span class="v">38.6%</span></div>
+      <div class="key-stat"><span class="k">Crit Mult</span><span class="v">4.12x</span></div>
+    </div>
+    <div class="sp-note">More stats will appear here as gear, pets and abilities arrive.</div>
+  </div>
+
+  <!-- ================= VÄLKOMMEN TILLBAKA ================= -->
+  <div class="modal-overlay" id="offline-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">Welcome Back</span>
+        <button class="modal-close" id="offline-close">✕</button>
+      </div>
+      <div style="text-align:center;padding:6px 4px 2px">
+        <div style="font-size:30px;margin-bottom:8px">🌙</div>
+        <div id="offline-text" style="font-size:11px;color:var(--text-dim);line-height:1.7"></div>
+        <div id="offline-gain" style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--cyan);margin:10px 0 4px"></div>
+        <button class="btn-primary" id="offline-collect" style="width:70%;margin:10px auto 4px;display:block">Collect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= REGION-MODAL ================= -->
+  <div class="modal-overlay" id="region-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title" id="region-title">Region</span>
+        <button class="modal-close" id="region-close">✕</button>
+      </div>
+      <div id="region-body"></div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS-MODAL ================= -->
+  <div class="modal-overlay" id="settings-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">Settings</span>
+        <button class="modal-close" id="settings-close">✕</button>
+      </div>
+
+      <div id="settings-main">
+        <div class="settings-row">
+          <div>
+            <div>Reset Game</div>
+            <div class="desc">Wipes all progress and starts over from the beginning.</div>
+          </div>
+          <button class="btn-danger" id="reset-step0">Reset</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div>Core Sounds</div>
+            <div class="desc">The melody the core plays while you hold.</div>
+          </div>
+          <button class="btn-neutral" id="snd-sfx">On</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div>Music</div>
+            <div class="desc">The generative background track. Starts on your first hold.</div>
+          </div>
+          <button class="btn-neutral" id="snd-music">On</button>
+        </div>
+        <div class="settings-row">
+          <div style="flex:1">
+            <div>Core Volume</div>
+            <input type="range" id="vol-sfx" min="0" max="100" value="70" style="width:100%;accent-color:var(--cyan)">
+          </div>
+        </div>
+        <div class="settings-row">
+          <div style="flex:1">
+            <div>Music Volume</div>
+            <input type="range" id="vol-music" min="0" max="100" value="35" style="width:100%;accent-color:var(--cyan)">
+          </div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div>Layout Edit Mode</div>
+            <div class="desc">Drag panels to move them, pull the bottom grip to resize. PC only.</div>
+          </div>
+          <button class="btn-neutral" id="layout-toggle">Off</button>
+        </div>
+        <div class="settings-row" id="layout-reset-row" style="display:none">
+          <div>
+            <div>Reset Layout</div>
+            <div class="desc">Back to the standard layout.</div>
+          </div>
+          <button class="btn-neutral" id="layout-reset">Reset</button>
+        </div>
+        <div class="settings-row" id="layout-code-row" style="display:none;flex-direction:column;align-items:stretch">
+          <div>Layout Code <span class="desc" style="display:inline">— screenshot this and send it to lock the layout</span></div>
+          <div class="layout-code" id="layout-code"></div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div>Version</div>
+            <div class="desc">GENESIS v0.14.0 — EXPEDITIONERNA</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reset-confirm" id="reset-step1">
+        <p>Do you really want to reset this game?</p>
+        <div class="confirm-btns">
+          <button class="btn-neutral" id="reset-cancel-1">Cancel</button>
+          <button class="btn-danger" id="reset-yes-1">Yes, reset</button>
+        </div>
+      </div>
+
+      <div class="reset-confirm" id="reset-step2">
+        <p><span class="warn">Are you sure?</span><br>This action will restore your game from the very beginning. Everything you have built will be gone. There is no way back.</p>
+        <div class="confirm-btns">
+          <button class="btn-neutral" id="reset-cancel-2">Cancel</button>
+          <button class="btn-danger" id="reset-yes-2">Reset everything</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="footer">
+    <div class="grp">
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.14.0 — EXPEDITIONERNA</span>
+    </div>
+    <div class="center">
+      <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
+      <span>NEXT SAVE IN <b id="next-save">0:10</b></span>
+    </div>
+    <div class="grp">
+      <span class="link" id="footer-settings">Settings</span>
+      <span>Sound <span class="on">ON</span></span>
+      <span>Music <span class="on">ON</span></span>
+      <span class="link">Help</span>
+      <span class="link">Open Guide</span>
+      <span class="help-circle">?</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   GENESIS SPELMOTOR v0.2.0 — idle-kärnan
+   - Håll-mekanik: håll kärnan, 4 ticks/s bas, mätare 30s,
+     stigande bonus & crit längs mätaren, STOPP vid full
+     (släpp + tryck igen för att börja om) = anti-AFK.
+   - 10 byggnader, köp 1/10/MAX, kostnad ×1.15 per ägd.
+   - Kärnuppgraderingar: Tap Power, Hold Rate (+5%/nivå, tak 100),
+     Network Efficiency (+5% produktion/nivå).
+   - Milstolpehyllan: vid 10/25/50/100/200/400 ägda av en byggnad
+     dyker ett engångsköp upp som dubblar dess produktion.
+   - Autosparning var 10:e sekund (skyddad — fungerar i vanlig
+     webbläsare; sväljs tyst om lagring saknas).
+   ÖRONMÄRKT FÖR SERVERFLYTT SENARE: save/load-funktionerna.
+   ============================================================ */
+(() => {
+'use strict';
+
+/* ---------- BALANS ---------- */
+const BUILDINGS = [
+  {id:'scrap',   name:'Scrap Bots',      ico:'🤖', cost:15,     prod:0.1},
+  {id:'bees',    name:'Pixel Bees',      ico:'🐝', cost:100,    prod:1},
+  {id:'harv',    name:'Field Harvesters',ico:'🚜', cost:1100,   prod:8},
+  {id:'drone',   name:'Data Drones',     ico:'🛸', cost:12000,  prod:47},
+  {id:'magnet',  name:'Magnet Towers',   ico:'🧲', cost:130000, prod:260},
+  {id:'miner',   name:'Bit Miners',      ico:'⛏️', cost:1.4e6,  prod:1400},
+  {id:'coil',    name:'Storm Coils',     ico:'⚡', cost:2.0e7,  prod:7800},
+  {id:'beam',    name:'Tractor Beams',   ico:'🛰️', cost:3.3e8,  prod:44000},
+  {id:'rift',    name:'Rift Gates',      ico:'🌀', cost:5.1e9,  prod:260000},
+  {id:'reactor', name:'Genesis Reactor', ico:'🌌', cost:7.5e10, prod:1.6e6},
+];
+const GROWTH = 1.15;
+const MILESTEPS = [10,25,50,100,200,400];
+const HOLD = {baseRate:4, duration:30, critBase:0.05, critMax:0.25, critMult:5, incomeMaxMult:2};
+const UPGRADES = [
+  {id:'tapPower', name:'Tap Power', ico:'👆', max:50,
+   desc:'Increases Data per collect tick.',
+   cost:l => 100 * Math.pow(4, l),
+   effect:l => '+' + fmt(tapGain(l)) + ' → +' + fmt(tapGain(l+1)) + ' per tick'},
+  {id:'holdRate', name:'Hold Rate', ico:'✊', max:100,
+   desc:'Increases collect ticks per second while holding. (+5% per level)',
+   cost:l => 500 * Math.pow(1.6, l),
+   effect:l => (HOLD.baseRate*(1+0.05*l)).toFixed(1) + '/s → ' + (HOLD.baseRate*(1+0.05*(l+1))).toFixed(1) + '/s'},
+  {id:'network', name:'Network Efficiency', ico:'🌐', max:40,
+   desc:'Increases all building production. (+5% per level)',
+   cost:l => 2000 * Math.pow(2.2, l),
+   effect:l => '+' + (5*l) + '% → +' + (5*(l+1)) + '%'},
+  {id:'offlinePct', name:'Offline Efficiency', ico:'🌙', max:5,
+   desc:'Increases offline production rate. (50% base, +10% per level)',
+   cost:l => [25e3, 75e3, 375e3, 3.75e6, 75e6][l],
+   effect:l => (50 + 10*l) + '% → ' + (50 + 10*(l+1)) + '%'},
+];
+function tapGain(lvl){ return 1 + lvl; }
+
+/* ---------- STATE ---------- */
+const SAVE_KEY = 'genesis-save-v1';
+let S = {
+  data: 0, totalData: 0, ticks: 0, xp: 0,
+  rep: {neonhub: 0},    // sekunder av närvaro per region-id
+  world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zone: null, travel: null},
+  own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
+  premium: {offlineHours: 0},   // 0-4 -> 6/12/16/20/24h offlinetak
+  snd: {sfx: true, music: true, sv: 0.7, mv: 0.35},
+  frags: 0,
+  exp: {found: [], runs: []},   // upptäckta expeditions-id + aktiva körningar (max 2)
+  credits: 0,
+  mil: {},              // "buildId:step" -> true
+  savedAt: 0
+};
+BUILDINGS.forEach(b => S.own[b.id] = 0);
+
+function save(){
+  S.savedAt = Date.now();
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); lastSaveShown = Date.now(); }
+  catch(e){ /* lagring otillgänglig — spela vidare utan */ }
+}
+function load(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d && typeof d === 'object'){
+      S.data = +d.data || 0; S.totalData = +d.totalData || 0; S.ticks = +d.ticks || 0; S.xp = +d.xp || 0;
+      if (d.rep && typeof d.rep === 'object'){
+        for (const k of Object.keys(d.rep)){ const v = +d.rep[k]; if (isFinite(v) && v >= 0) S.rep[k] = v; }
+      }
+      if (d.world && typeof d.world === 'object'){
+        if (typeof d.world.current === 'string') S.world.current = d.world.current;
+        if (typeof d.world.zone === 'string') S.world.zone = d.world.zone;
+        if (Array.isArray(d.world.known)) S.world.known = d.world.known.filter(x => typeof x === 'string');
+        if (Array.isArray(d.world.visited)) S.world.visited = d.world.visited.filter(x => typeof x === 'string');
+        if (d.world.travel && typeof d.world.travel.to === 'string' && isFinite(+d.world.travel.eta)){
+          S.world.travel = {to: d.world.travel.to, eta: +d.world.travel.eta};
+        }
+      }
+      if (!S.world.known.includes('neonhub')) S.world.known.push('neonhub');
+      if (!S.world.visited.includes('neonhub')) S.world.visited.push('neonhub');
+      BUILDINGS.forEach(b => S.own[b.id] = Math.max(0, Math.floor(+((d.own||{})[b.id]) || 0)));
+      UPGRADES.forEach(u => S.up[u.id] = Math.min(u.max, Math.max(0, Math.floor(+((d.up||{})[u.id]) || 0))));
+      S.mil = (d.mil && typeof d.mil === 'object') ? d.mil : {};
+      S.savedAt = +d.savedAt || 0;
+      S.credits = Math.max(0, +d.credits || 0);
+      if (d.premium && typeof d.premium === 'object'){
+        S.premium.offlineHours = Math.min(4, Math.max(0, Math.floor(+d.premium.offlineHours) || 0));
+      }
+      S.frags = Math.max(0, +d.frags || 0);
+      if (d.exp && typeof d.exp === 'object'){
+        if (Array.isArray(d.exp.found)) S.exp.found = d.exp.found.filter(x => typeof x === 'string');
+        if (Array.isArray(d.exp.runs)){
+          S.exp.runs = d.exp.runs.filter(r => r && typeof r.id === 'string' && isFinite(+r.endsAt)).slice(0, 2)
+            .map(r => ({id: r.id, endsAt: +r.endsAt, data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0), frag: Math.max(0, +r.frag || 0)}));
+        }
+      }
+      if (d.snd && typeof d.snd === 'object'){
+        S.snd.sfx = d.snd.sfx !== false;
+        S.snd.music = d.snd.music !== false;
+        if (isFinite(+d.snd.sv)) S.snd.sv = Math.min(1, Math.max(0, +d.snd.sv));
+        if (isFinite(+d.snd.mv)) S.snd.mv = Math.min(1, Math.max(0, +d.snd.mv));
+      }
+    }
+  } catch(e){}
+}
+
+/* ---------- OFFLINEINKOMST ----------
+   Bas: 6h tak, 50% takt. Premium höjer taket (12/16/20/24h, Credits).
+   Kärnuppgradering höjer takten (+10%/nivå till 100%). Siffror justerbara. */
+const OFFLINE_HOURS = [6, 12, 16, 20, 24];
+function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 6; }
+function offlineRate(){ return 0.5 + 0.10 * S.up.offlinePct; }
+function computeOffline(){
+  if (!S.savedAt) return null;
+  const away = (Date.now() - S.savedAt) / 1000;
+  if (away < 120) return null; // korta hopp räknas inte
+  const capped = Math.min(away, offlineCapHours() * 3600);
+  const gain = totalDps() * capped * offlineRate();
+  if (gain <= 0) return null;
+  return {away, capped, gain};
+}
+
+/* ---------- HJÄLPARE ---------- */
+const SUFF = ['','K','M','B','T','Qa','Qi','Sx','Sp'];
+function fmt(n){
+  if (!isFinite(n)) return '∞';
+  if (n < 0) return '-' + fmt(-n);
+  if (n < 1000) return (n < 10 && n % 1 !== 0) ? n.toFixed(1) : Math.floor(n).toString();
+  let t = 0;
+  while (n >= 1000 && t < SUFF.length-1){ n /= 1000; t++; }
+  return (n >= 100 ? n.toFixed(0) : n.toFixed(2)) + SUFF[t];
+}
+/* ---------- XP ----------
+   Kumulativ kurva: att gå från nivå L till L+1 kostar round(100 * L^1.5) XP.
+   Källor: 1 XP per collect-tick, 2 XP per köpt byggnad, 20 XP per uppgradering
+   och milstolpe, 0.1 XP/s passivt medan sidan är synlig (aktiv närvaro).
+   Framtida källor (bokförda, ej byggda): uppdrag, kapslar. */
+function xpToNext(level){ return Math.round(100 * Math.pow(level, 1.5)); }
+function levelInfo(){
+  let lvl = 1, rem = S.xp;
+  while (rem >= xpToNext(lvl) && lvl < 999){ rem -= xpToNext(lvl); lvl++; }
+  return {lvl, into: rem, need: xpToNext(lvl)};
+}
+let lastLevel = 1;
+function grantXP(n){
+  S.xp += n;
+  if (S.world.travel){
+    travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
+    travelGo.textContent = '🛰 Traveling to ' + REGIONS[S.world.travel.to].name + '…';
+  } else if (travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
+    travelGo.textContent = '🚀 Initiate Travel';
+  }
+
+  el.resCredits.textContent = fmt(S.credits);
+  el.resFragments.textContent = fmt(S.frags);
+  refreshPremiumOffline();
+  renderExpPanel();
+
+  const rank = repRank();
+  el.repStars.textContent = '★'.repeat(rank) + '☆'.repeat(5 - rank);
+  if (rank >= 5){
+    el.repFill.style.width = '100%';
+    el.repNext.textContent = 'Max rank reached';
+  } else {
+    const prev = rank === 0 ? 0 : REP_THRESH[rank - 1];
+    const next = REP_THRESH[rank];
+    el.repFill.style.width = Math.min(100, ((S.rep.neonhub - prev) / (next - prev)) * 100) + '%';
+    el.repNext.textContent = 'Next rank in ' + fmtDur(next - S.rep.neonhub);
+  }
+  el.repBonus.textContent = '+' + (rank * 2) + '%';
+
+  const li = levelInfo();
+  if (li.lvl > lastLevel){
+    lastLevel = li.lvl;
+    levelUpFx(li.lvl);
+  }
+}
+function levelUpFx(lvl){
+  if (reduceMotion) return;
+  const burst = document.createElement('div');
+  burst.className = 'pillar-burst';
+  el.stage.appendChild(burst);
+  setTimeout(() => burst.remove(), 600);
+  const pillar = document.createElement('div');
+  pillar.className = 'level-pillar';
+  el.stage.appendChild(pillar);
+  setTimeout(() => pillar.remove(), 1350);
+  for (let i = 0; i < 12; i++){
+    const sp = document.createElement('div');
+    sp.className = 'pillar-spark ' + (i % 2 ? 'a' : 'b');
+    sp.style.marginLeft = (Math.random()*36 - 18) + 'px';
+    sp.style.animationDelay = (Math.random()*0.35) + 's';
+    sp.style.transformOrigin = 'bottom center';
+    el.stage.appendChild(sp);
+    setTimeout(() => sp.remove(), 1600);
+  }
+  const n = document.createElement('span');
+  n.className = 'level-up';
+  n.innerHTML = '<span class="ding">DING!</span><span class="lvl">LEVEL ' + lvl + '</span>';
+  const heroRect = el.heroTitle.closest('.hero').getBoundingClientRect();
+  const titleRect = el.heroTitle.getBoundingClientRect();
+  n.style.top = Math.max(8, titleRect.bottom - heroRect.top - 4) + 'px';
+  el.stage.appendChild(n);
+  setTimeout(() => n.remove(), 3400);
+}
+
+/* ---------- RYKTE ----------
+   Närvaro på regionen bygger rank 1-5. Trösklar (ackumulerad tid, justerbara):
+   1h, 6h, 24h, 72h, 168h. Varje rank ger +2% produktion på regionen. */
+const REP_THRESH = [3600, 21600, 86400, 259200, 604800];
+function repRank(regionId){
+  const t = S.rep[regionId || S.world.current] || 0;
+  let r = 0; for (const th of REP_THRESH){ if (t >= th) r++; } return r;
+}
+function repBonusMult(){ return 1 + 0.02 * repRank(); }
+function fmtDur(sec){
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  if (h >= 1) return h + 'h ' + m + 'm';
+  return m + 'm ' + (sec % 60) + 's';
+}
+
+function milMult(bid){
+  let m = 1;
+  MILESTEPS.forEach(st => { if (S.mil[bid + ':' + st]) m *= 2; });
+  return m;
+}
+function prodPerUnit(b){ return b.prod * milMult(b.id) * (1 + 0.05 * S.up.network); }
+function prodOf(b){ return prodPerUnit(b) * S.own[b.id]; }
+function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult(); }
+function costOfN(b, n){
+  const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
+  return c0 * (Math.pow(GROWTH, n) - 1) / (GROWTH - 1);
+}
+function maxAffordable(b){
+  const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
+  if (S.data < c0) return 0;
+  const n = Math.floor(Math.log(S.data * (GROWTH-1) / c0 + 1) / Math.log(GROWTH));
+  return Math.max(1, Math.min(n, 10000));
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const el = {
+  data: $('res-data'), dps: $('res-dps'),
+  hex: $('core-hex'), coreWrap: $('core-wrap'), coreSpark: $('core-spark'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
+  crit: $('crit-now'), rate: $('rate-now'), mult: $('mult-now'),
+  list: $('machine-list'), shelf: $('milestone-shelf'), core: $('core-upgrades'),
+  stage: $('core-stage'), saveStatus: $('save-status'), nextSave: $('next-save'),
+  lvlBadge: $('lvl-badge'), lvlText: $('player-level-text'), xpFill: $('xp-fill'), xpLabel: $('xp-label'),
+  repStars: $('rep-stars'), repFill: $('rep-fill'), repNext: $('rep-next'), repBonus: $('rep-bonus'),
+  heroTitle: $('hero-title'), regionThumb: $('region-thumb'),
+  resCredits: $('res-credits'), resFragments: $('res-fragments'),
+  currentZone: $('current-zone'),
+  upgTab: document.querySelector('[data-pane="pane-upgrades"]')
+};
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let buyAmount = 1;
+
+/* Bygg maskinraderna en gång, uppdatera siffrorna löpande */
+const rowRefs = {};
+function buildRows(){
+  el.list.innerHTML = '';
+  BUILDINGS.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'machine-row';
+    row.innerHTML =
+      '<div class="m-ico">' + b.ico + '</div>' +
+      '<div><div class="m-name">' + b.name + '</div><div class="m-sub"></div></div>' +
+      '<div class="m-rate"></div>' +
+      '<div class="m-cost"></div>';
+    el.list.appendChild(row);
+    rowRefs[b.id] = {
+      row,
+      sub: row.querySelector('.m-sub'),
+      rate: row.querySelector('.m-rate'),
+      cost: row.querySelector('.m-cost')
+    };
+    row.addEventListener('click', () => buyBuilding(b));
+  });
+}
+function xpPerBuilding(b){
+  // Billigaste byggnaden ger 2 XP, sen dubblas det per rang: 2,4,8,...,1024
+  const idx = BUILDINGS.indexOf(b);
+  return 2 * Math.pow(2, idx);
+}
+function buyBuilding(b){
+  let n = (buyAmount === 'max') ? maxAffordable(b) : buyAmount;
+  if (n < 1) return;
+  const c = costOfN(b, n);
+  if (S.data < c) return;
+  S.data -= c;
+  S.own[b.id] += n;
+  grantXP(xpPerBuilding(b) * n);
+  refreshShelf();
+  updateUI(true);
+}
+
+/* Kärnuppgraderingar */
+const upRefs = {};
+function buildCoreUpgrades(){
+  el.core.innerHTML = '';
+  refreshShelf();
+
+  UPGRADES.forEach(u => {
+    const row = document.createElement('div');
+    row.className = 'upgrade-row';
+    row.innerHTML =
+      '<div class="u-ico">' + u.ico + '</div>' +
+      '<div class="u-body">' +
+        '<div class="u-name">' + u.name + ' <span class="u-lvl"></span></div>' +
+        '<div class="u-desc">' + u.desc + '</div>' +
+        '<div class="u-effect"></div>' +
+      '</div>' +
+      '<div class="u-buy"></div>';
+    el.core.appendChild(row);
+    const buy = row.querySelector('.u-buy');
+    upRefs[u.id] = { lvl: row.querySelector('.u-lvl'), eff: row.querySelector('.u-effect'), buy };
+    buy.addEventListener('click', () => {
+      const lvl = S.up[u.id];
+      if (lvl >= u.max) return;
+      const c = u.cost(lvl);
+      if (S.data < c) return;
+      S.data -= c;
+      S.up[u.id] = lvl + 1;
+      grantXP(20);
+      updateUI(true);
+    });
+  });
+}
+
+/* Milstolpehyllan */
+function pendingMilestones(){
+  const out = [];
+  BUILDINGS.forEach(b => {
+    for (const st of MILESTEPS){
+      const key = b.id + ':' + st;
+      if (S.own[b.id] >= st && !S.mil[key]){
+        out.push({b, st, key, cost: b.cost * Math.pow(GROWTH, st) * 8});
+        break; // en i taget per byggnad
+      }
+    }
+  });
+  return out;
+}
+let shelfSig = null, shelfRefs = [];
+function refreshShelf(){
+  const items = pendingMilestones();
+  const sig = items.map(it => it.key).join('|');
+  if (sig !== shelfSig){
+    shelfSig = sig;
+    shelfRefs = [];
+    el.shelf.innerHTML = '';
+    if (!items.length){
+      el.shelf.innerHTML = '<div class="shelf-empty">Buy more machines to unlock upgrades</div>';
+    } else {
+      items.forEach(it => {
+        const row = document.createElement('div');
+        row.className = 'upgrade-row';
+        row.innerHTML =
+          '<div class="u-ico">' + it.b.ico + '</div>' +
+          '<div class="u-body">' +
+            '<div class="u-name">' + it.b.name + ' ×2</div>' +
+            '<div class="u-desc">You own ' + it.st + '. All ' + it.b.name + ' production doubled.</div>' +
+          '</div>' +
+          '<div class="u-buy">' + fmt(it.cost) + '</div>';
+        const buy = row.querySelector('.u-buy');
+        buy.addEventListener('click', () => {
+          if (S.data < it.cost) return;
+          S.data -= it.cost;
+          S.mil[it.key] = true;
+          grantXP(20);
+          refreshShelf();
+          updateUI(true);
+        });
+        el.shelf.appendChild(row);
+        shelfRefs.push({cost: it.cost, buy});
+      });
+    }
+  }
+  // Nedtoning när man inte har råd (uppdateras även utan ombyggnad)
+  shelfRefs.forEach(r => r.buy.classList.toggle('cant', S.data < r.cost));
+  // Prick på fliken när hyllan har varor
+  const old = el.upgTab.querySelector('.dot');
+  if (items.length && !old) el.upgTab.insertAdjacentHTML('beforeend','<span class="dot"></span>');
+  if (!items.length && old) old.remove();
+}
+
+/* ---------- HÅLL-MEKANIKEN ---------- */
+let holding = false, holdT = 0, tickAcc = 0, floatGate = 0;
+function holdRate(){ return HOLD.baseRate * (1 + 0.05 * S.up.holdRate); }
+function startHold(e){ if (editMode) return; e.preventDefault(); holding = true;
+  Sound.resume().then(ok => { if (ok && Sound.musicEnabled) Sound.startMusic(); });
+  Sound.play('tap', {holding: true});
+  el.coreWrap.classList.add('core-holding');
+  el.hex.classList.add('core-hit');
+  setTimeout(() => el.hex.classList.remove('core-hit'), 90);
+  el.coreSpark.classList.remove('core-spark-anim');
+  void el.coreSpark.getBBox && el.coreSpark.getBoundingClientRect();
+  el.coreSpark.classList.add('core-spark-anim'); holdT = 0; tickAcc = 0; el.meter.classList.remove('full'); }
+function fullNow(){ return holding && holdT >= HOLD.duration; }
+function stopHold(){
+  el.coreWrap.classList.remove('core-holding'); holding = false; }
+el.hex.addEventListener('pointerdown', startHold);
+window.addEventListener('pointerup', stopHold);
+el.hex.addEventListener('pointercancel', stopHold);
+el.hex.addEventListener('contextmenu', e => e.preventDefault());
+
+function collectTick(){
+  const p = Math.min(1, holdT / HOLD.duration);
+  const critChance = HOLD.critBase + (HOLD.critMax - HOLD.critBase) * p;
+  const mult = 1 + (HOLD.incomeMaxMult - 1) * p;
+  let gain = tapGain(S.up.tapPower) * mult;
+  const crit = Math.random() < critChance;
+  if (crit){
+    gain *= HOLD.critMult;
+    Sound.play('crit', {holding: true});
+    el.coreSpark.classList.remove('core-spark-anim');
+    el.coreSpark.getBoundingClientRect();
+    el.coreSpark.classList.add('core-spark-anim');
+  }
+  S.data += gain; S.totalData += gain; S.ticks++;
+  grantXP(1);
+  if (!crit) Sound.play('tap', {holding: true});
+  if (crit || performance.now() - floatGate > 180){
+    floatGate = performance.now();
+    spawnFloat({ text: '+' + fmt(gain), crit: crit });
+    if (crit && !reduceMotion) critBurst();
+  }
+}
+
+/* ---------- EXPEDITIONERNA ----------
+   Första kullen: hemregionens nio expeditioner. Reglerna (spelarens låsta design):
+   - START kräver att du STÅR i expeditionens zon. Pågående sköts varifrån som helst.
+   - Att KLIVA IN i en zon upptäcker dess expeditioner -> Discovered-katalogen.
+   - Max 2 samtidiga (slots). Belöningen låses vid start (kontrakt, serverklart).
+   - Data = grundgolv + andel av din produktion över tiden. Fragments är zonfynd.
+   - XP skalar med ring längre ut (hemringen = små tal). Alla siffror justerbara. */
+const EXPEDITIONS = {
+  neonhub: {
+    'Firstlight':  [
+      {id:'nh_fl_sweep',  name:'First Sweep',           mins:2,  lvl:1, base:60,    xp:20,  frag:0},
+      {id:'nh_fl_echo',   name:'Echoes of the Landing', mins:20, lvl:4, base:900,   xp:120, frag:2}
+    ],
+    'Kaito Row':   [
+      {id:'nh_kr_trail',  name:"Builder's Trail",       mins:8,  lvl:2, base:320,   xp:55,  frag:1}
+    ],
+    'The Fuse':    [
+      {id:'nh_tf_wire',   name:'Live Wire Run',         mins:5,  lvl:2, base:200,   xp:45,  frag:0},
+      {id:'nh_tf_black',  name:'Blackout Salvage',      mins:45, lvl:7, base:3200,  xp:320, frag:4}
+    ],
+    'Skyrail':     [
+      {id:'nh_sr_drift',  name:'Rail Drift',            mins:10, lvl:3, base:450,   xp:70,  frag:1}
+    ],
+    'Palegate':    [
+      {id:'nh_pg_rounds', name:"Gatekeeper's Rounds",   mins:15, lvl:4, base:700,   xp:100, frag:1}
+    ],
+    'Brightfall':  [
+      {id:'nh_bf_harv',   name:'Lightfall Harvest',     mins:8,  lvl:3, base:340,   xp:60,  frag:1},
+      {id:'nh_bf_glow',   name:'The Long Glow',         mins:60, lvl:9, base:6500,  xp:500, frag:6}
+    ]
+  }
+};
+const EXP_SLOTS = 2;
+
+function expDefsForZone(regionId, zone){
+  return (EXPEDITIONS[regionId] && EXPEDITIONS[regionId][zone]) || [];
+}
+function expDefById(id){
+  for (const rid of Object.keys(EXPEDITIONS))
+    for (const zone of Object.keys(EXPEDITIONS[rid]))
+      for (const d of EXPEDITIONS[rid][zone])
+        if (d.id === id) return Object.assign({region: rid, zone: zone}, d);
+  return null;
+}
+function expDataReward(def){
+  // Kontraktet: golv + 35% av produktionens värde över expeditionens längd
+  return Math.ceil(def.base + totalDps() * def.mins * 60 * 0.35);
+}
+function expIsRunning(id){ return S.exp.runs.some(r => r.id === id); }
+function expIsFound(id){ return S.exp.found.includes(id); }
+
+function discoverZoneExpeditions(regionId, zone){
+  let found = false;
+  expDefsForZone(regionId, zone).forEach(d => {
+    if (!expIsFound(d.id)){ S.exp.found.push(d.id); found = true; }
+  });
+  return found;
+}
+
+function startExpedition(id){
+  const def = expDefById(id);
+  if (!def) return false;
+  if (S.exp.runs.length >= EXP_SLOTS) return false;
+  if (expIsRunning(id)) return false;
+  if (S.world.current !== def.region || S.world.zone !== def.zone) return false;
+  if (levelInfo().lvl < def.lvl) return false;
+  S.exp.runs.push({
+    id: id,
+    endsAt: Date.now() + def.mins * 60 * 1000,
+    data: expDataReward(def),
+    xp: def.xp,
+    frag: def.frag
+  });
+  renderExpPanel();
+  save();
+  return true;
+}
+
+function claimExpedition(id){
+  const i = S.exp.runs.findIndex(r => r.id === id && Date.now() >= r.endsAt);
+  if (i < 0) return;
+  const run = S.exp.runs.splice(i, 1)[0];
+  S.data += run.data;
+  S.totalData += run.data;
+  S.frags += run.frag;
+  grantXP(run.xp);
+  spawnFloat({ text: '+' + fmt(run.data) });
+  renderExpPanel();
+  save();
+}
+
+/* Panelen: Active (två slots) + Discovered (katalogen) */
+function fmtMins(m){ return m >= 60 ? (m / 60) + 'h' : m + 'm'; }
+function renderExpPanel(){
+  const act = $('exp-active-list');
+  const tab = document.querySelector('#expedition-tabs .tab[data-pane="pane-exp-active"]');
+  if (tab) tab.textContent = 'Active ' + S.exp.runs.length + '/' + EXP_SLOTS;
+  let h = '';
+  for (let i = 0; i < EXP_SLOTS; i++){
+    const run = S.exp.runs[i];
+    if (!run){
+      h += '<div class="exp-slot">＋<span>Empty Slot</span></div>';
+      continue;
+    }
+    const def = expDefById(run.id);
+    const left = Math.max(0, (run.endsAt - Date.now()) / 1000);
+    const total = def.mins * 60;
+    const pct = Math.min(100, ((total - left) / total) * 100);
+    const done = left <= 0;
+    h += '<div class="exp-run' + (done ? ' done' : '') + '">' +
+      '<div class="er-head"><span class="er-name">' + def.name + '</span><span class="er-zone">' + def.zone + '</span></div>' +
+      '<div class="er-bar"><div class="er-fill" style="width:' + pct + '%"></div></div>' +
+      (done
+        ? '<button class="er-claim" data-claim="' + run.id + '">Claim — 💠' + fmt(run.data) + (run.frag ? ' · 🔷' + run.frag : '') + '</button>'
+        : '<div class="er-meta"><span>⏱ ' + fmtDur(left) + '</span><span>💠 ' + fmt(run.data) + (run.frag ? ' · 🔷' + run.frag : '') + '</span></div>') +
+      '</div>';
+  }
+  act.innerHTML = h + (S.exp.runs.length === 0 ? '<div class="shelf-empty">No expeditions running</div>' : '');
+
+  const disc = $('exp-found-list');
+  if (S.exp.found.length === 0){
+    disc.innerHTML = '<div class="shelf-empty">No expeditions discovered yet — enter zones to survey them</div>';
+  } else {
+    disc.innerHTML = S.exp.found.map(fid => {
+      const def = expDefById(fid);
+      if (!def) return '';
+      const running = expIsRunning(fid);
+      const here = (S.world.current === def.region && S.world.zone === def.zone);
+      const status = running ? '<span class="ef-status running">Running</span>'
+        : here ? '<span class="ef-status here">📍 Start from zone</span>'
+        : '<span class="ef-status away">' + REGIONS[def.region].name + ' · ' + def.zone + '</span>';
+      return '<div class="exp-found"><div class="ef-head"><span class="ef-name">' + def.name + '</span>' + status + '</div>' +
+        '<div class="ef-meta"><span>⏱ ' + fmtMins(def.mins) + '</span><span>Lv ' + def.lvl + '</span><span>✨ ' + def.xp + ' XP</span>' + (def.frag ? '<span>🔷 ' + def.frag + '</span>' : '') + '</div></div>';
+    }).join('');
+  }
+}
+
+/* ---------- LJUDMOTORN ----------
+   Referensen från spelarens andra bygge, integrerad. ALLT syntetiseras i
+   stunden — inga ljudfiler, inget kan 404:a. Bakgrundslåt: generativ lo-fi
+   72 BPM, fyra ackord, schemalagd 180ms i förväg. Kärnan spelar ackordets
+   melodistämma när man håller — GRINDEN låser ljudet till åttondelsnätet,
+   så våra 4-24 ticks/s hörs alltid i låtens eget tempo. Crit = samma ton
+   sjungen hårdare (oktav + kvint), aldrig ovanpå. Utan musik: pentatonisk
+   reservskala som inte kan låta surt. */
+const NOTE_SEMI = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+function noteFreq(name){
+  const m = /^([A-G]#?)(-?\d+)$/.exec(name);
+  if (!m) return 440;
+  const midi = NOTE_SEMI[m[1]] + (parseInt(m[2],10) + 1) * 12;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+const MUSIC = {
+  bpm: 72, stepsPerBar: 8, barsPerChord: 2,
+  progression: [
+    {bass:'A1', pad:['A3','C4','E4','G4','B4'], arp:['A4','C5','E5','B4','G4','E5'], lead:['E5','G5','A5','B5','A5','G5','E5','D5']},
+    {bass:'F1', pad:['F3','A3','C4','E4'],      arp:['F4','A4','C5','E5','C5','A4'], lead:['F5','A5','C6','A5','G5','F5','E5','F5']},
+    {bass:'C2', pad:['C4','E4','G4','B4','D5'], arp:['G4','C5','E5','D5','B4','G4'], lead:['G5','B5','D6','C6','B5','G5','E5','G5']},
+    {bass:'G1', pad:['G3','B3','D4','E4'],      arp:['D5','B4','G4','B4','E5','D5'], lead:['D5','E5','G5','B5','A5','G5','E5','D5']}
+  ],
+  arpPattern:[1,0,1,1,0,1,0,1], hatPattern:[0,1,0,1,0,1,0,1], kickPattern:[1,0,0,0,1,0,0,0]
+};
+const TAP_SCALE = ['A4','C5','D5','E5','G5','A5','G5','E5','D5','C5'];
+
+const Sound = {
+  ctx:null, master:null, sfx:null, music:null, verb:null, verbSend:null,
+  enabled:true, musicEnabled:true, sfxVolume:0.7, musicVolume:0.35, ready:false,
+  _tapStep:0, _tapLast:0, _chordIdx:0, _leadStep:0, _lastLeadAt:0,
+  _pendingCrit:false, _musicTimer:null, _step:0, _nextTime:0, _playing:false,
+
+  init(){
+    if (Sound.ctx) return true;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      const ctx = new AC();
+      Sound.ctx = ctx;
+      Sound.master = ctx.createGain();
+      Sound.master.gain.value = 0.9;
+      Sound.master.connect(ctx.destination);
+      // Genererat rumseko: 2.2s avklingande brus i stället för en impulsfil
+      const secs = 2.2, len = Math.floor(ctx.sampleRate * secs);
+      const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++){
+        const d = buf.getChannelData(ch);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.8);
+      }
+      Sound.verb = ctx.createConvolver();
+      Sound.verb.buffer = buf;
+      Sound.verbSend = ctx.createGain();
+      Sound.verbSend.gain.value = 0.32;
+      Sound.verbSend.connect(Sound.verb);
+      Sound.verb.connect(Sound.master);
+      Sound.sfx = ctx.createGain();
+      Sound.sfx.gain.value = Sound.sfxVolume;
+      Sound.sfx.connect(Sound.master);
+      Sound.sfx.connect(Sound.verbSend);
+      Sound.music = ctx.createGain();
+      Sound.music.gain.value = 0;
+      Sound.music.connect(Sound.master);
+      Sound.music.connect(Sound.verbSend);
+      Sound.ready = true;
+      // iOS låser inte upp ljudet förrän något spelats INUTI gesten — en tyst sampel räcker
+      try {
+        const b = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = b;
+        src.connect(ctx.destination);
+        src.start(0);
+      } catch(e){}
+      return true;
+    } catch(e){ return false; }
+  },
+
+  resume(){
+    if (!Sound.init()) return Promise.resolve(false);
+    if (Sound.ctx.state === 'running') return Promise.resolve(true);
+    return Sound.ctx.resume().then(() => Sound.ctx.state === 'running').catch(() => false);
+  },
+
+  _env(node, t, o){
+    const a = o.a ?? 0.005, d = o.d ?? 0.1, peak = o.peak ?? 0.3, hold = o.hold ?? 0;
+    const g = node.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(0.0001, t);
+    g.exponentialRampToValueAtTime(Math.max(0.0001, peak), t + a);
+    g.setValueAtTime(Math.max(0.0001, peak), t + a + hold);
+    g.exponentialRampToValueAtTime(0.0001, t + a + hold + d);
+  },
+  _tone(dest, o){
+    const ctx = Sound.ctx;
+    const a = o.a ?? 0.005, d = o.d ?? 0.12, peak = o.peak ?? 0.25, hold = o.hold ?? 0;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = o.type || 'sine';
+    osc.detune.value = o.detune || 0;
+    osc.frequency.setValueAtTime(o.freq, o.t);
+    if (o.sweepTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.sweepTo), o.t + a + hold + d);
+    Sound._env(g, o.t, {a, d, peak, hold});
+    osc.connect(g); g.connect(dest);
+    osc.start(o.t); osc.stop(o.t + a + hold + d + 0.05);
+  },
+  _noise(dest, o){
+    const ctx = Sound.ctx;
+    const d = o.d ?? 0.2, peak = o.peak ?? 0.2;
+    const len = Math.max(1, Math.floor(ctx.sampleRate * (d + 0.05)));
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const flt = ctx.createBiquadFilter();
+    flt.type = o.type || 'highpass';
+    flt.Q.value = o.q ?? 1;
+    flt.frequency.setValueAtTime(o.f0 ?? 1200, o.t);
+    if (o.f1) flt.frequency.exponentialRampToValueAtTime(Math.max(20, o.f1), o.t + d);
+    const g = ctx.createGain();
+    Sound._env(g, o.t, {a: 0.006, d, peak});
+    src.connect(flt); flt.connect(g); g.connect(dest);
+    src.start(o.t); src.stop(o.t + d + 0.05);
+  },
+
+  play(key, opts){
+    if (!Sound.enabled) return;
+    if (!Sound.ready && !Sound.init()) return;
+    const ctx = Sound.ctx;
+    if (!ctx) return;
+    if (ctx.state !== 'running'){
+      ctx.resume().then(() => { if (Sound.musicEnabled) Sound.startMusic(); }).catch(() => {});
+      return;
+    }
+    if (Sound.musicEnabled && !Sound._playing) Sound.startMusic();
+    const t = ctx.currentTime + 0.001;
+    const D = Sound.sfx;
+
+    if (key === 'tap' || key === 'crit'){
+      const isCrit = key === 'crit';
+      const holding = !!(opts && opts.holding);
+      // GRINDEN: hållandet begränsas till låtens åttondelsnät — oavsett tickstakt
+      const stepDur = 60 / MUSIC.bpm / (MUSIC.stepsPerBar / 4);
+      if (holding && t - Sound._lastLeadAt < stepDur * 0.92){
+        if (isCrit) Sound._pendingCrit = true;   // minns, spelar inte ovanpå
+        return;
+      }
+      const accent = isCrit || Sound._pendingCrit;
+      Sound._pendingCrit = false;
+      Sound._lastLeadAt = t;
+      const chord = MUSIC.progression[Sound._chordIdx % MUSIC.progression.length];
+      const usingMusic = Sound._playing && Sound.musicEnabled && chord && chord.lead;
+      let f;
+      if (usingMusic){
+        if (t - Sound._tapLast > 1.2) Sound._leadStep = 0;
+        f = noteFreq(chord.lead[Sound._leadStep % chord.lead.length]);
+        Sound._leadStep += 1;
+      } else {
+        if (t - Sound._tapLast > 0.5) Sound._tapStep = 0;
+        f = noteFreq(TAP_SCALE[Sound._tapStep % TAP_SCALE.length]);
+        Sound._tapStep += 1;
+      }
+      Sound._tapLast = t;
+      if (accent){
+        Sound._tone(D, {freq: f,       type:'triangle', t: t,         a:0.006, d:0.62, peak:0.2});
+        Sound._tone(D, {freq: f * 2,   type:'sine',     t: t + 0.015, a:0.008, d:0.55, peak:0.09});
+        Sound._tone(D, {freq: f * 1.5, type:'sine',     t: t + 0.03,  a:0.01,  d:0.48, peak:0.05});
+        Sound._tone(D, {freq: f / 2,   type:'sine',     t: t,         a:0.012, d:0.4,  peak:0.045});
+      } else {
+        Sound._tone(D, {freq: f,     type:'triangle', t: t, a:0.012, d: holding ? 0.42 : 0.3, peak: holding ? 0.1 : 0.115});
+        Sound._tone(D, {freq: f / 2, type:'sine',     t: t, a:0.014, d:0.3, peak:0.035});
+      }
+    }
+  },
+
+  _voice(t, freq, o){
+    Sound._tone(o.dest, {freq, type:o.type, t, a:o.a, d:o.d, peak:o.peak, detune:o.detune || 0});
+  },
+  // Schemaläggaren: skriver noter 180ms in i framtiden var 25:e ms — kan aldrig stamma
+  _schedule(){
+    const ctx = Sound.ctx;
+    if (!ctx) return;
+    const stepDur = 60 / MUSIC.bpm / (MUSIC.stepsPerBar / 4);
+    while (Sound._nextTime < ctx.currentTime + 0.18){
+      const t = Math.max(Sound._nextTime, ctx.currentTime + 0.02);
+      const stepsPerChord = MUSIC.stepsPerBar * MUSIC.barsPerChord;
+      const total = stepsPerChord * MUSIC.progression.length;
+      const st = Sound._step % total;
+      const chordIdx = Math.floor(st / stepsPerChord);
+      Sound._chordIdx = chordIdx;
+      const inBar = st % MUSIC.stepsPerBar;
+      const inChord = st % stepsPerChord;
+      const ch = MUSIC.progression[chordIdx];
+      const M = Sound.music;
+      if (inChord === 0){
+        ch.pad.forEach((n, i) => {
+          const f = noteFreq(n);
+          Sound._voice(t, f, {type:'sine',     peak:0.055, a:0.9, d: stepDur * stepsPerChord * 0.9,  dest:M, detune:-5});
+          Sound._voice(t, f, {type:'triangle', peak:0.03,  a:1.1, d: stepDur * stepsPerChord * 0.85, dest:M, detune:6 + i});
+        });
+      }
+      if (inBar === 0 || inBar === 4){
+        Sound._voice(t, noteFreq(ch.bass), {type:'sine', peak:0.12, a:0.02, d:0.85, dest:M});
+      }
+      if (MUSIC.arpPattern[inBar]){
+        const note = ch.arp[(st + chordIdx) % ch.arp.length];
+        Sound._voice(t, noteFreq(note), {type:'triangle', peak:0.045, a:0.006, d:0.5, dest:M});
+      }
+      if (MUSIC.kickPattern[inBar]){
+        Sound._tone(M, {freq:110, type:'sine', t, a:0.004, d:0.16, peak:0.13, sweepTo:45});
+      }
+      if (MUSIC.hatPattern[inBar]){
+        Sound._noise(M, {t, d:0.035, peak:0.022, type:'highpass', f0:7500});
+      }
+      Sound._step += 1;
+      Sound._nextTime = t + stepDur;
+    }
+  },
+  startMusic(){
+    if (!Sound.musicEnabled || Sound._playing) return;
+    if (!Sound.init()) return;
+    if (Sound.ctx.state !== 'running'){
+      Sound.resume().then(ok => { if (ok && Sound.musicEnabled && !Sound._playing) Sound.startMusic(); });
+      return;
+    }
+    Sound._playing = true;
+    Sound._nextTime = Sound.ctx.currentTime + 0.1;
+    Sound.music.gain.cancelScheduledValues(Sound.ctx.currentTime);
+    Sound.music.gain.setValueAtTime(0.0001, Sound.ctx.currentTime);
+    Sound.music.gain.linearRampToValueAtTime(Sound.musicVolume, Sound.ctx.currentTime + 2.5);
+    Sound._musicTimer = setInterval(() => Sound._schedule(), 25);
+  },
+  stopMusic(){
+    if (!Sound._playing) return;
+    Sound._playing = false;
+    if (Sound._musicTimer) clearInterval(Sound._musicTimer);
+    Sound._musicTimer = null;
+    if (Sound.ctx && Sound.music){
+      const now = Sound.ctx.currentTime;
+      Sound.music.gain.cancelScheduledValues(now);
+      Sound.music.gain.setValueAtTime(Sound.music.gain.value, now);
+      Sound.music.gain.linearRampToValueAtTime(0.0001, now + 0.6);
+    }
+  },
+  setEnabled(v){ Sound.enabled = !!v; },
+  setMusicEnabled(v){
+    Sound.musicEnabled = !!v;
+    if (v) Sound.resume().then(() => Sound.startMusic());
+    else Sound.stopMusic();
+  },
+  setSfxVolume(v){
+    Sound.sfxVolume = Math.min(1, Math.max(0, v));
+    if (Sound.sfx) Sound.sfx.gain.value = Sound.sfxVolume;
+  },
+  setMusicVolume(v){
+    Sound.musicVolume = Math.min(1, Math.max(0, v));
+    if (Sound.music && Sound._playing) Sound.music.gain.setTargetAtTime(Sound.musicVolume, Sound.ctx.currentTime, 0.1);
+  }
+};
+
+/* ---------- SIFFERSPRUTAN ----------
+   Referenskonsten från spelarens andra bygge. Fast vinkellista (alla uppåt/
+   utåt, aldrig nedåt — tummen täcker aldrig sin egen belöning), gås i ordning
+   med liten slumpvinge så två siffror aldrig landar på varandra. Crit hoppar
+   fem steg, får badge och burst. Idle-siffror är mindre och tystare. */
+const FLOAT_ANGLES = [-90, -142, -38, -114, -66, -166, -14, -128, -52, -90, -155, -25];
+const FLOAT_DIST = {min: 84, max: 128};
+const FLOAT_CRIT_DIST = {min: 120, max: 165};
+const FLOAT_IDLE_DIST = {min: 68, max: 104};
+const FLOAT_WOBBLE = 7;
+const FLOAT_MAX = 10;
+let floatStep = 0;
+const floatsLive = [];
+
+function spawnFloat(opts){
+  const crit = !!opts.crit, idle = !!opts.idle;
+  const angle = FLOAT_ANGLES[floatStep % FLOAT_ANGLES.length] + (Math.random() * FLOAT_WOBBLE * 2 - FLOAT_WOBBLE);
+  floatStep += crit ? 5 : 1;
+  const D = crit ? FLOAT_CRIT_DIST : (idle ? FLOAT_IDLE_DIST : FLOAT_DIST);
+  const dist = D.min + Math.random() * (D.max - D.min);
+  const rad = angle * Math.PI / 180;
+  const n = document.createElement('span');
+  n.className = 'float' + (crit ? ' float-crit' : '') + (idle ? ' float-idle' : '');
+  n.style.setProperty('--fx', (Math.cos(rad) * dist) + 'px');
+  n.style.setProperty('--fy', (Math.sin(rad) * dist) + 'px');
+  let html = '';
+  if (crit) html += '<b class="crit-word">CRIT \u00D7' + HOLD.critMult + '</b>';
+  html += '<span class="float-amt">' + opts.text + '</span>';
+  n.innerHTML = html;
+  el.stage.appendChild(n);
+  floatsLive.push(n);
+  while (floatsLive.length > FLOAT_MAX){
+    const old = floatsLive.shift();
+    if (old.parentNode) old.remove();
+  }
+  setTimeout(() => {
+    const i = floatsLive.indexOf(n);
+    if (i >= 0) floatsLive.splice(i, 1);
+    n.remove();
+  }, crit ? 1150 : 900);
+}
+
+/* Crit-bursten: två expanderande ringar + 14 skärvor på jämna vinklar.
+   Snabbare än crit-siffran — bursten är smällen, siffran är resultatet. */
+function critBurst(){
+  const made = [];
+  const r1 = document.createElement('span'); r1.className = 'crit-ring';
+  const r2 = document.createElement('span'); r2.className = 'crit-ring crit-ring-2';
+  made.push(r1, r2);
+  for (let i = 0; i < 14; i++){
+    const sh = document.createElement('span');
+    sh.className = 'crit-shard';
+    sh.style.setProperty('--a', (i * 360 / 14) + 'deg');
+    made.push(sh);
+  }
+  made.forEach(x => el.stage.appendChild(x));
+  setTimeout(() => made.forEach(x => x.remove()), 700);
+}
+
+/* Idle-droppet: maskinerna kastar tysta siffror när du INTE håller — spelet
+   lever även när du bara tittar. Visar verklig intjäning sedan förra droppen. */
+let idleDripLast = Date.now();
+(function idleDrip(){
+  const now = Date.now();
+  const gained = totalDps() * ((now - idleDripLast) / 1000);
+  idleDripLast = now;
+  if (!holding && document.visibilityState === 'visible' && gained > 0){
+    spawnFloat({ text: '+' + fmt(gained), idle: true });
+  }
+  setTimeout(idleDrip, 1300 + Math.random() * 500);
+})();
+
+/* ---------- HUVUDLOOP ---------- */
+let last = performance.now(), uiGate = 0, saveGate = 0, xpAcc = 0;
+function loop(now){
+  const dt = Math.min(0.25, (now - last) / 1000);
+  last = now;
+
+  // Passiv produktion
+  const dps = totalDps();
+  if (dps > 0){ const g = dps * dt; S.data += g; S.totalData += g; }
+
+  // Närvaro-XP och rykte: räknas medan sidan är synlig
+  if (document.visibilityState === 'visible'){
+    S.rep[S.world.current] = (S.rep[S.world.current] || 0) + dt;
+    xpAcc += 0.1 * dt;
+    if (xpAcc >= 1){ const w = Math.floor(xpAcc); xpAcc -= w; grantXP(w); }
+  }
+
+  // Hållande
+  if (holding){
+    if (holdT < HOLD.duration){
+      holdT += dt;
+      tickAcc += holdRate() * dt;
+      while (tickAcc >= 1 && holdT <= HOLD.duration){ tickAcc -= 1; collectTick(); }
+      if (holdT >= HOLD.duration) el.meter.classList.add('full');
+    }
+  }
+
+  // UI ~10 ggr/s
+  if (now - uiGate > 100){ uiGate = now; updateUI(false); }
+
+  // Ankomstkontroll för resande
+  checkTravel();
+
+  // Autospar var 10:e sekund
+  if (now - saveGate > 10000){ saveGate = now; save(); }
+
+  requestAnimationFrame(loop);
+}
+
+let lastSaveShown = 0;
+function updateUI(force){
+  el.data.textContent = fmt(S.data);
+  el.dps.textContent = fmt(totalDps()) + '/s';
+
+  if (S.world.travel){
+    travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
+    travelGo.textContent = '🛰 Traveling to ' + REGIONS[S.world.travel.to].name + '…';
+  } else if (travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
+    travelGo.textContent = '🚀 Initiate Travel';
+  }
+
+  const rank = repRank();
+  el.repStars.textContent = '★'.repeat(rank) + '☆'.repeat(5 - rank);
+  if (rank >= 5){
+    el.repFill.style.width = '100%';
+    el.repNext.textContent = 'Max rank reached';
+  } else {
+    const prev = rank === 0 ? 0 : REP_THRESH[rank - 1];
+    const next = REP_THRESH[rank];
+    el.repFill.style.width = Math.min(100, ((S.rep.neonhub - prev) / (next - prev)) * 100) + '%';
+    el.repNext.textContent = 'Next rank in ' + fmtDur(next - S.rep.neonhub);
+  }
+  el.repBonus.textContent = '+' + (rank * 2) + '%';
+
+  const li = levelInfo();
+  el.lvlBadge.textContent = li.lvl;
+  el.lvlText.textContent = 'Runner Level ' + li.lvl;
+  el.xpFill.style.width = Math.min(100, (li.into / li.need) * 100) + '%';
+  el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
+
+  const p = holding ? Math.min(1, holdT / HOLD.duration) : 0;
+  el.fill.style.width = (p * 100) + '%';
+  el.crit.textContent = Math.round((HOLD.critBase + (HOLD.critMax - HOLD.critBase) * p) * 100) + '%';
+  el.rate.textContent = holdRate().toFixed(1) + '/s';
+  el.mult.textContent = '×' + (1 + (HOLD.incomeMaxMult - 1) * p).toFixed(2);
+  const full = holding && holdT >= HOLD.duration;
+  el.hint.textContent = full ? 'RELEASE & HOLD AGAIN' : 'HOLD CORE TO COLLECT DATA';
+  el.hint.classList.toggle('full', full);
+
+  BUILDINGS.forEach(b => {
+    const r = rowRefs[b.id];
+    const n = (buyAmount === 'max') ? Math.max(1, maxAffordable(b)) : buyAmount;
+    const c = costOfN(b, n);
+    const mm = milMult(b.id);
+    r.sub.innerHTML = 'Lv.' + S.own[b.id] + ' · +' + fmt(prodPerUnit(b)) + '/s each' + (mm > 1 ? ' · <span class="mx">×' + mm + '</span>' : '');
+    r.rate.textContent = fmt(prodOf(b)) + '/s';
+    r.cost.textContent = fmt(c);
+    const cant = S.data < c;
+    r.cost.classList.toggle('cant', cant);
+    r.row.classList.toggle('cant', cant && S.own[b.id] === 0);
+  });
+
+  refreshShelf();
+
+  UPGRADES.forEach(u => {
+    const r = upRefs[u.id];
+    const lvl = S.up[u.id];
+    r.lvl.textContent = 'Lv.' + lvl + '/' + u.max;
+    r.eff.innerHTML = (lvl >= u.max) ? '<span class="to">Maxed</span>' : '<span class="to">' + u.effect(lvl) + '</span>';
+    if (lvl >= u.max){
+      r.buy.textContent = 'MAX'; r.buy.className = 'u-buy maxed';
+    } else {
+      const c = u.cost(lvl);
+      r.buy.textContent = fmt(c);
+      r.buy.className = 'u-buy' + (S.data < c ? ' cant' : '');
+    }
+  });
+
+  if (el.saveStatus){
+    if (S.savedAt){
+      const ago = Math.max(0, Math.round((Date.now() - S.savedAt) / 1000));
+      el.saveStatus.textContent = ago < 3 ? 'Synced just now' : 'Synced ' + ago + 's ago';
+    } else {
+      el.saveStatus.textContent = 'Not saved yet';
+    }
+  }
+  if (el.nextSave){
+    const left = Math.max(0, Math.ceil((10000 - (performance.now() - saveGate)) / 1000));
+    el.nextSave.textContent = '0:' + String(left).padStart(2, '0');
+  }
+}
+
+/* ---------- START ---------- */
+/* iOS-vakter: dubbeltapp-och-håll väcker Safaris förstoringsglas trots CSS.
+   Vi kväver gesten i roten: (1) snabb andra tapp får aldrig bli en "dubbeltapp"
+   utanför knappar, (2) markering får aldrig starta, (3) kärnan äter sina
+   touch-händelser direkt. Snabbtryck på köpknappar undantas medvetet så att
+   spam-köp fortfarande fungerar. */
+/* Endast här får snabba dubbeltryck leva (spam-köp). ALLT annat på sidan
+   får sin andra tapp kvävd redan vid touchstart, så Safari aldrig ser en
+   dubbeltapp och förstoringsglaset aldrig föds. */
+const FAST_TAP_OK = '.m-cost,.u-buy,.chip,select';
+let lastTouchStart = 0, lastTouchEnd = 0;
+document.addEventListener('touchstart', e => {
+  const now = Date.now();
+  const ok = e.target.closest && e.target.closest(FAST_TAP_OK);
+  if (now - lastTouchStart < 350 && !ok) e.preventDefault();
+  lastTouchStart = now;
+}, {passive:false});
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  const ok = e.target.closest && e.target.closest(FAST_TAP_OK);
+  if (now - lastTouchEnd < 350 && !ok) e.preventDefault();
+  lastTouchEnd = now;
+}, {passive:false});
+document.addEventListener('selectstart', e => {
+  if (!(e.target.closest && e.target.closest('input,select,textarea'))) e.preventDefault();
+});
+el.hex.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
+
+/* ---------- LAYOUTREDIGERING ----------
+   Spelaren möblerar själv i redigeringsläget; layouten sparas lokalt och
+   visas som en kod i inställningarna. Koden skickas som skärmbild och
+   låses sedan permanent i filen. */
+const LAYOUT_KEY = 'genesis-layout-v1';
+const COLS = {
+  top: document.querySelector('.col-top'),
+  left: document.querySelector('.col-left'),
+  mid: document.querySelector('.col-mid'),
+  right: document.querySelector('.col-right')
+};
+let editMode = false, draggedPanel = null;
+
+function panelsIn(col){ return Array.from(col.querySelectorAll(':scope > .panel')); }
+
+function saveLayout(){
+  const out = {};
+  for (const [name, col] of Object.entries(COLS)){
+    out[name] = panelsIn(col).map(p => ({
+      id: p.id,
+      h: p.style.height ? parseInt(p.style.height, 10) : 0
+    }));
+  }
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(out)); } catch(e){}
+  const codeEl = $('layout-code');
+  if (codeEl) codeEl.textContent = JSON.stringify(out);
+}
+
+function applyLayout(){
+  let raw = null;
+  try { raw = localStorage.getItem(LAYOUT_KEY); } catch(e){}
+  if (!raw) return;
+  try {
+    const lay = JSON.parse(raw);
+    for (const [name, list] of Object.entries(lay)){
+      const col = COLS[name];
+      if (!col || !Array.isArray(list)) continue;
+      list.forEach(item => {
+        const p = document.getElementById(item.id);
+        if (p){
+          col.appendChild(p);
+          if (item.h > 0){
+            p.style.height = item.h + 'px';
+            p.style.minHeight = '0';
+            p.classList.add('sized');
+          }
+        }
+      });
+    }
+    const codeEl = $('layout-code');
+    if (codeEl) codeEl.textContent = raw;
+  } catch(e){}
+}
+
+function setEditMode(on){
+  editMode = on;
+  document.body.classList.toggle('layout-edit', on);
+  $('layout-toggle').textContent = on ? 'On' : 'Off';
+  $('layout-reset-row').style.display = on ? '' : 'none';
+  $('layout-code-row').style.display = on ? '' : 'none';
+  if (on) saveLayout();
+  document.querySelectorAll('.panel').forEach(p => {
+    p.draggable = on;
+    let handle = p.querySelector(':scope > .drag-handle');
+    let grip = p.querySelector(':scope > .resize-grip');
+    if (on){
+      if (!handle){
+        handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        handle.textContent = '☰';
+        p.appendChild(handle);
+      }
+      if (!grip){
+        grip = document.createElement('div');
+        grip.className = 'resize-grip';
+        p.appendChild(grip);
+        grip.addEventListener('pointerdown', e => {
+          e.preventDefault(); e.stopPropagation();
+          const startY = e.clientY;
+          const startH = p.getBoundingClientRect().height;
+          function move(ev){
+            const h = Math.max(80, startH + ev.clientY - startY);
+            p.style.height = h + 'px';
+            p.style.minHeight = '0';
+            p.classList.add('sized');
+          }
+          function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); saveLayout(); }
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', up);
+        });
+      }
+    } else {
+      if (handle) handle.remove();
+      if (grip) grip.remove();
+    }
+  });
+}
+
+document.querySelectorAll('.panel').forEach(p => {
+  p.addEventListener('dragstart', e => {
+    if (!editMode){ e.preventDefault(); return; }
+    draggedPanel = p;
+    p.classList.add('dragging');
+  });
+  p.addEventListener('dragend', () => {
+    p.classList.remove('dragging');
+    draggedPanel = null;
+    Object.values(COLS).forEach(c => c.classList.remove('drop-hint'));
+    saveLayout();
+  });
+});
+for (const col of Object.values(COLS)){
+  col.addEventListener('dragover', e => {
+    if (!editMode || !draggedPanel) return;
+    e.preventDefault();
+    col.classList.add('drop-hint');
+    const horizontal = col.classList.contains('col-top');
+    const after = panelsIn(col).find(p => {
+      if (p === draggedPanel) return false;
+      const r = p.getBoundingClientRect();
+      return horizontal ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
+    });
+    if (after) col.insertBefore(draggedPanel, after);
+    else col.appendChild(draggedPanel);
+  });
+  col.addEventListener('dragleave', () => col.classList.remove('drop-hint'));
+  col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('drop-hint'); });
+}
+
+/* ---------- PREMIUM: OFFLINETAKET ----------
+   Fyra nivåer köpta i ordning med Credits. Priser justerbara. */
+const PREMIUM_OFFLINE = [
+  {h: 12, cost: 200},
+  {h: 16, cost: 350},
+  {h: 20, cost: 500},
+  {h: 24, cost: 750}
+];
+function buildPremiumOffline(){
+  const list = $('premium-offline');
+  list.innerHTML =
+    '<div class="upgrade-row">' +
+      '<div class="u-ico">🌙</div>' +
+      '<div class="u-body">' +
+        '<div class="u-name">Offline Cap</div>' +
+        '<div class="u-desc" id="prem-off-desc"></div>' +
+        '<div class="pips" id="prem-off-pips">' +
+          '<span class="pip lit" title="6h (base)"></span>' +
+          PREMIUM_OFFLINE.map(p => '<span class="pip" title="' + p.h + 'h"></span>').join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="u-buy prisms" id="prem-off-buy"></div>' +
+    '</div>';
+  $('prem-off-buy').addEventListener('click', () => {
+    const tier = S.premium.offlineHours;
+    if (tier >= PREMIUM_OFFLINE.length) return;
+    const p = PREMIUM_OFFLINE[tier];
+    if (S.credits < p.cost) return;
+    S.credits -= p.cost;
+    S.premium.offlineHours = tier + 1;
+    updateUI(true);
+  });
+}
+function refreshPremiumOffline(){
+  $('prem-cap').textContent = offlineCapHours() + 'h';
+  const tier = S.premium.offlineHours;
+  const pips = $('prem-off-pips').children;
+  for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('lit', i <= tier);
+  const btn = $('prem-off-buy'), desc = $('prem-off-desc');
+  btn.classList.remove('maxed', 'cant');
+  if (tier >= PREMIUM_OFFLINE.length){
+    desc.textContent = 'Offline production cap fully extended.';
+    btn.classList.add('maxed'); btn.textContent = 'Max';
+  } else {
+    const p = PREMIUM_OFFLINE[tier];
+    desc.textContent = 'Extends offline cap: ' + offlineCapHours() + 'h → ' + p.h + 'h';
+    if (S.credits < p.cost) btn.classList.add('cant');
+    btn.textContent = '💳 ' + p.cost;
+  }
+}
+
+/* ---------- VÄLKOMMEN TILLBAKA ---------- */
+const offlineOverlay = $('offline-overlay');
+function showOffline(o){
+  $('offline-text').innerHTML =
+    'You were away for <b>' + fmtDur(o.away) + '</b>' +
+    (o.capped < o.away ? ' (counted: ' + fmtDur(o.capped) + ' — offline cap ' + offlineCapHours() + 'h)' : '') +
+    '<br>Your machines kept running at <b>' + Math.round(offlineRate() * 100) + '%</b> rate.';
+  $('offline-gain').textContent = '+' + fmt(o.gain) + ' Data';
+  offlineOverlay.classList.add('open');
+  const collect = () => {
+    S.data += o.gain; S.totalData += o.gain;
+    offlineOverlay.classList.remove('open');
+    save();
+  };
+  $('offline-collect').onclick = collect;
+  $('offline-close').onclick = collect;   // stängning skänker aldrig bort inkomsten
+}
+
+/* ---------- VÄRLDEN ----------
+   Regioner i en graf. Fog of war: bara grannar till besökta regioner syns
+   som okända noder. Upptäck (Data, engångspris per avståndsnivå) -> namnet
+   avslöjas och resa möjliggörs. Resa (liten Datakostnad + TID per nivå).
+   Alla siffror är justerbara. Zonnamnen är FÖRSLAG som väntar på lås. */
+const REGIONS = {
+  /* ===== ATLAS v2.2 — spelarens godkända värld: 16 regioner, 63 zoner ===== */
+  /* CENTRUM */
+  neonhub:      {name:'Neon Hub', ico:'🏠', x:18, y:50, tier:0, band:'1-10', desig:'Friendly',
+                 adj:['arcade87','glassocean','blockvaults'],
+                 zones:['Firstlight','Kaito Row','The Fuse','Skyrail','Palegate','Brightfall']},
+  /* ARM 1 — ARKADEN */
+  arcade87:     {name:'Arcade-87', ico:'🕹️', x:28, y:26, tier:1, band:'1-10', desig:'Friendly', corrupted:true,
+                 adj:['neonhub','voltrath'],
+                 zones:['Tilt','The Midway','Glitchmore','Coinfall','Pixelgeist']},
+  voltrath:     {name:'Voltrath', ico:'⚡', x:44, y:14, tier:2, band:'10-20', desig:'PvE',
+                 adj:['arcade87','staticwastes'],
+                 zones:['Coppervein','Dustwatt','Hollowline','Wattmire']},
+  /* ARM 2 — VALVEN */
+  blockvaults:  {name:'Block Vaults', ico:'🧱', x:28, y:76, tier:1, band:'1-10', desig:'Friendly',
+                 adj:['neonhub','forgefall'],
+                 zones:['Goldgrave','The Ledgers','Deephold','Brasslock','Undervault']},
+  forgefall:    {name:'Forgefall', ico:'🔥', x:44, y:88, tier:2, band:'10-20', desig:'PvE',
+                 adj:['blockvaults','undergrid'],
+                 zones:['Slagmoor','The Crucible','Ashfall','Cinderholm']},
+  undergrid:    {name:'The Undergrid', ico:'🕳️', x:62, y:96, tier:3, band:'20-30', desig:'PvE/PvP', pvpZones:['Darkloop','Blackmain'],
+                 adj:['forgefall','nullgate'],
+                 zones:['Darkloop','Wyrmwire','Substation Nine','Blackmain']},
+  /* ARM 3 — HAVET */
+  glassocean:   {name:'Glass Ocean', ico:'🌊', x:40, y:50, tier:1, band:'1-10', desig:'Friendly',
+                 adj:['neonhub','pixelgardens','skyarray','novabazaar'],
+                 zones:['Mirrordeep','Shalebreak','The Shallows','Tidelock','Glasswake']},
+  novabazaar:   {name:'Nova Bazaar', ico:'🛒', x:50, y:64, tier:2, band:'10-20', desig:'Friendly',
+                 adj:['glassocean'],
+                 zones:['Lanternside','Gavelhall','Coinreach','Silkrow']},
+  pixelgardens: {name:'Pixel Gardens', ico:'🌸', x:56, y:38, tier:2, band:'10-20', desig:'PvE',
+                 adj:['glassocean','voidterminal','staticwastes'],
+                 zones:['Bloomvale','Thornmesh','Rootworks','Mosslight']},
+  skyarray:     {name:'Sky Array', ico:'📡', x:58, y:56, tier:2, band:'10-20', desig:'PvE',
+                 adj:['glassocean','rustharbor'],
+                 zones:['Spirecrest','Cloudrack','Uplink','Echomast']},
+  /* YTTRE RINGEN */
+  rustharbor:   {name:'Rust Harbor', ico:'⚓', x:76, y:62, tier:3, band:'20-30', desig:'PvE/PvP', pvpZones:['Breakwall'],
+                 adj:['skyarray','coldreach','crystalrelay'],
+                 zones:['Anchorfall','Breakwall','Drydock','Keelrest']},
+  staticwastes: {name:'The Static Wastes', ico:'🌫️', x:66, y:18, tier:3, band:'20-30', desig:'PvE/PvP', pvpZones:['The Hiss'],
+                 adj:['voltrath','pixelgardens','crystalrelay'],
+                 zones:['Whitefield','Deadband','The Hiss','Hushfall']},
+  coldreach:    {name:'Coldreach', ico:'❄️', x:90, y:74, tier:3, band:'20-30', desig:'PvE/PvP', pvpZones:['Whiteout'],
+                 adj:['rustharbor','nullgate'],
+                 zones:['Permafrost','Glacierbank','Whiteout','Winterstill']},
+  /* FRONTIÄREN */
+  crystalrelay: {name:'Crystal Relay', ico:'💠', x:92, y:34, tier:4, band:'30-40', desig:'PvP',
+                 adj:['rustharbor','staticwastes','nullgate'],
+                 zones:['Prismfall','Longwave','The Lattice']},
+  nullgate:     {name:'Nullgate', ico:'🌑', x:108, y:58, tier:4, band:'30-40', desig:'PvP',
+                 adj:['undergrid','coldreach','crystalrelay'],
+                 zones:['Threshold','Lastlight','The Hollow']},
+  /* MYTEN */
+  voidterminal: {name:'Void Terminal', ico:'👁️', x:74, y:30, tier:3, band:'???', desig:'???', hidden:true,
+                 adj:['pixelgardens'], zones:[]}
+};
+const DISCOVER_COST = {1: 50000, 2: 5e6, 3: 5e8, 4: 5e10};
+const TRAVEL_BY_TIER = {1: {cost: 500, time: 30}, 2: {cost: 2500, time: 90}, 3: {cost: 12000, time: 240}, 4: {cost: 60000, time: 600}};
+
+function isKnown(id){ return S.world.known.includes(id); }
+function isVisited(id){ return S.world.visited.includes(id); }
+function fogIds(){
+  const out = new Set();
+  S.world.visited.forEach(v => {
+    (REGIONS[v] ? REGIONS[v].adj : []).forEach(a => { if (!isKnown(a)) out.add(a); });
+  });
+  return Array.from(out);
+}
+function renderableIds(){ return S.world.known.concat(fogIds()); }
+
+/* --- Kartrendering med pan/zoom --- */
+const mapArea = $('map-area'), mapWorld = $('map-world'), mapNodes = $('map-nodes'), mapLines = $('map-lines');
+let view = {x: 0, y: 0, scale: 1};
+function applyView(){ mapWorld.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.scale + ')'; }
+function zoomAt(f, cx, cy){
+  const ns = Math.min(2.2, Math.max(0.6, view.scale * f));
+  const k = ns / view.scale;
+  view.x = cx - k * (cx - view.x);
+  view.y = cy - k * (cy - view.y);
+  view.scale = ns;
+  applyView();
+}
+$('map-zoom-in').addEventListener('click', () => zoomAt(1.25, mapArea.clientWidth/2, mapArea.clientHeight/2));
+$('map-zoom-out').addEventListener('click', () => zoomAt(0.8, mapArea.clientWidth/2, mapArea.clientHeight/2));
+mapArea.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = mapArea.getBoundingClientRect();
+  zoomAt(e.deltaY < 0 ? 1.12 : 0.89, e.clientX - r.left, e.clientY - r.top);
+}, {passive:false});
+
+/* --- Hovringsrutan --- */
+const mapTip = $('map-tip');
+function showTip(html, cx, cy){
+  mapTip.innerHTML = html;
+  mapTip.style.display = 'block';
+  const ar = mapArea.getBoundingClientRect();
+  const tw = mapTip.offsetWidth, th = mapTip.offsetHeight;
+  let x = cx - ar.left + 14, y = cy - ar.top + 12;
+  if (x + tw > ar.width - 6) x = cx - ar.left - tw - 14;
+  if (y + th > ar.height - 6) y = cy - ar.top - th - 12;
+  mapTip.style.left = Math.max(4, x) + 'px';
+  mapTip.style.top = Math.max(4, y) + 'px';
+}
+function hideTip(){ mapTip.style.display = 'none'; }
+
+function tipForRegion(id){
+  const R = REGIONS[id];
+  if (!isKnown(id)){
+    return '<b>Unknown Region</b><br>Signal: Tier ' + R.tier +
+      '<br>Discovery: ' + fmt(DISCOVER_COST[R.tier] || 0) + ' Data' +
+      '<div class="t-hint">Click to decrypt</div>';
+  }
+  const di = desigInfo(R.desig);
+  const rank = repRank(id);
+  return '<b>' + R.name + '</b><br>' +
+    '<span style="color:' + di.color + '">' + R.desig + '</span> · Level ' + R.band +
+    '<br>' + (R.corrupted ? '<span style="color:var(--orange)">Corrupted</span> · ' : '') +
+    'Rep <span style="color:var(--gold)">' + '★'.repeat(rank) + '☆'.repeat(5 - rank) + '</span>' +
+    '<br>Zones: ' + R.zones.length +
+    '<div class="t-hint">' + (isVisited(id) ? 'Click to view zones' : 'Click for travel') + '</div>';
+}
+function tipForZone(regionId, zi){
+  const R = REGIONS[regionId];
+  const z = R.zones[zi];
+  const di = desigInfo(zoneDesig(regionId, z));
+  const here = (regionId === S.world.current && S.world.zone === z);
+  return '<b>' + z + '</b><br>' +
+    '<span style="color:' + di.color + '">' + di.note + '</span>' +
+    '<br>Level ' + R.band + ' · Expeditions: 0' +
+    '<div class="t-hint">' + (here ? '📍 You are here' : 'Click to open') + '</div>';
+}
+
+let panning = false, panStart = null, panMoved = 0;
+let downNode = null, longPressed = false, lpTimer = null;
+const pointers = new Map();          // aktiva fingrar/pekare på kartan
+let pinchPrev = null;                // {dist, mid} från förra rörelsen
+
+function midOf(){
+  const pts = Array.from(pointers.values());
+  return {x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2};
+}
+function distOf(){
+  const pts = Array.from(pointers.values());
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+}
+
+mapArea.addEventListener('pointerdown', e => {
+  if (e.target.closest('.map-zoom')) return;
+  downNode = e.target.closest('.map-node');
+  longPressed = false;
+  clearTimeout(lpTimer);
+  if (downNode && e.pointerType !== 'mouse'){
+    const nx = e.clientX, ny = e.clientY;
+    const node = downNode;
+    lpTimer = setTimeout(() => {
+      if (panMoved <= 8 && node._tip){ showTip(node._tip(), nx, ny); longPressed = true; }
+    }, 450);
+  }
+  pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  mapArea.setPointerCapture(e.pointerId);
+  if (pointers.size === 2){
+    // Två fingrar: nypa tar över, panorering pausar
+    panning = false;
+    pinchPrev = {dist: distOf(), mid: midOf()};
+    panMoved = 99; // nypa ska aldrig räknas som klick
+  } else if (pointers.size === 1){
+    panning = true; panMoved = 0;
+    panStart = {x: e.clientX - view.x, y: e.clientY - view.y};
+    mapArea.classList.add('panning');
+  }
+});
+
+mapArea.addEventListener('pointermove', e => {
+  // Hovring på pc: rutan följer musen över noder
+  if (e.pointerType === 'mouse' && pointers.size === 0){
+    const hn = e.target.closest('.map-node');
+    if (hn && hn._tip) showTip(hn._tip(), e.clientX, e.clientY);
+    else hideTip();
+    return;
+  }
+  if (!pointers.has(e.pointerId)) return;
+  if (panMoved > 8){ clearTimeout(lpTimer); if (!longPressed) hideTip(); }
+  pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+
+  if (pointers.size >= 2 && pinchPrev){
+    const dist = distOf(), mid = midOf();
+    const r = mapArea.getBoundingClientRect();
+    zoomAt(dist / pinchPrev.dist, mid.x - r.left, mid.y - r.top);
+    view.x += mid.x - pinchPrev.mid.x;
+    view.y += mid.y - pinchPrev.mid.y;
+    applyView();
+    pinchPrev = {dist, mid};
+    return;
+  }
+
+  if (!panning) return;
+  const nx = e.clientX - panStart.x, ny = e.clientY - panStart.y;
+  panMoved += Math.abs(nx - view.x) + Math.abs(ny - view.y);
+  view.x = nx; view.y = ny;
+  applyView();
+});
+
+function endPointer(e){
+  clearTimeout(lpTimer);
+  if (e.type === 'pointerup' && downNode && panMoved <= 8 && !longPressed && downNode._action){
+    downNode._action();
+  }
+  if (e.pointerType !== 'mouse') hideTip();
+  downNode = null;
+  longPressed = false;
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinchPrev = null;
+  if (pointers.size === 1){
+    // Ett finger kvar: fortsätt panorera sömlöst från dess läge
+    const p = Array.from(pointers.values())[0];
+    panning = true;
+    panStart = {x: p.x - view.x, y: p.y - view.y};
+  } else if (pointers.size === 0){
+    panning = false;
+    mapArea.classList.remove('panning');
+  }
+}
+mapArea.addEventListener('pointerleave', () => hideTip());
+mapArea.addEventListener('pointerup', endPointer);
+mapArea.addEventListener('pointercancel', endPointer);
+
+function nodeState(id){
+  if (!isKnown(id)) return 'fog';
+  if (id === S.world.current) return 'current';
+  if (isVisited(id)) return 'visited';
+  return 'known';
+}
+function renderWorld(){
+  const ids = renderableIds();
+  // Linjer
+  let lines = '';
+  const drawn = new Set();
+  ids.forEach(a => {
+    (REGIONS[a] ? REGIONS[a].adj : []).forEach(b => {
+      if (!ids.includes(b)) return;
+      const key = [a, b].sort().join('|');
+      if (drawn.has(key)) return;
+      drawn.add(key);
+      const A = REGIONS[a], B = REGIONS[b];
+      const dash = (!isKnown(a) || !isKnown(b)) ? ' stroke-dasharray="4 3"' : '';
+      lines += '<line x1="' + A.x + '%" y1="' + A.y + '%" x2="' + B.x + '%" y2="' + B.y + '%" stroke="#2a3670" stroke-width="1"' + dash + '/>';
+    });
+  });
+  mapLines.innerHTML = lines;
+  // Noder
+  mapNodes.innerHTML = '';
+  ids.forEach(id => {
+    const R = REGIONS[id];
+    const st = nodeState(id);
+    const n = document.createElement('div');
+    n.className = 'map-node ' + st + (R.corrupted && st !== 'fog' ? ' corrupted' : '');
+    n.style.left = R.x + '%';
+    n.style.top = R.y + '%';
+    const label = st === 'fog' ? '???' : R.name + (id === S.world.current ? '<br>YOU ARE HERE' : '');
+    n.innerHTML = '<div class="map-dot">' + (st === 'fog' ? '❓' : R.ico) + '</div><div class="map-name">' + label + '</div>';
+    n._tip = () => tipForRegion(id);
+    n._action = () => {
+      if (isVisited(id)) viewRegion(id);   // dyk in bland zonerna
+      else openRegion(id);                  // okänd: upptäck · känd: res
+    };
+    mapNodes.appendChild(n);
+  });
+}
+
+/* --- Regionsvyn: du står INNE i regionen, zonerna runt dig --- */
+let mapMode = 'region';   // spelarens beslut: kartan börjar inne i regionen
+let viewedRegion = null;  // vilken regions insida som visas (default: där du står)
+function setMapMode(m){
+  mapMode = m;
+  if (m === 'region' && !viewedRegion) viewedRegion = S.world.current;
+  $('map-mode').textContent = (m === 'world') ? '◉' : '🌐';
+  $('map-hint').textContent = (m === 'world')
+    ? 'World view · hover a region · click to dive in · 🌐 back inside'
+    : 'Inside ' + REGIONS[viewedRegion || S.world.current].name + ' · hover a zone · click to open · ◉ world view';
+  renderMap();
+}
+function viewRegion(id){ viewedRegion = id; setMapMode('region'); }
+$('map-mode').addEventListener('click', () => setMapMode(mapMode === 'world' ? 'region' : 'world'));
+
+/* Varje zon får sin egen naturliga plats: grundvinkeln jittras och avståndet
+   varierar, styrt av en hash på zonens namn — samma zon landar alltid på
+   samma ställe, men ringen ser levande ut i stället för klockren. */
+function zoneHash(str){
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 1000) / 1000;
+}
+function zonePos(i, n, regionId, zoneName){
+  const h1 = zoneHash(regionId + '|' + zoneName);
+  const h2 = zoneHash(zoneName + '|' + regionId);
+  const jitter = (h1 - 0.5) * (Math.PI / 5);          // ±18 grader
+  const a = -Math.PI / 2 + (i * 2 * Math.PI / n) + jitter;
+  const rx = 25 + h2 * 15;                            // 25-40% ut
+  const ry = 24 + ((h1 + h2) % 1) * 14;               // 24-38% ut
+  return {x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a)};
+}
+function renderRegionView(){
+  const id = viewedRegion || S.world.current;
+  const R = REGIONS[id];
+  // Ekrar från regionkärnan ut till zonerna
+  let lines = '';
+  R.zones.forEach((z, i) => {
+    const p = zonePos(i, R.zones.length, id, z);
+    lines += '<line x1="50%" y1="50%" x2="' + p.x + '%" y2="' + p.y + '%" stroke="#2a3670" stroke-width="1"/>';
+  });
+  mapLines.innerHTML = lines;
+  mapNodes.innerHTML = '';
+  // Kärnan: regionens port
+  const core = document.createElement('div');
+  core.className = 'map-node current core';
+  core.style.left = '50%'; core.style.top = '50%';
+  core.innerHTML = '<div class="map-dot">' + R.ico + '</div><div class="map-name">' + R.name + '</div>';
+  core._tip = () => tipForRegion(id) .replace('Click to view zones', 'Click to zoom out to the world');
+  core._action = () => setMapMode('world');
+  mapNodes.appendChild(core);
+  // Zonerna runt dig
+  R.zones.forEach((z, i) => {
+    const p = zonePos(i, R.zones.length, id, z);
+    const here = (id === S.world.current && S.world.zone === z);
+    const n = document.createElement('div');
+    const zd = zoneDesig(id, z);
+    n.className = 'map-node zone' + (here ? ' zone-here' : '') + (zd === 'PvP' ? ' zone-pvp' : '');
+    n.style.left = p.x + '%'; n.style.top = p.y + '%';
+    n.innerHTML = '<div class="map-dot">' + (here ? '📍' : '·') + '</div><div class="map-name">' + z + '</div>';
+    n._tip = () => tipForZone(id, i);
+    n._action = () => openZone(id, i);
+    mapNodes.appendChild(n);
+  });
+}
+function renderMap(){
+  if (mapMode === 'region') renderRegionView();
+  else renderWorld();
+}
+
+/* --- Regionmodalen --- */
+const regionOverlay = $('region-overlay');
+function closeRegion(){ regionOverlay.classList.remove('open'); }
+$('region-close').addEventListener('click', closeRegion);
+regionOverlay.addEventListener('click', e => { if (e.target === regionOverlay) closeRegion(); });
+
+function openRegion(id){
+  const R = REGIONS[id];
+  const body = $('region-body');
+  if (!isKnown(id)){
+    const cost = DISCOVER_COST[R.tier] || 0;
+    $('region-title').textContent = 'Unknown Region';
+    body.innerHTML =
+      '<div class="region-kv"><div class="kv"><span class="k">Signal strength</span><span class="v">Tier ' + R.tier + '</span></div>' +
+      '<div class="kv"><span class="k">Discovery cost</span><span class="v" style="color:var(--cyan)">' + fmt(cost) + ' Data</span></div></div>' +
+      '<div class="shelf-empty">Something is out there. Pay to decrypt its signal and reveal what it is.</div>' +
+      '<div class="region-actions"><button class="btn-primary" id="region-discover"' + (S.data < cost ? ' disabled style="opacity:.5"' : '') + '>🔍 Discover</button></div>';
+    const btn = $('region-discover');
+    btn.addEventListener('click', () => {
+      if (S.data < cost) return;
+      S.data -= cost;
+      S.world.known.push(id);
+      grantXP(50);
+      renderMap(); refreshTravelBar();
+      openRegion(id);
+    });
+  } else {
+    const rank = repRank(id);
+    $('region-title').textContent = R.name;
+    let zonesHtml = '';
+    if (isVisited(id)){
+      if (R.zones.length){
+        zonesHtml = '<div class="section-label">Zones — ' + R.zones.length + '</div>' + R.zones.map((z, zi) => {
+          const here = (id === S.world.current && S.world.zone === z);
+          const zd = zoneDesig(id, z);
+          return '<div class="region-zone clickable" data-zi="' + zi + '"><span>' + (zd === 'PvP' ? '<span style="color:var(--red)">⚔ </span>' : '') + z + '</span><span class="z-note' + (here ? ' here' : '') + '">' + (here ? '📍 You are here' : 'Enter ›') + '</span></div>';
+        }).join('');
+      } else {
+        zonesHtml = '<div class="shelf-empty">This place does not follow the rules of the network. Its zones refuse to be mapped.</div>';
+      }
+    } else {
+      zonesHtml = '<div class="shelf-empty">Travel here to explore its zones.</div>';
+    }
+    const t = TRAVEL_BY_TIER[R.tier];
+    let action = '';
+    if (id === S.world.current){
+      action = '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">You are here</button></div>';
+    } else if (S.world.travel){
+      action = '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">Traveling…</button></div>';
+    } else {
+      action = '<div class="region-actions"><button class="btn-primary" id="region-travel"' + (S.data < t.cost ? ' disabled style="opacity:.5"' : '') + '>🚀 Travel — ' + fmt(t.cost) + ' Data · ' + fmtDur(t.time) + '</button></div>';
+    }
+    body.innerHTML =
+      '<div class="region-kv">' +
+      '<div class="kv"><span class="k">Status</span><span class="v ' + (R.corrupted ? 'warn' : 'good') + '">' + (R.corrupted ? 'Corrupted' : 'Stable') + '</span></div>' +
+      '<div class="kv"><span class="k">Designation</span><span class="v" style="color:' + (R.desig === 'Friendly' ? 'var(--green)' : R.desig === 'PvE' ? 'var(--cyan)' : R.desig === 'PvP' ? 'var(--red)' : 'var(--orange)') + '">' + R.desig + '</span></div>' +
+      '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>' +
+      '<div class="kv"><span class="k">Distance</span><span class="v">Tier ' + R.tier + '</span></div>' +
+      '<div class="kv"><span class="k">Reputation</span><span class="v" style="color:var(--gold)">' + '★'.repeat(rank) + '☆'.repeat(5 - rank) + '</span></div>' +
+      '</div>' + zonesHtml + action;
+    const tbtn = $('region-travel');
+    if (tbtn) tbtn.addEventListener('click', () => { startTravel(id); closeRegion(); });
+    body.querySelectorAll('.region-zone.clickable').forEach(row => {
+      row.addEventListener('click', () => openZone(id, +row.dataset.zi));
+    });
+  }
+  regionOverlay.classList.add('open');
+}
+
+/* --- Zonvyn: platsen där expeditionerna kommer bo --- */
+function zoneDesig(regionId, zoneName){
+  const R = REGIONS[regionId];
+  if (R.desig !== 'PvE/PvP') return R.desig;
+  return (R.pvpZones && R.pvpZones.includes(zoneName)) ? 'PvP' : 'PvE';
+}
+function desigInfo(d){
+  if (d === 'Friendly') return {color:'var(--green)', note:'Safe haven — no damage can be dealt here.'};
+  if (d === 'PvE') return {color:'var(--cyan)', note:'PvE — the environment fights back.'};
+  if (d === 'PvP') return {color:'var(--red)', note:'⚠ Free-for-all — entering makes you a valid target.'};
+  return {color:'var(--orange)', note:'Contested — PvP is possible in parts of this area.'};
+}
+function openZone(regionId, zi){
+  const R = REGIONS[regionId];
+  const zone = R.zones[zi];
+  if (!zone) return;
+  $('region-title').textContent = zone;
+  const zd = zoneDesig(regionId, zone);
+  const di = desigInfo(zd);
+  $('region-body').innerHTML =
+    '<div class="zone-crumb" id="zone-back">‹ ' + R.name + '</div>' +
+    '<div class="region-kv">' +
+    '<div class="kv"><span class="k">Region</span><span class="v">' + R.name + '</span></div>' +
+    '<div class="kv"><span class="k">Designation</span><span class="v" style="color:' + di.color + '">' + zd + '</span></div>' +
+    '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>' +
+    '</div>' +
+    '<div class="desig-note" style="border-color:' + di.color + ';color:' + di.color + '">' + di.note + '</div>' +
+    '<div class="section-label">Expeditions</div>' +
+    buildZoneExpeditions(regionId, zone) +
+    '<div class="section-label">Players in zone</div>' +
+    '<div class="shelf-empty">Only you — other players appear when the server goes live.</div>' +
+    buildZoneAction(regionId, zone);
+  regionOverlay.classList.add('open');
+  $('zone-back').addEventListener('click', () => openRegion(regionId));
+  $('region-body').querySelectorAll('[data-start]').forEach(b => {
+    b.addEventListener('click', () => {
+      if (startExpedition(b.dataset.start)) openZone(regionId, zi);
+    });
+  });
+  const zbtn = $('zone-enter');
+  if (zbtn) zbtn.addEventListener('click', () => {
+    S.world.zone = zone;
+    discoverZoneExpeditions(regionId, zone);
+    refreshRegionUI();
+    renderMap();
+    renderExpPanel();
+    closeRegion();
+  });
+}
+function buildZoneExpeditions(regionId, zone){
+  const defs = expDefsForZone(regionId, zone);
+  if (defs.length === 0){
+    return '<div class="shelf-empty">No expeditions have been charted in ' + zone + ' yet.</div>';
+  }
+  const here = (S.world.current === regionId && S.world.zone === zone);
+  const lvl = levelInfo().lvl;
+  return defs.map(def => {
+    const running = expIsRunning(def.id);
+    const slotsFull = S.exp.runs.length >= EXP_SLOTS;
+    let btn;
+    if (running) btn = '<button class="zx-btn running" disabled>Running</button>';
+    else if (!here) btn = '<button class="zx-btn cant" disabled>Enter zone</button>';
+    else if (lvl < def.lvl) btn = '<button class="zx-btn cant" disabled>Lv ' + def.lvl + '</button>';
+    else if (slotsFull) btn = '<button class="zx-btn cant" disabled>Slots full</button>';
+    else btn = '<button class="zx-btn" data-start="' + def.id + '">Start</button>';
+    return '<div class="zx-row"><div class="zx-info">' +
+      '<div class="zx-name">' + def.name + '</div>' +
+      '<div class="zx-meta">⏱ ' + fmtMins(def.mins) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · ✨ ' + def.xp + ' XP' + (def.frag ? ' · 🔷 ' + def.frag : '') + '</div>' +
+      '</div>' + btn + '</div>';
+  }).join('');
+}
+function buildZoneAction(regionId, zone){
+  if (regionId !== S.world.current){
+    return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">Travel to ' + REGIONS[regionId].name + ' first</button></div>';
+  }
+  if (S.world.zone === zone){
+    return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">📍 You are here</button></div>';
+  }
+  return '<div class="region-actions"><button class="btn-primary" id="zone-enter">Enter ' + zone + '</button></div>';
+}
+
+/* --- Resandet --- */
+function startTravel(id){
+  if (S.world.travel || id === S.world.current || !isKnown(id)) return;
+  const t = TRAVEL_BY_TIER[REGIONS[id].tier];
+  if (!t || S.data < t.cost) return;
+  S.data -= t.cost;
+  S.world.travel = {to: id, eta: Date.now() + t.time * 1000};
+  refreshTravelBar();
+}
+function arrive(){
+  const id = S.world.travel.to;
+  S.world.travel = null;
+  S.world.current = id;
+  S.world.zone = null;
+  if (!S.world.visited.includes(id)) S.world.visited.push(id);
+  grantXP(100);
+  viewedRegion = id;
+  if (mapMode === 'region') setMapMode('region'); else renderMap();
+  refreshTravelBar(); refreshRegionUI();
+}
+function checkTravel(){
+  if (S.world.travel && Date.now() >= S.world.travel.eta) arrive();
+}
+
+/* --- Resraden --- */
+const travelSelect = $('travel-select'), travelCost = $('travel-cost'), travelTime = $('travel-time'), travelGo = $('travel-go');
+function refreshTravelBar(){
+  if (S.world.travel){
+    travelSelect.innerHTML = '<option>' + REGIONS[S.world.travel.to].name + '</option>';
+    travelSelect.disabled = true;
+    travelCost.textContent = 'In transit';
+    travelGo.classList.add('busy');
+    return;
+  }
+  travelSelect.disabled = false;
+  travelGo.classList.remove('busy');
+  const opts = S.world.known.filter(id => id !== S.world.current);
+  travelSelect.innerHTML = opts.length
+    ? opts.map(id => '<option value="' + id + '">' + REGIONS[id].name + '</option>').join('')
+    : '<option value="">No known destinations</option>';
+  updateTravelInfo();
+}
+function updateTravelInfo(){
+  const id = travelSelect.value;
+  if (!id || !REGIONS[id]){ travelCost.textContent = '—'; travelTime.textContent = '—'; return; }
+  const t = TRAVEL_BY_TIER[REGIONS[id].tier];
+  travelCost.textContent = '💠 ' + fmt(t.cost);
+  travelTime.textContent = '⏱ ' + fmtDur(t.time);
+}
+travelSelect.addEventListener('change', updateTravelInfo);
+$('exp-active-list').addEventListener('click', e => {
+  const btn = e.target.closest('[data-claim]');
+  if (btn) claimExpedition(btn.dataset.claim);
+});
+
+travelGo.addEventListener('click', () => {
+  if (S.world.travel) return;
+  const id = travelSelect.value;
+  if (id) startTravel(id);
+});
+
+/* --- Regionberoende UI (hero + ryktesrutan) --- */
+function refreshRegionUI(){
+  const R = REGIONS[S.world.current];
+  el.heroTitle.textContent = R.name.toUpperCase();
+  el.regionThumb.textContent = R.name.toUpperCase();
+  el.currentZone.textContent = S.world.zone || 'No zone entered';
+}
+
+/* ---------- STATSPOPUPEN ---------- */
+const statsPopup = $('stats-popup');
+const statsBtn = $('view-stats-btn');
+function toggleStatsPopup(){
+  if (statsPopup.classList.contains('open')){ statsPopup.classList.remove('open'); return; }
+  const panel = document.getElementById('panel-character');
+  const r = panel.getBoundingClientRect();
+  statsPopup.style.left = r.left + 'px';
+  statsPopup.style.top = (r.bottom + 6) + 'px';
+  statsPopup.style.width = r.width + 'px';
+  statsPopup.classList.add('open');
+}
+statsBtn.addEventListener('click', e => { e.stopPropagation(); toggleStatsPopup(); });
+document.addEventListener('click', e => {
+  if (statsPopup.classList.contains('open') && !statsPopup.contains(e.target)) statsPopup.classList.remove('open');
+});
+window.addEventListener('scroll', () => statsPopup.classList.remove('open'), true);
+
+/* ---------- INSTÄLLNINGAR ---------- */
+const overlay = $('settings-overlay');
+function openSettings(){ overlay.classList.add('open'); resetShow('main'); }
+function closeSettings(){ overlay.classList.remove('open'); }
+function resetShow(step){
+  $('settings-main').style.display = (step === 'main') ? '' : 'none';
+  $('reset-step1').classList.toggle('open', step === 1);
+  $('reset-step2').classList.toggle('open', step === 2);
+}
+$('nav-settings').addEventListener('click', openSettings);
+$('footer-settings').addEventListener('click', openSettings);
+$('settings-close').addEventListener('click', closeSettings);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeSettings(); });
+$('reset-step0').addEventListener('click', () => resetShow(1));
+$('reset-cancel-1').addEventListener('click', () => resetShow('main'));
+$('reset-yes-1').addEventListener('click', () => resetShow(2));
+$('reset-cancel-2').addEventListener('click', () => resetShow('main'));
+function applySoundPrefs(){
+  Sound.setEnabled(S.snd.sfx);
+  Sound.musicEnabled = S.snd.music;
+  Sound.setSfxVolume(S.snd.sv);
+  Sound.setMusicVolume(S.snd.mv);
+  $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
+  $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
+  $('vol-sfx').value = Math.round(S.snd.sv * 100);
+  $('vol-music').value = Math.round(S.snd.mv * 100);
+}
+$('snd-sfx').addEventListener('click', () => {
+  S.snd.sfx = !S.snd.sfx;
+  Sound.setEnabled(S.snd.sfx);
+  $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
+  save();
+});
+$('snd-music').addEventListener('click', () => {
+  S.snd.music = !S.snd.music;
+  Sound.setMusicEnabled(S.snd.music);
+  $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
+  save();
+});
+$('vol-sfx').addEventListener('input', () => {
+  S.snd.sv = (+$('vol-sfx').value) / 100;
+  Sound.setSfxVolume(S.snd.sv);
+});
+$('vol-music').addEventListener('input', () => {
+  S.snd.mv = (+$('vol-music').value) / 100;
+  Sound.setMusicVolume(S.snd.mv);
+});
+$('layout-toggle').addEventListener('click', () => setEditMode(!editMode));
+$('layout-reset').addEventListener('click', () => {
+  try { localStorage.removeItem(LAYOUT_KEY); } catch(e){}
+  location.reload();
+});
+$('reset-yes-2').addEventListener('click', () => {
+  try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+  resetInProgress = true;
+  location.reload();
+});
+let resetInProgress = false;
+
+load();
+applySoundPrefs();
+const offlinePending = computeOffline();
+applyLayout();
+buildPremiumOffline();
+lastLevel = levelInfo().lvl;
+setMapMode('region');
+refreshTravelBar();
+refreshRegionUI();
+checkTravel();
+if (offlinePending) showOffline(offlinePending);
+buildRows();
+buildCoreUpgrades();
+refreshShelf();
+updateUI(true);
+window.addEventListener('pagehide', () => { if (!resetInProgress) save(); });
+window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden'){
+    Sound.stopMusic();
+    if (!resetInProgress) save();
+  } else if (Sound.musicEnabled && Sound.ctx && Sound.ctx.state === 'running'){
+    Sound.startMusic();
+  }
+});
+requestAnimationFrame(loop);
+
+/* Buy amount-chips */
+document.querySelectorAll('.machines-controls .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.machines-controls .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    buyAmount = chip.dataset.amount === 'max' ? 'max' : parseInt(chip.dataset.amount, 10);
+    updateUI(true);
+  });
+});
+
+/* Flikar */
+document.querySelectorAll('.tabs').forEach(tabs => {
+  tabs.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const paneId = tab.dataset.pane;
+      if (paneId){
+        const panel = tabs.closest('.panel');
+        panel.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+        const target = document.getElementById(paneId);
+        if (target) target.style.display = '';
+      }
+    });
+  });
+});
+})();
+</script>
+</body>
+</html>
