@@ -299,20 +299,45 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .machine-list{display:flex;flex-direction:column;gap:5px}
 .machine-row{
   display:grid;
-  grid-template-columns:40px minmax(0,1fr) auto 92px;
+  grid-template-columns:44px 40px minmax(0,1fr) auto 92px;
   align-items:center;gap:10px;
   background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
   padding:11px 10px;cursor:pointer;transition:background .15s;
+  position:relative;
 }
 .machine-row:hover{background:var(--bg-row-hover)}
+/* Antalet du äger — det första ögat ska landa på, inte en detalj i småtexten */
+.m-count{
+  font-family:var(--font-mono);font-size:22px;font-weight:900;line-height:1;
+  text-align:right;color:var(--cyan);
+}
+.m-count.zero{color:var(--text-faint);opacity:.55}
 .m-ico{width:38px;height:38px;border-radius:8px;background:var(--bg-inset);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px}
-.m-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-name{font-size:14.4px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .m-lvl{font-size:9px;color:var(--text-dim);font-family:var(--font-mono)}
-.m-rate{font-size:11px;color:var(--cyan);font-family:var(--font-mono);text-align:right;font-weight:700}
+.m-rate{font-size:13.2px;color:var(--cyan);font-family:var(--font-mono);text-align:right;font-weight:700}
 .m-delta{font-size:9px;color:var(--text-faint);font-family:var(--font-mono);text-align:right}
 .m-bonus{font-size:9px;color:var(--gold);font-family:var(--font-mono);text-align:right}
-.m-sub{font-size:9px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-sub{font-size:10.8px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .m-sub .mx{color:var(--gold)}
+/* Detaljrutan vid hovring — allt om en maskin på ett ställe */
+.m-tip{
+  position:fixed;z-index:60;display:none;pointer-events:none;
+  width:250px;padding:11px 12px;border-radius:10px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);box-shadow:0 14px 34px rgba(0,0,0,.6);
+}
+.m-tip.on{display:block}
+.m-tip .mt-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.m-tip .mt-ico{font-size:18px}
+.m-tip .mt-name{font-size:12px;font-weight:900;letter-spacing:.04em}
+.m-tip .mt-mult{font-size:9px;color:var(--gold);font-family:var(--font-mono);margin-left:auto}
+.m-tip .mt-row{display:flex;justify-content:space-between;gap:10px;font-size:10px;padding:2px 0}
+.m-tip .mt-k{color:var(--text-dim)}
+.m-tip .mt-v{font-family:var(--font-mono);font-weight:800;color:var(--text)}
+.m-tip .mt-sep{height:1px;background:var(--border-soft);margin:7px 0}
+.m-tip .mt-bar{height:5px;border-radius:99px;background:var(--bg-inset);overflow:hidden;margin-top:5px}
+.m-tip .mt-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:99px}
 /* Köpknappen: 3D-känsla — lyser när man har råd, trycks ner fysiskt vid köp */
 .m-cost{
   font-size:11px;font-weight:900;font-family:var(--font-mono);text-align:center;
@@ -362,19 +387,6 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   12%  {opacity:1}
   100% {transform:rotate(var(--a)) translateX(var(--d)) scaleX(30);opacity:0}
 }
-.warp-ring{
-  position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;
-  border:1px solid rgba(56,232,255,.75);border-radius:10px;
-  box-shadow:0 0 14px -2px rgba(56,232,255,.5);
-  animation:warpRing linear infinite;
-}
-@keyframes warpRing{
-  0%   {transform:scale(.04) rotate(0deg);opacity:0}
-  14%  {opacity:.9}
-  100% {transform:scale(11) rotate(14deg);opacity:0}
-}
-.warp[data-style="stars"] .warp-ring{display:none}
-.warp[data-style="tunnel"] .warp-star{display:none}
 .warp-hud{
   position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
   width:min(320px,92%);text-align:center;
@@ -1445,14 +1457,13 @@ body.modal-open{overflow:hidden}
             <button class="map-zoom-btn" id="map-zoom-in">＋</button>
             <button class="map-zoom-btn" id="map-zoom-out">－</button>
           </div>
-          <div class="warp" id="warp" data-style="stars">
+          <div class="warp" id="warp">
             <div class="warp-field" id="warp-field"></div>
             <div class="warp-hud">
               <div class="wh-route"><b id="warp-from">—</b><span class="wh-arrow">→</span><b id="warp-to">—</b></div>
               <div class="wh-eta" id="warp-eta">—</div>
               <div class="wh-lbl">Time to arrival</div>
               <div class="wh-actions" id="warp-actions">
-                <button class="wh-btn" id="warp-style">Tunnel view</button>
                 <button class="wh-btn skip" id="warp-skip">Skip</button>
                 <button class="wh-btn danger" id="warp-abort">Abort warp</button>
               </div>
@@ -1494,6 +1505,7 @@ body.modal-open{overflow:hidden}
             <span class="chip active" data-amount="1">1</span><span class="chip" data-amount="10">10</span><span class="chip" data-amount="max">MAX</span>
           </div>
           <div class="machine-list" id="machine-list"></div>
+          <div class="m-tip" id="machine-tip"></div>
         </div>
 
         <!-- FLIK 2: UPGRADES -->
@@ -1702,7 +1714,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.23.1 — HEMRESAN</div>
+            <div class="desc">GENESIS v0.24.0 — MASKINDETALJER</div>
           </div>
         </div>
       </div>
@@ -1728,7 +1740,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.23.1 — HEMRESAN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.24.0 — MASKINDETALJER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1862,7 +1874,6 @@ function petExtraFrags(rnd){
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
   pets: {owned: [], active: null, seq: 1},
-  warpStyle: 'stars',
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -1919,7 +1930,6 @@ function load(){
         S.premium.offlineHours = Math.min(4, Math.max(0, Math.floor(+d.premium.offlineHours) || 0));
       }
       S.frags = Math.max(0, +d.frags || 0);
-      if (d.warpStyle === 'tunnel' || d.warpStyle === 'stars') S.warpStyle = d.warpStyle;
       if (d.pets && typeof d.pets === 'object'){
         if (Array.isArray(d.pets.owned))
           S.pets.owned = d.pets.owned
@@ -2093,6 +2103,7 @@ function buildRows(){
     const row = document.createElement('div');
     row.className = 'machine-row';
     row.innerHTML =
+      '<div class="m-count">0</div>' +
       '<div class="m-ico">' + b.ico + '</div>' +
       '<div><div class="m-name">' + b.name + '</div><div class="m-sub"></div></div>' +
       '<div class="m-rate"></div>' +
@@ -2100,13 +2111,73 @@ function buildRows(){
     el.list.appendChild(row);
     rowRefs[b.id] = {
       row,
+      count: row.querySelector('.m-count'),
       sub: row.querySelector('.m-sub'),
       rate: row.querySelector('.m-rate'),
       cost: row.querySelector('.m-cost')
     };
     row.addEventListener('click', () => buyBuilding(b));
+    row.addEventListener('mouseenter', () => showMachineTip(b, row));
+    row.addEventListener('mousemove', e => placeMachineTip(e));
+    row.addEventListener('mouseleave', hideMachineTip);
   });
 }
+/* ---------- DETALJRUTAN FÖR EN MASKIN ----------
+   Allt som annars kräver huvudräkning: hur många, vad en ger, vad alla ger,
+   hur stor del av din totala inkomst det är, nästa milstolpe, och vad ett köp kostar. */
+const machineTip = $('machine-tip');
+let tipBuilding = null;
+function nextMilestone(b){
+  const owned = S.own[b.id];
+  for (const st of MILESTEPS){ if (owned < st) return st; }
+  return null;
+}
+function machineTipHTML(b){
+  const owned = S.own[b.id];
+  const per = prodPerUnit(b);
+  const mine = prodOf(b);
+  const totalRaw = BUILDINGS.reduce((a, x) => a + prodOf(x), 0);
+  const share = totalRaw > 0 ? (mine / totalRaw) * 100 : 0;
+  const mm = milMult(b.id);
+  const n = (buyAmount === 'max') ? Math.max(1, maxAffordable(b)) : buyAmount;
+  const c = costOfN(b, n);
+  const nx = nextMilestone(b);
+  const row = (k, v, col) => '<div class="mt-row"><span class="mt-k">' + k + '</span><span class="mt-v"' +
+    (col ? ' style="color:' + col + '"' : '') + '>' + v + '</span></div>';
+  return '<div class="mt-head"><span class="mt-ico">' + b.ico + '</span><span class="mt-name">' + b.name + '</span>' +
+      (mm > 1 ? '<span class="mt-mult">×' + mm + ' milestone</span>' : '') + '</div>' +
+    row('Owned', fmt(owned)) +
+    row('Each produces', '+' + fmt(per) + '/s', 'var(--cyan)') +
+    row('These produce', '+' + fmt(mine) + '/s', 'var(--cyan)') +
+    '<div class="mt-sep"></div>' +
+    row('Share of production', share.toFixed(1) + '%', 'var(--purple)') +
+    '<div class="mt-bar"><div class="mt-fill" style="width:' + Math.min(100, share).toFixed(1) + '%"></div></div>' +
+    '<div class="mt-sep"></div>' +
+    row('Network Efficiency', '+' + (5 * S.up.network) + '%') +
+    row('Next milestone', nx ? (fmt(nx) + ' owned → ×2') : 'All reached', nx ? '' : 'var(--gold)') +
+    '<div class="mt-sep"></div>' +
+    row('Buy ' + fmt(n), fmt(c) + ' Data', S.data < c ? 'var(--text-faint)' : 'var(--green)') +
+    row('Adds', '+' + fmt(per * n) + '/s', 'var(--cyan)');
+}
+function showMachineTip(b, row){
+  tipBuilding = b;
+  machineTip.innerHTML = machineTipHTML(b);
+  machineTip.classList.add('on');
+  const r = row.getBoundingClientRect();
+  placeMachineTipAt(r.left + r.width / 2, r.top);
+}
+function placeMachineTip(e){ if (tipBuilding) placeMachineTipAt(e.clientX, e.clientY); }
+function placeMachineTipAt(x, y){
+  const w = machineTip.offsetWidth || 250, hh = machineTip.offsetHeight || 200;
+  let left = x - w / 2, top = y - hh - 12;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  if (top < 8) top = y + 18;
+  machineTip.style.left = left + 'px';
+  machineTip.style.top = top + 'px';
+}
+function hideMachineTip(){ tipBuilding = null; machineTip.classList.remove('on'); }
+function refreshMachineTip(){ if (tipBuilding) machineTip.innerHTML = machineTipHTML(tipBuilding); }
+
 function xpPerBuilding(b){
   // Billigaste byggnaden ger 2 XP, sen dubblas det per rang: 2,4,8,...,1024
   const idx = BUILDINGS.indexOf(b);
@@ -3048,7 +3119,9 @@ function updateUI(force){
     const n = (buyAmount === 'max') ? Math.max(1, maxAffordable(b)) : buyAmount;
     const c = costOfN(b, n);
     const mm = milMult(b.id);
-    r.sub.innerHTML = 'Lv.' + S.own[b.id] + ' · +' + fmt(prodPerUnit(b)) + '/s each' + (mm > 1 ? ' · <span class="mx">×' + mm + '</span>' : '');
+    r.count.textContent = fmt(S.own[b.id]);
+    r.count.classList.toggle('zero', S.own[b.id] === 0);
+    r.sub.innerHTML = '+' + fmt(prodPerUnit(b)) + '/s each' + (mm > 1 ? ' · <span class="mx">×' + mm + '</span>' : '');
     r.rate.textContent = fmt(prodOf(b)) + '/s';
     r.cost.textContent = fmt(c);
     const cant = S.data < c;
@@ -3057,6 +3130,7 @@ function updateUI(force){
   });
 
   refreshShelf();
+  refreshMachineTip();
 
   UPGRADES.forEach(u => {
     const r = upRefs[u.id];
@@ -3789,7 +3863,9 @@ function openZone(regionId, zi){
   $('zone-back').addEventListener('click', () => openRegion(regionId));
   $('region-body').querySelectorAll('[data-start]').forEach(b => {
     b.addEventListener('click', () => {
-      if (startExpedition(b.dataset.start)) openZone(regionId, zi);
+      /* Startade den? Då är rutan färdig med sitt ärende — stäng den. */
+      if (startExpedition(b.dataset.start)) closeRegion();
+      else openZone(regionId, zi);
     });
   });
   const zbtn = $('zone-enter');
@@ -3893,23 +3969,11 @@ function buildWarpField(){
       s.style.animationDelay = (-Math.random() * 1.8).toFixed(2) + 's';
       warpField.appendChild(s);
     }
-    for (let i = 0; i < 9; i++){
-      const r = document.createElement('div');
-      r.className = 'warp-ring';
-      r.style.animationDuration = '2.4s';
-      r.style.animationDelay = (-i * 0.266).toFixed(3) + 's';
-      warpField.appendChild(r);
-    }
   }
   warpBuilt = true;
 }
 function clearWarpField(){ warpField.innerHTML = ''; warpBuilt = false; }
-function setWarpStyle(st, persist){
-  S.warpStyle = (st === 'tunnel') ? 'tunnel' : 'stars';
-  warpBox.dataset.style = S.warpStyle;
-  $('warp-style').textContent = S.warpStyle === 'stars' ? 'Tunnel view' : 'Starfield view';
-  if (persist) save();
-}
+
 function refreshWarp(){
   const tr = S.world.travel;
   if (!tr){
@@ -3920,7 +3984,6 @@ function refreshWarp(){
     return;
   }
   buildWarpField();
-  warpBox.dataset.style = S.warpStyle;
   $('warp-from').textContent = tr.zone
     ? (S.world.zone || REGIONS[S.world.current].name)
     : ((tr.from && REGIONS[tr.from]) ? REGIONS[tr.from].name : REGIONS[S.world.current].name);
@@ -3952,7 +4015,6 @@ function skipTravel(){
   save();
 }
 $('warp-skip').addEventListener('click', skipTravel);
-$('warp-style').addEventListener('click', () => setWarpStyle(S.warpStyle === 'stars' ? 'tunnel' : 'stars', true));
 $('warp-abort').addEventListener('click', () => {
   const tr = S.world.travel;
   if (!tr) return;
@@ -4247,7 +4309,6 @@ buildPremiumOffline();
 lastLevel = levelInfo().lvl;
 renderPetPanel();
 setMapMode('region');
-setWarpStyle(S.warpStyle);
 refreshWarp();
 refreshTravelBar();
 refreshRegionUI();
