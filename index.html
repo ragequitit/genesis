@@ -1000,17 +1000,64 @@ body.layout-edit .panel.dragging{opacity:.4}
 }
 
 /* ================= BELÖNINGSPOPUPEN (återuppstånden — föll bort i en tyst miss) ================= */
-.rw-sub{text-align:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
-.rw-rows{display:flex;flex-direction:column;gap:6px}
-.rw-row{
-  display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:8px;
-  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:8px;
-  padding:8px 10px;font-size:11px;font-weight:700;
+/* Belöningsrutan — efter spelarens mockup: hexmärke, fyra piedestalkort, sammanfattning, stor hämtknapp */
+.rw-modal{
+  position:relative;max-width:430px;padding:34px 16px 16px;
+  border-color:rgba(139,92,246,.55);
+  box-shadow:0 0 0 1px rgba(139,92,246,.18), 0 0 42px -8px rgba(139,92,246,.5), 0 20px 60px rgba(0,0,0,.6);
 }
-.rw-row.bonus{border-color:var(--border-glow);background:linear-gradient(90deg, rgba(56,232,255,.05), transparent)}
-.rw-ico{font-size:14px}
-.rw-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rw-val{font-family:var(--font-mono);font-weight:800;color:var(--cyan)}
+.rw-hex{
+  position:absolute;left:50%;top:-26px;transform:translateX(-50%);
+  width:52px;height:56px;display:flex;align-items:center;justify-content:center;font-size:22px;
+  background:linear-gradient(180deg,#7c3aed,#4c1d95);
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  filter:drop-shadow(0 0 14px rgba(139,92,246,.8));
+}
+.rw-x{position:absolute;right:12px;top:12px}
+.rw-title{text-align:center;font-size:16px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.rw-sub{text-align:center;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px}
+.rw-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:14px}
+.rw-card{
+  --rc:var(--cyan);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  border:1px solid var(--border-soft);border-radius:12px;padding:10px 4px 12px;
+  background:linear-gradient(180deg, rgba(255,255,255,.03), transparent 55%), var(--bg-inset);
+}
+.rw-card .cd-k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--text)}
+.rw-card .cd-ico{
+  position:relative;font-size:26px;line-height:1;padding:8px 0 12px;
+  filter:drop-shadow(0 0 10px var(--rc));
+}
+.rw-card .cd-ico::after{
+  content:'';position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:34px;height:10px;border-radius:50%;
+  background:radial-gradient(ellipse at center, var(--rc), transparent 70%);
+  opacity:.65;
+}
+.rw-card .cd-v{font-family:var(--font-mono);font-size:11px;font-weight:800;color:var(--rc)}
+.rw-divider{
+  display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);font-weight:700;
+}
+.rw-divider::before,.rw-divider::after{content:'';flex:1;height:1px;background:var(--border-soft)}
+.rw-chips{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+.rw-chip{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid var(--border-soft);border-radius:10px;padding:8px 10px;background:var(--bg-inset);
+}
+.rc-ico{font-size:14px}
+.rc-body{display:flex;flex-direction:column;min-width:0}
+.rc-k{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
+.rc-v{font-family:var(--font-mono);font-size:12px;font-weight:800}
+.rw-claim{
+  width:100%;padding:13px 10px;border-radius:12px;cursor:pointer;
+  font-size:13px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#fff;
+  border:1px solid rgba(196,127,255,.8);
+  background:linear-gradient(180deg, rgba(139,92,246,.45), rgba(88,28,135,.55));
+  box-shadow:0 0 18px -4px rgba(139,92,246,.7), inset 0 0 14px rgba(196,127,255,.25);
+}
+.rw-claim:active{transform:translateY(1px)}
+.rw-chev{color:var(--violet);margin:0 4px}
 
 /* ================= VÄSKAN — rak kopia av vanilla-ryggsäckens ramverk ================= */
 .inv-modal{
@@ -1461,14 +1508,18 @@ body.layout-edit .panel.dragging{opacity:.4}
 
   <!-- ================= EXPEDITIONSBELÖNINGEN ================= -->
   <div class="modal-overlay" id="reward-overlay">
-    <div class="modal">
-      <div class="modal-head">
-        <span class="modal-title">Expedition Complete</span>
-        <button class="modal-close" id="reward-close">✕</button>
-      </div>
+    <div class="modal rw-modal">
+      <div class="rw-hex">🚀</div>
+      <button class="modal-close rw-x" id="reward-close">✕</button>
+      <div class="rw-title">Expedition Complete</div>
       <div class="rw-sub" id="reward-sub"></div>
-      <div class="rw-rows" id="reward-rows"></div>
-      <button class="btn-primary" id="reward-ok" style="width:70%;margin:12px auto 4px;display:block">Nice!</button>
+      <div class="rw-cards" id="reward-cards"></div>
+      <div class="rw-divider"><span>Run Summary</span></div>
+      <div class="rw-chips">
+        <div class="rw-chip"><span class="rc-ico">⏱</span><span class="rc-body"><span class="rc-k">Duration</span><span class="rc-v" style="color:var(--cyan)" id="rw-dur">—</span></span></div>
+        <div class="rw-chip"><span class="rc-ico">📡</span><span class="rc-body"><span class="rc-k">Expedition Level</span><span class="rc-v" style="color:var(--violet)" id="rw-lvl">—</span></span></div>
+      </div>
+      <button class="rw-claim" id="reward-claim"><span class="rw-chev">»</span> Claim Rewards <span class="rw-chev">«</span></button>
     </div>
   </div>
 
@@ -1562,7 +1613,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.19.0 — CACHEN</div>
+            <div class="desc">GENESIS v0.19.1 — BELÖNINGSRUTAN</div>
           </div>
         </div>
       </div>
@@ -1588,7 +1639,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.0 — CACHEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.1 — BELÖNINGSRUTAN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1783,7 +1834,12 @@ function load(){
         if (Array.isArray(d.exp.found)) S.exp.found = d.exp.found.filter(x => typeof x === 'string');
         if (Array.isArray(d.exp.runs)){
           S.exp.runs = d.exp.runs.filter(r => r && typeof r.id === 'string' && isFinite(+r.endsAt)).slice(0, 2)
-            .map(r => ({id: r.id, endsAt: +r.endsAt, data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0)}));
+            .map(r => {
+              const run = {id: r.id, endsAt: +r.endsAt, data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0)};
+              if (r.loot && isFinite(+r.loot.gold) && isFinite(+r.loot.frags))
+                run.loot = {gold: Math.max(0, +r.loot.gold), frags: Math.max(0, +r.loot.frags)};
+              return run;
+            });
         }
       }
       if (d.snd && typeof d.snd === 'object'){
@@ -2315,33 +2371,48 @@ function rollExpeditionLoot(def){
   };
 }
 
+/* Hämtningen sker i rutan: panelknappen öppnar rutan, den stora knappen delar ut.
+   Bytet rullas EN gång och sparas på körningen — stänger man rutan ligger allt kvar,
+   ingen omrullning genom att öppna igen. */
 function claimExpedition(id){
-  const i = S.exp.runs.findIndex(r => r.id === id && Date.now() >= r.endsAt);
+  const run = S.exp.runs.find(r => r.id === id && Date.now() >= r.endsAt);
+  if (!run) return;
+  if (!run.loot){ run.loot = rollExpeditionLoot(expDefById(run.id)); save(); }
+  showRewards(run);
+}
+
+/* Belöningspopupen — spelarens mockup: fyra piedestalkort + sammanfattning + hämtknapp */
+function showRewards(run){
+  const def = expDefById(run.id);
+  const xpShown = Math.round(run.xp * (1 + petBonusPct('xp') / 100));
+  pendingClaimId = run.id;
+  $('reward-sub').textContent = def.name + ' — ' + def.zone;
+  $('reward-cards').innerHTML =
+    '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">Data</span><span class="cd-ico">💠</span><span class="cd-v">+' + fmt(run.data) + '</span></div>' +
+    '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
+    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Gold</span><span class="cd-ico">🪙</span><span class="cd-v">+' + run.loot.gold + '</span></div>' +
+    '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span><span class="cd-ico">🔷</span><span class="cd-v">+' + run.loot.frags + '</span></div>';
+  $('rw-dur').textContent = fmtDur(def.mins * 60);
+  $('rw-lvl').textContent = 'Lv ' + def.lvl;
+  $('reward-overlay').classList.add('open');
+}
+
+let pendingClaimId = null;
+function confirmClaim(){
+  if (pendingClaimId == null) return;
+  const i = S.exp.runs.findIndex(r => r.id === pendingClaimId && Date.now() >= r.endsAt && r.loot);
+  pendingClaimId = null;
+  $('reward-overlay').classList.remove('open');
   if (i < 0) return;
   const run = S.exp.runs.splice(i, 1)[0];
-  const def = expDefById(run.id);
   S.data += run.data;
   S.totalData += run.data;
   grantXP(run.xp);
-  const loot = rollExpeditionLoot(def);
-  S.gold += loot.gold;
-  S.frags += loot.frags;
+  S.gold += run.loot.gold;
+  S.frags += run.loot.frags;
   spawnFloat({ text: '+' + fmt(run.data) });
-  showRewards(def, run, loot);
   renderExpPanel();
   save();
-}
-
-/* Belöningspopupen: allt godis på ett bräde */
-function showRewards(def, run, loot){
-  const rows =
-    '<div class="rw-row"><span class="rw-ico">💠</span><span class="rw-name">Data</span><span class="rw-val">+' + fmt(run.data) + '</span></div>' +
-    '<div class="rw-row"><span class="rw-ico">✨</span><span class="rw-name">Experience</span><span class="rw-val">+' + run.xp + ' XP</span></div>' +
-    '<div class="rw-row bonus"><span class="rw-ico">🪙</span><span class="rw-name">Gold</span><span class="rw-val" style="color:var(--gold)">+' + loot.gold + '</span></div>' +
-    '<div class="rw-row bonus"><span class="rw-ico">🔷</span><span class="rw-name">Fragments</span><span class="rw-val" style="color:var(--violet)">+' + loot.frags + '</span></div>';
-$('reward-sub').textContent = def.name + ' — ' + def.zone;
-  $('reward-rows').innerHTML = rows;
-  $('reward-overlay').classList.add('open');
 }
 
 /* Travel now: genvägen från katalogen — popup med pris och ETA, sen resa */
@@ -3795,9 +3866,9 @@ renderPetPanel();
 $('qa-inventory').addEventListener('click', () => { renderInventory(); $('inv-overlay').classList.add('open'); });
 $('inv-close').addEventListener('click', () => $('inv-overlay').classList.remove('open'));
 $('inv-overlay').addEventListener('click', e => { if (e.target === $('inv-overlay')) $('inv-overlay').classList.remove('open'); });
-$('reward-ok').addEventListener('click', () => $('reward-overlay').classList.remove('open'));
-$('reward-close').addEventListener('click', () => $('reward-overlay').classList.remove('open'));
-$('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')) $('reward-overlay').classList.remove('open'); });
+$('reward-claim').addEventListener('click', confirmClaim);
+$('reward-close').addEventListener('click', () => { pendingClaimId = null; $('reward-overlay').classList.remove('open'); });
+$('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')){ pendingClaimId = null; $('reward-overlay').classList.remove('open'); } });
 
 travelGo.addEventListener('click', () => {
   if (S.world.travel) return;
