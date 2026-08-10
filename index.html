@@ -393,6 +393,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   text-transform:uppercase;cursor:pointer;font-weight:700;
 }
 .wh-btn.danger{border-color:rgba(255,70,85,.6);color:#ff8b95}
+.wh-btn.skip{border-color:rgba(255,197,66,.6);color:var(--gold)}
+.wh-btn:disabled{opacity:.4;cursor:default}
 .wh-confirm{display:none;margin-top:8px;border-top:1px solid var(--border-soft);padding-top:8px}
 .wh-confirm.on{display:block}
 .whc-text{font-size:10px;color:#ffb0b6;margin-bottom:8px;line-height:1.45}
@@ -1451,6 +1453,7 @@ body.modal-open{overflow:hidden}
               <div class="wh-lbl">Time to arrival</div>
               <div class="wh-actions" id="warp-actions">
                 <button class="wh-btn" id="warp-style">Tunnel view</button>
+                <button class="wh-btn skip" id="warp-skip">Skip</button>
                 <button class="wh-btn danger" id="warp-abort">Abort warp</button>
               </div>
               <div class="wh-confirm" id="warp-confirm">
@@ -1699,7 +1702,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.21.2 — LÄNGRE DING</div>
+            <div class="desc">GENESIS v0.23.1 — HEMRESAN</div>
           </div>
         </div>
       </div>
@@ -1725,7 +1728,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.21.2 — LÄNGRE DING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.23.1 — HEMRESAN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1900,6 +1903,9 @@ function load(){
           S.world.travel = {to: d.world.travel.to, eta: +d.world.travel.eta,
                             from: REGIONS[d.world.travel.from] ? d.world.travel.from : null,
                             cost: Math.max(0, +d.world.travel.cost || 0)};
+          const rz = REGIONS[d.world.travel.to];
+          if (typeof d.world.travel.zone === 'string' && rz && rz.zones.includes(d.world.travel.zone))
+            S.world.travel.zone = d.world.travel.zone;
         }
       }
       if (!S.world.known.includes('neonhub')) S.world.known.push('neonhub');
@@ -2021,7 +2027,7 @@ function levelUpFx(lvl){
   n.innerHTML = '<span class="ding">DING!</span><span class="lvl">LEVEL ' + lvl + '</span>';
   const heroRect = el.heroTitle.closest('.hero').getBoundingClientRect();
   const titleRect = el.heroTitle.getBoundingClientRect();
-  n.style.top = Math.max(8, titleRect.bottom - heroRect.top - 14) + 'px';
+  n.style.top = Math.max(8, titleRect.bottom - heroRect.top - 24) + 'px';
   el.stage.appendChild(n);
   setTimeout(() => n.remove(), 4400);
 }
@@ -2575,10 +2581,14 @@ function renderExpPanel(){
         else if (S.exp.runs.length >= EXP_SLOTS) action = '<button class="zx-btn cant ef-travel" disabled>Slots full</button>';
         else action = '<button class="zx-btn ef-travel" data-start="' + def.id + '">Start</button>';
       }
-      else if (rk === 1) status = '<span class="ef-status here">In ' + def.zone + ' — enter to start</span>';
+      else if (rk === 1){
+        status = '<span class="ef-status here">In ' + def.zone + '</span>';
+        /* Samma region — inget att betala, inget att vänta på. Ett tryck flyttar dig dit. */
+        if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-gozone="' + def.region + '|' + def.zone + '">Travel</button>';
+      }
       else {
         status = '<span class="ef-status away">' + REGIONS[def.region].name + ' · ' + def.zone + '</span>';
-        if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-travelto="' + def.region + '">Travel now</button>';
+        if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-travelto="' + def.region + '">Travel</button>';
       }
       h += '<div class="exp-found"><div class="ef-head"><span class="ef-name">' + def.name + '</span>' + status + '</div>' +
         '<div class="ef-meta"><span>⏱ ' + fmtMins(def.mins) + '</span><span>Lv ' + def.lvl + '</span><span>🪙 ' + expGoldRange(def.lvl).join('-') + '</span><span>🔷 ' + expFragRange(def.lvl).join('-') + '</span>' + action + '</div></div>';
@@ -2940,7 +2950,17 @@ let idleDripLast = Date.now();
 
 /* ---------- HUVUDLOOP ---------- */
 let last = performance.now(), uiGate = 0, saveGate = 0, xpAcc = 0;
+let loopErrShown = false;
 function loop(now){
+  try { loopBody(now); }
+  catch(err){
+    /* Utan detta stannar bildslingan för alltid vid första fel — spelet blir en död
+       bild där ingenting går att trycka på. Nu logas felet en gång och spelet lever. */
+    if (!loopErrShown){ loopErrShown = true; console.error('Loop error:', err); }
+  }
+  requestAnimationFrame(loop);
+}
+function loopBody(now){
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
 
@@ -2973,8 +2993,6 @@ function loop(now){
 
   // Autospar var 10:e sekund
   if (now - saveGate > 10000){ saveGate = now; save(); }
-
-  requestAnimationFrame(loop);
 }
 
 let lastSaveShown = 0;
@@ -2991,7 +3009,7 @@ function updateUI(force){
 
   if (S.world.travel){
     travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
-    travelGo.textContent = '🛰 Traveling to ' + REGIONS[S.world.travel.to].name + '…';
+    travelGo.textContent = '🛰 Traveling to ' + (S.world.travel.zone || REGIONS[S.world.travel.to].name) + '…';
     updateWarpEta();
   } else if (travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
     travelGo.textContent = '🚀 Initiate Travel';
@@ -3353,8 +3371,19 @@ const REGIONS = {
                  adj:['undergrid','coldreach','crystalrelay'],
                  zones:['Threshold','Lastlight','The Hollow']}
 };
-const DISCOVER_COST = {1: 50000, 2: 5e6, 3: 5e8, 4: 5e10};
-const TRAVEL_BY_TIER = {1: {cost: 500, time: 30}, 2: {cost: 2500, time: 90}, 3: {cost: 12000, time: 240}, 4: {cost: 60000, time: 600}};
+/* Att nå en ny ring kostar totalt lika mycket som förut, men i TVÅ steg:
+   halva summan för att upptäcka, halva för att resa. Två delmål i stället för ett. */
+const DISCOVER_COST = {1: 25000, 2: 2.5e6, 3: 2.5e8, 4: 2.5e10};
+/* Ring 0 = hemmaregionen. Den SAKNADES här, vilket kraschade spelet så fort man
+   stod utanför hemma och resrutan försökte prissätta resan tillbaka. */
+const TRAVEL_BY_TIER = {0: {cost: 25000, time: 120}, 1: {cost: 25000, time: 120}, 2: {cost: 2.5e6, time: 300}, 3: {cost: 2.5e8, time: 600}, 4: {cost: 2.5e10, time: 1200}};
+/* Zonbyte inom regionen du står i: gratis, men inte gratis i TID. */
+const ZONE_TRAVEL_TIME = 30;
+/* Premiumgenvägen: hoppa över resten av väntan. En credit per påbörjad minut kvar. */
+function skipCost(){
+  if (!S.world.travel) return 0;
+  return Math.max(1, Math.ceil((S.world.travel.eta - Date.now()) / 60000));
+}
 
 function isKnown(id){ return S.world.known.includes(id); }
 function isVisited(id){ return S.world.visited.includes(id); }
@@ -3450,7 +3479,7 @@ function distOf(){
 }
 
 mapArea.addEventListener('pointerdown', e => {
-  if (e.target.closest('.map-zoom')) return;
+  if (e.target.closest('.map-zoom') || e.target.closest('.warp-hud')) return;
   downNode = e.target.closest('.map-node');
   longPressed = false;
   clearTimeout(lpTimer);
@@ -3817,15 +3846,23 @@ function startTravel(id){
   refreshWarp();
 }
 function arrive(){
-  const id = S.world.travel.to;
+  const tr = S.world.travel;
+  const id = tr.to, zone = tr.zone || null;
   S.world.travel = null;
-  S.world.current = id;
-  S.world.zone = null;
-  if (!S.world.visited.includes(id)) S.world.visited.push(id);
-  grantXP(100);
+  if (zone){
+    /* Zonbyte inom regionen: du byter plats, inte värld — ingen resenärs-XP. */
+    S.world.zone = zone;
+    markZoneSeen(id, zone);
+    discoverZoneExpeditions(id, zone);
+  } else {
+    S.world.current = id;
+    S.world.zone = null;
+    if (!S.world.visited.includes(id)) S.world.visited.push(id);
+    grantXP(100);
+  }
   viewedRegion = id;
   if (mapMode === 'region') setMapMode('region'); else renderMap();
-  refreshTravelBar(); refreshRegionUI(); refreshWarp();
+  refreshTravelBar(); refreshRegionUI(); refreshWarp(); renderExpPanel();
 }
 function abortTravel(){
   if (!S.world.travel) return;
@@ -3884,22 +3921,47 @@ function refreshWarp(){
   }
   buildWarpField();
   warpBox.dataset.style = S.warpStyle;
-  $('warp-from').textContent = (tr.from && REGIONS[tr.from]) ? REGIONS[tr.from].name : REGIONS[S.world.current].name;
-  $('warp-to').textContent = REGIONS[tr.to].name;
+  $('warp-from').textContent = tr.zone
+    ? (S.world.zone || REGIONS[S.world.current].name)
+    : ((tr.from && REGIONS[tr.from]) ? REGIONS[tr.from].name : REGIONS[S.world.current].name);
+  $('warp-to').textContent = tr.zone ? tr.zone : REGIONS[tr.to].name;
+  refreshSkipBtn();
   warpBox.classList.add('on');
   updateWarpEta();
 }
 function updateWarpEta(){
   if (!S.world.travel) return;
   $('warp-eta').textContent = fmtDur(Math.max(0, (S.world.travel.eta - Date.now()) / 1000));
+  refreshSkipBtn();
 }
+function refreshSkipBtn(){
+  const b = $('warp-skip');
+  if (!S.world.travel){ b.disabled = true; return; }
+  const c = skipCost();
+  b.textContent = 'Skip — ' + c + ' 💳';
+  b.disabled = S.credits < c;
+}
+function skipTravel(){
+  const tr = S.world.travel;
+  if (!tr) return;
+  const c = skipCost();
+  if (S.credits < c) return;
+  S.credits -= c;
+  tr.eta = Date.now();
+  arrive();
+  save();
+}
+$('warp-skip').addEventListener('click', skipTravel);
 $('warp-style').addEventListener('click', () => setWarpStyle(S.warpStyle === 'stars' ? 'tunnel' : 'stars', true));
 $('warp-abort').addEventListener('click', () => {
   const tr = S.world.travel;
   if (!tr) return;
-  $('warp-confirm-text').innerHTML = 'Abort the warp and drop out here?<br>The ' +
-    fmt(tr.cost || 0) + ' Data you paid for this trip is <b>gone</b> — you will not get it back, and you stay in ' +
-    REGIONS[S.world.current].name + '.';
+  $('warp-confirm-text').innerHTML = tr.cost > 0
+    ? ('Abort the warp and drop out here?<br>The ' + fmt(tr.cost) +
+       ' Data you paid for this trip is <b>gone</b> — you will not get it back, and you stay in ' +
+       REGIONS[S.world.current].name + '.')
+    : ('Abort and stay where you are?<br>Nothing was paid for this move, so nothing is lost — you just will not arrive in ' +
+       (tr.zone || REGIONS[tr.to].name) + '.');
   $('warp-confirm').classList.add('on');
   $('warp-actions').style.display = 'none';
 });
@@ -3913,7 +3975,7 @@ $('warp-abort-yes').addEventListener('click', abortTravel);
 const travelSelect = $('travel-select'), travelCost = $('travel-cost'), travelTime = $('travel-time'), travelGo = $('travel-go');
 function refreshTravelBar(){
   if (S.world.travel){
-    travelSelect.innerHTML = '<option>' + REGIONS[S.world.travel.to].name + '</option>';
+    travelSelect.innerHTML = '<option>' + (S.world.travel.zone || REGIONS[S.world.travel.to].name) + '</option>';
     travelSelect.disabled = true;
     travelCost.textContent = 'In transit';
     travelGo.classList.add('busy');
@@ -3931,6 +3993,7 @@ function updateTravelInfo(){
   const id = travelSelect.value;
   if (!id || !REGIONS[id]){ travelCost.textContent = '—'; travelTime.textContent = '—'; return; }
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
+  if (!t){ travelCost.textContent = '—'; travelTime.textContent = '—'; return; }
   travelCost.textContent = '💠 ' + fmt(t.cost);
   travelTime.textContent = '⏱ ' + fmtDur(t.time);
 }
@@ -3940,11 +4003,30 @@ $('exp-active-list').addEventListener('click', e => {
   if (btn) claimExpedition(btn.dataset.claim);
 });
 $('exp-found-list').addEventListener('click', e => {
+  const zbtn = e.target.closest('[data-gozone]');
+  if (zbtn){ goToZone(zbtn.dataset.gozone); return; }
   const tbtn = e.target.closest('[data-travelto]');
   if (tbtn){ openTravelNow(tbtn.dataset.travelto); return; }
   const sbtn = e.target.closest('[data-start]');
   if (sbtn) startExpedition(sbtn.dataset.start);
 });
+/* Flytt inom den region du redan står i: kostar ingenting, tar ingen tid.
+   Går bara till zoner i din egen region, och aldrig under en pågående resa. */
+function goToZone(pair){
+  const i = pair.indexOf('|');
+  if (i < 0) return false;
+  const regionId = pair.slice(0, i), zone = pair.slice(i + 1);
+  if (S.world.travel) return false;
+  if (regionId !== S.world.current) return false;
+  if (!REGIONS[regionId] || !REGIONS[regionId].zones.includes(zone)) return false;
+  if (S.world.zone === zone) return true;
+  S.world.travel = {to: regionId, zone: zone, from: regionId, eta: Date.now() + ZONE_TRAVEL_TIME * 1000, cost: 0};
+  refreshTravelBar();
+  refreshWarp();
+  renderExpPanel();
+  save();
+  return true;
+}
 /* ---------- HUSDJUREN: panel, samling, cachen ---------- */
 function rarCol(r){ return 'var(--rarity-' + RARITIES[r].id + ')'; }
 function petEffText(p){ return FAM_TEXT[PETS[p.sp].fam](petVal(p)); }
