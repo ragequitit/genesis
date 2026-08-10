@@ -1613,7 +1613,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.19.1 — BELÖNINGSRUTAN</div>
+            <div class="desc">GENESIS v0.19.2 — CENTRERAT</div>
           </div>
         </div>
       </div>
@@ -1639,7 +1639,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.1 — BELÖNINGSRUTAN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.2 — CENTRERAT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1713,22 +1713,27 @@ function tapGain(lvl){ return 1 + lvl; }
 /* ---------- STATE ---------- */
 const SAVE_KEY = 'genesis-save-v1';
 /* ================= HUSDJUREN — arter, ark, sällsynthet ================= */
-/* Arket: assets/pets/pets_sheet.png, 10 kolumner x 5 rader, cell 106.8x140.2 px (1068x701).
-   Namnremsan i cellens nederkant klipps bort — vi visar övre 106.8x112 av varje cell. */
-const PET_SHEET = {imgW: 1068, cellW: 106.8, cellH: 140.2, cropH: 112, cropY: 2};
+/* Arket: assets/pets/pets_sheet.png (1068x701). Rutnätet är INTE jämnt — korten har
+   marginaler och ramar, och ikonerna sitter inte i cellmitten. Därför är varje ikons
+   mittpunkt UPPMÄTT med pixelanalys (ljusa pixlar > tröskel, namnremsa exkluderad),
+   och beskärningen är en kvadrat på 76 källpixlar runt den punkten — innanför kortets
+   ram och ovanför namntexten för alla fem. Nya arter kräver ny mätning, eller hellre:
+   egna bildfiler per art. */
+const PET_SHEET = {imgW: 1068, crop: 76};
 function petSpriteVars(sp, px){
-  const p = PETS[sp], s = px / PET_SHEET.cellW;
-  return '--ps:' + (PET_SHEET.imgW * s) + 'px auto;' +
-         '--pp:' + (-p.col * PET_SHEET.cellW * s) + 'px ' + (-(p.row * PET_SHEET.cellH + PET_SHEET.cropY) * s) + 'px;' +
-         'width:' + px + 'px;height:' + Math.round(px * PET_SHEET.cropH / PET_SHEET.cellW) + 'px;font-size:' + Math.round(px * 0.4) + 'px';
+  const p = PETS[sp], s = px / PET_SHEET.crop, half = PET_SHEET.crop / 2;
+  return '--ps:' + (PET_SHEET.imgW * s).toFixed(1) + 'px auto;' +
+         '--pp:' + (-(p.cx - half) * s).toFixed(1) + 'px ' + (-(p.cy - half) * s).toFixed(1) + 'px;' +
+         'width:' + px + 'px;height:' + px + 'px;font-size:' + Math.round(px * 0.4) + 'px';
 }
-/* Fem arter i v1, alla hemma i Neon Hub. base = effekt i procent vid Common; sällsynthet multiplicerar. */
+/* Fem arter i v1, alla hemma i Neon Hub. base = effekt i procent vid Common; sällsynthet
+   multiplicerar. cx/cy = ikonens uppmätta mittpunkt i arket (källpixlar). */
 const PETS = {
-  byte:  {name: 'Byte',  col: 4, row: 0, fam: 'prod',    base: 4},
-  patch: {name: 'Patch', col: 3, row: 0, fam: 'offline', base: 4},
-  glint: {name: 'Glint', col: 2, row: 0, fam: 'prod',    base: 4},
-  zipp:  {name: 'Zipp',  col: 0, row: 2, fam: 'xp',      base: 5},
-  dot:   {name: 'Dot',   col: 9, row: 1, fam: 'frag',    base: 25}
+  byte:  {name: 'Byte',  cx: 482.5,  cy: 62.7,  fam: 'prod',    base: 4},
+  patch: {name: 'Patch', cx: 374.0,  cy: 63.0,  fam: 'offline', base: 4},
+  glint: {name: 'Glint', cx: 269.8,  cy: 68.0,  fam: 'prod',    base: 4},
+  zipp:  {name: 'Zipp',  cx: 56.7,   cy: 325.7, fam: 'xp',      base: 5},
+  dot:   {name: 'Dot',   cx: 1007.2, cy: 186.3, fam: 'frag',    base: 25}
 };
 const FAM_TEXT = {
   prod:    v => '+' + v + '% Data production',
