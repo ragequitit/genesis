@@ -1626,7 +1626,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.19.6 — FINJUSTERING</div>
+            <div class="desc">GENESIS v0.19.7 — DING</div>
           </div>
         </div>
       </div>
@@ -1652,7 +1652,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.6 — FINJUSTERING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.7 — DING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1943,6 +1943,7 @@ function grantXP(n){
   }
 }
 function levelUpFx(lvl){
+  Sound.play('ding');
   if (reduceMotion) return;
   const burst = document.createElement('div');
   burst.className = 'pillar-burst';
@@ -1966,7 +1967,7 @@ function levelUpFx(lvl){
   n.innerHTML = '<span class="ding">DING!</span><span class="lvl">LEVEL ' + lvl + '</span>';
   const heroRect = el.heroTitle.closest('.hero').getBoundingClientRect();
   const titleRect = el.heroTitle.getBoundingClientRect();
-  n.style.top = Math.max(8, titleRect.bottom - heroRect.top - 4) + 'px';
+  n.style.top = Math.max(8, titleRect.bottom - heroRect.top - 14) + 'px';
   el.stage.appendChild(n);
   setTimeout(() => n.remove(), 3400);
 }
@@ -2668,6 +2669,19 @@ const Sound = {
     if (Sound.musicEnabled && !Sound._playing) Sound.startMusic();
     const t = ctx.currentTime + 0.001;
     const D = Sound.sfx;
+
+    /* DING: en enda hård klockslag i hög oktav. B6 som grundton, en inharmonisk
+       övertonsspik som ger metallen sin karaktär, och en kort luftig glimmer.
+       Allt tonar ut på under en sekund — ingen efterklang som grumlar. */
+    if (key === 'ding'){
+      const f = 1975.53;                                    // B6
+      Sound._tone(D, {freq: f,        type:'sine', t: t,         a:0.002, d:0.85, peak:0.26});
+      Sound._tone(D, {freq: f * 2.76, type:'sine', t: t,         a:0.002, d:0.30, peak:0.07});
+      Sound._tone(D, {freq: f * 2,    type:'sine', t: t + 0.004, a:0.002, d:0.45, peak:0.05});
+      Sound._tone(D, {freq: f / 2,    type:'sine', t: t,         a:0.004, d:0.25, peak:0.04});
+      Sound._noise(D, {t: t, d:0.22, peak:0.05, type:'highpass', f0:7000, f1:3500, q:0.7});
+      return;
+    }
 
     if (key === 'tap' || key === 'crit'){
       const isCrit = key === 'crit';
