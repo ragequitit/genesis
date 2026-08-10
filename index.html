@@ -790,16 +790,16 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   font-family:var(--font-mono);font-weight:900;
   color:var(--gold);text-shadow:0 0 18px rgba(255,197,66,.9);
   pointer-events:none;text-align:center;
-  animation:levelUp 3.4s ease-out forwards;
+  animation:levelUp 4.4s ease-out forwards;
 }
 .level-up .ding{font-size:15px;letter-spacing:.3em;color:#ffe9b0}
 .level-up .lvl{font-size:32px;letter-spacing:.08em}
 @keyframes levelUp{
-  0%   {transform:translate(-50%,10px) scale(.4);opacity:0}
-  10%  {transform:translate(-50%,0) scale(1.3);opacity:1}
-  16%  {transform:translate(-50%,0) scale(1.15)}
-  80%  {transform:translate(-50%,-4px) scale(1.15);opacity:1}
-  100% {transform:translate(-50%,-12px) scale(1.1);opacity:0}
+  0%    {transform:translate(-50%,10px) scale(.4);opacity:0}
+  7.7%  {transform:translate(-50%,0) scale(1.3);opacity:1}
+  12.4% {transform:translate(-50%,0) scale(1.15)}
+  84.5% {transform:translate(-50%,-4px) scale(1.15);opacity:1}
+  100%  {transform:translate(-50%,-12px) scale(1.1);opacity:0}
 }
 /* Ljuspelaren: skjuter snabbt upp ur kärnans mitt, kraftig vid peak, tonar direkt */
 .level-pillar{
@@ -1699,7 +1699,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.21.0 — WARP</div>
+            <div class="desc">GENESIS v0.21.2 — LÄNGRE DING</div>
           </div>
         </div>
       </div>
@@ -1725,7 +1725,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.21.0 — WARP</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.21.2 — LÄNGRE DING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1985,34 +1985,11 @@ function levelInfo(){
   return {lvl, into: rem, need: xpToNext(lvl)};
 }
 let lastLevel = 1;
+let expGate = 0;
+/* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
+   gränssnitt hör hemma i uppdateringsrutinen, inte här. */
 function grantXP(n){
   S.xp += n * (1 + petBonusPct('xp') / 100);
-  if (S.world.travel){
-    travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
-    travelGo.textContent = '🛰 Traveling to ' + REGIONS[S.world.travel.to].name + '…';
-  } else if (travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
-    travelGo.textContent = '🚀 Initiate Travel';
-  }
-
-  el.resCredits.textContent = fmt(S.credits);
-  el.resFragments.textContent = fmt(S.frags);
-  el.resGold.textContent = fmt(S.gold);
-  refreshPremiumOffline();
-  renderExpPanel();
-
-  const rank = repRank();
-  el.repStars.textContent = '★'.repeat(rank) + '☆'.repeat(5 - rank);
-  if (rank >= 5){
-    el.repFill.style.width = '100%';
-    el.repNext.textContent = 'Max rank reached';
-  } else {
-    const prev = rank === 0 ? 0 : REP_THRESH[rank - 1];
-    const next = REP_THRESH[rank];
-    el.repFill.style.width = Math.min(100, ((S.rep.neonhub - prev) / (next - prev)) * 100) + '%';
-    el.repNext.textContent = 'Next rank in ' + fmtDur(next - S.rep.neonhub);
-  }
-  el.repBonus.textContent = '+' + (rank * 2) + '%';
-
   const li = levelInfo();
   if (li.lvl > lastLevel){
     lastLevel = li.lvl;
@@ -2046,7 +2023,7 @@ function levelUpFx(lvl){
   const titleRect = el.heroTitle.getBoundingClientRect();
   n.style.top = Math.max(8, titleRect.bottom - heroRect.top - 14) + 'px';
   el.stage.appendChild(n);
-  setTimeout(() => n.remove(), 3400);
+  setTimeout(() => n.remove(), 4400);
 }
 
 /* ---------- RYKTE ----------
@@ -3004,6 +2981,13 @@ let lastSaveShown = 0;
 function updateUI(force){
   el.data.textContent = fmt(S.data);
   el.dps.textContent = fmt(totalDps()) + '/s';
+  el.resCredits.textContent = fmt(S.credits);
+  el.resFragments.textContent = fmt(S.frags);
+  el.resGold.textContent = fmt(S.gold);
+  refreshPremiumOffline();
+  /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
+     och tätare ritning river knappar under fingret på mobil. */
+  if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); }
 
   if (S.world.travel){
     travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
@@ -4037,7 +4021,6 @@ function openCache(){
   const pet = {uid: S.pets.seq++, sp: sp, rar: rar};
   S.pets.owned.push(pet);
   if (S.pets.active == null) S.pets.active = pet.uid;
-  el.resFragments.textContent = fmt(S.frags);
   save(); renderPets(); renderPetPanel(); showReveal(pet);
 }
 function openPetsModal(){ $('cache-reveal').innerHTML = ''; renderPets(); $('pets-overlay').classList.add('open'); }
