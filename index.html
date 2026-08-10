@@ -346,6 +346,57 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
     var(--bg-inset);
   border:1px solid var(--border-soft);overflow:hidden;
 }
+/* ================= WARP ================= 
+   Täcker hela kartytan under resa: både som bild och som spärr — ligger över noderna
+   och zoomknapparna, så inga andra regioner eller zoner går att peta på under färden. */
+.warp{position:absolute;inset:0;z-index:20;display:none;overflow:hidden;background:#01020a}
+.warp.on{display:block}
+.warp-field{position:absolute;inset:0}
+.warp-star{
+  position:absolute;left:50%;top:50%;width:2px;height:2px;border-radius:2px;
+  background:#dbeaff;transform-origin:0 50%;
+  animation:warpFly linear infinite;
+}
+@keyframes warpFly{
+  0%   {transform:rotate(var(--a)) translateX(6px) scaleX(1);opacity:0}
+  12%  {opacity:1}
+  100% {transform:rotate(var(--a)) translateX(var(--d)) scaleX(30);opacity:0}
+}
+.warp-ring{
+  position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;
+  border:1px solid rgba(56,232,255,.75);border-radius:10px;
+  box-shadow:0 0 14px -2px rgba(56,232,255,.5);
+  animation:warpRing linear infinite;
+}
+@keyframes warpRing{
+  0%   {transform:scale(.04) rotate(0deg);opacity:0}
+  14%  {opacity:.9}
+  100% {transform:scale(11) rotate(14deg);opacity:0}
+}
+.warp[data-style="stars"] .warp-ring{display:none}
+.warp[data-style="tunnel"] .warp-star{display:none}
+.warp-hud{
+  position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+  width:min(320px,92%);text-align:center;
+  background:rgba(2,4,12,.72);border:1px solid var(--border-glow);border-radius:12px;
+  padding:10px 12px;backdrop-filter:blur(2px);
+}
+.wh-route{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+.wh-route b{color:var(--text)}
+.wh-arrow{margin:0 6px;color:var(--cyan)}
+.wh-eta{font-family:var(--font-mono);font-size:24px;font-weight:900;color:var(--cyan);margin-top:2px}
+.wh-lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
+.wh-actions{display:flex;gap:6px;justify-content:center}
+.wh-btn{
+  flex:1;border:1px solid var(--border-glow);background:transparent;color:var(--cyan);
+  border-radius:8px;padding:7px 8px;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;font-weight:700;
+}
+.wh-btn.danger{border-color:rgba(255,70,85,.6);color:#ff8b95}
+.wh-confirm{display:none;margin-top:8px;border-top:1px solid var(--border-soft);padding-top:8px}
+.wh-confirm.on{display:block}
+.whc-text{font-size:10px;color:#ffb0b6;margin-bottom:8px;line-height:1.45}
+
 .map-node{
   position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;
   transform:translate(-50%,-50%);cursor:pointer;z-index:2;
@@ -959,6 +1010,10 @@ body.layout-edit .panel.dragging{opacity:.4}
   display:none;align-items:center;justify-content:center;padding:20px;
 }
 .modal-overlay.open{display:flex}
+/* Rullning stannar i rutan: sidan bakom låses, och kedjningen bryts vid rutans kant */
+.modal-overlay{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.modal{overscroll-behavior:contain}
+body.modal-open{overflow:hidden}
 .modal{
   width:100%;max-width:420px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
@@ -1199,7 +1254,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 }
 .pet-set.on{border-color:var(--cyan-dim);color:var(--cyan);cursor:default}
 .pets-empty{font-size:10px;color:var(--text-dim);text-align:center;padding:10px;border:1px dashed var(--border-soft);border-radius:9px}
-#pet-slot-active.haspet{border-style:solid;border-color:var(--border-glow);padding:4px}
+#pet-slot-active.haspet{border-style:solid;padding:4px}
 #pet-slot-active.haspet .pet-sprite{width:100%;height:100%}
 </style>
 </head>
@@ -1387,6 +1442,25 @@ body.layout-edit .panel.dragging{opacity:.4}
             <button class="map-zoom-btn" id="map-mode" title="World / Region">🌐</button>
             <button class="map-zoom-btn" id="map-zoom-in">＋</button>
             <button class="map-zoom-btn" id="map-zoom-out">－</button>
+          </div>
+          <div class="warp" id="warp" data-style="stars">
+            <div class="warp-field" id="warp-field"></div>
+            <div class="warp-hud">
+              <div class="wh-route"><b id="warp-from">—</b><span class="wh-arrow">→</span><b id="warp-to">—</b></div>
+              <div class="wh-eta" id="warp-eta">—</div>
+              <div class="wh-lbl">Time to arrival</div>
+              <div class="wh-actions" id="warp-actions">
+                <button class="wh-btn" id="warp-style">Tunnel view</button>
+                <button class="wh-btn danger" id="warp-abort">Abort warp</button>
+              </div>
+              <div class="wh-confirm" id="warp-confirm">
+                <div class="whc-text" id="warp-confirm-text"></div>
+                <div class="wh-actions">
+                  <button class="wh-btn" id="warp-keep">Keep going</button>
+                  <button class="wh-btn danger" id="warp-abort-yes">Abort anyway</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="map-legend" id="map-legend"></div>
@@ -1625,7 +1699,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.19.9 — SVART INNERRUTA</div>
+            <div class="desc">GENESIS v0.21.0 — WARP</div>
           </div>
         </div>
       </div>
@@ -1651,7 +1725,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.9 — SVART INNERRUTA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.21.0 — WARP</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1705,7 +1779,7 @@ const HOLD = {baseRate:4, duration:30, critBase:0.05, critMax:0.25, critMult:5, 
 const UPGRADES = [
   {id:'tapPower', name:'Tap Power', ico:'👆', max:50,
    desc:'Increases Data per collect tick.',
-   cost:l => 100 * Math.pow(4, l),
+   cost:l => 50 * Math.pow(1.75, l),
    effect:l => '+' + fmt(tapGain(l)) + ' → +' + fmt(tapGain(l+1)) + ' per tick'},
   {id:'holdRate', name:'Hold Rate', ico:'✊', max:100,
    desc:'Increases collect ticks per second while holding. (+5% per level)',
@@ -1785,6 +1859,7 @@ function petExtraFrags(rnd){
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
   pets: {owned: [], active: null, seq: 1},
+  warpStyle: 'stars',
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -1822,7 +1897,9 @@ function load(){
         if (Array.isArray(d.world.visited)) S.world.visited = d.world.visited.filter(x => typeof x === 'string');
         if (Array.isArray(d.world.zonesSeen)) S.world.zonesSeen = d.world.zonesSeen.filter(x => typeof x === 'string');
         if (d.world.travel && typeof d.world.travel.to === 'string' && isFinite(+d.world.travel.eta)){
-          S.world.travel = {to: d.world.travel.to, eta: +d.world.travel.eta};
+          S.world.travel = {to: d.world.travel.to, eta: +d.world.travel.eta,
+                            from: REGIONS[d.world.travel.from] ? d.world.travel.from : null,
+                            cost: Math.max(0, +d.world.travel.cost || 0)};
         }
       }
       if (!S.world.known.includes('neonhub')) S.world.known.push('neonhub');
@@ -1836,6 +1913,7 @@ function load(){
         S.premium.offlineHours = Math.min(4, Math.max(0, Math.floor(+d.premium.offlineHours) || 0));
       }
       S.frags = Math.max(0, +d.frags || 0);
+      if (d.warpStyle === 'tunnel' || d.warpStyle === 'stars') S.warpStyle = d.warpStyle;
       if (d.pets && typeof d.pets === 'object'){
         if (Array.isArray(d.pets.owned))
           S.pets.owned = d.pets.owned
@@ -2930,6 +3008,7 @@ function updateUI(force){
   if (S.world.travel){
     travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
     travelGo.textContent = '🛰 Traveling to ' + REGIONS[S.world.travel.to].name + '…';
+    updateWarpEta();
   } else if (travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
     travelGo.textContent = '🚀 Initiate Travel';
   }
@@ -3749,8 +3828,9 @@ function startTravel(id){
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
   if (!t || S.data < t.cost) return;
   S.data -= t.cost;
-  S.world.travel = {to: id, eta: Date.now() + t.time * 1000};
+  S.world.travel = {to: id, from: S.world.current, eta: Date.now() + t.time * 1000, cost: t.cost};
   refreshTravelBar();
+  refreshWarp();
 }
 function arrive(){
   const id = S.world.travel.to;
@@ -3761,11 +3841,89 @@ function arrive(){
   grantXP(100);
   viewedRegion = id;
   if (mapMode === 'region') setMapMode('region'); else renderMap();
-  refreshTravelBar(); refreshRegionUI();
+  refreshTravelBar(); refreshRegionUI(); refreshWarp();
+}
+function abortTravel(){
+  if (!S.world.travel) return;
+  S.world.travel = null;
+  refreshTravelBar(); refreshRegionUI(); refreshWarp();
+  save();
 }
 function checkTravel(){
   if (S.world.travel && Date.now() >= S.world.travel.eta) arrive();
 }
+
+/* --- WARPEN ---
+   Fältet byggs en gång när resan börjar och rivs när den slutar. Två stilar, spelaren
+   väljer själv; valet sparas. Med minskade rörelser påslaget byggs inget fält alls —
+   rutan visar då bara rutt och nedräkning, ingen rörelse. */
+const warpBox = $('warp'), warpField = $('warp-field');
+let warpBuilt = false;
+function buildWarpField(){
+  if (warpBuilt) return;
+  warpField.innerHTML = '';
+  if (!reduceMotion){
+    for (let i = 0; i < 70; i++){
+      const s = document.createElement('div');
+      s.className = 'warp-star';
+      s.style.setProperty('--a', (Math.random() * 360).toFixed(1) + 'deg');
+      s.style.setProperty('--d', (120 + Math.random() * 260).toFixed(0) + 'px');
+      s.style.animationDuration = (0.7 + Math.random() * 1.1).toFixed(2) + 's';
+      s.style.animationDelay = (-Math.random() * 1.8).toFixed(2) + 's';
+      warpField.appendChild(s);
+    }
+    for (let i = 0; i < 9; i++){
+      const r = document.createElement('div');
+      r.className = 'warp-ring';
+      r.style.animationDuration = '2.4s';
+      r.style.animationDelay = (-i * 0.266).toFixed(3) + 's';
+      warpField.appendChild(r);
+    }
+  }
+  warpBuilt = true;
+}
+function clearWarpField(){ warpField.innerHTML = ''; warpBuilt = false; }
+function setWarpStyle(st, persist){
+  S.warpStyle = (st === 'tunnel') ? 'tunnel' : 'stars';
+  warpBox.dataset.style = S.warpStyle;
+  $('warp-style').textContent = S.warpStyle === 'stars' ? 'Tunnel view' : 'Starfield view';
+  if (persist) save();
+}
+function refreshWarp(){
+  const tr = S.world.travel;
+  if (!tr){
+    warpBox.classList.remove('on');
+    $('warp-confirm').classList.remove('on');
+    $('warp-actions').style.display = '';
+    clearWarpField();
+    return;
+  }
+  buildWarpField();
+  warpBox.dataset.style = S.warpStyle;
+  $('warp-from').textContent = (tr.from && REGIONS[tr.from]) ? REGIONS[tr.from].name : REGIONS[S.world.current].name;
+  $('warp-to').textContent = REGIONS[tr.to].name;
+  warpBox.classList.add('on');
+  updateWarpEta();
+}
+function updateWarpEta(){
+  if (!S.world.travel) return;
+  $('warp-eta').textContent = fmtDur(Math.max(0, (S.world.travel.eta - Date.now()) / 1000));
+}
+$('warp-style').addEventListener('click', () => setWarpStyle(S.warpStyle === 'stars' ? 'tunnel' : 'stars', true));
+$('warp-abort').addEventListener('click', () => {
+  const tr = S.world.travel;
+  if (!tr) return;
+  $('warp-confirm-text').innerHTML = 'Abort the warp and drop out here?<br>The ' +
+    fmt(tr.cost || 0) + ' Data you paid for this trip is <b>gone</b> — you will not get it back, and you stay in ' +
+    REGIONS[S.world.current].name + '.';
+  $('warp-confirm').classList.add('on');
+  $('warp-actions').style.display = 'none';
+});
+$('warp-keep').addEventListener('click', () => {
+  $('warp-confirm').classList.remove('on');
+  $('warp-actions').style.display = '';
+});
+$('warp-abort-yes').addEventListener('click', abortTravel);
 
 /* --- Resraden --- */
 const travelSelect = $('travel-select'), travelCost = $('travel-cost'), travelTime = $('travel-time'), travelGo = $('travel-go');
@@ -3811,11 +3969,15 @@ function renderPetPanel(){
   const a = activePet();
   if (a){
     slot.classList.remove('empty'); slot.classList.add('haspet');
+    slot.style.borderColor = rarCol(a.rar);
+    slot.style.boxShadow = '0 0 12px -4px ' + rarCol(a.rar);
     slot.innerHTML = '<div class="pet-sprite" style="' + petSpriteVars(a.sp, 64) + ';border-color:' + rarCol(a.rar) + '">' + PETS[a.sp].name[0] + '</div>';
     buff.textContent = PETS[a.sp].name + ' — ' + petEffText(a);
     cnt.textContent = '1/3';
   } else {
     slot.classList.add('empty'); slot.classList.remove('haspet');
+    slot.style.borderColor = '';
+    slot.style.boxShadow = '';
     slot.textContent = '＋';
     buff.textContent = 'No active pets';
     cnt.textContent = '0/3';
@@ -3879,6 +4041,16 @@ function openCache(){
   save(); renderPets(); renderPetPanel(); showReveal(pet);
 }
 function openPetsModal(){ $('cache-reveal').innerHTML = ''; renderPets(); $('pets-overlay').classList.add('open'); }
+/* Sidan bakom låses så länge någon ruta är öppen — vi lyssnar på klassbytet i stället
+   för att haka på varje enskild öppna/stäng-knapp, så ingen ruta kan glömmas bort. */
+(function lockScrollWhileModalOpen(){
+  const overlays = Array.from(document.querySelectorAll('.modal-overlay'));
+  const sync = () => document.body.classList.toggle('modal-open', overlays.some(o => o.classList.contains('open')));
+  const obs = new MutationObserver(sync);
+  overlays.forEach(o => obs.observe(o, {attributes: true, attributeFilter: ['class']}));
+  sync();
+})();
+
 $('qa-pets').addEventListener('click', openPetsModal);
 $('pet-slot-active').addEventListener('click', openPetsModal);
 $('pets-close').addEventListener('click', () => $('pets-overlay').classList.remove('open'));
@@ -4010,6 +4182,8 @@ buildPremiumOffline();
 lastLevel = levelInfo().lvl;
 renderPetPanel();
 setMapMode('region');
+setWarpStyle(S.warpStyle);
+refreshWarp();
 refreshTravelBar();
 refreshRegionUI();
 checkTravel();
