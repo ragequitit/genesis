@@ -1024,7 +1024,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 }
 /* Väskemblemet: den runda ikonen som kikar ut över hörnet, som i förlagan */
 .inv-emblem{
-  position:absolute;left:-12px;top:-12px;width:46px;height:46px;border-radius:50%;
+  position:absolute;left:-12px;top:-12px;z-index:3;width:46px;height:46px;border-radius:50%;
   border:2px solid #46579c;
   background:radial-gradient(circle at 35% 30%, #2a3a78, #101733 70%);
   box-shadow:0 4px 14px rgba(0,0,0,.6), inset 0 0 10px rgba(140,170,255,.25);
@@ -1084,6 +1084,64 @@ body.layout-edit .panel.dragging{opacity:.4}
 }
 .inv-money b{font-family:var(--font-mono);font-size:13px;color:var(--gold)}
 .inv-coin{font-size:13px}
+
+/* ================= HUSDJUREN ================= */
+.pets-modal{max-width:440px;max-height:86vh;overflow-y:auto}
+.pet-sprite{
+  position:relative;border-radius:10px;overflow:hidden;flex:0 0 auto;
+  background:var(--bg-inset);border:1px solid var(--border-soft);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-faint);font-weight:900;
+}
+.pet-sprite::after{
+  content:'';position:absolute;inset:0;background-repeat:no-repeat;
+  background-image:url('assets/pets/pets_sheet.png');
+  background-size:var(--ps);background-position:var(--pp);
+}
+.pet-sprite.shadow::after{filter:brightness(0) saturate(0);opacity:.5}
+.cache-box{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:1px solid var(--border-glow);border-radius:10px;padding:10px 12px;
+  background:linear-gradient(90deg, rgba(56,232,255,.07), transparent);margin-bottom:10px;
+}
+.cache-name{font-size:12px;font-weight:800;letter-spacing:.06em}
+.cache-sub{font-size:10px;color:var(--text-dim);margin-top:2px}
+.cache-buy{
+  border:1px solid var(--cyan-dim);background:linear-gradient(180deg, rgba(56,232,255,.16), rgba(56,232,255,.05));
+  color:var(--cyan);border-radius:9px;padding:8px 12px;font-size:11px;font-weight:800;
+  letter-spacing:.06em;cursor:pointer;white-space:nowrap;
+}
+.cache-buy:disabled{opacity:.4;cursor:default}
+.cache-reveal{margin-bottom:10px}
+.cache-reveal .rv-card{
+  display:flex;align-items:center;gap:12px;border:1px solid var(--rv-col,var(--border-glow));
+  border-radius:12px;padding:10px 12px;background:var(--bg-inset);
+  box-shadow:0 0 18px -6px var(--rv-col,transparent);
+}
+.rv-name{font-size:14px;font-weight:900}
+.rv-rar{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--rv-col)}
+.rv-eff{font-size:10px;color:var(--text-dim);margin-top:2px}
+.pet-coll{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.pet-tile{display:flex;flex-direction:column;align-items:center;gap:4px}
+.pet-tile .pt-name{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
+.pet-owned{display:flex;flex-direction:column;gap:6px}
+.pet-row{
+  display:flex;align-items:center;gap:10px;border:1px solid var(--border-soft);
+  border-radius:10px;padding:6px 8px;background:var(--bg-inset);
+}
+.pet-row .pr-main{flex:1;min-width:0}
+.pet-row .pr-name{font-size:11px;font-weight:800}
+.pet-row .pr-rar{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:800}
+.pet-row .pr-eff{font-size:9px;color:var(--text-dim)}
+.pet-set{
+  border:1px solid var(--border-soft);background:transparent;color:var(--text-dim);
+  border-radius:99px;padding:5px 10px;font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;white-space:nowrap;
+}
+.pet-set.on{border-color:var(--cyan-dim);color:var(--cyan);cursor:default}
+.pets-empty{font-size:10px;color:var(--text-dim);text-align:center;padding:10px;border:1px dashed var(--border-soft);border-radius:9px}
+#pet-slot-active.haspet{border-style:solid;border-color:var(--border-glow);padding:4px}
+#pet-slot-active.haspet .pet-sprite{width:100%;height:100%}
 </style>
 </head>
 <body>
@@ -1163,14 +1221,14 @@ body.layout-edit .panel.dragging{opacity:.4}
 
       <!-- ACTIVE PET TEAM -->
       <section class="panel" id="panel-pet-team">
-        <div class="panel-title">Active Pet Team <span class="sub">0/3</span></div>
+        <div class="panel-title">Active Pet Team <span class="sub" id="pet-team-count">0/3</span></div>
         <div class="echo-grid">
-          <div class="echo-slot empty">＋</div>
+          <div class="echo-slot empty" id="pet-slot-active">＋</div>
           <div class="echo-slot locked">🔒</div>
           <div class="echo-slot locked">🔒</div>
         </div>
         <div class="section-label">Active Pet Buffs</div>
-        <div class="shelf-empty">No active pets</div>
+        <div class="shelf-empty" id="pet-buff-line">No active pets</div>
       </section>
 
       <!-- CURRENT REGION + ACTIVE BUFFS: två små rutor sida vid sida -->
@@ -1338,7 +1396,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="panel-title">Quick Access</div>
         <div class="qa-grid">
           <div class="qa-btn" id="qa-inventory"><span class="ico">🎒</span><span class="lbl">Inventory</span></div>
-          <div class="qa-btn"><span class="ico">🐾</span><span class="lbl">Pets</span></div>
+          <div class="qa-btn" id="qa-pets"><span class="ico">🐾</span><span class="lbl">Pets</span></div>
           <div class="qa-btn"><span class="ico">⚒️</span><span class="lbl">Forge</span></div>
           <div class="qa-btn"><span class="ico">📜</span><span class="lbl">Quests</span></div>
           <div class="qa-btn"><span class="ico">🔨</span><span class="lbl">Auction House</span></div>
@@ -1376,6 +1434,28 @@ body.layout-edit .panel.dragging{opacity:.4}
       </div>
       <div class="inv-grid" id="inv-grid"></div>
       <div class="inv-money"><span class="inv-coin">🪙</span><b id="inv-gold">0</b></div>
+    </div>
+  </div>
+
+  <!-- ================= HUSDJUREN ================= -->
+  <div class="modal-overlay" id="pets-overlay">
+    <div class="modal pets-modal">
+      <div class="modal-head">
+        <span class="modal-title">Pets</span>
+        <button class="modal-close" id="pets-close">✕</button>
+      </div>
+      <div class="cache-box">
+        <div class="cache-info">
+          <div class="cache-name" id="cache-name">🧊 Cache</div>
+          <div class="cache-sub" id="cache-sub"></div>
+        </div>
+        <button class="cache-buy" id="cache-buy">Open</button>
+      </div>
+      <div class="cache-reveal" id="cache-reveal"></div>
+      <div class="section-label" id="pet-coll-label">Collection</div>
+      <div class="pet-coll" id="pet-coll"></div>
+      <div class="section-label">Your Pets</div>
+      <div class="pet-owned" id="pet-owned"></div>
     </div>
   </div>
 
@@ -1482,7 +1562,7 @@ body.layout-edit .panel.dragging{opacity:.4}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.18.1 — ÄRLIGA SIFFROR</div>
+            <div class="desc">GENESIS v0.19.0 — CACHEN</div>
           </div>
         </div>
       </div>
@@ -1508,7 +1588,7 @@ body.layout-edit .panel.dragging{opacity:.4}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.18.1 — ÄRLIGA SIFFROR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.19.0 — CACHEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -1581,8 +1661,62 @@ function tapGain(lvl){ return 1 + lvl; }
 
 /* ---------- STATE ---------- */
 const SAVE_KEY = 'genesis-save-v1';
+/* ================= HUSDJUREN — arter, ark, sällsynthet ================= */
+/* Arket: assets/pets/pets_sheet.png, 10 kolumner x 5 rader, cell 106.8x140.2 px (1068x701).
+   Namnremsan i cellens nederkant klipps bort — vi visar övre 106.8x112 av varje cell. */
+const PET_SHEET = {imgW: 1068, cellW: 106.8, cellH: 140.2, cropH: 112, cropY: 2};
+function petSpriteVars(sp, px){
+  const p = PETS[sp], s = px / PET_SHEET.cellW;
+  return '--ps:' + (PET_SHEET.imgW * s) + 'px auto;' +
+         '--pp:' + (-p.col * PET_SHEET.cellW * s) + 'px ' + (-(p.row * PET_SHEET.cellH + PET_SHEET.cropY) * s) + 'px;' +
+         'width:' + px + 'px;height:' + Math.round(px * PET_SHEET.cropH / PET_SHEET.cellW) + 'px;font-size:' + Math.round(px * 0.4) + 'px';
+}
+/* Fem arter i v1, alla hemma i Neon Hub. base = effekt i procent vid Common; sällsynthet multiplicerar. */
+const PETS = {
+  byte:  {name: 'Byte',  col: 4, row: 0, fam: 'prod',    base: 4},
+  patch: {name: 'Patch', col: 3, row: 0, fam: 'offline', base: 4},
+  glint: {name: 'Glint', col: 2, row: 0, fam: 'prod',    base: 4},
+  zipp:  {name: 'Zipp',  col: 0, row: 2, fam: 'xp',      base: 5},
+  dot:   {name: 'Dot',   col: 9, row: 1, fam: 'frag',    base: 25}
+};
+const FAM_TEXT = {
+  prod:    v => '+' + v + '% Data production',
+  offline: v => '+' + v + '% offline rate',
+  xp:      v => '+' + v + '% XP from all sources',
+  frag:    v => '+' + v + '% Fragments from expeditions'
+};
+const REGION_PETS = { neonhub: ['byte', 'patch', 'glint', 'zipp', 'dot'] };
+const RARITIES = [
+  {id: 'common',    name: 'Common',    mult: 1},
+  {id: 'uncommon',  name: 'Uncommon',  mult: 1.5},
+  {id: 'rare',      name: 'Rare',      mult: 2.5},
+  {id: 'epic',      name: 'Epic',      mult: 4},
+  {id: 'legendary', name: 'Legendary', mult: 6},
+  {id: 'mythic',    name: 'Mythic',    mult: 10}
+];
+/* Vikter per tusendel för tier 0 (hemma). Avståndet ska förskjuta dessa när fler regioner får arter. */
+const CACHE_WEIGHTS_T0 = [600, 250, 100, 40, 9, 1];
+const CACHE_COST = 10;
+function rollRarity(weights, rnd){
+  const total = weights.reduce((a, b) => a + b, 0);
+  let x = rnd * total;
+  for (let i = 0; i < weights.length; i++){ x -= weights[i]; if (x < 0) return i; }
+  return weights.length - 1;
+}
+function petVal(p){ return Math.round(PETS[p.sp].base * RARITIES[p.rar].mult * 10) / 10; }
+function activePet(){ return S.pets.owned.find(o => o.uid === S.pets.active) || null; }
+function petBonusPct(fam){
+  const a = activePet();
+  return (a && PETS[a.sp].fam === fam) ? petVal(a) : 0;
+}
+function petExtraFrags(rnd){
+  const b = petBonusPct('frag') / 100;
+  return Math.floor(b) + ((rnd !== undefined ? rnd : Math.random()) < (b % 1) ? 1 : 0);
+}
+
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
+  pets: {owned: [], active: null, seq: 1},
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -1634,6 +1768,14 @@ function load(){
         S.premium.offlineHours = Math.min(4, Math.max(0, Math.floor(+d.premium.offlineHours) || 0));
       }
       S.frags = Math.max(0, +d.frags || 0);
+      if (d.pets && typeof d.pets === 'object'){
+        if (Array.isArray(d.pets.owned))
+          S.pets.owned = d.pets.owned
+            .filter(p => p && PETS[p.sp] && +p.rar >= 0 && +p.rar <= 5 && +p.uid > 0)
+            .map(p => ({uid: +p.uid, sp: p.sp, rar: Math.floor(+p.rar)}));
+        S.pets.seq = Math.max(1, Math.floor(+d.pets.seq) || 1, ...S.pets.owned.map(o => o.uid + 1));
+        if (d.pets.active != null && S.pets.owned.some(o => o.uid === d.pets.active)) S.pets.active = d.pets.active;
+      }
       S.gold = Math.max(0, +d.gold || 0);
       if (Array.isArray(d.inv)) S.inv = d.inv.filter(it => it && typeof it.key === 'string' && typeof it.name === 'string')
         .map(it => ({key: it.key, name: it.name, ico: it.ico || '📦', qty: Math.max(1, Math.floor(+it.qty) || 1), stack: !!it.stack})).slice(0, 200);
@@ -1659,7 +1801,7 @@ function load(){
    Kärnuppgradering höjer takten (+10%/nivå till 100%). Siffror justerbara. */
 const OFFLINE_HOURS = [6, 12, 16, 20, 24];
 function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 6; }
-function offlineRate(){ return 0.5 + 0.10 * S.up.offlinePct; }
+function offlineRate(){ return Math.min(1, 0.5 + 0.10 * S.up.offlinePct + petBonusPct('offline') / 100); }
 function computeOffline(){
   if (!S.savedAt) return null;
   const away = (Date.now() - S.savedAt) / 1000;
@@ -1693,7 +1835,7 @@ function levelInfo(){
 }
 let lastLevel = 1;
 function grantXP(n){
-  S.xp += n;
+  S.xp += n * (1 + petBonusPct('xp') / 100);
   if (S.world.travel){
     travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
     travelGo.textContent = '🛰 Traveling to ' + REGIONS[S.world.travel.to].name + '…';
@@ -1778,7 +1920,7 @@ function milMult(bid){
 }
 function prodPerUnit(b){ return b.prod * milMult(b.id) * (1 + 0.05 * S.up.network); }
 function prodOf(b){ return prodPerUnit(b) * S.own[b.id]; }
-function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult(); }
+function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + petBonusPct('prod') / 100); }
 function costOfN(b, n){
   const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
   return c0 * (Math.pow(GROWTH, n) - 1) / (GROWTH - 1);
@@ -2169,7 +2311,7 @@ function rollIn(range){ return range[0] + Math.floor(Math.random() * (range[1] -
 function rollExpeditionLoot(def){
   return {
     gold: rollIn(expGoldRange(def.lvl)),
-    frags: rollIn(expFragRange(def.lvl))
+    frags: rollIn(expFragRange(def.lvl)) + petExtraFrags()
   };
 }
 
@@ -3559,6 +3701,97 @@ $('exp-found-list').addEventListener('click', e => {
   const sbtn = e.target.closest('[data-start]');
   if (sbtn) startExpedition(sbtn.dataset.start);
 });
+/* ---------- HUSDJUREN: panel, samling, cachen ---------- */
+function rarCol(r){ return 'var(--rarity-' + RARITIES[r].id + ')'; }
+function petEffText(p){ return FAM_TEXT[PETS[p.sp].fam](petVal(p)); }
+function renderPetPanel(){
+  const slot = $('pet-slot-active'), buff = $('pet-buff-line'), cnt = $('pet-team-count');
+  const a = activePet();
+  if (a){
+    slot.classList.remove('empty'); slot.classList.add('haspet');
+    slot.innerHTML = '<div class="pet-sprite" style="' + petSpriteVars(a.sp, 64) + ';border-color:' + rarCol(a.rar) + '">' + PETS[a.sp].name[0] + '</div>';
+    buff.textContent = PETS[a.sp].name + ' — ' + petEffText(a);
+    cnt.textContent = '1/3';
+  } else {
+    slot.classList.add('empty'); slot.classList.remove('haspet');
+    slot.textContent = '＋';
+    buff.textContent = 'No active pets';
+    cnt.textContent = '0/3';
+  }
+}
+function renderPets(){
+  const rid = S.world.current, pool = REGION_PETS[rid] || null, R = REGIONS[rid];
+  const buy = $('cache-buy');
+  $('cache-name').textContent = '🧊 ' + R.name + ' Cache';
+  if (pool){
+    $('cache-sub').textContent = pool.length + ' species live in this region — rarity is rolled when you open';
+    buy.textContent = 'Open — ' + CACHE_COST + ' 🔷';
+    buy.disabled = S.frags < CACHE_COST;
+    buy.style.display = '';
+  } else {
+    $('cache-sub').textContent = 'No pet species charted in ' + R.name + ' yet';
+    buy.style.display = 'none';
+  }
+  $('pet-coll-label').textContent = 'Collection — ' + R.name;
+  const coll = $('pet-coll');
+  if (pool){
+    coll.innerHTML = pool.map(sp => {
+      const best = S.pets.owned.filter(o => o.sp === sp).sort((a, b) => b.rar - a.rar)[0];
+      if (best)
+        return '<div class="pet-tile"><div class="pet-sprite" style="' + petSpriteVars(sp, 62) + ';border-color:' + rarCol(best.rar) + '">' + PETS[sp].name[0] + '</div><div class="pt-name" style="color:' + rarCol(best.rar) + '">' + PETS[sp].name + '</div></div>';
+      return '<div class="pet-tile"><div class="pet-sprite shadow" style="' + petSpriteVars(sp, 62) + '"></div><div class="pt-name">???</div></div>';
+    }).join('');
+  } else {
+    coll.innerHTML = '<div class="pets-empty" style="grid-column:1/-1">Nothing to collect here</div>';
+  }
+  const list = $('pet-owned');
+  if (!S.pets.owned.length){
+    list.innerHTML = '<div class="pets-empty">No pets yet — open a Cache</div>';
+  } else {
+    list.innerHTML = S.pets.owned.map(p => {
+      const on = p.uid === S.pets.active;
+      return '<div class="pet-row"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 44) + ';border-color:' + rarCol(p.rar) + '">' + PETS[p.sp].name[0] + '</div>' +
+        '<div class="pr-main"><div class="pr-name">' + PETS[p.sp].name + ' <span class="pr-rar" style="color:' + rarCol(p.rar) + '">' + RARITIES[p.rar].name + '</span></div>' +
+        '<div class="pr-eff">' + petEffText(p) + '</div></div>' +
+        '<button class="pet-set' + (on ? ' on' : '') + '" data-setpet="' + p.uid + '"' + (on ? ' disabled' : '') + '>' + (on ? 'Active' : 'Set Active') + '</button></div>';
+    }).join('');
+  }
+}
+function showReveal(pet){
+  $('cache-reveal').innerHTML =
+    '<div class="rv-card" style="--rv-col:' + rarCol(pet.rar) + '">' +
+    '<div class="pet-sprite" style="' + petSpriteVars(pet.sp, 84) + ';border-color:' + rarCol(pet.rar) + '">' + PETS[pet.sp].name[0] + '</div>' +
+    '<div><div class="rv-name">' + PETS[pet.sp].name + '</div><div class="rv-rar">' + RARITIES[pet.rar].name + '</div>' +
+    '<div class="rv-eff">' + petEffText(pet) + '</div></div></div>';
+}
+function openCache(){
+  const pool = REGION_PETS[S.world.current];
+  if (!pool || S.frags < CACHE_COST) return;
+  S.frags -= CACHE_COST;
+  const sp = pool[Math.floor(Math.random() * pool.length)];
+  const rar = rollRarity(CACHE_WEIGHTS_T0, Math.random());
+  const pet = {uid: S.pets.seq++, sp: sp, rar: rar};
+  S.pets.owned.push(pet);
+  if (S.pets.active == null) S.pets.active = pet.uid;
+  el.resFragments.textContent = fmt(S.frags);
+  save(); renderPets(); renderPetPanel(); showReveal(pet);
+}
+function openPetsModal(){ $('cache-reveal').innerHTML = ''; renderPets(); $('pets-overlay').classList.add('open'); }
+$('qa-pets').addEventListener('click', openPetsModal);
+$('pet-slot-active').addEventListener('click', openPetsModal);
+$('pets-close').addEventListener('click', () => $('pets-overlay').classList.remove('open'));
+$('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
+$('cache-buy').addEventListener('click', openCache);
+$('pet-owned').addEventListener('click', e => {
+  const b = e.target.closest('[data-setpet]');
+  if (!b) return;
+  const uid = +b.dataset.setpet;
+  if (!S.pets.owned.some(o => o.uid === uid)) return;
+  S.pets.active = uid;
+  save(); renderPets(); renderPetPanel();
+});
+renderPetPanel();
+
 $('qa-inventory').addEventListener('click', () => { renderInventory(); $('inv-overlay').classList.add('open'); });
 $('inv-close').addEventListener('click', () => $('inv-overlay').classList.remove('open'));
 $('inv-overlay').addEventListener('click', e => { if (e.target === $('inv-overlay')) $('inv-overlay').classList.remove('open'); });
@@ -3673,6 +3906,7 @@ const offlinePending = computeOffline();
 applyLayout();
 buildPremiumOffline();
 lastLevel = levelInfo().lvl;
+renderPetPanel();
 setMapMode('region');
 refreshTravelBar();
 refreshRegionUI();
