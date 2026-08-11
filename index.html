@@ -277,6 +277,18 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .equip-slot.has{border-color:var(--rc);box-shadow:0 0 12px -3px var(--rc), inset 0 0 14px -6px var(--rc);padding:2px}
 .equip-slot .eq-img{width:100%;height:100%;background-size:contain;background-position:center;background-repeat:no-repeat}
 /* Hovringsrutan i ryggsäcken — allt om pjäsen utan att man klickar */
+.trader-row{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+  padding:12px;margin-bottom:4px;
+}
+.tr-item{display:flex;align-items:center;gap:10px}
+.tr-ico{font-size:22px}
+.tr-name{font-size:12px;font-weight:800}
+.tr-sub{font-size:9px;color:var(--text-dim)}
+.tr-buy{text-align:right}
+.tr-disc{font-size:9px;color:var(--gold);margin-bottom:4px}
+.tr-btn{white-space:nowrap}
 .gear-tip{
   position:fixed;z-index:120;display:none;pointer-events:none;width:250px;
   padding:11px 12px;border-radius:11px;
@@ -1358,6 +1370,7 @@ body.modal-open{overflow:hidden}
     <!-- Valutorna hör ihop -->
     <div class="panel hpanel" id="panel-currency">
       <div class="res-pill" data-color="gold"><span class="res-icon">🪙</span><span class="res-body"><span class="res-value" id="res-gold">0</span><span class="res-label">Gold</span></span></div>
+      <div class="res-pill" data-color="fuel" id="fuel-pill" title="Regenerates +2/min while playing"><span class="res-icon">⛽</span><span class="res-body"><span class="res-value" id="res-fuel">100</span><span class="res-label">Fuel</span></span></div>
       <div class="res-pill" data-color="blue"><span class="res-icon">💳</span><span class="res-body"><span class="res-value" id="res-credits">0</span><span class="res-label">Credits</span></span></div>
       <div class="res-pill" data-color="purple"><span class="res-icon">🔷</span><span class="res-body"><span class="res-value" id="res-fragments">0</span><span class="res-label">Fragments</span></span></div>
     </div>
@@ -1796,7 +1809,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.26.2 — BIBELN GÄLLER</div>
+            <div class="desc">GENESIS v0.29.0 — VÄRLDEN VAKNAR</div>
           </div>
         </div>
       </div>
@@ -1822,7 +1835,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.26.2 — BIBELN GÄLLER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.29.0 — VÄRLDEN VAKNAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2038,6 +2051,7 @@ let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
   pets: {owned: [], active: null, seq: 1},
   equip: {}, gearSeq: 1,
+  fuel: 100, cells: 0, research: null,
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -2095,6 +2109,10 @@ function load(){
       }
       S.frags = Math.max(0, +d.frags || 0);
       S.gearSeq = Math.max(1, Math.floor(+d.gearSeq) || 1);
+      S.fuel = (d.fuel === undefined) ? 100 : Math.max(0, Math.min(FUEL_MAX_BASE, +d.fuel || 0));
+      S.cells = Math.max(0, Math.floor(+d.cells) || 0);
+      if (d.research && REGIONS[d.research.region] && +d.research.eta > 0)
+        S.research = {region: d.research.region, eta: +d.research.eta};
       const readGear = g => {
         if (!g || !GEAR_SLOTS[g.s] || !GEAR_RAR[g.r] || !(+g.hp > 0)) return null;
         const a = Array.isArray(g.a) ? g.a.filter(x => x && AFFIXES[x.k] && isFinite(+x.v))
@@ -2276,7 +2294,7 @@ const el = {
   lvlBadge: $('lvl-badge'), lvlText: $('player-level-text'), xpFill: $('xp-fill'), xpLabel: $('xp-label'),
   repStars: $('rep-stars'), repFill: $('rep-fill'), repNext: $('rep-next'), repBonus: $('rep-bonus'),
   heroTitle: $('hero-title'), regionThumb: $('region-thumb'),
-  resCredits: $('res-credits'), resFragments: $('res-fragments'), resGold: $('res-gold'),
+  resCredits: $('res-credits'), resFragments: $('res-fragments'), resGold: $('res-gold'), resFuel: $('res-fuel'),
   currentZone: $('current-zone'),
   upgTab: document.querySelector('[data-pane="pane-upgrades"]')
 };
@@ -2599,8 +2617,106 @@ const EXPEDITIONS = {
       {id:'bv_dh_vault',  name:'Deephold Descent',      mins:40, lvl:7, base:3600,  xp:380}
     ],
     'Undervault': [
-      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:10, base:12000, xp:900}
+      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:10, base:12000, xp:900},
+      {id:'bv_uv_count',  name:'Vault Inventory',       mins:12, lvl:5,  base:600,   xp:90}
     ]
+  },
+  voltrath: {
+    'Coppervein': [
+      {id:'vt_cv_surge', name:'Grid Surge',        mins:5,  lvl:12, base:2700,  xp:270},
+      {id:'vt_cv_tap',   name:'Copper Tap',        mins:12, lvl:13, base:7000,  xp:700}
+    ],
+    'Dustwatt':   [ {id:'vt_dw_sift',  name:'Dustwatt Sifting',  mins:8,  lvl:12, base:4300,  xp:430} ],
+    'Hollowline': [ {id:'vt_hl_brown', name:'The Brownout',      mins:30, lvl:15, base:20000, xp:2000} ],
+    'Wattmire':   [ {id:'vt_wm_dive',  name:'Wattmire Dive',     mins:15, lvl:14, base:9500,  xp:950} ]
+  },
+  forgefall: {
+    'Slagmoor':   [
+      {id:'ff_sm_run',   name:'Slag Run',          mins:8,  lvl:13, base:4700,  xp:470},
+      {id:'ff_sm_cool',  name:'Cooling Watch',     mins:25, lvl:15, base:17000, xp:1700}
+    ],
+    'The Crucible':[ {id:'ff_cr_shift', name:'The Last Shift',   mins:20, lvl:15, base:13500, xp:1350} ],
+    'Ashfall':    [ {id:'ff_af_ember', name:'Ember Harvest',     mins:45, lvl:16, base:32000, xp:3200} ],
+    'Cinderholm': [ {id:'ff_ch_walk',  name:'Cinder Walk',       mins:6,  lvl:12, base:3200,  xp:320} ]
+  },
+  novabazaar: {
+    'Silkrow':    [
+      {id:'nb_sr_cut',   name:"Courier's Cut",     mins:5,  lvl:12, base:2700,  xp:270},
+      {id:'nb_sr_silk',  name:'Silk Ledger',       mins:18, lvl:14, base:11000, xp:1100}
+    ],
+    'Gavelhall':  [ {id:'nb_gh_snipe', name:'Auction Sniping',   mins:12, lvl:14, base:7500,  xp:750} ],
+    'Lanternside':[ {id:'nb_ls_route', name:'Lantern Route',     mins:25, lvl:15, base:17000, xp:1700} ],
+    'Coinreach':  [ {id:'nb_cr_count', name:'The Long Count',    mins:40, lvl:16, base:29000, xp:2900} ]
+  },
+  pixelgardens: {
+    'Bloomvale':  [
+      {id:'pg_bv_pollen', name:'Pollen Run',       mins:6,  lvl:12, base:3200,  xp:320},
+      {id:'pg_bv_night',  name:'Night Bloom',      mins:35, lvl:16, base:25000, xp:2500}
+    ],
+    'Thornmesh':  [ {id:'pg_tm_patrol', name:'Thorn Patrol',     mins:18, lvl:14, base:11000, xp:1100} ],
+    'Rootworks':  [ {id:'pg_rw_access', name:'Root Access',      mins:40, lvl:16, base:29000, xp:2900} ],
+    'Mosslight':  [ {id:'pg_ml_glow',   name:'Moss Glow Survey', mins:10, lvl:13, base:5800,  xp:580} ]
+  },
+  skyarray: {
+    'Spirecrest': [
+      {id:'sa_sc_climb', name:'Dish Climb',        mins:7,  lvl:13, base:4100,  xp:410},
+      {id:'sa_sc_storm', name:'Storm Anchoring',   mins:30, lvl:16, base:22000, xp:2200}
+    ],
+    'Cloudrack':  [ {id:'sa_cr_sweep', name:'Cloudrack Sweep',   mins:35, lvl:16, base:25000, xp:2500} ],
+    'Uplink':     [ {id:'sa_ul_hand',  name:'Handshake Protocol',mins:12, lvl:14, base:7500,  xp:750} ],
+    'Echomast':   [ {id:'sa_em_chase', name:'Echo Chase',        mins:20, lvl:15, base:13500, xp:1350} ]
+  },
+  undergrid: {
+    'Darkloop':   [
+      {id:'ug_dl_rail',  name:'Third Rail',        mins:10, lvl:18, base:32000,  xp:3200},
+      {id:'ug_dl_map',   name:'Mapping the Loop',  mins:25, lvl:20, base:90000,  xp:9000}
+    ],
+    'Wyrmwire':   [ {id:'ug_ww_desc',  name:'Wyrmwire Descent',  mins:30, lvl:20, base:110000, xp:11000} ],
+    'Substation Nine':[ {id:'ug_s9_down', name:'Substation Nine', mins:60, lvl:22, base:240000, xp:24000} ],
+    'Blackmain':  [ {id:'ug_bm_walk',  name:'Blackmain Crossing',mins:15, lvl:19, base:51000,  xp:5100} ]
+  },
+  rustharbor: {
+    'Drydock':    [
+      {id:'rh_dd_strip', name:'Hull Stripping',    mins:12, lvl:18, base:39000,  xp:3900},
+      {id:'rh_dd_crane', name:'Crane Duty',        mins:35, lvl:21, base:130000, xp:13000}
+    ],
+    'Anchorfall': [ {id:'rh_af_dive',  name:'Anchor Dive',       mins:25, lvl:20, base:90000,  xp:9000} ],
+    'Breakwall':  [ {id:'rh_bw_tide',  name:'Tide Ledger',       mins:8,  lvl:17, base:24000,  xp:2400} ],
+    'Keelrest':   [ {id:'rh_kr_ghost', name:'Ghost Freighter',   mins:90, lvl:22, base:360000, xp:36000} ]
+  },
+  staticwastes: {
+    'Deadband':   [
+      {id:'sw_db_air',   name:'Dead Air',          mins:15, lvl:19, base:51000,  xp:5100},
+      {id:'sw_db_mark',  name:'Marking the Band',  mins:40, lvl:21, base:150000, xp:15000}
+    ],
+    'The Hiss':   [ {id:'sw_th_walk',  name:'The Hiss',          mins:35, lvl:21, base:130000, xp:13000} ],
+    'Whitefield': [ {id:'sw_wf_ghost', name:'Signal Ghosts',     mins:60, lvl:22, base:240000, xp:24000} ],
+    'Hushfall':   [ {id:'sw_hf_quiet', name:'Quiet Cartography', mins:10, lvl:18, base:32000,  xp:3200} ]
+  },
+  coldreach: {
+    'Glacierbank':[
+      {id:'cd_gb_sprk',  name:'Sprinkle Storm',    mins:8,  lvl:18, base:26000,  xp:2600},
+      {id:'cd_gb_cone',  name:'The Cone Convoy',   mins:30, lvl:20, base:110000, xp:11000}
+    ],
+    'Permafrost': [ {id:'cd_pf_scoop', name:'The Big Scoop',     mins:20, lvl:20, base:72000,  xp:7200} ],
+    'Whiteout':   [ {id:'cd_wo_freeze',name:'Brain Freeze',      mins:45, lvl:21, base:170000, xp:17000} ],
+    'Winterstill':[ {id:'cd_ws_still', name:'Stillness Survey',  mins:12, lvl:19, base:41000,  xp:4100} ]
+  },
+  crystalrelay: {
+    'Prismfall':  [
+      {id:'cy_pf_cal',   name:'Prism Calibration', mins:20, lvl:24, base:1600000, xp:120000},
+      {id:'cy_pf_shard', name:'Shard Gathering',   mins:45, lvl:26, base:3900000, xp:290000}
+    ],
+    'Longwave':   [ {id:'cy_lw_vigil', name:'Longwave Vigil',    mins:60, lvl:26, base:5300000, xp:400000} ],
+    'The Lattice':[ {id:'cy_lt_walk',  name:'Lattice Walk',      mins:90, lvl:27, base:8200000, xp:620000} ]
+  },
+  nullgate: {
+    'Threshold':  [
+      {id:'ng_th_watch', name:'Threshold Watch',   mins:30, lvl:27, base:2700000, xp:200000},
+      {id:'ng_th_key',   name:'The Unmade Key',    mins:75, lvl:29, base:7400000, xp:560000}
+    ],
+    'Lastlight':  [ {id:'ng_ll_run',   name:'Lastlight Run',     mins:60, lvl:28, base:5700000, xp:430000} ],
+    'The Hollow': [ {id:'ng_hw_in',    name:'The Hollow',        mins:120, lvl:30, base:12200000, xp:920000} ]
   }
 };
 const EXP_SLOTS = 2;
@@ -2758,7 +2874,7 @@ function renderInventory(){
       h += '<div class="inv-slot filled gear" data-inv="' + i + '" style="--rc:' + gearRarCol(g) + '" title="' + gearName(g.s) + ' (' + GEAR_RAR[g.r].name + ')">' +
         '<div class="iv-img" style="background-image:url(\'' + gearArt(g.s, g.r) + '\')"></div></div>';
     } else if (it){
-      h += '<div class="inv-slot filled" title="' + it.name + '"><span class="inv-ico">' + it.ico + '</span>' +
+      h += '<div class="inv-slot filled" data-inv="' + i + '" title="' + it.name + (it.key === 'fuelcell' ? ' — click to refuel +' + FUEL_CELL_RESTORE : '') + '"><span class="inv-ico">' + it.ico + '</span>' +
         (it.qty > 1 ? '<span class="inv-qty">' + (it.qty > 999 ? '999+' : it.qty) + '</span>' : '') + '</div>';
     } else {
       h += '<div class="inv-slot"></div>';
@@ -2807,6 +2923,11 @@ function rollExpeditionLoot(def){
     gold: rollIn(expGoldRange(def.lvl)),
     frags: rollIn(expFragRange(def.lvl)) + petExtraFrags()
   };
+  /* Bränslecell: en chans, aldrig en garanti. Skalar med längden precis som gear
+     men mycket snålare — cellen är ett fynd, inte en inkomst. */
+  if (Math.random() < Math.min(0.20, 0.05 * Math.pow(Math.max(1, def.mins) / 2, 0.4))){
+    loot.cell = true;
+  }
   const chance = Math.min(0.95, gearDropChance(def) * (1 + gearBonus('luck') / 100));
   if (Math.random() < chance){
     const rar = rollRarity(gearWeightsFor(def.region), Math.random());
@@ -2855,6 +2976,9 @@ function confirmClaim(){
   grantXP(run.xp);
   S.gold += run.loot.gold;
   S.frags += run.loot.frags;
+  if (run.loot.cell){
+    addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true});
+  }
   if (run.loot.gear){
     if (invUsed() < invSlots()){ S.inv.push({gear: run.loot.gear}); renderInventory(); }
     else spawnFloat({ text: 'Backpack full!' });
@@ -2871,19 +2995,19 @@ function openTravelNow(regionId){
   if (!t) return;
   const busy = !!S.world.travel;
   const price = costToTravel(regionId);
-  const cant = S.data < price;
+  const cant = S.fuel < price;
   $('region-title').textContent = 'Travel to ' + R.name;
   $('region-body').innerHTML =
     '<div class="region-kv">' +
     '<div class="kv"><span class="k">Destination</span><span class="v">' + R.ico + ' ' + R.name + '</span></div>' +
-    '<div class="kv"><span class="k">Cost</span><span class="v" style="color:var(--cyan)">💠 ' + fmt(price) + ' Data</span></div>' +
+    '<div class="kv"><span class="k">Cost</span><span class="v" style="color:var(--cyan)">⛽ ' + price + ' fuel</span></div>' +
     '<div class="kv"><span class="k">Travel time</span><span class="v">⏱ ' + fmtDur(t.time) + '</span></div>' +
     '</div>' +
     '<div class="shelf-empty">You arrive at the region gate — enter the zone on arrival to start the expedition.</div>' +
     '<div class="region-actions">' +
     (busy
       ? '<button class="btn-neutral" disabled style="opacity:.6">Already traveling…</button>'
-      : '<button class="btn-primary" id="travelnow-go"' + (cant ? ' disabled style="opacity:.5"' : '') + '>🚀 Confirm — ' + fmt(price) + ' Data</button>') +
+      : '<button class="btn-primary" id="travelnow-go"' + (cant ? ' disabled style="opacity:.5"' : '') + '>🚀 Confirm — ' + price + ' fuel</button>') +
     '</div>';
   regionOverlay.classList.add('open');
   const go = $('travelnow-go');
@@ -3359,6 +3483,13 @@ function loopBody(now){
   // UI ~10 ggr/s
   if (now - uiGate > 100){ uiGate = now; updateUI(false); }
 
+  // Bränslet regenererar BARA online — dt kommer ur den levande loopen,
+  // så stängd flik ger ingenting. Det är regeln, inte en brist.
+  if (S.fuel < fuelMax()) addFuel(FUEL_REGEN_PER_MIN * dt / 60);
+
+  // Forskningsdrönarna
+  checkResearch();
+
   // Ankomstkontroll för resande
   checkTravel();
 
@@ -3373,6 +3504,7 @@ function updateUI(force){
   el.resCredits.textContent = fmt(S.credits);
   el.resFragments.textContent = fmt(S.frags);
   el.resGold.textContent = fmt(S.gold);
+  el.resFuel.textContent = Math.floor(S.fuel) + '/' + fuelMax();
   refreshPremiumOffline();
   /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
      och tätare ritning river knappar under fingret på mobil. */
@@ -3747,12 +3879,51 @@ const REGIONS = {
 };
 /* Att nå en ny ring kostar totalt lika mycket som förut, men i TVÅ steg:
    halva summan för att upptäcka, halva för att resa. Två delmål i stället för ett. */
-const DISCOVER_COST = {1: 25000, 2: 2.5e6, 3: 2.5e8, 4: 2.5e10};
+/* ============ TRADING STATION ============
+   En handelsstation i varje region — samma zonnamn överallt, så den alltid går
+   att hitta. Cellpriset är samma i hela världen; det som skiljer är DITT rykte
+   i regionen: 3 % rabatt per stjärna. Rykte blir därmed pengar. */
+const TRADE_ZONE = 'Trading Station';
+const CELL_PRICE_BASE = 40;
+function cellPrice(regionId){
+  return Math.max(1, Math.round(CELL_PRICE_BASE * (1 - 0.03 * repRank(regionId))));
+}
+
+/* ================= BRÄNSLET =================
+   Guld är ekonomi, bränsle är utforskning. Bränslet växer INTE med maskinparken,
+   och det är hela poängen: en resekostnad som förblir kännbar när Data-produktionen
+   exploderat. Regenererar BARA medan spelet är igång (spelarens beslut) — tiden
+   själv är golvet som gör att ingen någonsin kan bli permanent strandad. */
+const FUEL_MAX_BASE = 100;
+const FUEL_REGEN_PER_MIN = 2;
+const FUEL_CELL_RESTORE = 25;
+const ZONE_FUEL_COST = 1;
+/* Regionresor: priset är SUMMAN av ringstegen (spelarens beslut) — inga rabatter
+   för långa hopp, ingen billigare hemresa. Hela världen i ett svep = 95, alltså
+   nästan full tank: spelets längsta resa är också dess största beslut. */
+const FUEL_STEP = {0: 15, 1: 20, 2: 25, 3: 35};   // steg mellan ring N och N+1
+function fuelMax(){ return FUEL_MAX_BASE; }
+function fuelBetween(fromId, toId){
+  let a = REGIONS[fromId].tier, b = REGIONS[toId].tier;
+  if (a > b){ const t = a; a = b; b = t; }
+  let sum = 0;
+  for (let r = a; r < b; r++) sum += FUEL_STEP[r];
+  return sum || FUEL_STEP[0];   // grannar i samma ring: ett steg
+}
+function addFuel(n){ S.fuel = Math.max(0, Math.min(fuelMax(), S.fuel + n)); }
+
+/* ============ UPPTÄCKT VIA FORSKNINGSDRÖNARE ============
+   Att upptäcka kostar inte längre Data — det kostar TID. Man skickar ut drönare
+   och väntar. Grinden är i stället en BYGGNAD per ring: drönarna behöver
+   infrastrukturen. Det ger Data-samlandet en ny världsroll: maskinerna är
+   porten till nästa ring. */
+const DISCOVER_REQ = {1: 'bees', 2: 'drone', 3: 'miner', 4: 'beam'};
+const DISCOVER_TIME = {1: 600, 2: 1500, 3: 2400, 4: 3300};
 /* Ring 0 = hemmaregionen. Den SAKNADES här, vilket kraschade spelet så fort man
    stod utanför hemma och resrutan försökte prissätta resan tillbaka. */
 const TRAVEL_BY_TIER = {0: {cost: 25000, time: 120}, 1: {cost: 25000, time: 120}, 2: {cost: 2.5e6, time: 300}, 3: {cost: 2.5e8, time: 600}, 4: {cost: 2.5e10, time: 1200}};
 /* Zonbyte inom regionen du står i: gratis, men inte gratis i TID. */
-const ZONE_TRAVEL_TIME = 30;
+const ZONE_TRAVEL_TIME = 10;
 /* Premiumgenvägen: hoppa över resten av väntan. En credit per påbörjad minut kvar. */
 function skipCost(){
   if (!S.world.travel) return 0;
@@ -4003,6 +4174,11 @@ $('map-mode').addEventListener('click', () => setMapMode(mapMode === 'world' ? '
 /* Varje zon får sin egen naturliga plats: grundvinkeln jittras och avståndet
    varierar, styrt av en hash på zonens namn — samma zon landar alltid på
    samma ställe, men ringen ser levande ut i stället för klockren. */
+/* Stationen finns i varje region. En regel i stället för femton listredigeringar —
+   och varje framtida region får den automatiskt. */
+for (const _rid in REGIONS){
+  if (!REGIONS[_rid].zones.includes(TRADE_ZONE)) REGIONS[_rid].zones.push(TRADE_ZONE);
+}
 function zoneHash(str){
   let h = 2166136261;
   for (let i = 0; i < str.length; i++){
@@ -4069,22 +4245,13 @@ function openRegion(id){
   const R = REGIONS[id];
   const body = $('region-body');
   if (!isKnown(id)){
-    const cost = discoverCost(id);
     $('region-title').textContent = 'Unknown Region';
     body.innerHTML =
       '<div class="region-kv"><div class="kv"><span class="k">Signal strength</span><span class="v">Tier ' + R.tier + '</span></div>' +
-      '<div class="kv"><span class="k">Discovery cost</span><span class="v" style="color:var(--cyan)">' + fmt(cost) + ' Data</span></div></div>' +
-      '<div class="shelf-empty">Something is out there. Pay to decrypt its signal and reveal what it is.</div>' +
-      '<div class="region-actions"><button class="btn-primary" id="region-discover"' + (S.data < cost ? ' disabled style="opacity:.5"' : '') + '>🔍 Discover</button></div>';
+      '<div class="kv"><span class="k">Survey time</span><span class="v" style="color:var(--cyan)">' + fmtDur(DISCOVER_TIME[R.tier] || 180) + '</span></div></div>' +
+      buildDiscoverBody(id, R);
     const btn = $('region-discover');
-    btn.addEventListener('click', () => {
-      if (S.data < cost) return;
-      S.data -= cost;
-      S.world.known.push(id);
-      grantXP(50);
-      renderMap(); refreshTravelBar();
-      openRegion(id);
-    });
+    if (btn) btn.addEventListener('click', () => startResearch(id));
   } else {
     const rank = repRank(id);
     $('region-title').textContent = R.name;
@@ -4154,13 +4321,16 @@ function openZone(regionId, zi){
     '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>' +
     '</div>' +
     '<div class="desig-note" style="border-color:' + di.color + ';color:' + di.color + '">' + di.note + '</div>' +
-    '<div class="section-label">Expeditions</div>' +
-    buildZoneExpeditions(regionId, zone) +
+    (zone === TRADE_ZONE
+      ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
+      : '<div class="section-label">Expeditions</div>' + buildZoneExpeditions(regionId, zone)) +
     '<div class="section-label">Players in zone</div>' +
     '<div class="shelf-empty">Only you — other players appear when the server goes live.</div>' +
     buildZoneAction(regionId, zone);
   regionOverlay.classList.add('open');
   $('zone-back').addEventListener('click', () => openRegion(regionId));
+  const tbuy = $('trader-buy');
+  if (tbuy) tbuy.addEventListener('click', () => { if (buyCell(regionId)) openZone(regionId, zi); });
   $('region-body').querySelectorAll('[data-start]').forEach(b => {
     b.addEventListener('click', () => {
       /* Startade den? Då är rutan färdig med sitt ärende — stäng den. */
@@ -4174,6 +4344,28 @@ function openZone(regionId, zi){
        och nedräkning. Inga genvägar som teleporterar. */
     if (goToZone(regionId + '|' + zone)) closeRegion();
   });
+}
+function buildTrader(regionId){
+  const price = cellPrice(regionId);
+  const stars = repRank(regionId);
+  const canPay = S.gold >= price;
+  return '<div class="trader-row">' +
+    '<div class="tr-item"><span class="tr-ico">⛽</span><div><div class="tr-name">Warp Fuel Cell</div>' +
+    '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
+    '<div class="tr-buy">' +
+    (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
+    '<button class="zx-btn tr-btn" id="trader-buy"' + (canPay ? '' : ' disabled style="opacity:.5"') + '>Buy — ' + price + ' 🪙</button>' +
+    '</div></div>';
+}
+function buyCell(regionId){
+  const price = cellPrice(regionId);
+  if (S.gold < price) return false;
+  /* Cellen stackar, och en stack får ALLTID växa — men en helt full väska utan
+     påbörjad stack nekar köpet i stället för att svälja guldet. */
+  if (!addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true})) return false;
+  S.gold -= price;
+  updateUI(true); save();
+  return true;
 }
 function buildZoneExpeditions(regionId, zone){
   const defs = expDefsForZone(regionId, zone);
@@ -4212,20 +4404,59 @@ function buildZoneAction(regionId, zone){
 
 /* --- Resandet --- */
 function costToTravel(id){
-  const t = TRAVEL_BY_TIER[REGIONS[id].tier];
-  return t ? Math.max(1, Math.round(t.cost * (1 - gearBonus('travel') / 100))) : 0;
+  return Math.max(1, Math.round(fuelBetween(S.world.current, id) * (1 - gearBonus('travel') / 100)));
 }
-function discoverCost(id){
-  const base = DISCOVER_COST[REGIONS[id].tier] || 0;
-  return Math.max(1, Math.round(base * (1 - gearBonus('scan') / 100)));
+/* Drönarupptäckten. Grinden är en byggnad per ring — inte pengar. Bara en
+   forskning åt gången, och Scan Cost-egenskapen kortar TIDEN i stället. */
+function discoverReqMet(tier){
+  const req = DISCOVER_REQ[tier];
+  return !req || S.own[req] > 0;
+}
+function researchTime(id){
+  const base = DISCOVER_TIME[REGIONS[id].tier] || 180;
+  return Math.max(30, Math.round(base * (1 - gearBonus('scan') / 100)));
+}
+function buildDiscoverBody(id, R){
+  if (S.research){
+    const here = S.research.region === id;
+    return '<div class="shelf-empty">' + (here
+      ? 'Research drones are surveying this signal — ' + fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000)) + ' remaining.'
+      : 'Your research drones are busy surveying another signal.') + '</div>';
+  }
+  const req = DISCOVER_REQ[R.tier];
+  if (!discoverReqMet(R.tier)){
+    const b = BUILDINGS.find(x => x.id === req);
+    return '<div class="shelf-empty">The signal is too faint for your current network. Drones need <b>' +
+      b.ico + ' ' + b.name + '</b> infrastructure to survey this ring — build at least one.</div>';
+  }
+  return '<div class="shelf-empty">Send research drones to survey the signal. They return in ' + fmtDur(researchTime(id)) + ' — and the region is revealed.</div>' +
+    '<div class="region-actions"><button class="btn-primary" id="region-discover">🛰 Send research drones</button></div>';
+}
+function startResearch(id){
+  if (S.research || isKnown(id) || !discoverReqMet(REGIONS[id].tier)) return;
+  S.research = {region: id, eta: Date.now() + researchTime(id) * 1000};
+  grantXP(20);
+  save();
+  openRegion(id);
+}
+function checkResearch(){
+  if (!S.research || Date.now() < S.research.eta) return;
+  const id = S.research.region;
+  S.research = null;
+  if (!isKnown(id)) S.world.known.push(id);
+  grantXP(50);
+  renderMap(); refreshTravelBar();
+  save();
 }
 function startTravel(id){
   if (S.world.travel || id === S.world.current || !isKnown(id)) return;
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
   const cost = costToTravel(id);
-  if (!t || S.data < cost) return;
-  S.data -= cost;
-  S.world.travel = {to: id, from: S.world.current, eta: Date.now() + t.time * 1000, cost: cost};
+  if (!t || S.fuel < cost) return;
+  S.fuel -= cost;
+  /* fuel-fältet är ärlighet i avbrottsvarningen: ingen återbetalning, och
+     varningen ska kunna säga exakt hur mycket bränsle som gick förlorat. */
+  S.world.travel = {to: id, from: S.world.current, eta: Date.now() + t.time * 1000, cost: 0, fuel: cost};
   refreshTravelBar();
   refreshWarp();
 }
@@ -4326,11 +4557,11 @@ $('warp-skip').addEventListener('click', skipTravel);
 $('warp-abort').addEventListener('click', () => {
   const tr = S.world.travel;
   if (!tr) return;
-  $('warp-confirm-text').innerHTML = tr.cost > 0
-    ? ('Abort the warp and drop out here?<br>The ' + fmt(tr.cost) +
-       ' Data you paid for this trip is <b>gone</b> — you will not get it back, and you stay in ' +
+  $('warp-confirm-text').innerHTML = (tr.fuel > 0)
+    ? ('Abort the warp and drop out here?<br>The <b>' + tr.fuel +
+       ' fuel</b> you burned on this trip is gone — no refunds, and you stay in ' +
        REGIONS[S.world.current].name + '.')
-    : ('Abort and stay where you are?<br>Nothing was paid for this move, so nothing is lost — you just will not arrive in ' +
+    : ('Abort and stay where you are?<br>Nothing was spent on this move — you just will not arrive in ' +
        (tr.zone || REGIONS[tr.to].name) + '.');
   $('warp-confirm').classList.add('on');
   $('warp-actions').style.display = 'none';
@@ -4364,7 +4595,7 @@ function updateTravelInfo(){
   if (!id || !REGIONS[id]){ travelCost.textContent = '—'; travelTime.textContent = '—'; return; }
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
   if (!t){ travelCost.textContent = '—'; travelTime.textContent = '—'; return; }
-  travelCost.textContent = '💠 ' + fmt(costToTravel(id));
+  travelCost.textContent = '⛽ ' + costToTravel(id) + ' fuel';
   travelTime.textContent = '⏱ ' + fmtDur(t.time);
 }
 travelSelect.addEventListener('change', updateTravelInfo);
@@ -4390,7 +4621,9 @@ function goToZone(pair){
   if (regionId !== S.world.current) return false;
   if (!REGIONS[regionId] || !REGIONS[regionId].zones.includes(zone)) return false;
   if (S.world.zone === zone) return true;
-  S.world.travel = {to: regionId, zone: zone, from: regionId, eta: Date.now() + ZONE_TRAVEL_TIME * 1000, cost: 0};
+  if (S.fuel < ZONE_FUEL_COST) return false;
+  S.fuel -= ZONE_FUEL_COST;
+  S.world.travel = {to: regionId, zone: zone, from: regionId, eta: Date.now() + ZONE_TRAVEL_TIME * 1000, cost: 0, fuel: ZONE_FUEL_COST};
   refreshTravelBar();
   refreshWarp();
   renderExpPanel();
@@ -4583,7 +4816,17 @@ $('inv-grid').addEventListener('click', e => {
   const cell = e.target.closest('[data-inv]');
   if (!cell) return;
   const idx = +cell.dataset.inv, row = S.inv[idx];
-  if (!row || !row.gear) return;
+  if (!row) return;
+  if (row.key === 'fuelcell'){
+    /* Full tank = cellen vägrar, hellre än att bränna en cell på ingenting. */
+    if (S.fuel >= fuelMax()) return;
+    addFuel(FUEL_CELL_RESTORE);
+    row.qty--;
+    if (row.qty <= 0) S.inv.splice(idx, 1);
+    renderInventory(); updateUI(true); save();
+    return;
+  }
+  if (!row.gear) return;
   /* Shift+klick sätter på direkt. Är platsen upptagen byts pjäsen — men bara om det
      finns en ledig ruta för den gamla, annars händer ingenting. */
   if (e.shiftKey){
@@ -4599,6 +4842,7 @@ $('inv-grid').addEventListener('mouseover', e => {
   if (!cell) return hideGearTip();
   const row = S.inv[+cell.dataset.inv];
   if (row && row.gear) showGearTip(row.gear, e.clientX, e.clientY);
+  else hideGearTip();
 });
 $('inv-grid').addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
 $('inv-grid').addEventListener('mouseleave', hideGearTip);
