@@ -1163,7 +1163,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 .ef-status.running{color:var(--cyan)}
 .ef-status.here{color:var(--green)}
 .ef-status.away{color:var(--text-faint)}
-.ef-meta{display:flex;gap:10px;font-size:9px;color:var(--text-dim);font-family:var(--font-mono);align-items:center;flex-wrap:wrap}
+.ef-meta{display:flex;gap:10px;font-size:11.7px;color:var(--text-dim);font-family:var(--font-mono);align-items:center;flex-wrap:wrap}
 .ef-travel{margin-left:auto;padding:4px 10px}
 .tab-dot{color:var(--green);font-weight:900}
 .zx-row{
@@ -1174,7 +1174,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 .zx-info{min-width:0}
 .zx-name{font-size:10.5px;font-weight:800}
 .zx-levy{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#ffb0b6;margin-top:3px}
-.zx-meta{font-size:8.5px;color:var(--text-dim);font-family:var(--font-mono)}
+.zx-meta{font-size:11px;color:var(--text-dim);font-family:var(--font-mono)}
 .zx-btn{
   border:1px solid var(--cyan);background:rgba(56,232,255,.1);color:var(--cyan);
   border-radius:8px;padding:5px 12px;font-size:9px;font-weight:800;cursor:pointer;
@@ -1975,7 +1975,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.48.1 — RÄTT MYNT</div>
+            <div class="desc">GENESIS v0.48.3 — RESA HÄRIFRÅN</div>
           </div>
         </div>
       </div>
@@ -2001,7 +2001,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.48.1 — RÄTT MYNT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.48.3 — RESA HÄRIFRÅN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5047,6 +5047,8 @@ function openZone(regionId, zi, keepNote){
       else openZone(regionId, zi);
     });
   });
+  const rbtn = $('zone-travelregion');
+  if (rbtn) rbtn.addEventListener('click', () => openTravelNow(regionId));
   const zbtn = $('zone-enter');
   if (zbtn) zbtn.addEventListener('click', () => {
     /* Samma väg som Travel-knappen i expeditionslistan: en riktig resa med warp
@@ -5238,7 +5240,16 @@ function buildZoneExpeditions(regionId, zone){
 }
 function buildZoneAction(regionId, zone){
   if (regionId !== S.world.current){
-    return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">Travel to ' + REGIONS[regionId].name + ' first</button></div>';
+    /* Knappen SKA gå att trycka på. Att skicka spelaren till kartan för att leta
+       upp samma resa igen är en omväg utan syfte — den här rutan vet redan vart
+       du vill. Är regionen inte upptäckt ännu säger knappen det i stället. */
+    if (!isKnown(regionId)){
+      return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">Discover ' + REGIONS[regionId].name + ' first</button></div>';
+    }
+    if (S.world.travel){
+      return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">In transit…</button></div>';
+    }
+    return '<div class="region-actions"><button class="btn-primary" id="zone-travelregion">🚀 Travel to ' + REGIONS[regionId].name + '</button></div>';
   }
   if (S.world.zone === zone){
     return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">📍 You are here</button></div>';
