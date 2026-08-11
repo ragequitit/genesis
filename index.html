@@ -1149,6 +1149,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 }
 .zx-info{min-width:0}
 .zx-name{font-size:10.5px;font-weight:800}
+.zx-levy{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#ffb0b6;margin-top:3px}
 .zx-meta{font-size:8.5px;color:var(--text-dim);font-family:var(--font-mono)}
 .zx-btn{
   border:1px solid var(--cyan);background:rgba(56,232,255,.1);color:var(--cyan);
@@ -1237,6 +1238,12 @@ body.modal-open{overflow:hidden}
   border-color:rgba(139,92,246,.55);
   box-shadow:0 0 0 1px rgba(139,92,246,.18), 0 0 42px -8px rgba(139,92,246,.5), 0 20px 60px rgba(0,0,0,.6);
 }
+.cd-tax{display:block;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#ff8b95;margin-top:2px}
+/* Mynten: guld, silver, koppar — samma tal, tre läsningar. */
+.coins{display:inline-flex;gap:4px;align-items:baseline;font-family:var(--font-mono);font-weight:800}
+.co-g{color:#ffc542}
+.co-s{color:#c9d4e8}
+.co-c{color:#d98c5f}
 .rw-gear{
   display:flex;align-items:center;gap:10px;cursor:help;margin-top:6px;padding:8px 10px;
   background:var(--bg-row);border:1px solid var(--rc);border-radius:9px;
@@ -1496,8 +1503,8 @@ body.modal-open{overflow:hidden}
 
     <!-- Valutorna hör ihop -->
     <div class="panel hpanel" id="panel-currency">
-      <div class="res-pill" data-color="gold"><span class="res-icon">🪙</span><span class="res-body"><span class="res-value" id="res-gold">0</span><span class="res-label">Gold</span></span></div>
-      <div class="res-pill" data-color="fuel" id="fuel-pill" title="Regenerates +2/min while playing"><span class="res-icon">⛽</span><span class="res-body"><span class="res-value" id="res-fuel">100</span><span class="res-label">Fuel</span></span></div>
+      <div class="res-pill" data-color="gold"><span class="res-icon">🪙</span><span class="res-body"><span class="res-value" id="res-gold">0c</span><span class="res-label">Money</span></span></div>
+      <div class="res-pill" data-color="fuel" id="fuel-pill" title="Regenerates +1/min while playing"><span class="res-icon">⛽</span><span class="res-body"><span class="res-value" id="res-fuel">100</span><span class="res-label">Fuel</span></span></div>
       <div class="res-pill" data-color="blue"><span class="res-icon">💳</span><span class="res-body"><span class="res-value" id="res-credits">0</span><span class="res-label">Credits</span></span></div>
       <div class="res-pill" data-color="purple"><span class="res-icon">🔷</span><span class="res-body"><span class="res-value" id="res-fragments">0</span><span class="res-label">Fragments</span></span></div>
     </div>
@@ -1920,7 +1927,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.37.1 — RUTA FÖR RUTA</div>
+            <div class="desc">GENESIS v0.40.0 — VENDORN</div>
           </div>
         </div>
       </div>
@@ -1946,7 +1953,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.37.1 — RUTA FÖR RUTA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.40.0 — VENDORN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2019,6 +2026,16 @@ function tapGain(lvl){ return (1 + lvl) * (1 + gearBonus('tap') / 100); }
 
 /* ---------- STATE ---------- */
 const SAVE_KEY = 'genesis-save-v1';
+/* ================= PENGARNA =================
+   Guld behåller sitt värde; silver och koppar ligger UNDER det som finare valörer,
+   så små belöningar kan uttryckas — 85s 15c för ett lätt uppdrag. Internt räknas
+   allt i koppar (ett tal, inga växlingsfel), men alla priser SKRIVS i guld. */
+const COPPER_PER_SILVER = 100, SILVER_PER_GOLD = 100;
+const COPPER_PER_GOLD = COPPER_PER_SILVER * SILVER_PER_GOLD;
+/* Skriv priser i GULD, lagra i koppar. Ett tal, inga växlingsfel. */
+function GOLD(n){ return Math.round(n * COPPER_PER_GOLD); }
+function SILVER(n){ return Math.round(n * COPPER_PER_SILVER); }
+
 /* ================= UTRUSTNINGEN =================
    Ett set = sex platser × sex sällsyntheter = 36 EGNA föremål. Sällsyntheten sitter i
    föremålet, inte i en rullning (till skillnad från husdjuren). Bilderna ligger i
@@ -2036,12 +2053,12 @@ const GEAR_SLOTS = [
   {id:'weapon', name:'Weapon', piece:'dagger'}
 ];
 const GEAR_RAR = [
-  {id:'common',    name:'Common',    file:'common',    aff:1, mult:1,    gold:[12, 18]},
-  {id:'uncommon',  name:'Uncommon',  file:'uncommon',  aff:1, mult:1.35, gold:[20, 32]},
-  {id:'rare',      name:'Rare',      file:'rare',      aff:2, mult:1.8,  gold:[45, 65]},
-  {id:'epic',      name:'Epic',      file:'epic',      aff:2, mult:2.4,  gold:[80, 110]},
-  {id:'legendary', name:'Legendary', file:'legendary', aff:3, mult:3.2,  gold:[125, 155]},
-  {id:'mythical',  name:'Mythic',    file:'mythical',  aff:3, mult:4.2,  gold:[180, 220]}
+  {id:'common',    name:'Common',    file:'common',    aff:1, mult:1,    gold:[GOLD(9), GOLD(14)]},
+  {id:'uncommon',  name:'Uncommon',  file:'uncommon',  aff:1, mult:1.35, gold:[GOLD(15), GOLD(24)]},
+  {id:'rare',      name:'Rare',      file:'rare',      aff:2, mult:1.8,  gold:[GOLD(34), GOLD(49)]},
+  {id:'epic',      name:'Epic',      file:'epic',      aff:2, mult:2.4,  gold:[GOLD(60), GOLD(83)]},
+  {id:'legendary', name:'Legendary', file:'legendary', aff:3, mult:3.2,  gold:[GOLD(94), GOLD(116)]},
+  {id:'mythical',  name:'Mythic',    file:'mythical',  aff:3, mult:4.2,  gold:[GOLD(135), GOLD(165)]}
 ];
 /* Egenskaper som ALLA sex platser kan rulla. Ring och halsband får en egen pool när
    de finns. Loot Luck är med från start eftersom den styr just gear-droppen.
@@ -2084,6 +2101,32 @@ function rollGear(slotIdx, rarIdx){
 }
 /* Combat Power: hälsan plus tio gånger summan av bonusarna. Ingen egen rullning —
    den SAMMANFATTAR pjäsen, så den kan aldrig säga emot det som står i den. */
+function splitMoney(c){
+  c = Math.max(0, Math.floor(c));
+  const g = Math.floor(c / COPPER_PER_GOLD);
+  const s = Math.floor((c % COPPER_PER_GOLD) / COPPER_PER_SILVER);
+  return {g: g, s: s, c: c % COPPER_PER_SILVER};
+}
+/* Visar bara de valörer som betyder något: 45c, 3s 40c, 1g 25s 05c.
+   Lägre valörer nollställs aldrig bort mitt i — 1g 00s 07c ska synas som sådant. */
+/* Nollvalörer utelämnas helt — varje valör har egen bokstav och färg, så '1g 7c'
+   är otvetydigt och '6g 0s 0c' vore bara brus. Är allt noll visas '0c'. */
+function fmtMoney(c){
+  const m = splitMoney(c);
+  let out = '';
+  if (m.g) out += '<span class="co-g">' + fmt(m.g) + 'g</span>';
+  if (m.s) out += '<span class="co-s">' + m.s + 's</span>';
+  if (m.c || (!m.g && !m.s)) out += '<span class="co-c">' + m.c + 'c</span>';
+  return '<span class="coins">' + out + '</span>';
+}
+function moneyText(c){
+  const m = splitMoney(c);
+  const p = [];
+  if (m.g) p.push(fmt(m.g) + 'g');
+  if (m.s) p.push(m.s + 's');
+  if (m.c || !p.length) p.push(m.c + 'c');
+  return p.join(' ');
+}
 function gearGold(it){
   const r = GEAR_RAR[it.r];
   return (it.g >= r.gold[0] && it.g <= r.gold[1]) ? it.g : Math.round((r.gold[0] + r.gold[1]) / 2);
@@ -2161,7 +2204,7 @@ function petExtraFrags(rnd){
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
   pets: {owned: [], active: null, seq: 1},
-  equip: {}, gearSeq: 1,
+  equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false],
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
@@ -2180,6 +2223,7 @@ BUILDINGS.forEach(b => S.own[b.id] = 0);
 
 function save(){
   S.savedAt = Date.now();
+  S.moneyV = 2;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); lastSaveShown = Date.now(); }
   catch(e){ /* lagring otillgänglig — spela vidare utan */ }
 }
@@ -2195,17 +2239,21 @@ function load(){
       }
       if (d.world && typeof d.world === 'object'){
         if (typeof d.world.current === 'string') S.world.current = d.world.current;
-        if (typeof d.world.zone === 'string') S.world.zone = d.world.zone;
+        /* Zonen bytte namn. Utan detta skulle den som stod i handelsstationen vakna
+           i en zon som inte längre finns — och en resa dit vore omöjlig att avsluta. */
+        const renameZone = z => (z === 'Trading Station' ? TRADE_ZONE : z);
+        if (typeof d.world.zone === 'string') S.world.zone = renameZone(d.world.zone);
         if (Array.isArray(d.world.known)) S.world.known = d.world.known.filter(x => typeof x === 'string');
         if (Array.isArray(d.world.visited)) S.world.visited = d.world.visited.filter(x => typeof x === 'string');
-        if (Array.isArray(d.world.zonesSeen)) S.world.zonesSeen = d.world.zonesSeen.filter(x => typeof x === 'string');
+        if (Array.isArray(d.world.zonesSeen)) S.world.zonesSeen = d.world.zonesSeen.filter(x => typeof x === 'string')
+          .map(x => x.replace('|Trading Station', '|' + TRADE_ZONE));
         if (d.world.travel && typeof d.world.travel.to === 'string' && isFinite(+d.world.travel.eta)){
           S.world.travel = {to: d.world.travel.to, eta: +d.world.travel.eta,
                             from: REGIONS[d.world.travel.from] ? d.world.travel.from : null,
                             cost: Math.max(0, +d.world.travel.cost || 0)};
           const rz = REGIONS[d.world.travel.to];
-          if (typeof d.world.travel.zone === 'string' && rz && rz.zones.includes(d.world.travel.zone))
-            S.world.travel.zone = d.world.travel.zone;
+          const tz = (typeof d.world.travel.zone === 'string') ? renameZone(d.world.travel.zone) : null;
+          if (tz && rz && rz.zones.includes(tz)) S.world.travel.zone = tz;
         }
       }
       if (!S.world.known.includes('neonhub')) S.world.known.push('neonhub');
@@ -2218,6 +2266,9 @@ function load(){
       if (d.premium && typeof d.premium === 'object'){
         S.premium.offlineHours = Math.min(4, Math.max(0, Math.floor(+d.premium.offlineHours) || 0));
       }
+      /* MÅSTE stå före readGear, som läser den. Deklarerades den senare kastade
+         laddningen ett tyst fel och HELA ryggsäcken försvann. */
+      const moneyOld = !(d.moneyV >= 2);   // sparfil från före guld/silver/koppar
       S.frags = Math.max(0, +d.frags || 0);
       S.gearSeq = Math.max(1, Math.floor(+d.gearSeq) || 1);
       S.fuel = (d.fuel === undefined) ? 100 : Math.max(0, Math.min(FUEL_MAX_BASE, +d.fuel || 0));
@@ -2230,8 +2281,8 @@ function load(){
         const a = Array.isArray(g.a) ? g.a.filter(x => x && AFFIXES[x.k] && isFinite(+x.v))
           .map(x => ({k: x.k, v: Math.round(+x.v * 100) / 100})) : [];
         const rr = GEAR_RAR[g.r | 0];
-        const gold = (+g.g >= rr.gold[0] && +g.g <= rr.gold[1])
-          ? Math.round(+g.g)
+        const raw = moneyOld ? Math.round(+g.g * COPPER_PER_GOLD) : Math.round(+g.g);
+        const gold = (raw >= rr.gold[0] && raw <= rr.gold[1]) ? raw
           : Math.round((rr.gold[0] + rr.gold[1]) / 2);
         const out = {uid: Math.max(1, Math.floor(+g.uid) || S.gearSeq++), s: g.s | 0, r: g.r | 0, a: a, hp: Math.round(+g.hp), g: gold};
         if (typeof g.src === 'string' && g.src.length < 80) out.src = g.src;
@@ -2251,7 +2302,7 @@ function load(){
         S.pets.seq = Math.max(1, Math.floor(+d.pets.seq) || 1, ...S.pets.owned.map(o => o.uid + 1));
         if (d.pets.active != null && S.pets.owned.some(o => o.uid === d.pets.active)) S.pets.active = d.pets.active;
       }
-      S.gold = Math.max(0, +d.gold || 0);
+      S.gold = Math.max(0, +d.gold || 0) * (moneyOld ? COPPER_PER_GOLD : 1);
       /* Tomma rutor är null och MÅSTE överleva laddningen — annars packas väskan
          ihop igen och all egen ordning går förlorad vid nästa start. */
       if (Array.isArray(d.inv)) S.inv = d.inv.slice(0, 200).map(it => {
@@ -2268,7 +2319,7 @@ function load(){
             .map(r => {
               const run = {id: r.id, endsAt: +r.endsAt, data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0)};
               if (r.loot && isFinite(+r.loot.gold) && isFinite(+r.loot.frags)){
-                run.loot = {gold: Math.max(0, +r.loot.gold), frags: Math.max(0, +r.loot.frags)};
+                run.loot = {gold: Math.max(0, +r.loot.gold) * (moneyOld ? COPPER_PER_GOLD : 1), frags: Math.max(0, +r.loot.frags)};
                 /* Fyndet ska ÖVERLEVA en omstart — bytet rullas en gång och ligger
                    sedan fast, även genom stängt spel. Utan detta försvann gear och
                    celler ur en färdig expedition vid omladdning. */
@@ -3130,7 +3181,7 @@ function renderInventory(){
   const cap = $('inv-cap');
   if (cap) cap.textContent = invUsed() + ' / ' + invSlots();
   const goldEl = $('inv-gold');
-  if (goldEl) goldEl.textContent = fmt(S.gold);
+  if (goldEl) goldEl.innerHTML = fmtMoney(S.gold);
   const grid = $('inv-grid');
   if (!grid) return;
   let h = '';
@@ -3159,7 +3210,7 @@ function renderInventory(){
    Gear/fordonsdelar väntar tills deras regler OCH inventariet finns. */
 function expGoldRange(lvl){
   const min = Math.max(1, Math.floor(lvl * 0.8));
-  return [min, min + 2 + Math.floor(lvl * 0.8)];
+  return [GOLD(min), GOLD(min + 2 + Math.floor(lvl * 0.8))];
 }
 function expFragRange(lvl){
   const min = Math.max(1, Math.floor(lvl / 2));
@@ -3171,6 +3222,12 @@ function rollIn(range){ return range[0] + Math.floor(Math.random() * (range[1] -
 /* Droppchansen växer med expeditionens längd: 22 % på en tvåminutare, och sedan
    uppåt med avtagande avkastning så att korta uppdrag fortfarande ger mest per timme
    (de kräver ju att du är där och startar om dem). Taket hindrar garanterade dropp. */
+/* Expeditioner var gratis pengar: tryck start, få guld, fragment och gear utan
+   insats. Skatten dras vid HÄMTNING, aldrig vid start — då kan ingen bli
+   strandsatt utan råd att tjäna guld igen, vilket en startavgift hade kunnat göra. */
+const EXP_TAX = 0.15;
+function taxOn(gold){ return Math.floor(gold * EXP_TAX); }
+function goldAfterTax(gold){ return Math.max(0, gold - taxOn(gold)); }
 const GEAR_DROP_BASE = 0.22, GEAR_DROP_ANCHOR = 2, GEAR_DROP_CURVE = 0.45, GEAR_DROP_MAX = 0.75;
 function gearDropChance(def){
   const t = Math.max(1, def.mins) / GEAR_DROP_ANCHOR;
@@ -3225,7 +3282,8 @@ function showRewards(run){
   $('reward-cards').innerHTML =
     '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">Data</span><span class="cd-ico">💠</span><span class="cd-v">+' + fmt(run.data) + '</span></div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
-    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Gold</span><span class="cd-ico">🪙</span><span class="cd-v">+' + run.loot.gold + '</span></div>' +
+    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span><span class="cd-ico">🪙</span><span class="cd-v">+' + fmtMoney(goldAfterTax(run.loot.gold)) + '</span>' +
+      (taxOn(run.loot.gold) > 0 ? '<span class="cd-tax">−' + moneyText(taxOn(run.loot.gold)) + ' levy</span>' : '') + '</div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span><span class="cd-ico">🔷</span><span class="cd-v">+' + run.loot.frags + '</span></div>';
   /* Fyndet ska synas HÄR — ingen ska behöva öppna väskan och gissa. */
   let found = '';
@@ -3260,7 +3318,7 @@ function confirmClaim(){
   S.data += run.data;
   S.totalData += run.data;
   grantXP(run.xp);
-  S.gold += run.loot.gold;
+  S.gold += goldAfterTax(run.loot.gold);
   S.frags += run.loot.frags;
   if (run.loot.cell){
     addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true});
@@ -3795,7 +3853,7 @@ function updateUI(force){
   el.dps.textContent = fmt(totalDps()) + '/s';
   el.resCredits.textContent = fmt(S.credits);
   el.resFragments.textContent = fmt(S.frags);
-  el.resGold.textContent = fmt(S.gold);
+  el.resGold.innerHTML = fmtMoney(S.gold);
   el.resFuel.textContent = Math.floor(S.fuel) + '/' + fuelMax();
   refreshPremiumOffline();
   renderPremiumBags();
@@ -4176,8 +4234,8 @@ const REGIONS = {
    En handelsstation i varje region — samma zonnamn överallt, så den alltid går
    att hitta. Cellpriset är samma i hela världen; det som skiljer är DITT rykte
    i regionen: 3 % rabatt per stjärna. Rykte blir därmed pengar. */
-const TRADE_ZONE = 'Trading Station';
-const CELL_PRICE_BASE = 40;
+const TRADE_ZONE = 'Vendor';
+const CELL_PRICE_BASE = GOLD(40);
 function cellPrice(regionId){
   return Math.max(1, Math.round(CELL_PRICE_BASE * (1 - 0.03 * repRank(regionId))));
 }
@@ -4188,7 +4246,7 @@ function cellPrice(regionId){
    exploderat. Regenererar BARA medan spelet är igång (spelarens beslut) — tiden
    själv är golvet som gör att ingen någonsin kan bli permanent strandad. */
 const FUEL_MAX_BASE = 100;
-const FUEL_REGEN_PER_MIN = 2;
+const FUEL_REGEN_PER_MIN = 1;
 const FUEL_CELL_RESTORE = 25;
 const ZONE_FUEL_COST = 1;
 /* Regionresor: priset är SUMMAN av ringstegen (spelarens beslut) — inga rabatter
@@ -4594,8 +4652,8 @@ function zoneDesig(regionId, zoneName){
   return (R.pvpZones && R.pvpZones.includes(zoneName)) ? 'PvP' : 'Safe';
 }
 function desigInfo(d){
-  if (d === 'Friendly') return {color:'var(--green)', note:'Home ground — no one can touch you or your haul here.'};
-  if (d === 'Safe') return {color:'var(--cyan)', note:'Safe — no players can attack you here.'};
+  if (d === 'Friendly') return {color:'var(--green)', note:''};
+  if (d === 'Safe') return {color:'var(--cyan)', note:''};
   if (d === 'PvP') return {color:'var(--red)', note:'⚠ PvP — entering makes you a valid target, and losing costs you carried resources.'};
   return {color:'var(--orange)', note:'Contested — some zones here are PvP. Check the zone before you enter.'};
 }
@@ -4611,9 +4669,9 @@ function openZone(regionId, zi){
     '<div class="region-kv">' +
     '<div class="kv"><span class="k">Region</span><span class="v">' + R.name + '</span></div>' +
     '<div class="kv"><span class="k">Designation</span><span class="v" style="color:' + di.color + '">' + zd + '</span></div>' +
-    '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>' +
+    (zone === TRADE_ZONE ? '' : '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>') +
     '</div>' +
-    '<div class="desig-note" style="border-color:' + di.color + ';color:' + di.color + '">' + di.note + '</div>' +
+    (di.note ? '<div class="desig-note" style="border-color:' + di.color + ';color:' + di.color + '">' + di.note + '</div>' : '') +
     (zone === TRADE_ZONE
       ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
       : '<div class="section-label">Expeditions</div>' + buildZoneExpeditions(regionId, zone)) +
@@ -4647,7 +4705,7 @@ function buildTrader(regionId){
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
-    '<button class="zx-btn tr-btn" id="trader-buy"' + (canPay ? '' : ' disabled style="opacity:.5"') + '>Buy — ' + price + ' 🪙</button>' +
+    '<button class="zx-btn tr-btn" id="trader-buy"' + (canPay ? '' : ' disabled style="opacity:.5"') + '>Buy — ' + moneyText(price) + '</button>' +
     '</div></div>';
 }
 function buyCell(regionId){
@@ -4679,6 +4737,7 @@ function buildZoneExpeditions(regionId, zone){
     return '<div class="zx-row"><div class="zx-info">' +
       '<div class="zx-name">' + def.name + '</div>' +
       '<div class="zx-meta">⏱ ' + fmtMins(def.mins) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · 🪙 ' + expGoldRange(def.lvl).join('-') + ' · 🔷 ' + expFragRange(def.lvl).join('-') + '</div>' +
+      '<div class="zx-levy">🪙 Guild levy — ' + Math.round(EXP_TAX * 100) + '% of gold is taken on claim</div>' +
       '</div>' + btn + '</div>';
   }).join('');
 }
@@ -5037,7 +5096,7 @@ function gearTipHTML(it){
     '<div class="gt-sep"></div>' +
     line('Combat Power', fmt(gearCP(it)), 'var(--cyan)') +
     line('Health', fmt(it.hp) + ' HP', '#7bffb0') +
-    line('Sells for', fmt(gearGold(it)) + ' gold', 'var(--gold)') +
+    line('Sells for', fmtMoney(gearGold(it)), null) +
     '<div class="gt-sep"></div>' +
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
     '<div class="gt-sep"></div>' +
@@ -5102,7 +5161,7 @@ function itemWinActions(win, uid){
   } else {
     box.innerHTML =
       '<button class="ia-equip" data-act="equip">Equip<span>' + GEAR_SLOTS[found.it.s].name + '</span></button>' +
-      '<button class="ia-sell" data-act="sell">Sell<span>' + fmt(gearGold(found.it)) + ' 🪙</span></button>';
+      '<button class="ia-sell" data-act="sell">Sell<span>' + fmtMoney(gearGold(found.it)) + '</span></button>';
   }
 }
 function spawnItemWin(uid, nearX, nearY){
@@ -5133,8 +5192,8 @@ function spawnItemWin(uid, nearX, nearY){
     else if (btn.dataset.act === 'sell'){
       const box = win.querySelector('.item-actions');
       box.innerHTML =
-        '<div class="ia-note">Sell ' + gearName(cur.it.s) + ' (' + GEAR_RAR[cur.it.r].name + ') for ' + fmt(gearGold(cur.it)) + ' gold?<br>It is gone for good.</div>' +
-        '<button class="ia-danger" data-act="sell-yes">Yes, sell it<span>' + fmt(gearGold(cur.it)) + ' 🪙</span></button>' +
+        '<div class="ia-note">Sell ' + gearName(cur.it.s) + ' (' + GEAR_RAR[cur.it.r].name + ') for ' + moneyText(gearGold(cur.it)) + '?<br>It is gone for good.</div>' +
+        '<button class="ia-danger" data-act="sell-yes">Yes, sell it<span>' + fmtMoney(gearGold(cur.it)) + '</span></button>' +
         '<button class="ia-cancel" data-act="sell-no">Keep it</button>';
     }
     else if (btn.dataset.act === 'sell-yes'){ sellGear(cur.idx); win.remove(); }
