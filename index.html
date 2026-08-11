@@ -253,6 +253,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .cs-row:last-child{border-bottom:none}
 .cs-row .k{color:var(--text-dim)}
 .cs-row .v{font-family:var(--font-mono);font-weight:800;color:var(--cyan)}
+.cs-none{font-size:10px;color:var(--text-faint);text-align:center;padding:6px 2px}
 .char-stats-btn{
   position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
   margin:0;white-space:nowrap;
@@ -1802,7 +1803,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.30.0 — STATS I RAMEN</div>
+            <div class="desc">GENESIS v0.30.1 — BARA DET DU HAR</div>
           </div>
         </div>
       </div>
@@ -1828,7 +1829,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.30.0 — STATS I RAMEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.30.1 — BARA DET DU HAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2804,27 +2805,37 @@ function renderEquip(){
 }
 /* Statsraderna. Varje värde räknas ur de system som FINNS: utrustning, husdjur,
    rykte. Inga påhittade rader — listan växer av sig själv när nya källor byggs. */
+/* Bara det du FAKTISKT har visas. En lista full av nollor är brus — den tvingar
+   dig att hålla reda på saker som inte finns. HP är undantaget: den är alltid
+   sann och alltid relevant. */
 function charStatRows(){
-  const pct = v => (v > 0 ? '+' : '') + (Math.round(v * 100) / 100) + '%';
-  return [
-    ['HP', fmt(totalHP())],
-    ['Crit Chance', pct(gearBonus('crit'))],
-    ['Idle Data', pct(gearBonus('idle') + petBonusPct('prod'))],
-    ['Tap Power', pct(gearBonus('tap'))],
-    ['Fragment Find', pct(gearBonus('frag') + petBonusPct('frag'))],
-    ['Loot Luck', pct(gearBonus('luck'))],
-    ['XP Bonus', pct(gearBonus('xp') + petBonusPct('xp'))],
-    ['Offline Earnings', pct(gearBonus('offline') + petBonusPct('offline'))],
-    ['Travel Cost', '−' + (Math.round(gearBonus('travel') * 100) / 100) + '%'],
-    ['Scan Time', '−' + (Math.round(gearBonus('scan') * 100) / 100) + '%'],
-    ['Region Rep', '+' + (2 * repRank()) + '% production']
-  ];
+  const r = [];
+  const round = v => Math.round(v * 100) / 100;
+  const up = (k, v) => { v = round(v); if (v > 0) r.push([k, '+' + v + '%']); };
+  const down = (k, v) => { v = round(v); if (v > 0) r.push([k, '−' + v + '%']); };
+  const hp = totalHP();
+  if (hp > 0) r.push(['HP', fmt(hp)]);
+  up('Crit Chance', gearBonus('crit'));
+  up('Idle Data', gearBonus('idle') + petBonusPct('prod'));
+  up('Tap Power', gearBonus('tap'));
+  up('Fragment Find', gearBonus('frag') + petBonusPct('frag'));
+  up('Loot Luck', gearBonus('luck'));
+  up('XP Bonus', gearBonus('xp') + petBonusPct('xp'));
+  up('Offline Earnings', gearBonus('offline') + petBonusPct('offline'));
+  down('Travel Cost', gearBonus('travel'));
+  down('Scan Time', gearBonus('scan'));
+  const rep = 2 * repRank();
+  if (rep > 0) r.push(['Region Rep', '+' + rep + '% production']);
+  return r;
 }
 function renderCharStats(){
   const el1 = $('cs-cp'), el2 = $('cs-rows');
   if (!el1) return;
   el1.textContent = fmt(totalCP());
-  el2.innerHTML = charStatRows().map(r => '<div class="cs-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>').join('');
+  const rows = charStatRows();
+  el2.innerHTML = rows.length
+    ? rows.map(r => '<div class="cs-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>').join('')
+    : '<div class="cs-none">No bonuses yet — equip gear or activate a pet.</div>';
 }
 function affLine(x){
   const a = AFFIXES[x.k];
