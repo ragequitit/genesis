@@ -231,7 +231,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);
   background:rgba(4,7,16,.72);border:1px solid var(--border-glow);border-radius:99px;padding:3px 10px;
 }
-.cp-badge b{font-family:var(--font-mono);font-size:12px;color:var(--cyan);margin-left:4px}
+.bag-btn{cursor:pointer;color:var(--cyan);font-weight:800}
+.bag-btn:hover{border-color:var(--cyan);box-shadow:0 0 10px -4px var(--cyan)}
 .hp-wrap{position:absolute;left:10px;right:10px;bottom:38px;display:flex;align-items:center;gap:6px}
 .hp-bar{flex:1;height:7px;border-radius:99px;background:rgba(4,7,16,.8);border:1px solid var(--border-soft);overflow:hidden}
 .hp-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#2ecc71,#7bffb0)}
@@ -284,7 +285,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .equip-col{display:flex;flex-direction:column;gap:5px;justify-content:center}
 .equip-slot{
   width:52px;height:52px;border-radius:var(--radius-sm);
-  background:var(--bg-inset);border:1px solid var(--gold);
+  background:var(--bg-inset);border:1px solid var(--border);
   display:flex;align-items:center;justify-content:center;font-size:20.7px;cursor:pointer;
 }
 .equip-slot.empty{border-color:var(--border);opacity:.6}
@@ -332,7 +333,19 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gt-aff.dn{color:#7bffb0}
 .gt-src{font-size:9px;color:var(--text-faint);margin-top:6px;font-style:italic}
 .gt-hint{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-top:7px;border-top:1px solid var(--border-soft);padding-top:6px}
-.item-modal{max-width:360px}
+/* Platsväljaren: liten lista intill en tom ruta med det som passar */
+.slot-picker{
+  position:fixed;z-index:130;width:190px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);border-radius:10px;padding:8px;
+  box-shadow:0 12px 34px rgba(0,0,0,.6);
+}
+.sp-head{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:800;margin-bottom:6px}
+.sp-item{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;border:1px solid var(--rc);cursor:pointer;margin-bottom:4px;background:var(--bg-row)}
+.sp-item:hover{box-shadow:inset 0 0 12px -6px var(--rc)}
+.sp-art{width:30px;height:30px;background-size:contain;background-position:center;background-repeat:no-repeat}
+.sp-nm{font-size:10px;font-family:var(--font-mono);font-weight:800}
+.sp-none{font-size:10px;color:var(--text-faint);padding:4px 2px}
 .item-top{display:flex;gap:12px;align-items:center;margin-bottom:10px}
 .item-art{width:88px;height:88px;border-radius:10px;border:1px solid var(--rc,var(--border-glow));background:var(--bg-inset) center/contain no-repeat;box-shadow:0 0 18px -6px var(--rc,transparent)}
 .item-head{flex:1;min-width:0}
@@ -793,7 +806,9 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:99px;overflow:hidden;margin-bottom:10px}
 .tabs.three{grid-template-columns:1fr 1fr 1fr}
 /* Fast höjd på flikinnehållet i maskinramen: panelen står stilla oavsett flik */
-#panel-production .tab-pane{height:700px;overflow-y:auto;overflow-x:hidden}
+/* En enda rullyta: panelen rullar, flikytan är sitt innehåll. Två kapslade
+   rullytor gav kedjad rullning som kastade en genom hela listan i ett steg. */
+#panel-production .tab-pane{height:auto;overflow:visible}
 .tab{padding:7px;text-align:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;background:var(--bg-inset)}
 .tab.active{background:rgba(56,232,255,.1);color:var(--cyan);font-weight:800}
 .upgrade-list{display:flex;flex-direction:column;gap:6px}
@@ -1184,6 +1199,15 @@ body.modal-open{overflow:hidden}
   border-color:rgba(139,92,246,.55);
   box-shadow:0 0 0 1px rgba(139,92,246,.18), 0 0 42px -8px rgba(139,92,246,.5), 0 20px 60px rgba(0,0,0,.6);
 }
+.rw-gear{
+  display:flex;align-items:center;gap:10px;margin-top:6px;padding:8px 10px;
+  background:var(--bg-row);border:1px solid var(--rc);border-radius:9px;
+  box-shadow:inset 0 0 14px -8px var(--rc);
+}
+.rwg-art{width:40px;height:40px;background-size:contain;background-position:center;background-repeat:no-repeat}
+.rwg-txt{display:flex;flex-direction:column}
+.rwg-txt b{font-size:12px}
+.rwg-txt i{font-style:normal;font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--rc)}
 .rw-hex{
   position:absolute;left:50%;top:-26px;transform:translateX(-50%);
   width:52px;height:56px;display:flex;align-items:center;justify-content:center;font-size:22px;
@@ -1238,8 +1262,32 @@ body.modal-open{overflow:hidden}
 .rw-chev{color:var(--violet);margin:0 4px}
 
 /* ================= VÄSKAN — rak kopia av vanilla-ryggsäckens ramverk ================= */
+/* ============ FLYTANDE FÖNSTER ============
+   PC-regeln: inventariet och föremålskorten är FÖNSTER, inte modaler. De blockerar
+   inget bakom sig, stängs bara med sitt kryss, kan dras i sin titelrad, och det
+   fönster man klickar på hamnar överst. */
+.float-win{
+  position:fixed;z-index:120;display:none;
+  /* ingen fond, ingen oskärpa — sidan bakom lever vidare */
+}
+.float-win.open{display:block}
+.float-win .inv-modal{cursor:default}
+.inv-titlebar{cursor:grab;user-select:none}
+.inv-titlebar:active{cursor:grabbing}
+.item-win{
+  position:fixed;z-index:120;width:216px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--rc,var(--border-glow));border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.65), 0 0 18px -8px var(--rc,transparent);
+  padding:10px 11px;
+}
+.iw-head{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:grab;user-select:none;margin-bottom:8px}
+.iw-head:active{cursor:grabbing}
+.iw-title{font-size:12px;font-weight:900;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iw-x{border:none;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;padding:2px 4px}
+.iw-x:hover{color:var(--text)}
 .inv-modal{
-  position:relative;
+  position:relative;width:300px;
   border:2px solid #3a4a8a;border-radius:14px;
   background:
     linear-gradient(180deg, rgba(26,34,70,.55), rgba(10,14,32,.92)),
@@ -1269,6 +1317,7 @@ body.modal-open{overflow:hidden}
 }
 .inv-x:hover{color:var(--text);border-color:var(--border-glow)}
 .inv-toprow{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.inv-bagslot.locked{opacity:.55;filter:grayscale(.5);cursor:pointer}
 .inv-bagslot{
   width:40px;height:40px;border-radius:10px;
   border:2px solid #232e5c;background:var(--bg-inset);
@@ -1431,7 +1480,7 @@ body.modal-open{overflow:hidden}
             <div class="equip-slot" data-slot="4" title="Feet"><i class="slot-bg" style="background-image:url('assets/slots/slot_feet.png')"></i></div>
           </div>
           <div class="char-portrait">🥷
-            <div class="cp-badge" id="cp-badge">CP <b>0</b></div>
+            <button class="cp-badge bag-btn" id="bag-btn" title="Open inventory">🎒 Inventory</button>
             <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">0 HP</span></div>
           </div>
           <div class="equip-col">
@@ -1627,6 +1676,8 @@ body.modal-open{overflow:hidden}
           <div class="section-label">Offline Cap</div>
           <div class="kv" style="margin-bottom:8px"><span class="k">Current offline cap</span><span class="v" id="prem-cap" style="color:var(--cyan)">6h</span></div>
           <div class="upgrade-list" id="premium-offline"></div>
+          <div class="section-label" style="margin-top:14px">Extra Bag Slots</div>
+          <div class="upgrade-list" id="premium-bags"></div>
           <div class="shelf-empty" style="margin-top:12px">More premium upgrades will arrive with pets and quests.</div>
         </div>
       </section>
@@ -1663,7 +1714,7 @@ body.modal-open{overflow:hidden}
   </main>
 
   <!-- ================= INVENTARIET ================= -->
-  <div class="modal-overlay" id="inv-overlay">
+  <div class="float-win" id="inv-overlay">
     <div class="modal inv-modal">
       <div class="inv-emblem">🎒</div>
       <div class="inv-titlebar">
@@ -1672,9 +1723,9 @@ body.modal-open{overflow:hidden}
       </div>
       <div class="inv-toprow">
         <div class="inv-bagrow">
-          <div class="inv-bagslot" title="Bag slot — equip a bag here to gain slots">👜</div>
-          <div class="inv-bagslot" title="Bag slot — equip a bag here to gain slots">👜</div>
-          <div class="inv-bagslot" title="Bag slot — equip a bag here to gain slots">👜</div>
+          <div class="inv-bagslot" data-bag="0">👜</div>
+          <div class="inv-bagslot" data-bag="1">👜</div>
+          <div class="inv-bagslot" data-bag="2">👜</div>
         </div>
         <div class="inv-capline">Slots <b id="inv-cap">0 / 20</b></div>
       </div>
@@ -1684,25 +1735,6 @@ body.modal-open{overflow:hidden}
   </div>
 
   <div class="gear-tip" id="gear-tip"></div>
-  <div class="modal-overlay" id="item-overlay">
-    <div class="modal item-modal" id="item-modal">
-      <div class="modal-head"><span class="modal-title" id="item-title">Item</span><button class="modal-close" id="item-close">✕</button></div>
-      <div class="item-top">
-        <div class="item-art" id="item-art"></div>
-        <div class="item-head">
-          <div class="item-rar" id="item-rar"></div>
-          <div class="item-cp" id="item-cp"></div>
-          <div class="item-slot" id="item-slot"></div>
-        </div>
-      </div>
-      <div class="item-affs" id="item-affs"></div>
-      <div class="section-label">Compared to equipped</div>
-      <div class="item-cmp" id="item-cmp"></div>
-      <div class="item-src" id="item-src"></div>
-      <div class="item-actions" id="item-actions"></div>
-    </div>
-  </div>
-
   <!-- ================= HUSDJUREN ================= -->
   <div class="modal-overlay" id="pets-overlay">
     <div class="modal pets-modal">
@@ -1733,6 +1765,7 @@ body.modal-open{overflow:hidden}
       <div class="rw-title">Expedition Complete</div>
       <div class="rw-sub" id="reward-sub"></div>
       <div class="rw-cards" id="reward-cards"></div>
+      <div id="rw-found"></div>
       <div class="rw-divider"><span>Run Summary</span></div>
       <div class="rw-chips">
         <div class="rw-chip"><span class="rc-ico">⏱</span><span class="rc-body"><span class="rc-k">Duration</span><span class="rc-v" style="color:var(--cyan)" id="rw-dur">—</span></span></div>
@@ -1832,7 +1865,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.33.1 — TYDLIGARE</div>
+            <div class="desc">GENESIS v0.34.0 — FÖNSTREN</div>
           </div>
         </div>
       </div>
@@ -1858,7 +1891,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.33.1 — TYDLIGARE</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.34.0 — FÖNSTREN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2074,7 +2107,7 @@ let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
   pets: {owned: [], active: null, seq: 1},
   equip: {}, gearSeq: 1,
-  fuel: 100, cells: 0, research: null,
+  fuel: 100, cells: 0, research: null, bags: [false, false, false],
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -2134,6 +2167,7 @@ function load(){
       S.gearSeq = Math.max(1, Math.floor(+d.gearSeq) || 1);
       S.fuel = (d.fuel === undefined) ? 100 : Math.max(0, Math.min(FUEL_MAX_BASE, +d.fuel || 0));
       S.cells = Math.max(0, Math.floor(+d.cells) || 0);
+      S.bags = Array.isArray(d.bags) ? [!!d.bags[0], !!d.bags[1], !!d.bags[2]] : [false, false, false];
       if (d.research && REGIONS[d.research.region] && +d.research.eta > 0)
         S.research = {region: d.research.region, eta: +d.research.eta};
       const readGear = g => {
@@ -2176,8 +2210,14 @@ function load(){
           S.exp.runs = d.exp.runs.filter(r => r && typeof r.id === 'string' && isFinite(+r.endsAt)).slice(0, 2)
             .map(r => {
               const run = {id: r.id, endsAt: +r.endsAt, data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0)};
-              if (r.loot && isFinite(+r.loot.gold) && isFinite(+r.loot.frags))
+              if (r.loot && isFinite(+r.loot.gold) && isFinite(+r.loot.frags)){
                 run.loot = {gold: Math.max(0, +r.loot.gold), frags: Math.max(0, +r.loot.frags)};
+                /* Fyndet ska ÖVERLEVA en omstart — bytet rullas en gång och ligger
+                   sedan fast, även genom stängt spel. Utan detta försvann gear och
+                   celler ur en färdig expedition vid omladdning. */
+                if (r.loot.gear){ const g = readGear(r.loot.gear); if (g){ if (typeof r.loot.gear.src === 'string' && r.loot.gear.src.length < 80) g.src = r.loot.gear.src; run.loot.gear = g; } }
+                if (r.loot.cell) run.loot.cell = true;
+              }
               return run;
             });
         }
@@ -2346,9 +2386,11 @@ function buildRows(){
       cost: row.querySelector('.m-cost')
     };
     row.addEventListener('click', () => buyBuilding(b));
-    row.addEventListener('mouseenter', () => showMachineTip(b, row));
-    row.addEventListener('mousemove', e => placeMachineTip(e));
-    row.addEventListener('mouseleave', hideMachineTip);
+    /* Hovringen väcks bara av IKONEN — namnet, siffrorna och knapparna lämnas ifred. */
+    const ico = row.querySelector('.m-ico');
+    ico.addEventListener('mouseenter', () => showMachineTip(b, row));
+    ico.addEventListener('mousemove', e => placeMachineTip(e));
+    ico.addEventListener('mouseleave', hideMachineTip);
   });
 }
 /* ---------- DETALJRUTAN FÖR EN MASKIN ----------
@@ -2427,6 +2469,7 @@ function buyBuilding(b){
 /* Kärnuppgraderingar */
 const upRefs = {};
 function buildCoreUpgrades(){
+  renderPremiumBags();
   el.core.innerHTML = '';
   refreshShelf();
 
@@ -2793,6 +2836,19 @@ function startExpedition(id){
    Stackbara saker (resurser, material, flaskor) delar plats; gear tar en egen.
    Fullt är fullt: addInvItem säger ärligt nej — säljning/slängning löser plats. */
 const INV_BASE_SLOTS = 20;
+/* Väskplatslåsen: priser i ett ställe så balansen kan ändras utan kodgräv.
+   Credits är spelets befintliga premiumvaluta — ingen ny valuta skapas. */
+const BAG_SLOT_COST = [75, 150, 300];
+function bagUnlocked(i){ return !!(S.bags && S.bags[i]); }
+function unlockBag(i){
+  if (bagUnlocked(i) || i < 0 || i > 2) return false;
+  const cost = BAG_SLOT_COST[i];
+  if (S.credits < cost) return false;
+  S.credits -= cost;
+  S.bags[i] = true;
+  renderInventory(); renderPremiumBags(); updateUI(true); save();
+  return true;
+}
 function invSlots(){ return INV_BASE_SLOTS; }   // + väskor/uppgraderingar i framtiden
 function invUsed(){ return S.inv.length; }
 function addInvItem(def){
@@ -2815,17 +2871,19 @@ function renderEquip(){
     if (it){
       el.classList.add('has');
       el.style.setProperty('--rc', gearRarCol(it));
+      /* Ingen platsetikett över en riktig pjäs — hovringen visar kortet i stället. */
+      el.removeAttribute('title');
       el.innerHTML = '<div class="eq-img" style="background-image:url(\'' + gearArt(it.s, it.r) + '\')"></div>';
     } else {
       el.classList.remove('has');
       el.style.removeProperty('--rc');
       /* Siluetten återställs i stället för en emoji — rutan ska aldrig bli tom. */
       const art = {0:'head',1:'chest',2:'legs',3:'hands',4:'feet',5:'weapon'}[i];
+      el.title = GEAR_SLOTS[i].name;
       el.innerHTML = '<i class="slot-bg" style="background-image:url(\'assets/slots/slot_' + art + '.png\')"></i>';
     }
   });
-  const cp = $('cp-badge'), hf = $('hp-fill'), ht = $('hp-txt');
-  if (cp) cp.innerHTML = 'CP <b>' + fmt(totalCP()) + '</b>';
+  const hf = $('hp-fill'), ht = $('hp-txt');
   /* Mätaren står full — den visar att du är oskadd, inte hur du står dig mot någon
      annan. Det är SIFFRAN som växer med utrustningen. Utan utrustning finns ingen
      hälsa alls, och då är den tom istället för att ljuga om en full mätare på noll. */
@@ -2919,7 +2977,30 @@ function sellGear(idx){
   renderInventory(); updateUI(true); save();
 }
 
+function renderBagSlots(){
+  document.querySelectorAll('[data-bag]').forEach(el => {
+    const i = +el.dataset.bag;
+    if (bagUnlocked(i)){
+      el.classList.remove('locked');
+      el.textContent = '👜';
+      el.title = 'Bag slot ' + (i + 2) + ' — equip a bag here to gain slots';
+    } else {
+      el.classList.add('locked');
+      el.textContent = '🔒';
+      el.title = 'Bag slot ' + (i + 2) + ' — LOCKED · Unlock: ' + BAG_SLOT_COST[i] + ' credits';
+    }
+  });
+}
+function renderPremiumBags(){
+  const box = $('premium-bags');
+  if (!box) return;
+  box.innerHTML = BAG_SLOT_COST.map((cost, i) => bagUnlocked(i)
+    ? '<div class="upg-row done"><span class="u-name">👜 Bag Slot ' + (i + 2) + '</span><span class="u-owned">Unlocked</span></div>'
+    : '<div class="upg-row"><span class="u-name">🔒 Bag Slot ' + (i + 2) + '</span><button class="u-buy" data-bagbuy="' + i + '"' + (S.credits < cost ? ' disabled style="opacity:.5"' : '') + '>🔶 ' + cost + '</button></div>').join('');
+  box.querySelectorAll('[data-bagbuy]').forEach(b => b.addEventListener('click', () => unlockBag(+b.dataset.bagbuy)));
+}
 function renderInventory(){
+  renderBagSlots();
   const cap = $('inv-cap');
   if (cap) cap.textContent = invUsed() + ' / ' + invSlots();
   const goldEl = $('inv-gold');
@@ -3018,6 +3099,16 @@ function showRewards(run){
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
     '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Gold</span><span class="cd-ico">🪙</span><span class="cd-v">+' + run.loot.gold + '</span></div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span><span class="cd-ico">🔷</span><span class="cd-v">+' + run.loot.frags + '</span></div>';
+  /* Fyndet ska synas HÄR — ingen ska behöva öppna väskan och gissa. */
+  let found = '';
+  if (run.loot.gear){
+    const g = run.loot.gear;
+    found += '<div class="rw-gear" style="--rc:' + gearRarCol(g) + '">' +
+      '<span class="rwg-art" style="background-image:url(\'' + gearArt(g.s, g.r) + '\')"></span>' +
+      '<span class="rwg-txt"><b>' + gearName(g.s) + '</b><i>' + GEAR_RAR[g.r].name + '</i></span></div>';
+  }
+  if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
+  $('rw-found').innerHTML = found ? '<div class="section-label">Gear found</div>' + found : '';
   $('rw-dur').textContent = fmtDur(def.mins * 60);
   $('rw-lvl').textContent = 'Lv ' + def.lvl;
   $('reward-overlay').classList.add('open');
@@ -4832,50 +4923,85 @@ function moveGearTip(x, y, above){
 }
 function hideGearTip(){ gearTip.classList.remove('on'); }
 
-let openItemIdx = null, openItemSlot = null;
-function showItem(it, invIdx, equippedSlot){
-  hideGearTip();
-  openItemIdx = invIdx; openItemSlot = equippedSlot;
-  const col = gearRarCol(it);
-  $('item-modal').style.setProperty('--rc', col);
-  $('item-title').textContent = gearName(it.s);
-  $('item-art').style.backgroundImage = "url('" + gearArt(it.s, it.r) + "')";
-  $('item-rar').textContent = GEAR_RAR[it.r].name;
-  $('item-cp').textContent = fmt(gearCP(it)) + ' CP';
-  $('item-slot').textContent = GEAR_SLOTS[it.s].name + ' · ' + it.hp + ' HP';
-  $('item-affs').innerHTML = it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('');
-  $('item-cmp').innerHTML = (equippedSlot === null) ? gearCompare(it) : '<div class="gc-row">You are wearing this</div>';
-  $('item-src').textContent = it.src ? ('Found on ' + it.src) : 'Origin unknown';
-  itemActions(it);
-  $('item-overlay').classList.add('open');
+/* ---------- FÖREMÅLSKORTEN: flera samtidiga fönster för jämförelse ----------
+   Klick öppnar ett EGET fönster per pjäs. Fönstren stängs bara med krysset, kan
+   dras undan, och det man rör hamnar överst — så två svärd kan ligga sida vid sida.
+   Pjäsen hittas via sitt id vid varje knapptryck, aldrig via ett sparat index —
+   index förskjuts när väskan ändras, id gör det inte. */
+function findByUid(uid){
+  for (let i = 0; i < S.inv.length; i++)
+    if (S.inv[i].gear && S.inv[i].gear.uid === uid) return {where: 'inv', idx: i, it: S.inv[i].gear};
+  for (const k in S.equip)
+    if (S.equip[k] && S.equip[k].uid === uid) return {where: 'equip', idx: +k, it: S.equip[k]};
+  return null;
 }
-/* Valmenyn. Försäljning kräver ett andra tryck — ett felklick ska aldrig kunna
-   förstöra en mytisk pjäs. */
-function itemActions(it){
-  const box = $('item-actions');
-  if (openItemSlot !== null){
-    box.innerHTML = '<button class="ia-cancel" id="ia-unequip">Unequip<span>→ backpack</span></button>';
-    $('ia-unequip').addEventListener('click', () => { if (unequipGear(openItemSlot)) closeItem(); });
-    return;
+function itemWinHTML(it, worn){
+  return '<div class="iw-head"><span class="iw-title">' + gearName(it.s) + '</span><button class="iw-x">✕</button></div>' +
+    '<div class="item-top">' +
+      '<div class="item-art" style="background-image:url(\'' + gearArt(it.s, it.r) + '\')"></div>' +
+      '<div class="item-head">' +
+        '<div class="item-rar">' + GEAR_RAR[it.r].name + '</div>' +
+        '<div class="item-cp">' + fmt(gearCP(it)) + ' CP</div>' +
+        '<div class="item-slot">' + GEAR_SLOTS[it.s].name + ' · ' + it.hp + ' HP</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="item-affs">' + it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') + '</div>' +
+    '<div class="section-label">Compared to equipped</div>' +
+    '<div class="item-cmp">' + (worn ? '<div class="gc-row">You are wearing this</div>' : gearCompare(it)) + '</div>' +
+    '<div class="item-src">' + (it.src ? 'Found on ' + it.src : 'Origin unknown') + '</div>' +
+    '<div class="item-actions"></div>';
+}
+function itemWinActions(win, uid){
+  const box = win.querySelector('.item-actions');
+  const found = findByUid(uid);
+  if (!found){ box.innerHTML = '<div class="gc-row">This item is gone.</div>'; return; }
+  if (found.where === 'equip'){
+    box.innerHTML = '<button class="ia-cancel" data-act="unequip">Unequip<span>→ backpack</span></button>';
+  } else {
+    box.innerHTML =
+      '<button class="ia-equip" data-act="equip">Equip<span>' + GEAR_SLOTS[found.it.s].name + '</span></button>' +
+      '<button class="ia-sell" data-act="sell">Sell<span>' + fmt(gearGold(found.it)) + ' 🪙</span></button>';
   }
-  box.innerHTML =
-    '<button class="ia-equip" id="ia-equip">Equip<span>' + GEAR_SLOTS[it.s].name + '</span></button>' +
-    '<button class="ia-sell" id="ia-sell">Sell<span>' + fmt(gearGold(it)) + ' 🪙</span></button>';
-  $('ia-equip').addEventListener('click', () => { equipGear(openItemIdx); closeItem(); });
-  $('ia-sell').addEventListener('click', () => confirmSell(it));
 }
-function confirmSell(it){
-  const box = $('item-actions');
-  box.innerHTML =
-    '<div class="ia-note">Sell ' + gearName(it.s) + ' (' + GEAR_RAR[it.r].name + ') for ' + fmt(gearGold(it)) + ' gold?<br>It is gone for good.</div>' +
-    '<button class="ia-danger" id="ia-sell-yes">Yes, sell it<span>' + fmt(gearGold(it)) + ' 🪙</span></button>' +
-    '<button class="ia-cancel" id="ia-sell-no">Keep it</button>';
-  $('ia-sell-yes').addEventListener('click', () => { sellGear(openItemIdx); closeItem(); });
-  $('ia-sell-no').addEventListener('click', () => itemActions(it));
+function spawnItemWin(uid, nearX, nearY){
+  hideGearTip();
+  const found = findByUid(uid);
+  if (!found) return;
+  const it = found.it;
+  const win = document.createElement('div');
+  win.className = 'item-win';
+  win.style.setProperty('--rc', gearRarCol(it));
+  win.innerHTML = itemWinHTML(it, found.where === 'equip');
+  itemWinActions(win, uid);
+  document.body.appendChild(win);
+  let x = (nearX || window.innerWidth / 2) + 18, y = (nearY || 160) - 40;
+  if (x + 226 > window.innerWidth) x = Math.max(8, (nearX || 300) - 234);
+  y = Math.max(8, Math.min(y, window.innerHeight - 320));
+  win.style.left = x + 'px'; win.style.top = y + 'px';
+  bringToFront(win);
+  makeDraggable(win, win.querySelector('.iw-head'));
+  win.querySelector('.iw-x').addEventListener('click', () => win.remove());
+  win.addEventListener('click', e => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const cur = findByUid(uid);
+    if (!cur){ itemWinActions(win, uid); return; }
+    if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
+    else if (btn.dataset.act === 'unequip'){ if (unequipGear(cur.idx)) win.remove(); }
+    else if (btn.dataset.act === 'sell'){
+      const box = win.querySelector('.item-actions');
+      box.innerHTML =
+        '<div class="ia-note">Sell ' + gearName(cur.it.s) + ' (' + GEAR_RAR[cur.it.r].name + ') for ' + fmt(gearGold(cur.it)) + ' gold?<br>It is gone for good.</div>' +
+        '<button class="ia-danger" data-act="sell-yes">Yes, sell it<span>' + fmt(gearGold(cur.it)) + ' 🪙</span></button>' +
+        '<button class="ia-cancel" data-act="sell-no">Keep it</button>';
+    }
+    else if (btn.dataset.act === 'sell-yes'){ sellGear(cur.idx); win.remove(); }
+    else if (btn.dataset.act === 'sell-no'){ itemWinActions(win, uid); }
+  });
 }
-function closeItem(){ openItemIdx = null; openItemSlot = null; $('item-overlay').classList.remove('open'); }
-$('item-close').addEventListener('click', closeItem);
-$('item-overlay').addEventListener('click', e => { if (e.target === $('item-overlay')) closeItem(); });
+function showItem(it, invIdx, equippedSlot, ev){
+  spawnItemWin(it.uid, ev && ev.clientX, ev && ev.clientY);
+}
 $('inv-grid').addEventListener('click', e => {
   const cell = e.target.closest('[data-inv]');
   if (!cell) return;
@@ -4899,7 +5025,7 @@ $('inv-grid').addEventListener('click', e => {
     equipGear(idx);
     return;
   }
-  showItem(row.gear, idx, null);
+  showItem(row.gear, idx, null, e);
 });
 /* ---------- LÅNGTRYCK: hovringsrutan för fingrar ---------- */
 let holdTimer = null, holdFrom = null, holdFired = false;
@@ -4949,15 +5075,108 @@ $('inv-grid').addEventListener('mouseover', e => {
 $('inv-grid').addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
 $('inv-grid').addEventListener('mouseleave', hideGearTip);
 document.querySelectorAll('#panel-character [data-slot]').forEach(elm => {
-  elm.addEventListener('click', () => {
-    const it = S.equip[+elm.dataset.slot];
-    if (it) showItem(it, null, +elm.dataset.slot);
+  elm.addEventListener('click', e => {
+    const slotIdx = +elm.dataset.slot;
+    const it = S.equip[slotIdx];
+    /* Shift+klick på buren pjäs tar av den direkt — spegeln av väskans shift+klick. */
+    if (it && e.shiftKey){ unequipGear(slotIdx); return; }
+    if (it) showItem(it, null, slotIdx, e);
+    else showSlotPicker(slotIdx, elm);
   });
+  /* Hovring på buren pjäs visar förhandskortet — samma som i väskan. */
+  elm.addEventListener('mouseenter', e => {
+    const it = S.equip[+elm.dataset.slot];
+    if (it) showGearTip(it, e.clientX, e.clientY);
+  });
+  elm.addEventListener('mousemove', e => { if (gearTip.classList.contains('on') && S.equip[+elm.dataset.slot]) moveGearTip(e.clientX, e.clientY); });
+  elm.addEventListener('mouseleave', hideGearTip);
 });
+/* ---------- TOM RUTA: visa vad i väskan som passar ----------
+   Filtret läser pjäsens riktiga platsfält — ingen egen lista att hålla i synk. */
+function showSlotPicker(slotIdx, anchor){
+  const old = document.querySelector('.slot-picker');
+  if (old) old.remove();
+  const fits = [];
+  S.inv.forEach((row, i) => { if (row.gear && row.gear.s === slotIdx) fits.push({i: i, g: row.gear}); });
+  const pick = document.createElement('div');
+  pick.className = 'slot-picker';
+  pick.innerHTML = '<div class="sp-head">' + GEAR_SLOTS[slotIdx].name + '</div>' +
+    (fits.length
+      ? fits.map(f => '<div class="sp-item" data-i="' + f.i + '" style="--rc:' + gearRarCol(f.g) + '">' +
+          '<span class="sp-art" style="background-image:url(\'' + gearArt(f.g.s, f.g.r) + '\')"></span>' +
+          '<span class="sp-nm">' + GEAR_RAR[f.g.r].name + ' · ' + gearCP(f.g) + ' CP</span></div>').join('')
+      : '<div class="sp-none">Nothing in your backpack fits this slot.</div>');
+  document.body.appendChild(pick);
+  const r = anchor.getBoundingClientRect();
+  let x = r.right + 8, y = r.top;
+  if (x + 190 > window.innerWidth) x = r.left - 198;
+  y = Math.max(8, Math.min(y, window.innerHeight - pick.offsetHeight - 8));
+  pick.style.left = x + 'px'; pick.style.top = y + 'px';
+  bringToFront(pick);
+  pick.addEventListener('click', e => {
+    const item = e.target.closest('[data-i]');
+    if (!item) return;
+    equipGear(+item.dataset.i);
+    pick.remove();
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function away(e){
+    if (!pick.contains(e.target)){ pick.remove(); document.removeEventListener('pointerdown', away); }
+  }), 0);
+}
 
-$('qa-inventory').addEventListener('click', () => { renderInventory(); $('inv-overlay').classList.add('open'); });
+/* ---------- FÖNSTERMOTORN ---------- */
+let zTop = 200;
+function bringToFront(el){ el.style.zIndex = ++zTop; }
+function clampToViewport(el){
+  const r = el.getBoundingClientRect();
+  let x = Math.min(Math.max(r.left, 8 - r.width + 60), window.innerWidth - 60);
+  let y = Math.min(Math.max(r.top, 8), window.innerHeight - 40);
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+}
+function makeDraggable(win, handle){
+  handle.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    bringToFront(win);
+    const r = win.getBoundingClientRect();
+    const ox = e.clientX - r.left, oy = e.clientY - r.top;
+    const move = ev => {
+      win.style.left = (ev.clientX - ox) + 'px';
+      win.style.top = (ev.clientY - oy) + 'px';
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      clampToViewport(win);
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    e.preventDefault();
+  });
+  win.addEventListener('pointerdown', () => bringToFront(win));
+}
+function openInventory(){
+  renderInventory();
+  const w = $('inv-overlay');
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open');
+  bringToFront(w);
+  if (!wasOpen){
+    /* Standardplatsen: till höger om karaktärsbladet, så båda syns samtidigt. */
+    const panel = document.getElementById('panel-character');
+    const r = panel ? panel.getBoundingClientRect() : {right: 40, top: 60};
+    let x = r.right + 12, y = Math.max(8, r.top);
+    if (x + 320 > window.innerWidth) x = Math.max(8, window.innerWidth - 320);
+    w.style.left = x + 'px'; w.style.top = y + 'px';
+  }
+}
+$('qa-inventory').addEventListener('click', openInventory);
 $('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
-$('inv-overlay').addEventListener('click', e => { if (e.target === $('inv-overlay')){ hideGearTip(); $('inv-overlay').classList.remove('open'); } });
+makeDraggable($('inv-overlay'), document.querySelector('.inv-titlebar'));
+$('bag-btn').addEventListener('click', openInventory);
+document.querySelectorAll('[data-bag]').forEach(el => el.addEventListener('click', () => {
+  const i = +el.dataset.bag;
+  if (!bagUnlocked(i)) unlockBag(i);
+}));
 $('reward-claim').addEventListener('click', confirmClaim);
 $('reward-close').addEventListener('click', () => { pendingClaimId = null; $('reward-overlay').classList.remove('open'); });
 $('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')){ pendingClaimId = null; $('reward-overlay').classList.remove('open'); } });
