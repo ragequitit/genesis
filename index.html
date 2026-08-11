@@ -271,7 +271,16 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);
 }
 .cs-cp b{font-family:var(--font-mono);font-size:18px;color:var(--cyan)}
-.cs-rows{display:flex;flex-direction:column;overflow-y:auto;min-height:0;flex:1}
+.cs-rows{
+  display:flex;flex-direction:column;overflow-y:auto;min-height:0;flex:1;
+  /* Smal rullist så siffrorna slipper trängas mot den. */
+  scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent;
+  padding-right:6px;
+}
+.cs-rows::-webkit-scrollbar{width:5px}
+.cs-rows::-webkit-scrollbar-track{background:transparent}
+.cs-rows::-webkit-scrollbar-thumb{background:var(--cyan-dim);border-radius:99px}
+.cs-rows::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
 .cs-row{display:flex;justify-content:space-between;align-items:center;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}
 .cs-row:last-child{border-bottom:none}
 .cs-row .k{color:var(--text);font-weight:600}
@@ -354,8 +363,13 @@ body.dragging{cursor:grabbing}
 body.dragging *{cursor:grabbing !important}
 .drop-ok{border-color:var(--cyan) !important;box-shadow:0 0 0 1px var(--cyan-dim), 0 0 14px -6px var(--cyan)}
 .drop-hot{border-color:var(--cyan) !important;box-shadow:0 0 0 2px var(--cyan), 0 0 18px -4px var(--cyan)}
-#inv-grid.drop-ok{outline:1px dashed var(--cyan-dim);outline-offset:3px;border-radius:8px}
-#inv-grid.drop-hot{outline:2px dashed var(--cyan);outline-offset:3px}
+/* Rutnätet som helhet markeras INTE — det säger ingenting om var man släpper.
+   I stället lyser den enskilda ruta pekaren står över, svagt. */
+.inv-slot.drop-cell{
+  border-color:var(--cyan-dim) !important;
+  background:linear-gradient(180deg, rgba(56,232,255,.14), rgba(13,18,41,.9)) !important;
+  box-shadow:inset 0 0 12px -4px var(--cyan) !important;
+}
 .slot-picker{
   position:fixed;z-index:8000;width:190px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
@@ -1358,7 +1372,13 @@ body.modal-open{overflow:hidden}
   display:flex;align-items:center;justify-content:center;font-size:17px;opacity:.6;
 }
 .inv-bagrow{display:flex;gap:6px}
-.inv-capline{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.inv-capline{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:8px}
+.inv-sort{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;cursor:pointer;
+  padding:4px 8px;border-radius:7px;color:var(--cyan);
+  background:rgba(56,232,255,.08);border:1px solid var(--cyan-dim);
+}
+.inv-sort:hover{background:rgba(56,232,255,.18)}
 .inv-capline b{color:var(--cyan);font-family:var(--font-mono)}
 /* Rutnätet: 4 breda, kraftiga urgröpta fack med fasade kanter — förlagans ramverk */
 .inv-grid{display:grid;grid-template-columns:repeat(4, 1fr);gap:6px}
@@ -1762,7 +1782,7 @@ body.modal-open{overflow:hidden}
           <div class="inv-bagslot" data-bag="1">👜</div>
           <div class="inv-bagslot" data-bag="2">👜</div>
         </div>
-        <div class="inv-capline">Slots <b id="inv-cap">0 / 20</b></div>
+        <div class="inv-capline"><button class="inv-sort" id="inv-sort" title="Sort: gear by slot and rarity, then stacks">⇅ Sort</button>Slots <b id="inv-cap">0 / 20</b></div>
       </div>
       <div class="inv-grid" id="inv-grid"></div>
       <div class="inv-money"><span class="inv-coin">🪙</span><b id="inv-gold">0</b></div>
@@ -1900,7 +1920,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.37.0 — EGEN ORDNING</div>
+            <div class="desc">GENESIS v0.37.1 — RUTA FÖR RUTA</div>
           </div>
         </div>
       </div>
@@ -1926,7 +1946,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.37.0 — EGEN ORDNING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.37.1 — RUTA FÖR RUTA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2914,6 +2934,18 @@ function addInvItem(def){
   return true;
 }
 /* Byter innehåll mellan två rutor. Grunden för all omsortering i väskan. */
+/* Sortering: gear först — plats för plats, starkaste raritet överst — sedan
+   staplar i bokstavsordning. Packar ihop mot början; resten blir tomma rutor.
+   Det är en HJÄLP, inte en tvångströja: efteråt kan allt flyttas fritt igen. */
+function invSort(){
+  const items = S.inv.filter(Boolean);
+  const gear = items.filter(x => x.gear).sort((a, b) =>
+    (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearCP(b.gear) - gearCP(a.gear)));
+  const rest = items.filter(x => !x.gear).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const out = gear.concat(rest);
+  for (let i = 0; i < invSlots(); i++) S.inv[i] = out[i] || null;
+  renderInventory(); save();
+}
 function invSwap(a, b){
   if (a === b || a < 0 || b < 0 || a >= invSlots() || b >= invSlots()) return false;
   const t = S.inv[a]; S.inv[a] = S.inv[b]; S.inv[b] = t;
@@ -5294,6 +5326,7 @@ $('qa-inventory').addEventListener('click', openInventory);
 $('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
 makeDraggable($('inv-overlay'), document.querySelector('.inv-titlebar'));
 $('bag-btn').addEventListener('click', openInventory);
+$('inv-sort').addEventListener('click', invSort);
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
    inte: Windows kan skicka rullning i RADER eller SIDOR (deltaMode 1 och 2), och de
    släppte jag förbi till webbläsarens egen rullning — som då tog hela listan i ett
@@ -5308,13 +5341,12 @@ $('bag-btn').addEventListener('click', openInventory);
    klick, shift+klick och hovring ska fungera precis som förut. */
 const DRAG_THRESHOLD = 6;
 let drag = null;
+/* Bara kroppens rätta plats lyser upp i förväg. Väskan tar alltid emot, men det
+   visas ruta för ruta under pekaren i stället för som en ram runt allt. */
 function dragTargetsFor(d){
-  /* Väskan är alltid ett giltigt mål — man ska kunna sortera om fritt. Kroppens
-     plats lyser bara upp om pjäsen faktiskt hör hemma där. */
-  const t = [$('inv-grid')];
   if (d.from === 'inv' && d.gear)
-    t.push(...document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
-  return t;
+    return Array.from(document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
+  return [];
 }
 function beginDrag(d, x, y){
   hideGearTip();
@@ -5344,6 +5376,8 @@ function moveGhost(d, x, y){
 function endDrag(d, x, y){
   if (d.ghost) d.ghost.remove();
   if (d.targets) d.targets.forEach(t => t.classList.remove('drop-ok', 'drop-hot'));
+  if (d.cell) d.cell.classList.remove('drop-cell');
+  document.querySelectorAll('.drop-cell').forEach(c => c.classList.remove('drop-cell'));
   document.body.classList.remove('dragging');
   const under = document.elementFromPoint(x, y);
   if (!under) return;
@@ -5383,6 +5417,13 @@ document.addEventListener('pointermove', e => {
   moveGhost(drag, e.clientX, e.clientY);
   const under = document.elementFromPoint(e.clientX, e.clientY);
   drag.targets.forEach(t => t.classList.toggle('drop-hot', !!under && (t === under || t.contains(under))));
+  /* Rutan under pekaren markeras svagt — och bara en åt gången. */
+  const cell = under && under.closest('#inv-grid [data-inv]');
+  if (cell !== drag.cell){
+    if (drag.cell) drag.cell.classList.remove('drop-cell');
+    if (cell) cell.classList.add('drop-cell');
+    drag.cell = cell;
+  }
 });
 document.addEventListener('pointerup', e => {
   if (!drag) return;
