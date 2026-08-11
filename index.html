@@ -211,15 +211,15 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-portrait{
   position:relative;
   /* 10 px indrag på alla fyra sidor */
-  margin:4px 6px;height:calc(100% - 8px);min-height:120px;border-radius:var(--radius-sm);
+  margin:0 6px;height:100%;min-height:120px;border-radius:var(--radius-sm);
   /* Halvgenomskinlig svart ruta — panelfonden bakom skiner igenom */
   background:rgba(0,0,0,.5);
   border:1px solid var(--border);
   display:flex;align-items:center;justify-content:center;font-size:36px;
 }
 /* Utrustningskolumnerna nudgas 5 px inåt — rent visuellt, rutnätet står still */
-.char-layout > .equip-col:first-child{transform:translateX(9px)}
-.char-layout > .equip-col:last-child{transform:translateX(1px)}
+.char-split > .char-layout{transform:translateX(4px)}
+.char-split > .transport-row{transform:translateX(4px)}
 #panel-character > .panel-title{padding-left:5px}
 .transport-row{display:flex;justify-content:center;margin-top:-4px;flex:0 0 auto}
 .transport-slot{
@@ -243,7 +243,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-split{
   display:grid;
   grid-template-columns:minmax(0,1.85fr) minmax(0,1.15fr);
-  grid-template-rows:minmax(0,1fr) auto;
+  grid-template-rows:auto auto;
+  align-content:start;
   column-gap:6px;height:100%;min-height:0;
 }
 .char-split > .char-layout{grid-column:1;grid-row:1;min-height:0}
@@ -253,7 +254,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
    listan rullar INUTI sin ruta — panelen får aldrig växa och rubba raden bredvid. */
 .char-stats{
   display:flex;flex-direction:column;min-height:0;
-  margin:4px 3px 4px 3px;height:calc(100% - 8px);
+  margin:0 3px;height:100%;
   background:rgba(0,0,0,.5);border:1px solid var(--border-soft);
   border-radius:var(--radius-sm);padding:9px 10px;
 }
@@ -1821,7 +1822,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.31.1 — LYFT OCH LINJERAT</div>
+            <div class="desc">GENESIS v0.32.1 — LINJERAT PÅ RIKTIGT</div>
           </div>
         </div>
       </div>
@@ -1847,7 +1848,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.31.1 — LYFT OCH LINJERAT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.32.1 — LINJERAT PÅ RIKTIGT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4797,18 +4798,22 @@ function gearTipHTML(it){
     '<div class="gt-sep"></div>' +
     gearCompare(it) +
     (it.src ? '<div class="gt-src">Found on ' + it.src + '</div>' : '<div class="gt-src">Origin unknown</div>') +
-    '<div class="gt-hint">Click for options · Shift+click to equip</div>';
+    '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
+      ? 'Tap for options · hold to preview'
+      : 'Click for options · Shift+click to equip') + '</div>';
 }
-function showGearTip(it, x, y){
+function showGearTip(it, x, y, above){
   gearTip.style.setProperty('--rc', gearRarCol(it));
   gearTip.innerHTML = gearTipHTML(it);
   gearTip.classList.add('on');
-  moveGearTip(x, y);
+  moveGearTip(x, y, above);
 }
-function moveGearTip(x, y){
+function moveGearTip(x, y, above){
   const w = gearTip.offsetWidth || 250, hh = gearTip.offsetHeight || 260;
-  let left = x + 16, top = y - hh / 2;
-  if (left + w > window.innerWidth - 8) left = x - w - 16;
+  let left = x + 16, top = above ? (y - hh - 24) : (y - hh / 2);
+  if (above) left = x - w / 2;
+  if (left + w > window.innerWidth - 8) left = above ? (window.innerWidth - w - 8) : (x - w - 16);
+  if (left < 8) left = 8;
   top = Math.max(8, Math.min(top, window.innerHeight - hh - 8));
   gearTip.style.left = left + 'px';
   gearTip.style.top = top + 'px';
@@ -4884,6 +4889,44 @@ $('inv-grid').addEventListener('click', e => {
   }
   showItem(row.gear, idx, null);
 });
+/* ---------- LÅNGTRYCK: hovringsrutan för fingrar ---------- */
+let holdTimer = null, holdFrom = null, holdFired = false;
+function cancelHold(){
+  if (holdTimer){ clearTimeout(holdTimer); holdTimer = null; }
+  holdFrom = null;
+}
+$('inv-grid').addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const cell = e.target.closest('[data-inv]');
+  cancelHold();
+  holdFired = false;
+  if (!cell || !t) return;
+  const row = S.inv[+cell.dataset.inv];
+  if (!row || !row.gear) return;
+  holdFrom = {x: t.clientX, y: t.clientY};
+  holdTimer = setTimeout(() => {
+    holdTimer = null;
+    holdFired = true;
+    /* Rutan placeras ÖVER fingret, annars döljer handen det man ville läsa. */
+    showGearTip(row.gear, holdFrom.x, holdFrom.y, true);
+  }, 450);
+}, {passive: true});
+$('inv-grid').addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  if (!t || !holdFrom) return;
+  if (Math.abs(t.clientX - holdFrom.x) > 10 || Math.abs(t.clientY - holdFrom.y) > 10) cancelHold();
+}, {passive: true});
+$('inv-grid').addEventListener('touchend', e => {
+  cancelHold();
+  /* Var det ett långtryck ska rutan stanna kvar och klicket INTE öppna valmenyn. */
+  if (holdFired){ e.preventDefault(); holdFired = false; }
+}, {passive: false});
+$('inv-grid').addEventListener('touchcancel', () => { cancelHold(); holdFired = false; });
+/* Nästa tryck var som helst stänger rutan igen. */
+document.addEventListener('touchstart', e => {
+  if (gearTip.classList.contains('on') && !e.target.closest('#inv-grid')) hideGearTip();
+}, {passive: true});
+
 $('inv-grid').addEventListener('mouseover', e => {
   const cell = e.target.closest('[data-inv]');
   if (!cell) return hideGearTip();
