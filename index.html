@@ -231,8 +231,13 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);
   background:rgba(4,7,16,.72);border:1px solid var(--border-glow);border-radius:99px;padding:3px 10px;
 }
-.bag-btn{cursor:pointer;color:var(--cyan);font-weight:800}
-.bag-btn:hover{border-color:var(--cyan);box-shadow:0 0 10px -4px var(--cyan)}
+.bag-btn{
+  position:absolute;top:6px;left:50%;transform:translateX(-50%);
+  width:38px;height:38px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(4,7,16,.72);border:1px solid var(--border-glow);
+}
+.bag-btn:hover{border-color:var(--cyan);box-shadow:0 0 12px -3px var(--cyan)}
 .hp-wrap{position:absolute;left:10px;right:10px;bottom:38px;display:flex;align-items:center;gap:6px}
 .hp-bar{flex:1;height:7px;border-radius:99px;background:rgba(4,7,16,.8);border:1px solid var(--border-soft);overflow:hidden}
 .hp-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#2ecc71,#7bffb0)}
@@ -250,12 +255,12 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 .char-split > .char-layout{grid-column:1;grid-row:1;min-height:0}
 .char-split > .transport-row{grid-column:1;grid-row:2}
-.char-split > .char-stats{grid-column:2;grid-row:1;min-height:0}
+.char-split > .char-stats-cell{grid-column:2;grid-row:1;position:relative;min-height:0}
 /* Statsramen: samma svarta halvton som innerrutan. Höjden är LÅST till spalten och
    listan rullar INUTI sin ruta — panelen får aldrig växa och rubba raden bredvid. */
 .char-stats{
+  position:absolute;inset:0 3px;
   display:flex;flex-direction:column;min-height:0;
-  margin:0 3px;height:100%;
   background:rgba(0,0,0,.5);border:1px solid var(--border-soft);
   border-radius:var(--radius-sm);padding:9px 10px;
 }
@@ -316,7 +321,9 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .tr-disc{font-size:9px;color:var(--gold);margin-bottom:4px}
 .tr-btn{white-space:nowrap}
 .gear-tip{
-  position:fixed;z-index:120;display:none;pointer-events:none;width:250px;
+  /* Över ALLA flytande fönster — den är en förhandstitt, aldrig något man klickar på,
+     så den kan ligga högst utan att stjäla något. */
+  position:fixed;z-index:9000;display:none;pointer-events:none;width:250px;
   padding:11px 12px;border-radius:11px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   border:1px solid var(--rc,var(--border-glow));
@@ -335,7 +342,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gt-hint{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-top:7px;border-top:1px solid var(--border-soft);padding-top:6px}
 /* Platsväljaren: liten lista intill en tom ruta med det som passar */
 .slot-picker{
-  position:fixed;z-index:130;width:190px;
+  position:fixed;z-index:8000;width:190px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   border:1px solid var(--border-glow);border-radius:10px;padding:8px;
   box-shadow:0 12px 34px rgba(0,0,0,.6);
@@ -809,6 +816,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 /* En enda rullyta: panelen rullar, flikytan är sitt innehåll. Två kapslade
    rullytor gav kedjad rullning som kastade en genom hela listan i ett steg. */
 #panel-production .tab-pane{height:auto;overflow:visible}
+/* Rullhjulet i maskinrutan tar mindre steg. Bara mushjul — pekrullning rörs inte. */
 .tab{padding:7px;text-align:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;background:var(--bg-inset)}
 .tab.active{background:rgba(56,232,255,.1);color:var(--cyan);font-weight:800}
 .upgrade-list{display:flex;flex-direction:column;gap:6px}
@@ -1200,7 +1208,7 @@ body.modal-open{overflow:hidden}
   box-shadow:0 0 0 1px rgba(139,92,246,.18), 0 0 42px -8px rgba(139,92,246,.5), 0 20px 60px rgba(0,0,0,.6);
 }
 .rw-gear{
-  display:flex;align-items:center;gap:10px;margin-top:6px;padding:8px 10px;
+  display:flex;align-items:center;gap:10px;cursor:help;margin-top:6px;padding:8px 10px;
   background:var(--bg-row);border:1px solid var(--rc);border-radius:9px;
   box-shadow:inset 0 0 14px -8px var(--rc);
 }
@@ -1317,7 +1325,16 @@ body.modal-open{overflow:hidden}
 }
 .inv-x:hover{color:var(--text);border-color:var(--border-glow)}
 .inv-toprow{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.inv-bagslot.locked{opacity:.55;filter:grayscale(.5);cursor:pointer}
+.inv-bagslot.locked{opacity:.65;filter:grayscale(.4);cursor:pointer}
+.inv-bagslot.locked:hover{opacity:1;border-color:var(--cyan)}
+.bag-tip{
+  position:fixed;z-index:9000;display:none;width:200px;pointer-events:none;
+  padding:9px 11px;border-radius:10px;font-size:10px;line-height:1.5;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);box-shadow:0 12px 30px rgba(0,0,0,.6);
+}
+.bag-tip.on{display:block}
+.bag-tip b{color:var(--cyan);font-family:var(--font-mono)}
 .inv-bagslot{
   width:40px;height:40px;border-radius:10px;
   border:2px solid #232e5c;background:var(--bg-inset);
@@ -1480,7 +1497,7 @@ body.modal-open{overflow:hidden}
             <div class="equip-slot" data-slot="4" title="Feet"><i class="slot-bg" style="background-image:url('assets/slots/slot_feet.png')"></i></div>
           </div>
           <div class="char-portrait">🥷
-            <button class="cp-badge bag-btn" id="bag-btn" title="Open inventory">🎒 Inventory</button>
+            <button class="bag-btn" id="bag-btn" title="Open inventory">🎒</button>
             <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">0 HP</span></div>
           </div>
           <div class="equip-col">
@@ -1494,10 +1511,12 @@ body.modal-open{overflow:hidden}
         <div class="transport-row">
           <div class="equip-slot transport-slot" title="Transport — mounts, rides and stranger things"><i class="slot-bg" style="background-image:url('assets/slots/slot_transport.png')"></i></div>
         </div>
+        <div class="char-stats-cell">
         <div class="char-stats">
           <div class="cs-title">Stats</div>
           <div class="cs-cp"><span>Combat Power</span><b id="cs-cp">0</b></div>
           <div class="cs-rows" id="cs-rows"></div>
+        </div>
         </div>
         </div>
       </section>
@@ -1865,7 +1884,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.34.0 — FÖNSTREN</div>
+            <div class="desc">GENESIS v0.34.2 — RUTAN HÅLLER</div>
           </div>
         </div>
       </div>
@@ -1891,7 +1910,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.34.0 — FÖNSTREN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.34.2 — RUTAN HÅLLER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2469,6 +2488,7 @@ function buyBuilding(b){
 /* Kärnuppgraderingar */
 const upRefs = {};
 function buildCoreUpgrades(){
+  buildPremiumBags();
   renderPremiumBags();
   el.core.innerHTML = '';
   refreshShelf();
@@ -2991,13 +3011,47 @@ function renderBagSlots(){
     }
   });
 }
-function renderPremiumBags(){
+/* Nästa lås i tur och ordning — de köps i följd, precis som offline-trappan. */
+function nextBagTier(){
+  for (let i = 0; i < BAG_SLOT_COST.length; i++) if (!bagUnlocked(i)) return i;
+  return -1;
+}
+function buildPremiumBags(){
   const box = $('premium-bags');
   if (!box) return;
-  box.innerHTML = BAG_SLOT_COST.map((cost, i) => bagUnlocked(i)
-    ? '<div class="upg-row done"><span class="u-name">👜 Bag Slot ' + (i + 2) + '</span><span class="u-owned">Unlocked</span></div>'
-    : '<div class="upg-row"><span class="u-name">🔒 Bag Slot ' + (i + 2) + '</span><button class="u-buy" data-bagbuy="' + i + '"' + (S.credits < cost ? ' disabled style="opacity:.5"' : '') + '>🔶 ' + cost + '</button></div>').join('');
-  box.querySelectorAll('[data-bagbuy]').forEach(b => b.addEventListener('click', () => unlockBag(+b.dataset.bagbuy)));
+  box.innerHTML =
+    '<div class="upgrade-row">' +
+      '<div class="u-ico">👜</div>' +
+      '<div class="u-body">' +
+        '<div class="u-name">Extra Bag Slots</div>' +
+        '<div class="u-desc" id="prem-bag-desc"></div>' +
+        '<div class="pips" id="prem-bag-pips">' +
+          '<span class="pip lit" title="Bag slot 1 (base)"></span>' +
+          BAG_SLOT_COST.map((c, i) => '<span class="pip" title="Bag slot ' + (i + 2) + '"></span>').join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="u-buy prisms" id="prem-bag-buy"></div>' +
+    '</div>';
+  $('prem-bag-buy').addEventListener('click', () => unlockBag(nextBagTier()));
+}
+function renderPremiumBags(){
+  const pipsEl = $('prem-bag-pips');
+  if (!pipsEl) return;
+  const tier = nextBagTier();
+  const owned = tier < 0 ? BAG_SLOT_COST.length : tier;
+  const pips = pipsEl.children;
+  for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('lit', i <= owned);
+  const btn = $('prem-bag-buy'), desc = $('prem-bag-desc');
+  btn.classList.remove('maxed', 'cant');
+  if (tier < 0){
+    desc.textContent = 'All bag slots unlocked.';
+    btn.classList.add('maxed'); btn.textContent = 'Max';
+  } else {
+    const cost = BAG_SLOT_COST[tier];
+    desc.textContent = 'Unlocks bag slot ' + (tier + 2) + ' — permanent';
+    if (S.credits < cost) btn.classList.add('cant');
+    btn.textContent = '💳 ' + cost;
+  }
 }
 function renderInventory(){
   renderBagSlots();
@@ -3103,12 +3157,19 @@ function showRewards(run){
   let found = '';
   if (run.loot.gear){
     const g = run.loot.gear;
-    found += '<div class="rw-gear" style="--rc:' + gearRarCol(g) + '">' +
+    found += '<div class="rw-gear" data-rwgear="1" style="--rc:' + gearRarCol(g) + '">' +
       '<span class="rwg-art" style="background-image:url(\'' + gearArt(g.s, g.r) + '\')"></span>' +
       '<span class="rwg-txt"><b>' + gearName(g.s) + '</b><i>' + GEAR_RAR[g.r].name + '</i></span></div>';
   }
   if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
   $('rw-found').innerHTML = found ? '<div class="section-label">Gear found</div>' + found : '';
+  /* Hovra fyndet och se exakt vad det ger — utan att först behöva hämta och leta. */
+  const rg = $('rw-found').querySelector('[data-rwgear]');
+  if (rg && run.loot.gear){
+    rg.addEventListener('mouseenter', e => showGearTip(run.loot.gear, e.clientX, e.clientY));
+    rg.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
+    rg.addEventListener('mouseleave', hideGearTip);
+  }
   $('rw-dur').textContent = fmtDur(def.mins * 60);
   $('rw-lvl').textContent = 'Lv ' + def.lvl;
   $('reward-overlay').classList.add('open');
@@ -3170,6 +3231,7 @@ function openTravelNow(regionId){
 
 /* Panelen: Active (två slots) + Discovered (katalogen) */
 function fmtMins(m){ return m >= 60 ? (m / 60) + 'h' : m + 'm'; }
+let expPaneSig = '';
 function renderExpPanel(){
   const act = $('exp-active-list');
   const tab = document.querySelector('#expedition-tabs .tab[data-pane="pane-exp-active"]');
@@ -3197,7 +3259,11 @@ function renderExpPanel(){
         : '<div class="er-meta"><span>⏱ ' + fmtDur(left) + '</span><span>💠 ' + fmt(run.data) + '</span></div>') +
       '</div>';
   }
-  act.innerHTML = h + (S.exp.runs.length === 0 ? '<div class="shelf-empty">No expeditions running</div>' : '');
+  /* Grundorsaken till att hämtknappen ibland inte reagerade: listan byggdes om varje
+     sekund, även när ingenting ändrats, och bytte ut knappen mitt under musklicket.
+     Nu ritas den bara när innehållet faktiskt skiljer sig. */
+  const html = h + (S.exp.runs.length === 0 ? '<div class="shelf-empty">No expeditions running</div>' : '');
+  if (html !== expPaneSig){ expPaneSig = html; act.innerHTML = html; }
 
   const disc = $('exp-found-list');
   if (S.exp.found.length === 0){
@@ -3657,6 +3723,7 @@ function updateUI(force){
   el.resGold.textContent = fmt(S.gold);
   el.resFuel.textContent = Math.floor(S.fuel) + '/' + fuelMax();
   refreshPremiumOffline();
+  renderPremiumBags();
   /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
      och tätare ritning river knappar under fingret på mobil. */
   if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); }
@@ -4750,7 +4817,7 @@ function updateTravelInfo(){
   travelTime.textContent = '⏱ ' + fmtDur(t.time);
 }
 travelSelect.addEventListener('change', updateTravelInfo);
-$('exp-active-list').addEventListener('click', e => {
+$('exp-active-list').addEventListener('pointerdown', e => {
   const btn = e.target.closest('[data-claim]');
   if (btn) claimExpedition(btn.dataset.claim);
 });
@@ -5173,10 +5240,53 @@ $('qa-inventory').addEventListener('click', openInventory);
 $('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
 makeDraggable($('inv-overlay'), document.querySelector('.inv-titlebar'));
 $('bag-btn').addEventListener('click', openInventory);
-document.querySelectorAll('[data-bag]').forEach(el => el.addEventListener('click', () => {
+/* Musens hjul gav jättekliv i maskinlistan eftersom raderna är höga. Vi skalar ned
+   steget till en tredjedel — och rör INTE pekrullning, som har egen fysik. */
+(function tameMachineScroll(){
+  const pane = document.getElementById('panel-production');
+  if (!pane) return;
+  pane.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.deltaMode !== 0) return;       // zoom och radläge lämnas ifred
+    const before = pane.scrollTop;
+    pane.scrollTop = before + e.deltaY * 0.34;
+    if (pane.scrollTop !== before) e.preventDefault();
+  }, {passive: false});
+})();
+document.querySelectorAll('[data-bag]').forEach(el => {
   const i = +el.dataset.bag;
-  if (!bagUnlocked(i)) unlockBag(i);
-}));
+  el.addEventListener('click', () => {
+    if (bagUnlocked(i)) return;
+    if (!unlockBag(i)){
+      /* Tyst avslag är det värsta ett gränssnitt kan göra — säg vad som saknas. */
+      const short = BAG_SLOT_COST[i] - S.credits;
+      showBagTip(el, 'Not enough credits — you need ' + short + ' more.');
+    }
+  });
+  el.addEventListener('mouseenter', () => {
+    showBagTip(el, bagUnlocked(i)
+      ? 'Bag slot ' + (i + 2) + ' — unlocked. Equip a bag here to gain slots.'
+      : 'Bag slot ' + (i + 2) + ' — locked.<br>Unlock for <b>' + BAG_SLOT_COST[i] + ' credits</b> (you have ' + fmt(S.credits) + ').');
+  });
+  el.addEventListener('mouseleave', hideBagTip);
+});
+function showBagTip(anchor, html){
+  let t = $('bag-tip');
+  if (!t){
+    t = document.createElement('div');
+    t.id = 'bag-tip'; t.className = 'bag-tip';
+    document.body.appendChild(t);
+  }
+  t.innerHTML = html;
+  t.classList.add('on');
+  const r = anchor.getBoundingClientRect();
+  let x = r.left + r.width / 2 - 100;
+  x = Math.max(8, Math.min(x, window.innerWidth - 208));
+  t.style.left = x + 'px';
+  t.style.top = (r.bottom + 8) + 'px';
+  clearTimeout(t._h);
+  t._h = setTimeout(hideBagTip, 3200);
+}
+function hideBagTip(){ const t = $('bag-tip'); if (t) t.classList.remove('on'); }
 $('reward-claim').addEventListener('click', confirmClaim);
 $('reward-close').addEventListener('click', () => { pendingClaimId = null; $('reward-overlay').classList.remove('open'); });
 $('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')){ pendingClaimId = null; $('reward-overlay').classList.remove('open'); } });
