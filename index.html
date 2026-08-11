@@ -341,6 +341,20 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gt-src{font-size:9px;color:var(--text-faint);margin-top:6px;font-style:italic}
 .gt-hint{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-top:7px;border-top:1px solid var(--border-soft);padding-top:6px}
 /* Platsväljaren: liten lista intill en tom ruta med det som passar */
+/* Draget: en genomskinlig kopia under pekaren, och målen lyser upp. */
+.drag-ghost{
+  position:fixed;z-index:9500;width:52px;height:52px;pointer-events:none;
+  background-size:contain;background-position:center;background-repeat:no-repeat;
+  border:1px solid var(--rc);border-radius:var(--radius-sm);
+  background-color:rgba(4,7,16,.75);
+  box-shadow:0 0 16px -4px var(--rc);opacity:.9;
+}
+body.dragging{cursor:grabbing}
+body.dragging *{cursor:grabbing !important}
+.drop-ok{border-color:var(--cyan) !important;box-shadow:0 0 0 1px var(--cyan-dim), 0 0 14px -6px var(--cyan)}
+.drop-hot{border-color:var(--cyan) !important;box-shadow:0 0 0 2px var(--cyan), 0 0 18px -4px var(--cyan)}
+#inv-grid.drop-ok{outline:1px dashed var(--cyan-dim);outline-offset:3px;border-radius:8px}
+#inv-grid.drop-hot{outline:2px dashed var(--cyan);outline-offset:3px}
 .slot-picker{
   position:fixed;z-index:8000;width:190px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
@@ -1884,7 +1898,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.34.2 — RUTAN HÅLLER</div>
+            <div class="desc">GENESIS v0.36.0 — DRA OCH SLÄPP</div>
           </div>
         </div>
       </div>
@@ -1910,7 +1924,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.34.2 — RUTAN HÅLLER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.36.0 — DRA OCH SLÄPP</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5132,6 +5146,12 @@ document.addEventListener('touchstart', e => {
   if (gearTip.classList.contains('on') && !e.target.closest('#inv-grid')) hideGearTip();
 }, {passive: true});
 
+hookDragSource($('inv-grid'), e => {
+  const cell = e.target.closest('[data-inv]');
+  if (!cell) return null;
+  const row = S.inv[+cell.dataset.inv];
+  return (row && row.gear) ? {from: 'inv', gear: row.gear} : null;
+});
 $('inv-grid').addEventListener('mouseover', e => {
   const cell = e.target.closest('[data-inv]');
   if (!cell) return hideGearTip();
@@ -5142,6 +5162,10 @@ $('inv-grid').addEventListener('mouseover', e => {
 $('inv-grid').addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
 $('inv-grid').addEventListener('mouseleave', hideGearTip);
 document.querySelectorAll('#panel-character [data-slot]').forEach(elm => {
+  hookDragSource(elm, () => {
+    const it = S.equip[+elm.dataset.slot];
+    return it ? {from: 'equip', gear: it, slot: +elm.dataset.slot} : null;
+  });
   elm.addEventListener('click', e => {
     const slotIdx = +elm.dataset.slot;
     const it = S.equip[slotIdx];
@@ -5240,16 +5264,128 @@ $('qa-inventory').addEventListener('click', openInventory);
 $('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
 makeDraggable($('inv-overlay'), document.querySelector('.inv-titlebar'));
 $('bag-btn').addEventListener('click', openInventory);
-/* Musens hjul gav jättekliv i maskinlistan eftersom raderna är höga. Vi skalar ned
-   steget till en tredjedel — och rör INTE pekrullning, som har egen fysik. */
+/* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
+   inte: Windows kan skicka rullning i RADER eller SIDOR (deltaMode 1 och 2), och de
+   släppte jag förbi till webbläsarens egen rullning — som då tog hela listan i ett
+   steg. Nu struntar vi i hur stort systemet säger att steget är och använder ett
+   EGET fast steg per hack, oavsett läge. Med listans höjd blir det 3–4 hack från
+   topp till botten, precis som önskat. Pekrullning rörs inte (den ger inga wheel-
+   händelser), och ctrl+hjul lämnas till webbläsarens zoom. */
+/* ---------- DRA OCH SLÄPP MELLAN VÄSKA OCH KROPP ----------
+   Bygger på pekhändelser i stället för webbläsarens egen dragfunktion: den kräver
+   bilder och beter sig olika i olika webbläsare, och vi behöver ändå egna regler.
+   Ett drag börjar först efter 6 px rörelse — annars är det ett vanligt klick, och
+   klick, shift+klick och hovring ska fungera precis som förut. */
+const DRAG_THRESHOLD = 6;
+let drag = null;
+function dragTargetsFor(d){
+  if (d.from === 'inv') return Array.from(document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
+  return [$('inv-grid')];
+}
+function beginDrag(d, x, y){
+  hideGearTip();
+  d.active = true;
+  const g = document.createElement('div');
+  g.className = 'drag-ghost';
+  g.style.backgroundImage = "url('" + gearArt(d.gear.s, d.gear.r) + "')";
+  g.style.setProperty('--rc', gearRarCol(d.gear));
+  document.body.appendChild(g);
+  d.ghost = g;
+  moveGhost(d, x, y);
+  d.targets = dragTargetsFor(d);
+  d.targets.forEach(t => t.classList.add('drop-ok'));
+  document.body.classList.add('dragging');
+}
+function moveGhost(d, x, y){
+  d.ghost.style.left = (x - 26) + 'px';
+  d.ghost.style.top = (y - 26) + 'px';
+}
+function endDrag(d, x, y){
+  if (d.ghost) d.ghost.remove();
+  if (d.targets) d.targets.forEach(t => t.classList.remove('drop-ok', 'drop-hot'));
+  document.body.classList.remove('dragging');
+  const under = document.elementFromPoint(x, y);
+  if (!under) return;
+  if (d.from === 'inv'){
+    const slot = under.closest('#panel-character [data-slot]');
+    /* Endast rätt plats tar emot — en hjälm hör inte hemma i vapenrutan. */
+    if (slot && +slot.dataset.slot === d.gear.s){
+      const row = S.inv.findIndex(r => r.gear && r.gear.uid === d.gear.uid);
+      if (row >= 0) equipGear(row);
+    }
+  } else {
+    if (under.closest('#inv-grid')) unequipGear(d.slot);
+  }
+}
+function hookDragSource(el, read){
+  el.addEventListener('pointerdown', e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    const src = read(e);
+    if (!src) return;
+    drag = Object.assign({sx: e.clientX, sy: e.clientY, active: false, moved: false}, src);
+  });
+}
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.active){
+    if (Math.abs(e.clientX - drag.sx) < DRAG_THRESHOLD && Math.abs(e.clientY - drag.sy) < DRAG_THRESHOLD) return;
+    beginDrag(drag, e.clientX, e.clientY);
+  }
+  drag.moved = true;
+  moveGhost(drag, e.clientX, e.clientY);
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  drag.targets.forEach(t => t.classList.toggle('drop-hot', !!under && (t === under || t.contains(under))));
+});
+document.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.active) return;
+  endDrag(d, e.clientX, e.clientY);
+  /* Ett släpp efter ett riktigt drag ska inte också räknas som ett klick. */
+  const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+  document.addEventListener('click', eat, {capture: true, once: true});
+  setTimeout(() => document.removeEventListener('click', eat, true), 0);
+});
+document.addEventListener('pointercancel', () => {
+  if (drag && drag.active) endDrag(drag, -1, -1);
+  drag = null;
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  /* Skriver man i ett fält ska ESC tillhöra fältet, inte fönstren. */
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const open = [];
+  document.querySelectorAll('.item-win').forEach(w => open.push(w));
+  const picker = document.querySelector('.slot-picker');
+  if (picker) open.push(picker);
+  const inv = $('inv-overlay');
+  if (inv.classList.contains('open')) open.push(inv);
+  if (!open.length) return;
+  /* Högst z-nivå = det översta fönstret = det man senast öppnade eller klickade på. */
+  open.sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
+  const top = open[open.length - 1];
+  hideGearTip();
+  if (top === inv) inv.classList.remove('open');
+  else top.remove();
+  e.preventDefault();
+});
+
+const MACHINE_SCROLL_STEP = 88;
 (function tameMachineScroll(){
   const pane = document.getElementById('panel-production');
   if (!pane) return;
   pane.addEventListener('wheel', e => {
-    if (e.ctrlKey || e.deltaMode !== 0) return;       // zoom och radläge lämnas ifred
+    if (e.ctrlKey) return;
+    if (!e.deltaY) return;
+    const max = pane.scrollHeight - pane.clientHeight;
+    if (max <= 0) return;
     const before = pane.scrollTop;
-    pane.scrollTop = before + e.deltaY * 0.34;
-    if (pane.scrollTop !== before) e.preventDefault();
+    const next = Math.max(0, Math.min(max, before + Math.sign(e.deltaY) * MACHINE_SCROLL_STEP));
+    pane.scrollTop = next;
+    /* Bara när vi FAKTISKT rörde oss — annars ska sidan bakom få rulla vidare. */
+    if (next !== before) e.preventDefault();
   }, {passive: false});
 })();
 document.querySelectorAll('[data-bag]').forEach(el => {
