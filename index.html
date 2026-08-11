@@ -349,6 +349,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   background-color:rgba(4,7,16,.75);
   box-shadow:0 0 16px -4px var(--rc);opacity:.9;
 }
+.drag-ghost.ghost-ico{display:flex;align-items:center;justify-content:center;font-size:24px}
 body.dragging{cursor:grabbing}
 body.dragging *{cursor:grabbing !important}
 .drop-ok{border-color:var(--cyan) !important;box-shadow:0 0 0 1px var(--cyan-dim), 0 0 14px -6px var(--cyan)}
@@ -922,6 +923,7 @@ body.dragging *{cursor:grabbing !important}
 .hold-hint{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-dim);font-weight:700}
 .hold-hint.full{color:var(--gold)}
 .machine-row.cant{opacity:.55}
+.machine-row{cursor:default}
 .m-cost{cursor:pointer}
 
 .hold-meter{width:230px;height:10px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border);overflow:hidden}
@@ -1898,7 +1900,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.36.0 — DRA OCH SLÄPP</div>
+            <div class="desc">GENESIS v0.37.0 — EGEN ORDNING</div>
           </div>
         </div>
       </div>
@@ -1924,7 +1926,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.36.0 — DRA OCH SLÄPP</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.37.0 — EGEN ORDNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2230,13 +2232,15 @@ function load(){
         if (d.pets.active != null && S.pets.owned.some(o => o.uid === d.pets.active)) S.pets.active = d.pets.active;
       }
       S.gold = Math.max(0, +d.gold || 0);
-      if (Array.isArray(d.inv)) S.inv = d.inv.map(it => {
+      /* Tomma rutor är null och MÅSTE överleva laddningen — annars packas väskan
+         ihop igen och all egen ordning går förlorad vid nästa start. */
+      if (Array.isArray(d.inv)) S.inv = d.inv.slice(0, 200).map(it => {
         if (!it) return null;
         if (it.gear) { const g = readGear(it.gear); return g ? {gear: g} : null; }
         if (typeof it.key === 'string' && typeof it.name === 'string')
           return {key: it.key, name: it.name, ico: it.ico || '📦', qty: Math.max(1, Math.floor(+it.qty) || 1), stack: !!it.stack};
         return null;
-      }).filter(Boolean).slice(0, 200);
+      });
       if (d.exp && typeof d.exp === 'object'){
         if (Array.isArray(d.exp.found)) S.exp.found = d.exp.found.filter(x => typeof x === 'string');
         if (Array.isArray(d.exp.runs)){
@@ -2418,7 +2422,7 @@ function buildRows(){
       rate: row.querySelector('.m-rate'),
       cost: row.querySelector('.m-cost')
     };
-    row.addEventListener('click', () => buyBuilding(b));
+    rowRefs[b.id].cost.addEventListener('click', () => buyBuilding(b));
     /* Hovringen väcks bara av IKONEN — namnet, siffrorna och knapparna lämnas ifred. */
     const ico = row.querySelector('.m-ico');
     ico.addEventListener('mouseenter', () => showMachineTip(b, row));
@@ -2884,17 +2888,36 @@ function unlockBag(i){
   return true;
 }
 function invSlots(){ return INV_BASE_SLOTS; }   // + väskor/uppgraderingar i framtiden
-function invUsed(){ return S.inv.length; }
+/* Ryggsäcken är PLATSBASERAD: en lista lika lång som antalet rutor, där tomma
+   rutor är null. Det är vad som gör att du själv kan bestämma var saker ligger —
+   en packad lista skulle alltid trycka ihop sig igen. */
+function invUsed(){ let n = 0; for (let i = 0; i < S.inv.length; i++) if (S.inv[i]) n++; return n; }
+function invFirstFree(){
+  for (let i = 0; i < invSlots(); i++) if (!S.inv[i]) return i;
+  return -1;
+}
+function invNormalize(){
+  S.inv.length = invSlots();
+  for (let i = 0; i < S.inv.length; i++) if (S.inv[i] === undefined) S.inv[i] = null;
+}
 function addInvItem(def){
   // def: {key, name, ico, qty, stack}
   const qty = Math.max(1, def.qty || 1);
   if (def.stack){
-    const row = S.inv.find(it => it.key === def.key && it.stack);
+    const row = S.inv.find(it => it && it.key === def.key && it.stack);
     if (row){ row.qty += qty; renderInventory(); return true; }
   }
-  if (invUsed() >= invSlots()) return false;   // fullt är fullt
-  S.inv.push({key: def.key, name: def.name, ico: def.ico || '📦', qty: qty, stack: !!def.stack});
+  const free = invFirstFree();
+  if (free < 0) return false;                  // fullt är fullt
+  S.inv[free] = {key: def.key, name: def.name, ico: def.ico || '📦', qty: qty, stack: !!def.stack};
   renderInventory();
+  return true;
+}
+/* Byter innehåll mellan två rutor. Grunden för all omsortering i väskan. */
+function invSwap(a, b){
+  if (a === b || a < 0 || b < 0 || a >= invSlots() || b >= invSlots()) return false;
+  const t = S.inv[a]; S.inv[a] = S.inv[b]; S.inv[b] = t;
+  renderInventory(); save();
   return true;
 }
 /* ---------- UTRUSTNINGEN: ritning, jämförelse, av och på ---------- */
@@ -2989,17 +3012,20 @@ function equipGear(idx){
   const row = S.inv[idx];
   if (!row || !row.gear) return;
   const it = row.gear, old = S.equip[it.s];
-  S.inv.splice(idx, 1);
   S.equip[it.s] = it;
-  if (old) S.inv.push({gear: old});
+  /* Den gamla pjäsen tar den nyas ruta — du får tillbaka den där du tog den ifrån,
+     inte längst bak i väskan. */
+  S.inv[idx] = old ? {gear: old} : null;
   renderEquip(); renderInventory(); updateUI(true); save();
 }
-function unequipGear(slotIdx){
+function unequipGear(slotIdx, toIdx){
   const it = S.equip[slotIdx];
   if (!it) return false;
-  if (invUsed() >= invSlots()) return false;
+  const at = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx])
+    ? toIdx : invFirstFree();
+  if (at < 0) return false;
   delete S.equip[slotIdx];
-  S.inv.push({gear: it});
+  S.inv[at] = {gear: it};
   renderEquip(); renderInventory(); updateUI(true); save();
   return true;
 }
@@ -3007,7 +3033,7 @@ function sellGear(idx){
   const row = S.inv[idx];
   if (!row || !row.gear) return;
   S.gold += gearGold(row.gear);
-  S.inv.splice(idx, 1);
+  S.inv[idx] = null;
   renderInventory(); updateUI(true); save();
 }
 
@@ -3086,7 +3112,9 @@ function renderInventory(){
       h += '<div class="inv-slot filled" data-inv="' + i + '" title="' + it.name + (it.key === 'fuelcell' ? ' — click to refuel +' + FUEL_CELL_RESTORE : '') + '"><span class="inv-ico">' + it.ico + '</span>' +
         (it.qty > 1 ? '<span class="inv-qty">' + (it.qty > 999 ? '999+' : it.qty) + '</span>' : '') + '</div>';
     } else {
-      h += '<div class="inv-slot"></div>';
+      /* Även TOMMA rutor bär sitt nummer — annars går det inte att släppa något
+         på dem, och då kan man inte bestämma sin egen ordning. */
+      h += '<div class="inv-slot" data-inv="' + i + '"></div>';
     }
   }
   grid.innerHTML = h;
@@ -3206,7 +3234,8 @@ function confirmClaim(){
     addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true});
   }
   if (run.loot.gear){
-    if (invUsed() < invSlots()){ S.inv.push({gear: run.loot.gear}); renderInventory(); }
+    const free = invFirstFree();
+    if (free >= 0){ S.inv[free] = {gear: run.loot.gear}; renderInventory(); }
     else spawnFloat({ text: 'Backpack full!' });
   }
   spawnFloat({ text: '+' + fmt(run.data) });
@@ -5011,7 +5040,7 @@ function hideGearTip(){ gearTip.classList.remove('on'); }
    index förskjuts när väskan ändras, id gör det inte. */
 function findByUid(uid){
   for (let i = 0; i < S.inv.length; i++)
-    if (S.inv[i].gear && S.inv[i].gear.uid === uid) return {where: 'inv', idx: i, it: S.inv[i].gear};
+    if (S.inv[i] && S.inv[i].gear && S.inv[i].gear.uid === uid) return {where: 'inv', idx: i, it: S.inv[i].gear};
   for (const k in S.equip)
     if (S.equip[k] && S.equip[k].uid === uid) return {where: 'equip', idx: +k, it: S.equip[k]};
   return null;
@@ -5093,7 +5122,7 @@ $('inv-grid').addEventListener('click', e => {
     if (S.fuel >= fuelMax()) return;
     addFuel(FUEL_CELL_RESTORE);
     row.qty--;
-    if (row.qty <= 0) S.inv.splice(idx, 1);
+    if (row.qty <= 0) S.inv[idx] = null;
     renderInventory(); updateUI(true); save();
     return;
   }
@@ -5149,8 +5178,9 @@ document.addEventListener('touchstart', e => {
 hookDragSource($('inv-grid'), e => {
   const cell = e.target.closest('[data-inv]');
   if (!cell) return null;
-  const row = S.inv[+cell.dataset.inv];
-  return (row && row.gear) ? {from: 'inv', gear: row.gear} : null;
+  const i = +cell.dataset.inv, row = S.inv[i];
+  /* ALLT som ligger i väskan går att flytta — gear såväl som staplar. */
+  return row ? {from: 'inv', gear: row.gear || null, row: row, idx: i} : null;
 });
 $('inv-grid').addEventListener('mouseover', e => {
   const cell = e.target.closest('[data-inv]');
@@ -5188,7 +5218,7 @@ function showSlotPicker(slotIdx, anchor){
   const old = document.querySelector('.slot-picker');
   if (old) old.remove();
   const fits = [];
-  S.inv.forEach((row, i) => { if (row.gear && row.gear.s === slotIdx) fits.push({i: i, g: row.gear}); });
+  S.inv.forEach((row, i) => { if (row && row.gear && row.gear.s === slotIdx) fits.push({i: i, g: row.gear}); });
   const pick = document.createElement('div');
   pick.className = 'slot-picker';
   pick.innerHTML = '<div class="sp-head">' + GEAR_SLOTS[slotIdx].name + '</div>' +
@@ -5279,16 +5309,27 @@ $('bag-btn').addEventListener('click', openInventory);
 const DRAG_THRESHOLD = 6;
 let drag = null;
 function dragTargetsFor(d){
-  if (d.from === 'inv') return Array.from(document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
-  return [$('inv-grid')];
+  /* Väskan är alltid ett giltigt mål — man ska kunna sortera om fritt. Kroppens
+     plats lyser bara upp om pjäsen faktiskt hör hemma där. */
+  const t = [$('inv-grid')];
+  if (d.from === 'inv' && d.gear)
+    t.push(...document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
+  return t;
 }
 function beginDrag(d, x, y){
   hideGearTip();
   d.active = true;
   const g = document.createElement('div');
   g.className = 'drag-ghost';
-  g.style.backgroundImage = "url('" + gearArt(d.gear.s, d.gear.r) + "')";
-  g.style.setProperty('--rc', gearRarCol(d.gear));
+  if (d.gear){
+    g.style.backgroundImage = "url('" + gearArt(d.gear.s, d.gear.r) + "')";
+    g.style.setProperty('--rc', gearRarCol(d.gear));
+  } else {
+    /* Staplar har ingen konst — visa deras ikon i stället. */
+    g.textContent = (d.row && d.row.ico) || '📦';
+    g.classList.add('ghost-ico');
+    g.style.setProperty('--rc', 'var(--cyan)');
+  }
   document.body.appendChild(g);
   d.ghost = g;
   moveGhost(d, x, y);
@@ -5306,16 +5347,23 @@ function endDrag(d, x, y){
   document.body.classList.remove('dragging');
   const under = document.elementFromPoint(x, y);
   if (!under) return;
+  const cell = under.closest('#inv-grid [data-inv]');
   if (d.from === 'inv'){
     const slot = under.closest('#panel-character [data-slot]');
     /* Endast rätt plats tar emot — en hjälm hör inte hemma i vapenrutan. */
-    if (slot && +slot.dataset.slot === d.gear.s){
-      const row = S.inv.findIndex(r => r.gear && r.gear.uid === d.gear.uid);
+    if (slot && d.gear && +slot.dataset.slot === d.gear.s){
+      const row = S.inv.findIndex(r => r && r.gear && r.gear.uid === d.gear.uid);
       if (row >= 0) equipGear(row);
+      return;
     }
-  } else {
-    if (under.closest('#inv-grid')) unequipGear(d.slot);
+    /* Omsortering inuti väskan: två rutor byter innehåll. Släpps den på en tom
+       ruta blir bytet helt enkelt en flytt. */
+    if (cell) invSwap(d.idx, +cell.dataset.inv);
+    return;
   }
+  /* Buren pjäs släppt på en BESTÄMD ruta hamnar just där, om den är ledig. */
+  if (cell) unequipGear(d.slot, +cell.dataset.inv);
+  else if (under.closest('#inv-grid')) unequipGear(d.slot);
 }
 function hookDragSource(el, read){
   el.addEventListener('pointerdown', e => {
@@ -5505,6 +5553,9 @@ applySoundPrefs();
 const offlinePending = computeOffline();
 applyLayout();
 buildPremiumOffline();
+/* Väskan får alltid exakt lika många rutor som spelet säger — gamla sparfiler
+   fylls ut med tomma, och en för lång lista kapas. */
+invNormalize();
 lastLevel = levelInfo().lvl;
 renderPetPanel();
 renderEquip();
