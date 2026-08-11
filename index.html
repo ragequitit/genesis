@@ -236,31 +236,28 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .hp-bar{flex:1;height:7px;border-radius:99px;background:rgba(4,7,16,.8);border:1px solid var(--border-soft);overflow:hidden}
 .hp-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#2ecc71,#7bffb0)}
 .hp-txt{font-family:var(--font-mono);font-size:9px;color:#9fe8bd;text-shadow:0 0 6px rgba(0,0,0,.9)}
+/* Statsramen: samma svarta halvton som innerrutan, kompakt radlista */
+.char-stats{
+  margin-top:10px;background:rgba(0,0,0,.5);border:1px solid var(--border-soft);
+  border-radius:var(--radius-sm);padding:10px 12px;
+}
+.cs-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);font-weight:800;margin-bottom:8px}
+.cs-cp{
+  display:flex;justify-content:space-between;align-items:center;
+  border:1px solid var(--cyan-dim);border-radius:9px;padding:7px 10px;margin-bottom:8px;
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);
+}
+.cs-cp b{font-family:var(--font-mono);font-size:18px;color:var(--cyan)}
+.cs-rows{display:flex;flex-direction:column}
+.cs-row{display:flex;justify-content:space-between;align-items:center;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}
+.cs-row:last-child{border-bottom:none}
+.cs-row .k{color:var(--text-dim)}
+.cs-row .v{font-family:var(--font-mono);font-weight:800;color:var(--cyan)}
 .char-stats-btn{
   position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
   margin:0;white-space:nowrap;
   background:rgba(7,10,19,.75);
 }
-.key-stats{
-  display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;
-  background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
-  padding:7px 9px;
-}
-/* Statspopupen: lägger sig direkt under karaktärsrutan, lika bred */
-.stats-popup{
-  position:fixed;z-index:60;display:none;
-  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
-  border:1px solid var(--border-glow);border-radius:var(--radius);
-  padding:12px;box-shadow:0 16px 44px rgba(0,0,0,.6);
-}
-.stats-popup.open{display:block}
-.stats-popup .sp-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;margin-bottom:8px}
-.stats-popup .key-stats{grid-template-columns:1fr 1fr}
-.stats-popup .sp-empty{font-size:11px;color:var(--text-dim);text-align:center;padding:12px 8px;background:var(--bg-inset);border:1px dashed var(--border-soft);border-radius:var(--radius-sm)}
-.stats-popup .sp-note{font-size:9px;color:var(--text-faint);margin-top:8px;text-align:center}
-.key-stat{display:flex;justify-content:space-between;align-items:center;font-size:11px}
-.key-stat .k{color:var(--text-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
-.key-stat .v{font-family:var(--font-mono);font-weight:800}
 .btn-ghost{
   border:1px solid var(--cyan-dim);background:transparent;color:var(--cyan);
   border-radius:99px;padding:6px 14px;font-size:10px;letter-spacing:.1em;
@@ -1407,7 +1404,6 @@ body.modal-open{overflow:hidden}
           <div class="char-portrait">🥷
             <div class="cp-badge" id="cp-badge">CP <b>0</b></div>
             <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">0 HP</span></div>
-            <button class="btn-ghost char-stats-btn" id="view-stats-btn">View Stats</button>
           </div>
           <div class="equip-col">
             <div class="equip-slot" data-slot="3" title="Gloves">🧤</div>
@@ -1419,6 +1415,11 @@ body.modal-open{overflow:hidden}
         </div>
         <div class="transport-row">
           <div class="equip-slot transport-slot" title="Transport — mounts, rides and stranger things">🐎</div>
+        </div>
+        <div class="char-stats">
+          <div class="cs-title">Stats</div>
+          <div class="cs-cp"><span>Combat Power</span><b id="cs-cp">0</b></div>
+          <div class="cs-rows" id="cs-rows"></div>
         </div>
       </section>
 
@@ -1631,14 +1632,6 @@ body.modal-open{overflow:hidden}
     </div>
   </main>
 
-  <!-- ================= STATS-POPUP ================= -->
-  <div class="stats-popup" id="stats-popup">
-    <div class="sp-title">All Stats</div>
-    <div class="key-stats" id="stats-list"></div>
-    <div class="sp-empty" id="stats-empty">No stats yet</div>
-    <div class="sp-note">Stats appear here as gear, pets and abilities arrive.</div>
-  </div>
-
   <!-- ================= INVENTARIET ================= -->
   <div class="modal-overlay" id="inv-overlay">
     <div class="modal inv-modal">
@@ -1809,7 +1802,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.29.0 — VÄRLDEN VAKNAR</div>
+            <div class="desc">GENESIS v0.30.0 — STATS I RAMEN</div>
           </div>
         </div>
       </div>
@@ -1835,7 +1828,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.29.0 — VÄRLDEN VAKNAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.30.0 — STATS I RAMEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2807,6 +2800,31 @@ function renderEquip(){
   const hp = totalHP();
   if (hf) hf.style.width = (hp > 0 ? 100 : 0) + '%';
   if (ht) ht.textContent = fmt(hp) + ' HP';
+  renderCharStats();
+}
+/* Statsraderna. Varje värde räknas ur de system som FINNS: utrustning, husdjur,
+   rykte. Inga påhittade rader — listan växer av sig själv när nya källor byggs. */
+function charStatRows(){
+  const pct = v => (v > 0 ? '+' : '') + (Math.round(v * 100) / 100) + '%';
+  return [
+    ['HP', fmt(totalHP())],
+    ['Crit Chance', pct(gearBonus('crit'))],
+    ['Idle Data', pct(gearBonus('idle') + petBonusPct('prod'))],
+    ['Tap Power', pct(gearBonus('tap'))],
+    ['Fragment Find', pct(gearBonus('frag') + petBonusPct('frag'))],
+    ['Loot Luck', pct(gearBonus('luck'))],
+    ['XP Bonus', pct(gearBonus('xp') + petBonusPct('xp'))],
+    ['Offline Earnings', pct(gearBonus('offline') + petBonusPct('offline'))],
+    ['Travel Cost', '−' + (Math.round(gearBonus('travel') * 100) / 100) + '%'],
+    ['Scan Time', '−' + (Math.round(gearBonus('scan') * 100) / 100) + '%'],
+    ['Region Rep', '+' + (2 * repRank()) + '% production']
+  ];
+}
+function renderCharStats(){
+  const el1 = $('cs-cp'), el2 = $('cs-rows');
+  if (!el1) return;
+  el1.textContent = fmt(totalCP());
+  el2.innerHTML = charStatRows().map(r => '<div class="cs-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>').join('');
 }
 function affLine(x){
   const a = AFFIXES[x.k];
@@ -3508,7 +3526,7 @@ function updateUI(force){
   refreshPremiumOffline();
   /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
      och tätare ritning river knappar under fingret på mobil. */
-  if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); }
+  if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); }
 
   if (S.world.travel){
     travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
@@ -4873,34 +4891,6 @@ function refreshRegionUI(){
   el.regionThumb.textContent = R.name.toUpperCase();
   el.currentZone.textContent = S.world.zone || 'No zone entered';
 }
-
-/* ---------- STATSPOPUPEN ---------- */
-const statsPopup = $('stats-popup');
-const statsBtn = $('view-stats-btn');
-/* Listan är tom tills utrustning/husdjur/förmågor finns. Varje post: {k:etikett, v:()=>värde} */
-const CHAR_STATS = [];
-function renderStats(){
-  const list = $('stats-list'), empty = $('stats-empty');
-  list.innerHTML = CHAR_STATS.map(s => '<div class="key-stat"><span class="k">' + s.k + '</span><span class="v">' + s.v() + '</span></div>').join('');
-  const has = CHAR_STATS.length > 0;
-  list.style.display = has ? '' : 'none';
-  empty.style.display = has ? 'none' : '';
-}
-function toggleStatsPopup(){
-  if (statsPopup.classList.contains('open')){ statsPopup.classList.remove('open'); return; }
-  renderStats();
-  const panel = document.getElementById('panel-character');
-  const r = panel.getBoundingClientRect();
-  statsPopup.style.left = r.left + 'px';
-  statsPopup.style.top = (r.bottom + 6) + 'px';
-  statsPopup.style.width = r.width + 'px';
-  statsPopup.classList.add('open');
-}
-statsBtn.addEventListener('click', e => { e.stopPropagation(); toggleStatsPopup(); });
-document.addEventListener('click', e => {
-  if (statsPopup.classList.contains('open') && !statsPopup.contains(e.target)) statsPopup.classList.remove('open');
-});
-window.addEventListener('scroll', () => statsPopup.classList.remove('open'), true);
 
 /* ---------- INSTÄLLNINGAR ---------- */
 const overlay = $('settings-overlay');
