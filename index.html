@@ -342,6 +342,13 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   background:rgba(56,232,255,.07);
 }
 .vg-note.away{color:var(--orange);border-color:rgba(255,160,60,.45);background:rgba(255,160,60,.07)}
+.vg-clock{
+  float:right;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;
+  color:var(--cyan);text-transform:none;
+}
+.trader-row.sold{opacity:.55}
+.trader-row.sold .tr-name{color:var(--text-dim)}
+.vg-art.empty{border-style:dashed;border-color:var(--border-soft);box-shadow:none;background-color:rgba(0,0,0,.25)}
 .gear-tip{
   /* Över ALLA flytande fönster — den är en förhandstitt, aldrig något man klickar på,
      så den kan ligga högst utan att stjäla något. */
@@ -1961,7 +1968,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.44.0 — YTTERSTA BODEN</div>
+            <div class="desc">GENESIS v0.45.0 — PÅFYLLNINGEN</div>
           </div>
         </div>
       </div>
@@ -1987,7 +1994,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.44.0 — YTTERSTA BODEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.45.0 — PÅFYLLNINGEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2314,6 +2321,7 @@ let S = {
   pets: {owned: [], active: null, seq: 1},
   equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
+  vend: {},                     // handlarnas lager per region + deras klockor
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -2383,6 +2391,21 @@ function load(){
       S.cells = Math.max(0, Math.floor(+d.cells) || 0);
       /* Gamla sparfiler har tre flaggor — de två nya låsen läggs till som låsta. */
       S.bags = [0, 1, 2, 3, 4].map(i => Array.isArray(d.bags) ? !!d.bags[i] : false);
+      /* Lagret överlever en omstart, men bara det som fortfarande är giltigt:
+         okända saker, otillåtna rariteter och allt över epic slängs hellre än att
+         återuppstå som något spelet inte känner igen. */
+      S.vend = {};
+      if (d.vend && typeof d.vend === 'object'){
+        Object.keys(d.vend).forEach(id => {
+          const v = d.vend[id];
+          if (!REGIONS[id] || !v || !Array.isArray(v.stock) || !(+v.next > 0)) return;
+          const stock = v.stock.filter(x => x && ITEMS[x.k] && (x.r | 0) <= VENDOR_MAX_RAR &&
+                                            ITEMS[x.k].rars.indexOf(x.r | 0) >= 0)
+            .slice(0, VENDOR_SLOTS)
+            .map(x => ({k: x.k, r: x.r | 0, sold: !!x.sold}));
+          if (stock.length === VENDOR_SLOTS) S.vend[id] = {stock: stock, next: +v.next};
+        });
+      }
       if (d.research && REGIONS[d.research.region] && +d.research.eta > 0)
         S.research = {region: d.research.region, eta: +d.research.eta};
       const readGear = g => {
@@ -4002,6 +4025,9 @@ function loopBody(now){
   // så stängd flik ger ingenting. Det är regeln, inte en brist.
   if (S.fuel < fuelMax()) addFuel(FUEL_REGEN_PER_MIN * dt / 60);
 
+  // Handlarens klocka: bara när man faktiskt tittar på en handelsbod
+  tickVendorClock();
+
   // Forskningsdrönarna
   checkResearch();
 
@@ -4766,7 +4792,10 @@ function renderMap(){
 
 /* --- Regionmodalen --- */
 const regionOverlay = $('region-overlay');
-function closeRegion(){ regionOverlay.classList.remove('open'); }
+/* Vilken zonruta som står öppen — behövs för att klockan ska kunna ticka och för
+   att kortet ska rita om sig själv i samma sekund som lagret fylls på. */
+let openZoneRef = null;
+function closeRegion(){ regionOverlay.classList.remove('open'); openZoneRef = null; }
 $('region-close').addEventListener('click', closeRegion);
 regionOverlay.addEventListener('click', e => { if (e.target === regionOverlay) closeRegion(); });
 
@@ -4840,6 +4869,7 @@ function openZone(regionId, zi, keepNote){
   const zone = R.zones[zi];
   if (!zone) return;
   if (!keepNote) vendorNote = '';
+  openZoneRef = {region: regionId, zi: zi, zone: zone};
   $('region-title').textContent = zone;
   const zd = zoneDesig(regionId, zone);
   const di = desigInfo(zd);
@@ -4910,28 +4940,61 @@ function vendorGearPrice(rarIdx, regionId){
   const stars = regionId ? repRank(regionId) : 0;
   return Math.max(floor, Math.round(base * (1 - 0.03 * stars)));
 }
-const VENDOR_GEAR = {
-  0: [{k:'runners_boots', r:0}, {k:'ring_signal_ring', r:0}, {k:'runners_dagger', r:0},
-      {k:'runners_cap', r:0}, {k:'runners_vest', r:0}],
-  1: [{k:'runners_gloves', r:0}, {k:'runners_trousers', r:0}, {k:'offhand_wooden_shield', r:0},
-      {k:'waist_signal_belt', r:1}, {k:'neck_circuit_pendant', r:1}],
-  /* Längre ut stiger sortimentet ett halvt steg per ring, och det är fyra saker i
-     stället för fem: grundplåten ska hjälpa, inte ersätta dropparna. Sakerna är
-     valda så att INGEN upprepas från en tidigare ring och alla fyra nya platser
-     får något att köpa. */
-  2: [{k:'neck_signal_tag', r:1}, {k:'ring_circuit_band', r:1},
-      {k:'offhand_deck_slate', r:1}, {k:'waist_runners_belt', r:2}],
-  3: [{k:'neck_runners_sleeve', r:1}, {k:'waist_circuit_sash', r:1},
-      {k:'ring_runners_band', r:2}, {k:'offhand_street_buckler', r:2}],
-  /* Frontiären: kristallsakerna, som ändå aldrig finns i låga steg — och spelets
-     första köpbara epic. Dyrt, men det är också sista boden före världens rand. */
-  4: [{k:'ring_crystal_ring', r:2}, {k:'neck_crystal_amulet', r:2},
-      {k:'offhand_arc_torch', r:2}, {k:'waist_plated_sash', r:3}]
+/* ---------- SORTIMENTET FYLLS PÅ ----------
+   Handlaren har inte en hylla utan ett LAGER som byts ut varje timme. Vad som
+   ligger där rullas precis som ett expeditionsfynd i just den regionen: hemma är
+   det nästan alltid vanligt, längst ut är det ofta riktigt bra. Skillnaden mot
+   dropparna: legendary och mythic går ALDRIG att köpa — dem måste man hitta —
+   och en handlare har aldrig mer än en epic åt gången.
+   Hemmaboden har dessutom tre FASTA commonpjäser som alltid finns, så att ingen
+   nybörjare kan bli utan startplåt på grund av otur. */
+const RESTOCK_MS = 60 * 60 * 1000;
+const VENDOR_SLOTS = 4;
+const VENDOR_MAX_RAR = 3;        // epic är taket, aldrig legendary eller mythic
+const VENDOR_FIXED = {
+  0: [{k:'runners_cap', r:0}, {k:'runners_vest', r:0}, {k:'runners_boots', r:0}]
 };
-function vendorStock(regionId){
+function vendorFixed(regionId){
   const R = REGIONS[regionId];
-  return (R && VENDOR_GEAR[R.tier]) || [];
+  return (R && VENDOR_FIXED[R.tier]) || [];
 }
+/* Vikterna är regionens egna, men avkapade vid epic och omräknade — annars hade
+   det bara blivit färre saker i lagret när en legendary rullades bort. */
+function vendorWeights(regionId){
+  return gearWeightsFor(regionId).slice(0, VENDOR_MAX_RAR + 1);
+}
+function rollVendorStock(regionId){
+  const w = vendorWeights(regionId);
+  const out = [];
+  let epics = 0;
+  for (let i = 0; i < VENDOR_SLOTS; i++){
+    let r = rollRarity(w, Math.random());
+    /* Taket på en epic per påfyllning: nästa epic blir en rare i stället. Utan
+       den här raden har frontiärens handlare ofta tre epic samtidigt. */
+    if (r === 3){ if (epics >= 1) r = 2; else epics++; }
+    out.push({k: pickItemKey(r), r: r, sold: false});
+  }
+  return out;
+}
+/* Lagret rullas när någon TITTAR, inte i bakgrunden: femton regioner behöver
+   ingen klocka var för sig i loopen, och tiden räknas ändå på absoluta
+   tidsstämplar — precis som expeditionerna — så en stängd flik gör ingen skillnad.
+   Har du varit borta i fem timmar får du ETT nytt lager, inte fem. */
+function vendorState(regionId){
+  if (!S.vend) S.vend = {};
+  let v = S.vend[regionId];
+  const now = Date.now();
+  if (!v || !Array.isArray(v.stock) || !(v.next > 0) || now >= v.next){
+    v = {stock: rollVendorStock(regionId), next: now + RESTOCK_MS};
+    S.vend[regionId] = v;
+    save();
+  }
+  return v;
+}
+function vendorRestockIn(regionId){
+  return Math.max(0, Math.round((vendorState(regionId).next - Date.now()) / 1000));
+}
+function vendorStock(regionId){ return vendorState(regionId).stock; }
 let vendorNote = '';
 /* Man handlar där man STÅR. Kartan låter dig titta in i vilken handelsbod som
    helst i världen, och utan den här kontrollen kunde du köpa i Glass Ocean medan
@@ -4939,14 +5002,24 @@ let vendorNote = '';
 function atVendor(regionId){
   return S.world.current === regionId && S.world.zone === TRADE_ZONE && !S.world.travel;
 }
+/* Fasta pjäserna har negativa nummer, rullade har 0 och uppåt — då kan en och
+   samma knapp hantera båda utan att listorna kan förväxlas. */
+function vendorEntry(regionId, i){
+  if (i < 0){ const f = vendorFixed(regionId)[-i - 1]; return f ? {k: f.k, r: f.r, fixed: true} : null; }
+  const s = vendorStock(regionId)[i];
+  return (s && !s.sold) ? s : null;
+}
 function buyVendorGear(regionId, i){
-  const stock = vendorStock(regionId)[i];
+  const stock = vendorEntry(regionId, i);
   if (!stock) return false;
   if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
   const price = vendorGearPrice(stock.r, regionId);
   if (S.gold < price){ vendorNote = 'Not enough money — you need ' + moneyText(price - S.gold) + ' more.'; return false; }
   const free = invFirstFree();
   if (free < 0){ vendorNote = 'Your backpack is full — nothing was bought.'; return false; }
+  /* Det som köps ur lagret fylls INTE på förrän klockan går ut — annars vore
+     nedräkningen meningslös och en bra pjäs oändlig. De fasta tre är undantaget. */
+  if (!stock.fixed) stock.sold = true;
   const it = rollItem(stock.k, stock.r);
   it.src = 'Bought in ' + REGIONS[regionId].name;
   S.inv[free] = {gear: it};
@@ -4971,23 +5044,32 @@ function buildTrader(regionId){
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
     btn('Buy — ' + moneyText(price), ' id="trader-buy"', here && canPay) +
     '</div></div>';
-  const stock = vendorStock(regionId);
-  if (stock.length){
-    h += '<div class="section-label">Gear in stock</div>';
-    if (vendorNote) h += '<div class="vg-note">' + vendorNote + '</div>';
-    h += stock.map((s, i) => {
-      const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId);
-      const full = vendorGearPrice(s.r);
-      return '<div class="trader-row" style="--rc:' + rarCol(s.r) + '">' +
-        '<div class="tr-item"><span class="vg-art" style="background-image:url(\'' + itemArtFor(s.k, s.r) + '\')"></span>' +
-        '<div><div class="tr-name" style="color:var(--rc)">' + D.name + '</div>' +
-        '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + ' · rolled when you buy it</div></div></div>' +
-        '<div class="tr-buy">' +
-        (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + moneyText(full - p) + ' off</div>' : '') +
-        btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', here && S.gold >= p) +
-        '</div></div>';
-    }).join('');
+  const row = (s, i) => {
+    const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId);
+    const full = vendorGearPrice(s.r);
+    return '<div class="trader-row" style="--rc:' + rarCol(s.r) + '">' +
+      '<div class="tr-item"><span class="vg-art" style="background-image:url(\'' + itemArtFor(s.k, s.r) + '\')"></span>' +
+      '<div><div class="tr-name" style="color:var(--rc)">' + D.name + '</div>' +
+      '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name +
+        (s.fixed ? ' · always in stock' : ' · rolled when you buy it') + '</div></div></div>' +
+      '<div class="tr-buy">' +
+      (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + moneyText(full - p) + ' off</div>' : '') +
+      btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', here && S.gold >= p) +
+      '</div></div>';
+  };
+  const fixed = vendorFixed(regionId);
+  if (fixed.length){
+    h += '<div class="section-label">Always in stock</div>';
+    h += fixed.map((s, i) => row({k: s.k, r: s.r, fixed: true}, -i - 1)).join('');
   }
+  const stock = vendorStock(regionId);
+  h += '<div class="section-label">Today\'s stock <span class="vg-clock" id="vendor-clock">restock in ' +
+       fmtDur(vendorRestockIn(regionId)) + '</span></div>';
+  if (vendorNote) h += '<div class="vg-note">' + vendorNote + '</div>';
+  h += stock.map((s, i) => s.sold
+    ? '<div class="trader-row sold"><div class="tr-item"><span class="vg-art empty"></span>' +
+      '<div><div class="tr-name">Sold out</div><div class="tr-sub">Restocks when the clock runs out</div></div></div></div>'
+    : row(s, i)).join('');
   return h;
 }
 function buyCell(regionId){
@@ -5073,6 +5155,17 @@ function startResearch(id){
   grantXP(20);
   save();
   openRegion(id);
+}
+/* Klockan uppdateras i den befintliga loopen i stället för med en egen timer, så
+   den kan aldrig leva vidare efter att rutan stängts. Går tiden ut medan du står
+   och tittar ritas hela kortet om — nytt lager, direkt framför ögonen. */
+function tickVendorClock(){
+  if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
+  if (openZoneRef.zone !== TRADE_ZONE) return;
+  const id = openZoneRef.region, v = S.vend && S.vend[id];
+  if (v && Date.now() >= v.next){ openZone(id, openZoneRef.zi); return; }
+  const el = $('vendor-clock');
+  if (el) el.textContent = 'restock in ' + fmtDur(vendorRestockIn(id));
 }
 function checkResearch(){
   if (!S.research || Date.now() < S.research.eta) return;
