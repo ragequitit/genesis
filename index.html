@@ -120,6 +120,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   flex-direction:column;justify-content:center;gap:1px;
 }
 .hpanel .res-pill .res-icon{font-size:13px}
+/* Pengarutan bär tre valörer och blev trång på 72px — den enda som får vara bredare. */
+.hpanel .res-pill[data-color="gold"]{width:96px}
 .hpanel .nav-btn{
   border:1px solid var(--border);background:var(--bg-inset);
   border-radius:9px;padding:4px 3px;
@@ -240,7 +242,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .bag-btn:hover{border-color:var(--cyan);box-shadow:0 0 12px -3px var(--cyan)}
 .hp-wrap{position:absolute;left:10px;right:10px;bottom:38px;display:flex;align-items:center;gap:6px}
 .hp-bar{flex:1;height:7px;border-radius:99px;background:rgba(4,7,16,.8);border:1px solid var(--border-soft);overflow:hidden}
-.hp-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#2ecc71,#7bffb0)}
+.hp-fill{height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#2ecc71,#7bffb0)}
 .hp-txt{font-family:var(--font-mono);font-size:9px;color:#9fe8bd;text-shadow:0 0 6px rgba(0,0,0,.9)}
 /* Karaktärspanelen i två spalter: utrustning till vänster, stats till höger.
    Vänstersidan är ihoptryckt så statsen får en egen pelare. */
@@ -413,9 +415,10 @@ body.dragging *{cursor:grabbing !important}
 .item-affs .af{font-family:var(--font-mono);color:var(--cyan)}
 .item-affs .af.dn{color:#7bffb0}
 .item-cmp{display:flex;flex-direction:column;gap:2px;margin-bottom:12px;font-size:11px;font-family:var(--font-mono)}
-.gc-row{padding:1px 0}
+.gc-row{padding:1px 0;color:var(--text)}
 .gc-up{color:#4ade80}
 .gc-dn{color:#ff6b74}
+.gc-row b{font-family:var(--font-mono)}
 .gc-cp{margin-top:4px;border-top:1px solid var(--border-soft);padding-top:5px;font-weight:800}
 .item-actions{display:flex;flex-direction:column;gap:6px}
 .item-actions button{
@@ -1395,6 +1398,10 @@ body.modal-open{overflow:hidden}
   background:linear-gradient(180deg, rgba(30,40,84,.6), rgba(14,19,42,.6));
 }
 .inv-bagslot.locked{opacity:.65;filter:grayscale(.4);cursor:pointer}
+.inv-bagslot.has{border-color:var(--rc,var(--border-glow));box-shadow:inset 0 0 0 1px var(--rc,transparent), 0 0 10px -3px var(--rc,transparent);opacity:1}
+.bs-img{width:100%;height:100%;background-size:contain;background-repeat:no-repeat;background-position:center}
+.inv-bagslot.drop-ok{border-color:var(--cyan);opacity:1}
+.inv-bagslot.drop-hot{border-color:var(--cyan);box-shadow:0 0 14px -2px var(--cyan)}
 .inv-bagslot.locked:hover{opacity:1;border-color:var(--cyan)}
 .bag-tip{
   position:fixed;z-index:9000;display:none;width:200px;pointer-events:none;
@@ -1577,7 +1584,7 @@ body.modal-open{overflow:hidden}
           </div>
           <div class="char-portrait">🥷
             <button class="bag-btn" id="bag-btn" title="Open inventory">🎒</button>
-            <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">0 HP</span></div>
+            <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">100 HP</span></div>
           </div>
           <div class="equip-col">
             <div class="equip-slot" data-slot="3" title="Gloves"><i class="slot-bg" style="background-image:url('assets/slots/slot_hands.png')"></i></div>
@@ -1588,7 +1595,7 @@ body.modal-open{overflow:hidden}
           </div>
         </div>
         <div class="transport-row">
-          <div class="equip-slot transport-slot" title="Transport — mounts, rides and stranger things"><i class="slot-bg" style="background-image:url('assets/slots/slot_transport.png')"></i></div>
+          <div class="equip-slot transport-slot" data-slot="11" title="Transport — mounts, rides and stranger things"><i class="slot-bg" style="background-image:url('assets/slots/slot_transport.png')"></i></div>
         </div>
         <div class="char-stats-cell">
         <div class="char-stats">
@@ -1968,7 +1975,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.46.0 — FEM TIMMAR</div>
+            <div class="desc">GENESIS v0.48.0 — TRANSPORTEN</div>
           </div>
         </div>
       </div>
@@ -1994,7 +2001,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.46.0 — FEM TIMMAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.48.0 — TRANSPORTEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2097,7 +2104,9 @@ const GEAR_SLOTS = [
   {id:'neck',    name:'Neck'},
   {id:'waist',   name:'Waist'},
   {id:'ring',    name:'Ring'},
-  {id:'offhand', name:'Off Hand'}
+  {id:'offhand', name:'Off Hand'},
+  {id:'bag',       name:'Bag'},
+  {id:'transport', name:'Transport'}
 ];
 const GEAR_RAR = [
   {id:'common',    name:'Common',    file:'common',    aff:1, mult:1,    gold:[GOLD(9), GOLD(14)]},
@@ -2124,6 +2133,10 @@ const AFFIXES = {
 };
 const AFFIX_KEYS = Object.keys(AFFIXES);
 const GEAR_HP_BASE = 24;          // hälsa per pjäs vid Common, före rullning
+/* Karaktären har ALLTID hälsa: 100 från början, och utrustningen bygger på uppåt.
+   Noll hälsa vore ett dött läge — en spelare som just börjat ska inte se en tom
+   mätare. */
+const BASE_HP = 100;
 /* ---------- FÖREMÅLSKATALOGEN ----------
    Varje sak i spelet står här EN gång, med sin plats, sin konst och de rariteter
    den över huvud taget kan finnas i. Det sista är nytt mot Runner's: en järnring
@@ -2166,6 +2179,26 @@ defItem('offhand_arc_torch',      'Arc Torch',      9, 'assets/gear/offhands/off
 defItem('offhand_drone_cradle',   'Drone Cradle',   9, 'assets/gear/offhands/offhand_drone_cradle.png',   LOW);
 defItem('offhand_wooden_shield',  'Wooden Shield',  9, 'assets/gear/offhands/offhand_wooden_shield.png',  [0]);
 defItem('offhand_coil_battery',   'Coil Battery',   9, 'assets/gear/offhands/offhand_coil_battery.png',   HIGH);
+/* Väskorna. Storleken SITTER i saken: en fyrafacksväska är alltid common, en
+   åttafacks alltid rare — därför har varje väska exakt ETT raritetssteg. De rullar
+   inga egenskaper och ingen hälsa; deras värde är platserna de ger, och det är
+   ärligare än att hänga en tapp bonus på en ryggsäck. */
+function defBag(key, name, rar, slots){
+  ITEMS[key] = {key: key, name: name, slot: 10, art: 'assets/gear/bags/' + key + '.png',
+                rars: [rar], bag: slots};
+}
+defBag('bag_field_pouch',     'Field Pouch',      0, 4);
+defBag('bag_utility_case',    'Utility Case',     0, 4);
+defBag('bag_courier_satchel', 'Courier Satchel',  1, 6);
+defBag('bag_hauler_crate',    'Hauler Crate',     1, 6);
+defBag('bag_runners_pack',    "Runner's Pack",    2, 8);
+defBag('bag_vault_crate',     'Vault Crate',      2, 8);
+/* Transporten. Alla sex finns i alla sex raritetssteg, och de rullar egenskaper
+   och hälsa precis som kroppens pjäser — det här är en riktig utrustningsplats,
+   inte en behållare som väskorna. */
+[['streetblade', 'Streetblade'], ['hoverdeck', 'Hoverdeck'], ['sky_lance', 'Sky Lance'],
+ ['wavecutter', 'Wavecutter'], ['slipstream', 'Slipstream'], ['prowler', 'Prowler']]
+  .forEach(m => defItem('transport_' + m[0], m[1], 11, 'assets/gear/transport/transport_' + m[0] + '.png', ALL_RAR));
 /* Uppslagning: vilka saker kan falla på plats X i raritet Y. Byggs en gång. */
 const ITEMS_BY = [];
 (function indexItems(){
@@ -2178,11 +2211,19 @@ const ITEMS_BY = [];
 const RUNNERS_BY_SLOT = {0:'runners_cap', 1:'runners_vest', 2:'runners_trousers', 3:'runners_gloves', 4:'runners_boots', 5:'runners_dagger'};
 /* Droppen väljer FÖRST plats, sedan sak. Så blir varje kroppsdel lika trolig att
    få något — hade vi lottat bland alla saker rakt av skulle ringar och halsband
-   falla fem gånger oftare än vapen, bara för att de är fler i katalogen. */
+   falla fem gånger oftare än vapen, bara för att de är fler i katalogen.
+   VÄSKOR OCH TRANSPORT väger en tredjedel: man bär en enda transport och har fem
+   väskfack, och båda sitter kvar för alltid. Med full vikt hade man haft allt man
+   behövde efter en kväll. Nu är de fynd. */
+const LIGHT_SLOTS = {bag: 1 / 3, transport: 1 / 3};
 function pickItemKey(rarIdx){
-  const slots = [];
-  for (let s = 0; s < GEAR_SLOTS.length; s++) if (ITEMS_BY[s][rarIdx].length) slots.push(s);
-  const s = slots[Math.floor(Math.random() * slots.length)];
+  const slots = [], weights = [];
+  for (let s = 0; s < GEAR_SLOTS.length; s++){
+    if (!ITEMS_BY[s][rarIdx].length) continue;
+    slots.push(s);
+    weights.push(LIGHT_SLOTS[GEAR_SLOTS[s].id] || 1);
+  }
+  const s = slots[rollRarity(weights, Math.random())];
   const list = ITEMS_BY[s][rarIdx];
   return list[Math.floor(Math.random() * list.length)];
 }
@@ -2198,6 +2239,12 @@ function rarCol(rarIdx){ return 'var(--rarity-' + GEAR_RAR[rarIdx].id.replace('m
 function rollItem(key, rarIdx){
   const D = ITEMS[key], R = GEAR_RAR[rarIdx];
   if (!D) return null;
+  /* En väska rullar bara sitt pris. Inga egenskaper, ingen hälsa, ingen combat
+     power — den bär saker, den slåss inte. */
+  if (D.bag){
+    return {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: [], hp: 0,
+            g: Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]))};
+  }
   const pool = AFFIX_KEYS.slice();
   const affs = [];
   for (let i = 0; i < R.aff && pool.length; i++){
@@ -2251,7 +2298,7 @@ function gearCP(it){
 }
 function equippedList(){ return GEAR_SLOTS.map((_, i) => S.equip[i] || null); }
 function totalCP(){ return equippedList().reduce((s, it) => s + (it ? gearCP(it) : 0), 0); }
-function totalHP(){ return equippedList().reduce((s, it) => s + (it ? it.hp : 0), 0); }
+function totalHP(){ return BASE_HP + equippedList().reduce((s, it) => s + (it ? it.hp : 0), 0); }
 function gearBonus(key){
   let v = 0;
   equippedList().forEach(it => { if (it) it.a.forEach(x => { if (x.k === key) v += x.v; }); });
@@ -2321,6 +2368,7 @@ let S = {
   pets: {owned: [], active: null, seq: 1},
   equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
+  bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
   vend: {},                     // handlarnas lager per region + deras klockor
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
@@ -2409,7 +2457,11 @@ function load(){
       if (d.research && REGIONS[d.research.region] && +d.research.eta > 0)
         S.research = {region: d.research.region, eta: +d.research.eta};
       const readGear = g => {
-        if (!g || !GEAR_RAR[g.r] || !(+g.hp > 0)) return null;
+        /* Väskor har noll hälsa och det är rätt — kravet på hälsa gäller bara
+           pjäser som faktiskt bär hälsa. */
+        if (!g || !GEAR_RAR[g.r]) return null;
+        const isBag = typeof g.t === 'string' && ITEMS[g.t] && ITEMS[g.t].bag;
+        if (!isBag && !(+g.hp > 0)) return null;
         /* Pjäser från tiden före katalogen bär bara ett platsnummer — de var alltid
            Runner's, så de får sin rätta identitet här i stället för att kastas. */
         let t = (typeof g.t === 'string' && ITEMS[g.t]) ? g.t : RUNNERS_BY_SLOT[g.s | 0];
@@ -2420,10 +2472,18 @@ function load(){
         const raw = moneyOld ? Math.round(+g.g * COPPER_PER_GOLD) : Math.round(+g.g);
         const gold = (raw >= rr.gold[0] && raw <= rr.gold[1]) ? raw
           : Math.round((rr.gold[0] + rr.gold[1]) / 2);
-        const out = {uid: Math.max(1, Math.floor(+g.uid) || S.gearSeq++), t: t, s: ITEMS[t].slot, r: g.r | 0, a: a, hp: Math.round(+g.hp), g: gold};
+        const out = {uid: Math.max(1, Math.floor(+g.uid) || S.gearSeq++), t: t, s: ITEMS[t].slot, r: g.r | 0,
+                     a: ITEMS[t].bag ? [] : a, hp: ITEMS[t].bag ? 0 : Math.round(+g.hp), g: gold};
         if (typeof g.src === 'string' && g.src.length < 80) out.src = g.src;
         return out;
       };
+      /* MÅSTE stå EFTER readGear — den läses här. Deklarationen ligger längre ned
+         i blocket, och läses den för tidigt kastar laddningen ett tyst fel som
+         tar hela sparfilen med sig. Samma fälla som moneyV gick i. */
+      S.bagItems = [0, 1, 2, 3, 4].map(i => {
+        const g = Array.isArray(d.bagItems) ? readGear(d.bagItems[i]) : null;
+        return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.bags[i]) ? g : null;
+      });
       if (d.equip && typeof d.equip === 'object'){
         for (const k of Object.keys(d.equip)){
           const it = readGear(d.equip[k]);
@@ -3085,8 +3145,8 @@ const INV_BASE_SLOTS = 20;
    kodgräv. De två första köps för GULD (ett tidigt mål man kan spara till), de tre
    sista för credits. Ingen ny valuta skapas — båda finns redan. */
 const BAG_SLOTS = [
-  {cur: 'gold',    cost: GOLD(150)},
-  {cur: 'gold',    cost: GOLD(500)},
+  {cur: 'gold',    cost: GOLD(25)},
+  {cur: 'gold',    cost: GOLD(50)},
   {cur: 'credits', cost: 75},
   {cur: 'credits', cost: 150},
   {cur: 'credits', cost: 300}
@@ -3107,7 +3167,73 @@ function unlockBag(i){
   renderInventory(); renderPremiumBags(); updateUI(true); save();
   return true;
 }
-function invSlots(){ return INV_BASE_SLOTS; }   // + väskor/uppgraderingar i framtiden
+/* Väskorna i facken lägger till sina platser. Facket måste vara upplåst för att
+   kunna bära något, så en låst plats kan aldrig smyga in extrautrymme. */
+function bagIn(i){ return (S.bagItems && S.bagItems[i]) || null; }
+function bagSlotsFrom(){
+  let n = 0;
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    const b = bagIn(i);
+    if (b && bagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag) n += ITEMS[b.t].bag;
+  }
+  return n;
+}
+function invSlots(){ return INV_BASE_SLOTS + bagSlotsFrom(); }
+/* Att ta ur en väska krymper ryggsäcken. Saker som skulle hamna utanför flyttas
+   ned i lediga rutor först — och finns det inte plats nekas hela bytet, hellre än
+   att något tyst försvinner. */
+function equipBag(invIdx, socket){
+  const row = S.inv[invIdx];
+  if (!row || !row.gear || !ITEMS[row.gear.t] || !ITEMS[row.gear.t].bag) return false;
+  if (!bagUnlocked(socket)) return false;
+  const old = bagIn(socket);
+  S.inv[invIdx] = old ? {gear: old} : null;
+  S.bagItems[socket] = row.gear;
+  if (!fitAfterResize()){          // det gamla var större än det nya
+    S.bagItems[socket] = old;
+    S.inv[invIdx] = row;
+    invNormalize();
+    return false;
+  }
+  renderInventory(); updateUI(true); save();
+  return true;
+}
+function unequipBag(socket, toIdx){
+  const b = bagIn(socket);
+  if (!b) return false;
+  S.bagItems[socket] = null;
+  /* Ordningen är avgörande: krymp FÖRST, leta ruta SEDAN. Räknades rutan ut i den
+     gamla storleken kunde den hunnit fyllas av något som flyttats ned — och då
+     skrev väskan över det. Ett föremål som tyst försvinner är det värsta av allt. */
+  if (!fitAfterResize(1)){            // en ruta måste bli över åt väskan själv
+    S.bagItems[socket] = b;
+    invNormalize();
+    return false;
+  }
+  const at = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx]) ? toIdx : invFirstFree();
+  if (at < 0){
+    S.bagItems[socket] = b;
+    invNormalize();
+    return false;
+  }
+  S.inv[at] = {gear: b};
+  renderInventory(); updateUI(true); save();
+  return true;
+}
+/* Flyttar ned allt som ligger utanför den nya storleken. Returnerar false om det
+   inte gick — då har ingenting ändrats, för anroparen backar bytet. */
+function fitAfterResize(reserve){
+  const cap = invSlots();
+  const spill = [];
+  for (let i = cap; i < S.inv.length; i++) if (S.inv[i]) spill.push(S.inv[i]);
+  let free = 0;
+  for (let i = 0; i < cap; i++) if (!S.inv[i]) free++;
+  if (free < spill.length + (reserve || 0)) return false;
+  for (let i = cap; i < S.inv.length; i++) S.inv[i] = null;
+  spill.forEach(it => { const f = invFirstFree(); if (f >= 0) S.inv[f] = it; });
+  invNormalize();
+  return true;
+}
 /* Ryggsäcken är PLATSBASERAD: en lista lika lång som antalet rutor, där tomma
    rutor är null. Det är vad som gör att du själv kan bestämma var saker ligger —
    en packad lista skulle alltid trycka ihop sig igen. */
@@ -3167,17 +3293,16 @@ function renderEquip(){
       el.classList.remove('has');
       el.style.removeProperty('--rc');
       /* Siluetten återställs i stället för en emoji — rutan ska aldrig bli tom. */
-      const art = {0:'head',1:'chest',2:'legs',3:'hands',4:'feet',5:'weapon',6:'neck',7:'waist',8:'ring',9:'offhand'}[i];
+      const art = {0:'head',1:'chest',2:'legs',3:'hands',4:'feet',5:'weapon',6:'neck',7:'waist',8:'ring',9:'offhand',11:'transport'}[i];
       el.title = GEAR_SLOTS[i].name;
       el.innerHTML = '<i class="slot-bg" style="background-image:url(\'assets/slots/slot_' + art + '.png\')"></i>';
     }
   });
   const hf = $('hp-fill'), ht = $('hp-txt');
-  /* Mätaren står full — den visar att du är oskadd, inte hur du står dig mot någon
-     annan. Det är SIFFRAN som växer med utrustningen. Utan utrustning finns ingen
-     hälsa alls, och då är den tom istället för att ljuga om en full mätare på noll. */
+  /* Mätaren står ALLTID full — den visar att du är oskadd, inte hur du står dig mot
+     någon annan. Det är SIFFRAN som växer med utrustningen, från 100 och uppåt. */
   const hp = totalHP();
-  if (hf) hf.style.width = (hp > 0 ? 100 : 0) + '%';
+  if (hf) hf.style.width = '100%';
   if (ht) ht.textContent = fmt(hp) + ' HP';
   renderCharStats();
 }
@@ -3191,8 +3316,7 @@ function charStatRows(){
   const round = v => Math.round(v * 100) / 100;
   const up = (k, v) => { v = round(v); if (v > 0) r.push([k, '+' + v + '%']); };
   const down = (k, v) => { v = round(v); if (v > 0) r.push([k, '−' + v + '%']); };
-  const hp = totalHP();
-  if (hp > 0) r.push(['HP', fmt(hp)]);
+  r.push(['HP', fmt(totalHP())]);
   up('Crit Chance', gearBonus('crit'));
   up('Idle Data', gearBonus('idle') + petBonusPct('prod'));
   up('Tap Power', gearBonus('tap'));
@@ -3223,21 +3347,25 @@ function affLine(x){
    så en pjäs med andra egenskaper visar BÅDA sidor, inte bara en summa. */
 function gearCompare(it){
   const cur = S.equip[it.s];
-  if (!cur) return '<div class="gc-row gc-up">Nothing equipped in this slot</div>';
+  if (!cur) return '<div class="gc-row">Nothing equipped in this slot</div>';
   const keys = new Set([...it.a.map(x => x.k), ...cur.a.map(x => x.k)]);
   const val = (g, k) => g.a.reduce((s, x) => s + (x.k === k ? x.v : 0), 0);
   let out = '';
   const dhp = it.hp - cur.hp;
-  if (dhp) out += '<div class="gc-row ' + (dhp > 0 ? 'gc-up' : 'gc-dn') + '">' + (dhp > 0 ? '+' : '') + dhp + ' HP</div>';
+  /* Bara SIFFRAN bär färgen. Hela raden i grönt eller rött blev en vägg av färg
+     där ögat inte hittade det som faktiskt ändrats. */
+  const num = (cls, n, rest) => '<div class="gc-row"><b class="' + cls + '">' + n + '</b> ' + rest + '</div>';
+  if (dhp) out += num(dhp > 0 ? 'gc-up' : 'gc-dn', (dhp > 0 ? '+' : '') + dhp, 'HP');
   keys.forEach(k => {
     const d = Math.round((val(it, k) - val(cur, k)) * 100) / 100;
     if (!d) return;
     const a = AFFIXES[k];
     const good = a.lower ? d > 0 : d > 0;
-    out += '<div class="gc-row ' + (good ? 'gc-up' : 'gc-dn') + '">' + (d > 0 ? '+' : '') + d.toFixed(2) + a.sfx + ' ' + a.name + '</div>';
+    out += num(good ? 'gc-up' : 'gc-dn', (d > 0 ? '+' : '') + d.toFixed(2) + a.sfx, a.name);
   });
   const dcp = gearCP(it) - gearCP(cur);
-  out += '<div class="gc-row gc-cp ' + (dcp > 0 ? 'gc-up' : dcp < 0 ? 'gc-dn' : '') + '">' + (dcp > 0 ? '+' : '') + dcp + ' Combat Power</div>';
+  out += '<div class="gc-row gc-cp"><b class="' + (dcp > 0 ? 'gc-up' : dcp < 0 ? 'gc-dn' : '') + '">' +
+    (dcp > 0 ? '+' : '') + dcp + '</b> Combat Power</div>';
   return out || '<div class="gc-row">Identical</div>';
 }
 function equipGear(idx){
@@ -3300,10 +3428,18 @@ function renderBagSlots(){
   document.querySelectorAll('[data-bag]').forEach(el => {
     const i = +el.dataset.bag;
     el.removeAttribute('title');
-    if (bagUnlocked(i)){
+    el.style.removeProperty('--rc');
+    const b = bagIn(i);
+    if (bagUnlocked(i) && b){
       el.classList.remove('locked');
+      el.classList.add('has');
+      el.style.setProperty('--rc', gearRarCol(b));
+      el.innerHTML = '<span class="bs-img" style="background-image:url(\'' + gearArt(b) + '\')"></span>';
+    } else if (bagUnlocked(i)){
+      el.classList.remove('locked', 'has');
       el.textContent = '👜';
     } else {
+      el.classList.remove('has');
       el.classList.add('locked');
       el.textContent = '🔒';
     }
@@ -3471,7 +3607,7 @@ function showRewards(run){
     '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">Data</span><span class="cd-ico">💠</span><span class="cd-v">+' + fmt(run.data) + '</span></div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
     '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span><span class="cd-ico">🪙</span><span class="cd-v">+' + fmtMoney(goldAfterTax(run.loot.gold)) + '</span>' +
-      (taxOn(run.loot.gold) > 0 ? '<span class="cd-tax">−' + moneyText(taxOn(run.loot.gold)) + ' levy</span>' : '') + '</div>' +
+      (taxOn(run.loot.gold) > 0 ? '<span class="cd-tax">−' + moneyText(taxOn(run.loot.gold)) + ' tax</span>' : '') + '</div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span><span class="cd-ico">🔷</span><span class="cd-v">+' + run.loot.frags + '</span></div>';
   /* Fyndet ska synas HÄR — ingen ska behöva öppna väskan och gissa. */
   let found = '';
@@ -4439,7 +4575,7 @@ function cellPrice(regionId){
 const FUEL_MAX_BASE = 100;
 const FUEL_REGEN_PER_MIN = 1;
 const FUEL_CELL_RESTORE = 25;
-const ZONE_FUEL_COST = 1;
+const ZONE_FUEL_COST = 2;
 /* ---------- FAKTA OM STAPELBARA FÖREMÅL ----------
    Allt som INTE är gear behöver samma tre svar som gear ger: vad är det, vad gör
    det, vad är det värt. Utan facit här kan hovringsrutan bara visa ett namn. */
@@ -5090,7 +5226,7 @@ function buildZoneExpeditions(regionId, zone){
     return '<div class="zx-row"><div class="zx-info">' +
       '<div class="zx-name">' + def.name + '</div>' +
       '<div class="zx-meta">⏱ ' + fmtMins(def.mins) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · 🪙 ' + expGoldRange(def.lvl).join('-') + ' · 🔷 ' + expFragRange(def.lvl).join('-') + '</div>' +
-      '<div class="zx-levy">🪙 Guild levy — ' + Math.round(EXP_TAX * 100) + '% of gold is taken on claim</div>' +
+      '<div class="zx-levy">🪙 Tax — ' + Math.round(EXP_TAX * 100) + '% of gold is taken on claim</div>' +
       '</div>' + btn + '</div>';
   }).join('');
 }
@@ -5455,6 +5591,19 @@ const gearTip = $('gear-tip');
 function gearTipHTML(it){
   const r = GEAR_RAR[it.r];
   const line = (k, v, col) => '<div class="gt-line"><span class="k">' + k + '</span><span class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + v + '</span></div>';
+  const D = ITEMS[it.t];
+  if (D && D.bag){
+    return '<div class="gt-name">' + gearName(it) + '</div>' +
+      '<div class="gt-rar">' + r.name + ' · Bag</div>' +
+      '<div class="gt-sep"></div>' +
+      '<div class="gt-desc">Carried in a bag slot. Adds <b style="color:var(--cyan)">' + D.bag +
+        '</b> more slots to your backpack while it is equipped.</div>' +
+      line('Sells for', fmtMoney(gearGold(it))) +
+      (it.src ? '<div class="gt-src">Found on ' + it.src + '</div>' : '<div class="gt-src">Origin unknown</div>') +
+      '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
+        ? 'Tap for options · hold to preview'
+        : 'Right-click for options · Shift+click to fit it') + '</div>';
+  }
   return '<div class="gt-name">' + gearName(it) + '</div>' +
     '<div class="gt-rar">' + r.name + ' · ' + GEAR_SLOTS[it.s].name + '</div>' +
     '<div class="gt-sep"></div>' +
@@ -5517,10 +5666,35 @@ function findByUid(uid){
     if (S.inv[i] && S.inv[i].gear && S.inv[i].gear.uid === uid) return {where: 'inv', idx: i, it: S.inv[i].gear};
   for (const k in S.equip)
     if (S.equip[k] && S.equip[k].uid === uid) return {where: 'equip', idx: +k, it: S.equip[k]};
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    const b = bagIn(i);
+    if (b && b.uid === uid) return {where: 'bag', idx: i, it: b};
+  }
   return null;
 }
+function freeBagSocket(){
+  for (let i = 0; i < BAG_SLOTS.length; i++) if (bagUnlocked(i) && !bagIn(i)) return i;
+  return -1;
+}
 function itemWinHTML(it, worn){
-  return '<div class="iw-head"><span class="iw-title">' + gearName(it) + '</span><button class="iw-x">✕</button></div>' +
+  const D = ITEMS[it.t];
+  const head = '<div class="iw-head"><span class="iw-title">' + gearName(it) + '</span><button class="iw-x">✕</button></div>';
+  if (D && D.bag){
+    return head +
+      '<div class="item-top">' +
+        '<div class="item-art" style="background-image:url(\'' + gearArt(it) + '\')"></div>' +
+        '<div class="item-head">' +
+          '<div class="item-rar">' + GEAR_RAR[it.r].name + '</div>' +
+          '<div class="item-cp">+' + D.bag + ' slots</div>' +
+          '<div class="item-slot">Bag</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="iw-desc">Fit it into a bag slot in your backpack and you carry ' + D.bag +
+        ' more things. Take it out and the slots go with it.</div>' +
+      '<div class="item-src">' + (it.src ? 'Found on ' + it.src : 'Origin unknown') + '</div>' +
+      '<div class="item-actions"></div>';
+  }
+  return head +
     '<div class="item-top">' +
       '<div class="item-art" style="background-image:url(\'' + gearArt(it) + '\')"></div>' +
       '<div class="item-head">' +
@@ -5539,7 +5713,15 @@ function itemWinActions(win, uid){
   const box = win.querySelector('.item-actions');
   const found = findByUid(uid);
   if (!found){ box.innerHTML = '<div class="gc-row">This item is gone.</div>'; return; }
-  if (found.where === 'equip'){
+  if (found.where === 'bag'){
+    box.innerHTML = '<button class="ia-cancel" data-act="unbag">Take out<span>→ backpack</span></button>';
+  } else if (found.where === 'inv' && ITEMS[found.it.t] && ITEMS[found.it.t].bag){
+    const socket = freeBagSocket();
+    box.innerHTML = (socket >= 0
+        ? '<button class="ia-equip" data-act="fitbag">Fit into bag slot ' + (socket + 2) + '<span>+' + ITEMS[found.it.t].bag + ' slots</span></button>'
+        : '<div class="ia-note">No free bag slot — unlock one, or take another bag out first.</div>') +
+      '<button class="ia-sell" data-act="sell">Sell<span>' + fmtMoney(gearGold(found.it)) + '</span></button>';
+  } else if (found.where === 'equip'){
     box.innerHTML = '<button class="ia-cancel" data-act="unequip">Unequip<span>→ backpack</span></button>';
   } else {
     box.innerHTML =
@@ -5571,6 +5753,8 @@ function spawnItemWin(uid, nearX, nearY){
     const cur = findByUid(uid);
     if (!cur){ itemWinActions(win, uid); return; }
     if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
+    else if (btn.dataset.act === 'fitbag'){ if (equipBag(cur.idx, freeBagSocket())) win.remove(); }
+    else if (btn.dataset.act === 'unbag'){ if (unequipBag(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unequip'){ if (unequipGear(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'sell'){
       const box = win.querySelector('.item-actions');
@@ -5684,8 +5868,11 @@ $('inv-grid').addEventListener('click', e => {
   /* Shift+klick sätter på direkt. Är platsen upptagen byts pjäsen — men bara om det
      finns en ledig ruta för den gamla, annars händer ingenting. */
   if (e.shiftKey){
-    if (S.equip[row.gear.s] && invUsed() >= invSlots()) return;
     hideGearTip();
+    /* Shift+klick på en väska sätter den i första lediga fack — samma tanke som
+       för gear, fast målet är väskraden. */
+    if (ITEMS[row.gear.t] && ITEMS[row.gear.t].bag){ equipBag(idx, freeBagSocket()); return; }
+    if (S.equip[row.gear.s] && invUsed() >= invSlots()) return;
     equipGear(idx);
     return;
   }
@@ -5884,6 +6071,8 @@ let drag = null;
 /* Bara kroppens rätta plats lyser upp i förväg. Väskan tar alltid emot, men det
    visas ruta för ruta under pekaren i stället för som en ram runt allt. */
 function dragTargetsFor(d){
+  if (d.from === 'inv' && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag)
+    return Array.from(document.querySelectorAll('[data-bag]')).filter(el => bagUnlocked(+el.dataset.bag));
   if (d.from === 'inv' && d.gear)
     return Array.from(document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
   return [];
@@ -5923,6 +6112,12 @@ function endDrag(d, x, y){
   if (!under) return;
   const cell = under.closest('#inv-grid [data-inv]');
   if (d.from === 'inv'){
+    const sock = under.closest('[data-bag]');
+    if (sock && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag){
+      const row = S.inv.findIndex(r => r && r.gear && r.gear.uid === d.gear.uid);
+      if (row >= 0) equipBag(row, +sock.dataset.bag);
+      return;
+    }
     const slot = under.closest('#panel-character [data-slot]');
     /* Endast rätt plats tar emot — en hjälm hör inte hemma i vapenrutan. */
     if (slot && d.gear && +slot.dataset.slot === d.gear.s){
@@ -5933,6 +6128,11 @@ function endDrag(d, x, y){
     /* Omsortering inuti väskan: två rutor byter innehåll. Släpps den på en tom
        ruta blir bytet helt enkelt en flytt. */
     if (cell) invSwap(d.idx, +cell.dataset.inv);
+    return;
+  }
+  if (d.from === 'bagslot'){
+    if (cell) unequipBag(d.socket, +cell.dataset.inv);
+    else if (under.closest('#inv-grid')) unequipBag(d.socket);
     return;
   }
   /* Buren pjäs släppt på en BESTÄMD ruta hamnar just där, om den är ledig. */
@@ -6026,20 +6226,71 @@ const MACHINE_SCROLL_STEP = 88;
 })();
 document.querySelectorAll('[data-bag]').forEach(el => {
   const i = +el.dataset.bag;
-  el.addEventListener('click', () => {
-    if (bagUnlocked(i)) return;
+  hookDragSource(el, () => {
+    const b = bagIn(i);
+    return b ? {from: 'bagslot', gear: b, socket: i} : null;
+  });
+  el.addEventListener('click', e => {
+    const b = bagIn(i);
+    if (b){
+      /* Shift+klick tar ut väskan direkt, precis som på kroppens platser. */
+      if (e.shiftKey){ if (!unequipBag(i)) showBagTip(el, 'No room in the backpack for the bag itself.'); return; }
+      if (isTouchInput()) spawnItemWin(b.uid, e.clientX, e.clientY);
+      return;
+    }
+    if (bagUnlocked(i)){ showBagSlotPicker(i, el); return; }
     if (!unlockBag(i)){
       /* Tyst avslag är det värsta ett gränssnitt kan göra — säg vad som saknas. */
       showBagTip(el, 'Not enough — you need ' + bagShortText(i) + ' more.');
     }
   });
-  el.addEventListener('mouseenter', () => {
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const b = bagIn(i);
+    if (b){ hideBagTip(); spawnItemWin(b.uid, e.clientX, e.clientY); }
+  });
+  el.addEventListener('mouseenter', e => {
+    const b = bagIn(i);
+    if (b){ showGearTip(b, e.clientX, e.clientY); return; }
     showBagTip(el, bagUnlocked(i)
-      ? 'Bag slot ' + (i + 2) + ' — unlocked. Equip a bag here to gain slots.'
+      ? 'Bag slot ' + (i + 2) + ' — empty. Click to fit a bag from your backpack.'
       : 'Bag slot ' + (i + 2) + ' — locked.<br>Unlock for <b>' + bagCostText(i) + '</b>.');
   });
-  el.addEventListener('mouseleave', hideBagTip);
+  el.addEventListener('mousemove', e => { if (bagIn(i) && gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
+  el.addEventListener('mouseleave', () => { hideBagTip(); hideGearTip(); });
 });
+/* Tomt fack: visa vilka väskor i ryggsäcken som passar — samma vana som en tom
+   plats på kroppen. */
+function showBagSlotPicker(socket, anchor){
+  const old = document.querySelector('.slot-picker');
+  if (old) old.remove();
+  const fits = [];
+  S.inv.forEach((row, i) => { if (row && row.gear && ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) fits.push({i: i, g: row.gear}); });
+  const pick = document.createElement('div');
+  pick.className = 'slot-picker';
+  pick.innerHTML = '<div class="sp-head">Bag slot ' + (socket + 2) + '</div>' +
+    (fits.length
+      ? fits.map(f => '<div class="sp-item" data-i="' + f.i + '" style="--rc:' + gearRarCol(f.g) + '">' +
+          '<span class="sp-art" style="background-image:url(\'' + gearArt(f.g) + '\')"></span>' +
+          '<span class="sp-nm">' + gearName(f.g) + ' · +' + ITEMS[f.g.t].bag + '</span></div>').join('')
+      : '<div class="sp-none">No bags in your backpack.</div>');
+  document.body.appendChild(pick);
+  const r = anchor.getBoundingClientRect();
+  let x = r.right + 8, y = r.bottom + 6;
+  if (x + 190 > window.innerWidth) x = Math.max(8, r.left - 198);
+  y = Math.max(8, Math.min(y, window.innerHeight - pick.offsetHeight - 8));
+  pick.style.left = x + 'px'; pick.style.top = y + 'px';
+  bringToFront(pick);
+  pick.addEventListener('click', e => {
+    const item = e.target.closest('[data-i]');
+    if (!item) return;
+    equipBag(+item.dataset.i, socket);
+    pick.remove();
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function away(e){
+    if (!pick.contains(e.target)){ pick.remove(); document.removeEventListener('pointerdown', away); }
+  }), 0);
+}
 function showBagTip(anchor, html){
   let t = $('bag-tip');
   if (!t){
