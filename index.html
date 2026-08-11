@@ -288,6 +288,16 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   display:flex;align-items:center;justify-content:center;font-size:20.7px;cursor:pointer;
 }
 .equip-slot.empty{border-color:var(--border);opacity:.6}
+/* Tom ruta visar sin siluett, blekt — den säger VAD som hör hemma här utan att
+   konkurrera med en riktig pjäs. Bärs något döljs siluetten helt. */
+.slot-bg{
+  position:absolute;inset:5px;
+  background-size:contain;background-position:center;background-repeat:no-repeat;
+  opacity:.28;filter:grayscale(.35);pointer-events:none;
+}
+.equip-slot{position:relative}
+.equip-slot.has .slot-bg{display:none}
+.transport-slot .slot-bg{inset:3px 26px}
 /* Buren pjäs: bilden fyller rutan, ramen och skenet målas i sällsynthetens färg */
 .equip-slot.has{border-color:var(--rc);box-shadow:0 0 12px -3px var(--rc), inset 0 0 14px -6px var(--rc);padding:2px}
 .equip-slot .eq-img{width:100%;height:100%;background-size:contain;background-position:center;background-repeat:no-repeat}
@@ -1414,26 +1424,26 @@ body.modal-open{overflow:hidden}
         <div class="char-split">
         <div class="char-layout">
           <div class="equip-col">
-            <div class="equip-slot" data-slot="0" title="Head">🧢</div>
-            <div class="equip-slot" title="Neck">📿</div>
-            <div class="equip-slot" data-slot="1" title="Chest">🎽</div>
-            <div class="equip-slot" data-slot="2" title="Legs">👖</div>
-            <div class="equip-slot" data-slot="4" title="Feet">👟</div>
+            <div class="equip-slot" data-slot="0" title="Head"><i class="slot-bg" style="background-image:url('assets/slots/slot_head.png')"></i></div>
+            <div class="equip-slot" title="Neck"><i class="slot-bg" style="background-image:url('assets/slots/slot_neck.png')"></i></div>
+            <div class="equip-slot" data-slot="1" title="Chest"><i class="slot-bg" style="background-image:url('assets/slots/slot_chest.png')"></i></div>
+            <div class="equip-slot" data-slot="2" title="Legs"><i class="slot-bg" style="background-image:url('assets/slots/slot_legs.png')"></i></div>
+            <div class="equip-slot" data-slot="4" title="Feet"><i class="slot-bg" style="background-image:url('assets/slots/slot_feet.png')"></i></div>
           </div>
           <div class="char-portrait">🥷
             <div class="cp-badge" id="cp-badge">CP <b>0</b></div>
             <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">0 HP</span></div>
           </div>
           <div class="equip-col">
-            <div class="equip-slot" data-slot="3" title="Gloves">🧤</div>
-            <div class="equip-slot" title="Waist">🪢</div>
-            <div class="equip-slot" title="Ring">💍</div>
-            <div class="equip-slot" data-slot="5" title="Weapon">🗡️</div>
-            <div class="equip-slot" title="Off Hand">🔮</div>
+            <div class="equip-slot" data-slot="3" title="Gloves"><i class="slot-bg" style="background-image:url('assets/slots/slot_hands.png')"></i></div>
+            <div class="equip-slot" title="Waist"><i class="slot-bg" style="background-image:url('assets/slots/slot_waist.png')"></i></div>
+            <div class="equip-slot" title="Ring"><i class="slot-bg" style="background-image:url('assets/slots/slot_ring.png')"></i></div>
+            <div class="equip-slot" data-slot="5" title="Weapon"><i class="slot-bg" style="background-image:url('assets/slots/slot_weapon.png')"></i></div>
+            <div class="equip-slot" title="Off Hand"><i class="slot-bg" style="background-image:url('assets/slots/slot_offhand.png')"></i></div>
           </div>
         </div>
         <div class="transport-row">
-          <div class="equip-slot transport-slot" title="Transport — mounts, rides and stranger things">🐎</div>
+          <div class="equip-slot transport-slot" title="Transport — mounts, rides and stranger things"><i class="slot-bg" style="background-image:url('assets/slots/slot_transport.png')"></i></div>
         </div>
         <div class="char-stats">
           <div class="cs-title">Stats</div>
@@ -1822,7 +1832,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.32.2 — LUFT PÅ BÅDA SIDOR</div>
+            <div class="desc">GENESIS v0.33.0 — SILUETTERNA</div>
           </div>
         </div>
       </div>
@@ -1848,7 +1858,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.32.2 — LUFT PÅ BÅDA SIDOR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.33.0 — SILUETTERNA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2809,7 +2819,9 @@ function renderEquip(){
     } else {
       el.classList.remove('has');
       el.style.removeProperty('--rc');
-      el.textContent = {0:'🧢',1:'🎽',2:'👖',3:'🧤',4:'👟',5:'🗡️'}[i];
+      /* Siluetten återställs i stället för en emoji — rutan ska aldrig bli tom. */
+      const art = {0:'head',1:'chest',2:'legs',3:'hands',4:'feet',5:'weapon'}[i];
+      el.innerHTML = '<i class="slot-bg" style="background-image:url(\'assets/slots/slot_' + art + '.png\')"></i>';
     }
   });
   const cp = $('cp-badge'), hf = $('hp-fill'), ht = $('hp-txt');
