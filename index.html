@@ -341,7 +341,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   padding:6px 9px;border:1px solid var(--cyan-dim);border-radius:8px;
   background:rgba(56,232,255,.07);
 }
-.vg-note.away{color:var(--orange);border-color:rgba(255,160,60,.45);background:rgba(255,160,60,.07)}
+.vg-note.warn{color:var(--orange);border-color:rgba(255,160,60,.45);background:rgba(255,160,60,.07)}
 .vg-clock{
   float:right;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;
   color:var(--cyan);text-transform:none;
@@ -1968,7 +1968,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.45.0 — PÅFYLLNINGEN</div>
+            <div class="desc">GENESIS v0.46.0 — FEM TIMMAR</div>
           </div>
         </div>
       </div>
@@ -1994,7 +1994,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.45.0 — PÅFYLLNINGEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.46.0 — FEM TIMMAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4890,7 +4890,9 @@ function openZone(regionId, zi, keepNote){
   regionOverlay.classList.add('open');
   $('zone-back').addEventListener('click', () => openRegion(regionId));
   const tbuy = $('trader-buy');
-  if (tbuy) tbuy.addEventListener('click', () => { if (buyCell(regionId)) openZone(regionId, zi); });
+  /* Rutan ritas om oavsett utfall: lyckas köpet syns kvittot, misslyckas det syns
+     skälet. Ett tyst avslag är det värsta ett gränssnitt kan göra. */
+  if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
   /* Kortet ritas om efter varje köp — priser, råd och knapparnas läge ska stämma. */
   $('region-body').querySelectorAll('[data-vbuy]').forEach(b => b.addEventListener('click', () => {
     buyVendorGear(regionId, +b.dataset.vbuy);
@@ -4946,18 +4948,14 @@ function vendorGearPrice(rarIdx, regionId){
    det nästan alltid vanligt, längst ut är det ofta riktigt bra. Skillnaden mot
    dropparna: legendary och mythic går ALDRIG att köpa — dem måste man hitta —
    och en handlare har aldrig mer än en epic åt gången.
-   Hemmaboden har dessutom tre FASTA commonpjäser som alltid finns, så att ingen
-   nybörjare kan bli utan startplåt på grund av otur. */
-const RESTOCK_MS = 60 * 60 * 1000;
+   Alla bodar fungerar likadant, hemmaregionen inräknad — ingen fast hylla. */
+/* Fem timmar, inte en. Med fem ringar och en handelsbod i VARJE region skulle en
+   timme betyda att det alltid finns något nytt att köpa någonstans — och då
+   behöver ingen förlita sig på droppar. Klockorna startar dessutom vid olika
+   tidpunkter per region, så det snurrar ändå påfyllningar hela tiden. */
+const RESTOCK_MS = 5 * 60 * 60 * 1000;
 const VENDOR_SLOTS = 4;
 const VENDOR_MAX_RAR = 3;        // epic är taket, aldrig legendary eller mythic
-const VENDOR_FIXED = {
-  0: [{k:'runners_cap', r:0}, {k:'runners_vest', r:0}, {k:'runners_boots', r:0}]
-};
-function vendorFixed(regionId){
-  const R = REGIONS[regionId];
-  return (R && VENDOR_FIXED[R.tier]) || [];
-}
 /* Vikterna är regionens egna, men avkapade vid epic och omräknade — annars hade
    det bara blivit färre saker i lagret när en legendary rullades bort. */
 function vendorWeights(regionId){
@@ -5002,10 +5000,7 @@ let vendorNote = '';
 function atVendor(regionId){
   return S.world.current === regionId && S.world.zone === TRADE_ZONE && !S.world.travel;
 }
-/* Fasta pjäserna har negativa nummer, rullade har 0 och uppåt — då kan en och
-   samma knapp hantera båda utan att listorna kan förväxlas. */
 function vendorEntry(regionId, i){
-  if (i < 0){ const f = vendorFixed(regionId)[-i - 1]; return f ? {k: f.k, r: f.r, fixed: true} : null; }
   const s = vendorStock(regionId)[i];
   return (s && !s.sold) ? s : null;
 }
@@ -5018,8 +5013,8 @@ function buyVendorGear(regionId, i){
   const free = invFirstFree();
   if (free < 0){ vendorNote = 'Your backpack is full — nothing was bought.'; return false; }
   /* Det som köps ur lagret fylls INTE på förrän klockan går ut — annars vore
-     nedräkningen meningslös och en bra pjäs oändlig. De fasta tre är undantaget. */
-  if (!stock.fixed) stock.sold = true;
+     nedräkningen meningslös och en bra pjäs oändlig. */
+  stock.sold = true;
   const it = rollItem(stock.k, stock.r);
   it.src = 'Bought in ' + REGIONS[regionId].name;
   S.inv[free] = {gear: it};
@@ -5031,18 +5026,17 @@ function buyVendorGear(regionId, i){
 function buildTrader(regionId){
   const price = cellPrice(regionId);
   const stars = repRank(regionId);
-  const here = atVendor(regionId);
   const canPay = S.gold >= price;
   const btn = (label, attr, enabled) =>
     '<button class="zx-btn tr-btn"' + attr + (enabled ? '' : ' disabled style="opacity:.5"') + '>' + label + '</button>';
-  let h = '';
-  if (!here) h += '<div class="vg-note away">You are only looking. Travel to this Vendor to buy anything.</div>';
-  h += '<div class="trader-row">' +
+  /* Knapparna är levande även på håll: trycker du på en säger boden ifrån i klartext
+     i stället för att en varningsruta ska ta plats i kortet varje gång du tittar in. */
+  let h = '<div class="trader-row">' +
     '<div class="tr-item"><span class="tr-ico">⛽</span><div><div class="tr-name">Warp Fuel Cell</div>' +
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
-    btn('Buy — ' + moneyText(price), ' id="trader-buy"', here && canPay) +
+    btn('Buy — ' + moneyText(price), ' id="trader-buy"', canPay) +
     '</div></div>';
   const row = (s, i) => {
     const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId);
@@ -5050,22 +5044,16 @@ function buildTrader(regionId){
     return '<div class="trader-row" style="--rc:' + rarCol(s.r) + '">' +
       '<div class="tr-item"><span class="vg-art" style="background-image:url(\'' + itemArtFor(s.k, s.r) + '\')"></span>' +
       '<div><div class="tr-name" style="color:var(--rc)">' + D.name + '</div>' +
-      '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name +
-        (s.fixed ? ' · always in stock' : ' · rolled when you buy it') + '</div></div></div>' +
+      '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + ' · rolled when you buy it</div></div></div>' +
       '<div class="tr-buy">' +
       (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + moneyText(full - p) + ' off</div>' : '') +
-      btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', here && S.gold >= p) +
+      btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', S.gold >= p) +
       '</div></div>';
   };
-  const fixed = vendorFixed(regionId);
-  if (fixed.length){
-    h += '<div class="section-label">Always in stock</div>';
-    h += fixed.map((s, i) => row({k: s.k, r: s.r, fixed: true}, -i - 1)).join('');
-  }
   const stock = vendorStock(regionId);
-  h += '<div class="section-label">Today\'s stock <span class="vg-clock" id="vendor-clock">restock in ' +
+  h += '<div class="section-label">Stock <span class="vg-clock" id="vendor-clock">restock in ' +
        fmtDur(vendorRestockIn(regionId)) + '</span></div>';
-  if (vendorNote) h += '<div class="vg-note">' + vendorNote + '</div>';
+  if (vendorNote) h += '<div class="vg-note' + (/standing|full|Not enough/.test(vendorNote) ? ' warn' : '') + '">' + vendorNote + '</div>';
   h += stock.map((s, i) => s.sold
     ? '<div class="trader-row sold"><div class="tr-item"><span class="vg-art empty"></span>' +
       '<div><div class="tr-name">Sold out</div><div class="tr-sub">Restocks when the clock runs out</div></div></div></div>'
@@ -5074,8 +5062,8 @@ function buildTrader(regionId){
 }
 function buyCell(regionId){
   const price = cellPrice(regionId);
-  if (!atVendor(regionId)) return false;
-  if (S.gold < price) return false;
+  if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
+  if (S.gold < price){ vendorNote = 'Not enough money — you need ' + moneyText(price - S.gold) + ' more.'; return false; }
   /* Cellen stackar, och en stack får ALLTID växa — men en helt full väska utan
      påbörjad stack nekar köpet i stället för att svälja guldet. */
   if (!addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true})) return false;
