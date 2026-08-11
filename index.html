@@ -341,6 +341,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   padding:6px 9px;border:1px solid var(--cyan-dim);border-radius:8px;
   background:rgba(56,232,255,.07);
 }
+.vg-note.away{color:var(--orange);border-color:rgba(255,160,60,.45);background:rgba(255,160,60,.07)}
 .gear-tip{
   /* Över ALLA flytande fönster — den är en förhandstitt, aldrig något man klickar på,
      så den kan ligga högst utan att stjäla något. */
@@ -1960,7 +1961,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.42.0 — TIO PLATSER</div>
+            <div class="desc">GENESIS v0.44.0 — YTTERSTA BODEN</div>
           </div>
         </div>
       </div>
@@ -1986,7 +1987,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.42.0 — TIO PLATSER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.44.0 — YTTERSTA BODEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4885,26 +4886,64 @@ function openZone(regionId, zi, keepNote){
    än den dyraste pjäsen i samma steg säljs för, så man aldrig kan tjäna pengar
    på att köpa och sälja tillbaka. Därför gäller inte heller ryktesrabatten här:
    den skulle öppna precis det hålet. Pjäsen rullas när du köper den. */
-const VENDOR_MARKUP = GOLD(5);
-function vendorGearPrice(rarIdx){
-  const b = GEAR_RAR[rarIdx].gold;
-  return Math.round((b[0] + b[1]) / 2) + VENDOR_MARKUP;
+/* Påslaget VÄXER med rariteten, och det är räknat, inte gissat. Kravet är att
+   fullt rykte (−15 %) aldrig kan pressa priset under raritetens högsta säljvärde:
+   påslag > högsta/0,85 − snitt. Det ger minimikraven 4,97 · 8,74 · 16,15 · 26,15 ·
+   31,47 · 44,12 guld. Valda värden ligger strax över, så det finns luft kvar om
+   banden justeras: marginalen blir 2,6 guld på common och 9,3 på mythic. */
+const VENDOR_MARKUP = [GOLD(8), GOLD(12), GOLD(20), GOLD(32), GOLD(40), GOLD(55)];
+/* GOLVET är hela knepet. Säljvärdet rullas per pjäs, så priset måste alltid ligga
+   över det HÖGSTA värde en pjäs i det steget kan säljas för — annars kan man köpa
+   av vendorn och sälja tillbaka med vinst. Därför:
+   1) grundpris = raritetens snitt + 10 guld, men aldrig under högsta säljvärde + 1,
+   2) ryktesrabatten dras — och kan aldrig pressa priset under samma golv.
+   Följden är mätt och ärlig: rabatten ger full effekt på common och uncommon,
+   nyps av på rare vid många stjärnor, och på epic och uppåt skulle tio guld i
+   påslag inte räcka till alls (golvet tar över). Vendorn säljer inget sådant idag. */
+function vendorFloor(rarIdx){ return GEAR_RAR[rarIdx].gold[1] + GOLD(1); }
+function vendorGearPrice(rarIdx, regionId){
+  const b = GEAR_RAR[rarIdx].gold, floor = vendorFloor(rarIdx);
+  /* Golvet behövs inte längre med de uträknade påslagen — det står kvar som
+     säkerhetsspärr, eftersom band och påslag justeras om under balansarbetet och
+     ett räknefel där aldrig ska kunna öppna en pengamaskin. */
+  const base = Math.max(Math.round((b[0] + b[1]) / 2) + VENDOR_MARKUP[rarIdx], floor);
+  const stars = regionId ? repRank(regionId) : 0;
+  return Math.max(floor, Math.round(base * (1 - 0.03 * stars)));
 }
 const VENDOR_GEAR = {
   0: [{k:'runners_boots', r:0}, {k:'ring_signal_ring', r:0}, {k:'runners_dagger', r:0},
       {k:'runners_cap', r:0}, {k:'runners_vest', r:0}],
   1: [{k:'runners_gloves', r:0}, {k:'runners_trousers', r:0}, {k:'offhand_wooden_shield', r:0},
-      {k:'waist_signal_belt', r:1}, {k:'neck_circuit_pendant', r:1}]
+      {k:'waist_signal_belt', r:1}, {k:'neck_circuit_pendant', r:1}],
+  /* Längre ut stiger sortimentet ett halvt steg per ring, och det är fyra saker i
+     stället för fem: grundplåten ska hjälpa, inte ersätta dropparna. Sakerna är
+     valda så att INGEN upprepas från en tidigare ring och alla fyra nya platser
+     får något att köpa. */
+  2: [{k:'neck_signal_tag', r:1}, {k:'ring_circuit_band', r:1},
+      {k:'offhand_deck_slate', r:1}, {k:'waist_runners_belt', r:2}],
+  3: [{k:'neck_runners_sleeve', r:1}, {k:'waist_circuit_sash', r:1},
+      {k:'ring_runners_band', r:2}, {k:'offhand_street_buckler', r:2}],
+  /* Frontiären: kristallsakerna, som ändå aldrig finns i låga steg — och spelets
+     första köpbara epic. Dyrt, men det är också sista boden före världens rand. */
+  4: [{k:'ring_crystal_ring', r:2}, {k:'neck_crystal_amulet', r:2},
+      {k:'offhand_arc_torch', r:2}, {k:'waist_plated_sash', r:3}]
 };
 function vendorStock(regionId){
   const R = REGIONS[regionId];
   return (R && VENDOR_GEAR[R.tier]) || [];
 }
 let vendorNote = '';
+/* Man handlar där man STÅR. Kartan låter dig titta in i vilken handelsbod som
+   helst i världen, och utan den här kontrollen kunde du köpa i Glass Ocean medan
+   du stod i Neon Hub — hela poängen med att resa försvann. */
+function atVendor(regionId){
+  return S.world.current === regionId && S.world.zone === TRADE_ZONE && !S.world.travel;
+}
 function buyVendorGear(regionId, i){
   const stock = vendorStock(regionId)[i];
   if (!stock) return false;
-  const price = vendorGearPrice(stock.r);
+  if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
+  const price = vendorGearPrice(stock.r, regionId);
   if (S.gold < price){ vendorNote = 'Not enough money — you need ' + moneyText(price - S.gold) + ' more.'; return false; }
   const free = invFirstFree();
   if (free < 0){ vendorNote = 'Your backpack is full — nothing was bought.'; return false; }
@@ -4919,33 +4958,41 @@ function buyVendorGear(regionId, i){
 function buildTrader(regionId){
   const price = cellPrice(regionId);
   const stars = repRank(regionId);
+  const here = atVendor(regionId);
   const canPay = S.gold >= price;
-  let h = '<div class="trader-row">' +
+  const btn = (label, attr, enabled) =>
+    '<button class="zx-btn tr-btn"' + attr + (enabled ? '' : ' disabled style="opacity:.5"') + '>' + label + '</button>';
+  let h = '';
+  if (!here) h += '<div class="vg-note away">You are only looking. Travel to this Vendor to buy anything.</div>';
+  h += '<div class="trader-row">' +
     '<div class="tr-item"><span class="tr-ico">⛽</span><div><div class="tr-name">Warp Fuel Cell</div>' +
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
-    '<button class="zx-btn tr-btn" id="trader-buy"' + (canPay ? '' : ' disabled style="opacity:.5"') + '>Buy — ' + moneyText(price) + '</button>' +
+    btn('Buy — ' + moneyText(price), ' id="trader-buy"', here && canPay) +
     '</div></div>';
   const stock = vendorStock(regionId);
   if (stock.length){
     h += '<div class="section-label">Gear in stock</div>';
     if (vendorNote) h += '<div class="vg-note">' + vendorNote + '</div>';
     h += stock.map((s, i) => {
-      const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r);
-      const can = S.gold >= p;
+      const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId);
+      const full = vendorGearPrice(s.r);
       return '<div class="trader-row" style="--rc:' + rarCol(s.r) + '">' +
         '<div class="tr-item"><span class="vg-art" style="background-image:url(\'' + itemArtFor(s.k, s.r) + '\')"></span>' +
         '<div><div class="tr-name" style="color:var(--rc)">' + D.name + '</div>' +
         '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + ' · rolled when you buy it</div></div></div>' +
-        '<div class="tr-buy"><button class="zx-btn tr-btn" data-vbuy="' + i + '"' +
-        (can ? '' : ' disabled style="opacity:.5"') + '>Buy — ' + moneyText(p) + '</button></div></div>';
+        '<div class="tr-buy">' +
+        (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + moneyText(full - p) + ' off</div>' : '') +
+        btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', here && S.gold >= p) +
+        '</div></div>';
     }).join('');
   }
   return h;
 }
 function buyCell(regionId){
   const price = cellPrice(regionId);
+  if (!atVendor(regionId)) return false;
   if (S.gold < price) return false;
   /* Cellen stackar, och en stack får ALLTID växa — men en helt full väska utan
      påbörjad stack nekar köpet i stället för att svälja guldet. */
