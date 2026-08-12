@@ -354,7 +354,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gear-tip{
   /* Över ALLA flytande fönster — den är en förhandstitt, aldrig något man klickar på,
      så den kan ligga högst utan att stjäla något. */
-  position:fixed;z-index:9000;display:none;pointer-events:none;width:250px;
+  position:fixed;z-index:9000;display:none;pointer-events:none;width:200px;
   padding:11px 12px;border-radius:11px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   border:1px solid var(--rc,var(--border-glow));
@@ -1739,7 +1739,7 @@ body.modal-open{overflow:hidden}
         <div class="tap-block">
           <div class="hold-hint" id="hold-hint">HOLD CORE TO COLLECT DATA</div>
           <div class="hold-meter" id="hold-meter"><div class="hold-meter-fill" id="hold-meter-fill"></div></div>
-          <div class="tap-meta"><span>CRIT ×5 · <b id="crit-now">5%</b></span><span>RATE <b id="rate-now">4.0/s</b></span><span>BONUS <b id="mult-now">×1.00</b></span></div>
+          <div class="tap-meta"><span>CRIT <b id="critx-now">×5</b> · <b id="crit-now">5%</b></span><span>RATE <b id="rate-now">4.0/s</b></span><span>BONUS <b id="mult-now">×1.00</b></span></div>
         </div>
       </section>
 
@@ -2032,7 +2032,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.51.1 — RENA KORTET</div>
+            <div class="desc">GENESIS v0.52.1 — SMALARE KORT</div>
           </div>
         </div>
       </div>
@@ -2058,7 +2058,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.51.1 — RENA KORTET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.52.1 — SMALARE KORT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2181,6 +2181,10 @@ const AFFIXES = {
   idle:    {name:'Idle Data',        lo:1.73, hi:2.27, sfx:'%'},
   tap:     {name:'Tap Power',        lo:2.03, hi:2.67, sfx:'%'},
   crit:    {name:'Crit Chance',      lo:1.30, hi:1.70, sfx:'%'},
+  /* Crit Damage förstärker SJÄLVA SMÄLLEN: grundträffen slår femfaldigt, och den
+     här procenten läggs på multiplikatorn. Bandet ±14 % kring mitten 3,0 som
+     alla andra. */
+  critdmg: {name:'Crit Damage',      lo:2.58, hi:3.42, sfx:'%'},
   frag:    {name:'Fragment Find',    lo:1.90, hi:2.50, sfx:'%'},
   luck:    {name:'Loot Luck',        lo:1.64, hi:2.16, sfx:'%'},
   xp:      {name:'Experience',       lo:3.46, hi:4.54, sfx:'%'},
@@ -2840,7 +2844,7 @@ const $ = id => document.getElementById(id);
 const el = {
   data: $('res-data'), dps: $('res-dps'),
   hex: $('core-hex'), coreWrap: $('core-wrap'), coreSpark: $('core-spark'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
-  crit: $('crit-now'), rate: $('rate-now'), mult: $('mult-now'),
+  crit: $('crit-now'), critx: $('critx-now'), rate: $('rate-now'), mult: $('mult-now'),
   list: $('machine-list'), shelf: $('milestone-shelf'), core: $('core-upgrades'),
   stage: $('core-stage'), saveStatus: $('save-status'), nextSave: $('next-save'),
   lvlBadge: $('lvl-badge'), lvlText: $('player-level-text'), xpFill: $('xp-fill'), xpLabel: $('xp-label'),
@@ -3067,6 +3071,10 @@ window.addEventListener('pointerup', stopHold);
 el.hex.addEventListener('pointercancel', stopHold);
 el.hex.addEventListener('contextmenu', e => e.preventDefault());
 
+/* Kritens verkliga multiplikator: grunden ×5 plus Crit Damage från utrustningen. */
+function critMultNow(){
+  return HOLD.critMult * (1 + gearBonus('critdmg') / 100);
+}
 function collectTick(){
   const p = Math.min(1, holdT / HOLD.duration);
   const critChance = Math.min(1, HOLD.critBase + (HOLD.critMax - HOLD.critBase) * p + gearBonus('crit') / 100);
@@ -3074,7 +3082,7 @@ function collectTick(){
   let gain = tapGain(S.up.tapPower) * mult;
   const crit = Math.random() < critChance;
   if (crit){
-    gain *= HOLD.critMult;
+    gain *= critMultNow();
     Sound.play('crit', {holding: true});
     el.coreSpark.classList.remove('core-spark-anim');
     el.coreSpark.getBoundingClientRect();
@@ -4434,6 +4442,10 @@ function updateUI(force){
   const p = holding ? Math.min(1, holdT / HOLD.duration) : 0;
   el.fill.style.width = (p * 100) + '%';
   el.crit.textContent = (Math.round((HOLD.critBase + (HOLD.critMax - HOLD.critBase) * p) * 100 + gearBonus('crit')) ) + '%';
+  /* Multiplikatorn skrivs utan decimal när den är hel (×5), med en när gear
+     skjutit på den (×5.4) — ingen låtsasprecision. */
+  const cm = critMultNow();
+  el.critx.textContent = '×' + (Math.abs(cm - Math.round(cm)) < 0.005 ? Math.round(cm) : cm.toFixed(1));
   el.rate.textContent = holdRate().toFixed(1) + '/s';
   el.mult.textContent = '×' + (1 + (HOLD.incomeMaxMult - 1) * p).toFixed(2);
   const full = holding && holdT >= HOLD.duration;
@@ -5839,9 +5851,11 @@ function gearTipHTML(it){
   const line = (k, v, col) => '<div class="gt-line"><span class="k">' + k + '</span><span class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + v + '</span></div>';
   const D = ITEMS[it.t];
   const name = '<div class="gt-name" style="color:' + gearRarCol(it) + '">' + gearName(it) + '</div>';
+  /* Hjälpen på TVÅ rader: det var den enda långa raden i kortet, och den ensam
+     tvingade upp bredden. Bruten kan hela kortet vara smalare. */
   const hint = '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
-      ? 'Tap for options · hold to preview'
-      : 'Right-click for options · Shift+click to equip') + '</div>';
+      ? 'Tap for options<br>Hold to preview'
+      : 'Right-click for options<br>Shift+click to equip') + '</div>';
   if (D && D.bag){
     return name +
       '<div class="gt-rar">Bag</div>' +
@@ -5879,7 +5893,7 @@ function stackTipHTML(row){
     '<div class="gt-sep"></div>' +
     (d ? '<div class="gt-desc">' + d.desc + '</div>' : '<div class="gt-desc">No details known for this item yet.</div>') +
     (d ? line('Sells for', fmtMoney(d.sell) + (row.qty > 1 ? ' <span style="color:var(--text-faint)">each</span>' : '')) : '') +
-    '<div class="gt-hint">' + (touch ? 'Tap to use · hold to preview' : 'Left-click to use · right-click for options') + '</div>';
+    '<div class="gt-hint">' + (touch ? 'Tap to use<br>Hold to preview' : 'Left-click to use<br>Right-click for options') + '</div>';
 }
 function showStackTip(row, x, y, above){
   gearTip.style.setProperty('--rc', 'var(--cyan)');
