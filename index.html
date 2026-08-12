@@ -1982,6 +1982,8 @@ body.modal-open{overflow:hidden}
         <div class="inv-bagslot" data-vaultbag="2">🔒</div>
         <div class="inv-bagslot" data-vaultbag="3">🔒</div>
         <div class="inv-bagslot" data-vaultbag="4">🔒</div>
+        <div class="inv-bagslot" data-vaultbag="5">🔒</div>
+        <div class="inv-bagslot" data-vaultbag="6">🔒</div>
       </div>
     </div>
   </div>
@@ -2159,7 +2161,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.62.6 — GREPP OCH SORTERING</div>
+            <div class="desc">GENESIS v0.63.0 — VALVETS SJU FACK</div>
           </div>
         </div>
       </div>
@@ -2185,7 +2187,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.6 — GREPP OCH SORTERING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.63.0 — VALVETS SJU FACK</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2595,8 +2597,9 @@ let S = {
   credits: 0,
   mil: {},              // "buildId:step" -> true
   ach: {done: {}, unseen: 0},   // avklarade bragder + hur många som inte setts än
-  vault: {inv: [], bags: [false,false,false,false,false], bagItems: [null,null,null,null,null],
-          open: [false,false,false,false,false], pos: {}},
+  vault: {inv: [], bags: [false,false,false,false,false,false,false],
+          bagItems: [null,null,null,null,null,null,null],
+          open: [false,false,false,false,false,false,false], pos: {}},
   // ^ valvet speglar ryggsäcken: 20 grundplatser + fem fack man LÅSER upp och
   //   sätter VÄSKOR i. Platserna kommer från väskorna, precis som i ryggsäcken.
   /* En isatt väska är antingen INBAKAD i huvudrutnätet (facket lyser) eller
@@ -2737,15 +2740,16 @@ function load(){
          .locks — de räknas som köpta FACK (spelaren betalade platsen), men utan
          väska i sig, så de börjar tomma tills en väska sätts i. */
       const vbagsSrc = Array.isArray(dv.bags) ? dv.bags : (Array.isArray(dv.locks) ? dv.locks : []);
+      const VIX = [0,1,2,3,4,5,6];
       S.vault = {
         inv: [],
-        bags: [0,1,2,3,4].map(i => !!vbagsSrc[i]),
-        bagItems: [null,null,null,null,null],
-        open: [0,1,2,3,4].map(i => !!(Array.isArray(dv.open) && dv.open[i])),
+        bags: VIX.map(i => !!vbagsSrc[i]),
+        bagItems: VIX.map(() => null),
+        open: VIX.map(i => !!(Array.isArray(dv.open) && dv.open[i])),
         pos: {}
       };
       if (Array.isArray(dv.bagItems)){
-        S.vault.bagItems = [0,1,2,3,4].map(i => {
+        S.vault.bagItems = VIX.map(i => {
           const g = readGear(dv.bagItems[i]);
           return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.vault.bags[i]) ? g : null;
         });
@@ -2955,7 +2959,7 @@ function vaultBagIn(i){ return (S.vault.bagItems && S.vault.bagItems[i]) || null
    ryggsäcken. En låst plats kan aldrig bära något, så inget extrautrymme smyger in. */
 function vaultSlots(){
   let n = VAULT_BASE_SLOTS;
-  for (let i = 0; i < BAG_SLOTS.length; i++){
+  for (let i = 0; i < VAULT_BAG_SLOTS.length; i++){
     const b = vaultBagIn(i);
     if (b && vaultBagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag) n += ITEMS[b.t].bag;
   }
@@ -2973,12 +2977,12 @@ function vaultNormalize(){
   if (S.vault.inv.length > cap) S.vault.inv.length = cap;
 }
 function unlockVault(i){
-  const b = BAG_SLOTS[i];
+  const b = VAULT_BAG_SLOTS[i];
   if (!b || vaultBagUnlocked(i)) return false;
   if (b.cur === 'gold'){ if (S.gold < b.cost) return false; S.gold -= b.cost; }
   else { if (S.credits < b.cost) return false; S.credits -= b.cost; }
   S.vault.bags[i] = true;
-  renderVault(); updateUI(true); save();
+  renderVault(); renderPremiumVaultBags(); updateUI(true); save();
   return true;
 }
 /* Sätta en väska i valvets fack, och ta ur den igen — spegling av ryggsäckens
@@ -3151,7 +3155,7 @@ function hookVaultBagSlots(){
         return;
       }
       if (vaultBagUnlocked(i)){ showVaultBagPicker(i, el); return; }
-      if (!unlockVault(i)) showBagTip(el, 'Not enough — you need ' + bagShortText(i) + ' more.');
+      if (!unlockVault(i)) showBagTip(el, 'Not enough — you need ' + vaultBagShortText(i) + ' more.');
     });
     el.addEventListener('contextmenu', e => {
       e.preventDefault();
@@ -3163,7 +3167,7 @@ function hookVaultBagSlots(){
       if (b){ showGearTip(b, e.clientX, e.clientY); return; }
       showBagTip(el, vaultBagUnlocked(i)
         ? 'Vault bag slot ' + (i + 1) + ' — empty. Click to fit a bag from your backpack.'
-        : 'Vault bag slot ' + (i + 1) + ' — locked.<br>Unlock for <b>' + bagCostText(i) + '</b>.');
+        : 'Vault bag slot ' + (i + 1) + ' — locked.<br>Unlock for <b>' + vaultBagCostText(i) + '</b>.');
     });
     el.addEventListener('mousemove', e => { if (vaultBagIn(i) && gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
     el.addEventListener('mouseleave', () => { hideBagTip(); hideGearTip(); });
@@ -3220,7 +3224,7 @@ function vaultCellHTML(i){
 function vaultBagSegments(){
   const segs = [{name: 'Vault', start: 0, len: VAULT_BASE_SLOTS}];
   let at = VAULT_BASE_SLOTS;
-  for (let i = 0; i < BAG_SLOTS.length; i++){
+  for (let i = 0; i < VAULT_BAG_SLOTS.length; i++){
     const b = vaultBagIn(i);
     if (b && vaultBagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag){
       segs.push({name: 'Vault · ' + ITEMS[b.t].name, start: at, len: ITEMS[b.t].bag, socket: i});
@@ -3602,7 +3606,7 @@ function buyBuilding(b){
 const upRefs = {};
 function buildCoreUpgrades(){
   buildPremiumBags();
-  renderPremiumBags();
+  renderPremiumBags(); renderPremiumVaultBags();
   el.core.innerHTML = '';
   refreshShelf();
 
@@ -3983,6 +3987,23 @@ const INV_BASE_SLOTS = 20;
 /* Väskplatslåsen: fem lås, priserna på ETT ställe så balansen kan ändras utan
    kodgräv. De två första köps för GULD (ett tidigt mål man kan spara till), de tre
    sista för credits. Ingen ny valuta skapas — båda finns redan. */
+/* Valvet har SJU fack med sin egen trappa: de fyra första köps med guld, de tre
+   sista med credits. Facken är oberoende av varandra — köper man ett credit-fack
+   först låses bara det upp, och guld-facken förblir låsta tills de köps. */
+const VAULT_BAG_SLOTS = [
+  {cur: 'gold',    cost: GOLD(25)},
+  {cur: 'gold',    cost: GOLD(50)},
+  {cur: 'gold',    cost: GOLD(120)},
+  {cur: 'gold',    cost: GOLD(250)},
+  {cur: 'credits', cost: 100},
+  {cur: 'credits', cost: 200},
+  {cur: 'credits', cost: 400}
+];
+function vaultBagCostText(i){ const b = VAULT_BAG_SLOTS[i]; return b.cur === 'gold' ? moneyText(b.cost) : b.cost + ' credits'; }
+function vaultBagShortText(i){
+  const b = VAULT_BAG_SLOTS[i];
+  return b.cur === 'gold' ? moneyText(Math.max(0, b.cost - S.gold)) : Math.max(0, b.cost - S.credits) + ' credits';
+}
 const BAG_SLOTS = [
   {cur: 'gold',    cost: GOLD(25)},
   {cur: 'gold',    cost: GOLD(50)},
@@ -4003,7 +4024,7 @@ function unlockBag(i){
   if (!bagAfford(i)) return false;
   if (b.cur === 'gold') S.gold -= b.cost; else S.credits -= b.cost;
   S.bags[i] = true;
-  renderInventory(); renderPremiumBags(); updateUI(true); save();
+  renderInventory(); renderPremiumBags(); renderPremiumVaultBags(); updateUI(true); save();
   return true;
 }
 /* Väskorna i facken lägger till sina platser. Facket måste vara upplåst för att
@@ -4300,6 +4321,20 @@ function buildPremiumBags(){
         '</div>' +
       '</div>' +
       '<div class="u-buy prisms" id="prem-bag-buy"></div>' +
+    '</div>' +
+    /* Samma rad en gång till, men för VALVET. Valvet har sju fack: fyra i guld
+       inne i valvet, tre i credits här. */
+    '<div class="upgrade-row">' +
+      '<div class="u-ico">🗄️</div>' +
+      '<div class="u-body">' +
+        '<div class="u-name">Extra Bag Slots · Vault</div>' +
+        '<div class="u-desc" id="prem-vbag-desc"></div>' +
+        '<div class="pips" id="prem-vbag-pips">' +
+          VAULT_BAG_SLOTS.map((b, i) => b.cur === 'credits'
+            ? '<span class="pip" data-piptier="' + i + '" title="Vault bag slot ' + (i + 1) + '"></span>' : '').join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="u-buy prisms" id="prem-vbag-buy"></div>' +
     '</div>';
   /* Guldlåsen köps i väskan, inte här — knappen tar dig dit i stället för att neka. */
   $('prem-bag-buy').addEventListener('click', () => {
@@ -4308,6 +4343,39 @@ function buildPremiumBags(){
     if (BAG_SLOTS[t].cur === 'gold'){ openInventory(); return; }
     unlockBag(t);
   });
+  /* Valvets guldfack köps i valvet — knappen tar dig dit i stället för att neka. */
+  $('prem-vbag-buy').addEventListener('click', () => {
+    const t = nextVaultBagTier();
+    if (t < 0) return;
+    if (VAULT_BAG_SLOTS[t].cur === 'gold'){ openVault(); return; }
+    unlockVault(t);
+  });
+}
+function nextVaultBagTier(){
+  for (let i = 0; i < VAULT_BAG_SLOTS.length; i++) if (!vaultBagUnlocked(i)) return i;
+  return -1;
+}
+function renderPremiumVaultBags(){
+  const pipsEl = $('prem-vbag-pips');
+  if (!pipsEl) return;
+  const pips = pipsEl.children;
+  for (let i = 0; i < pips.length; i++){
+    pips[i].classList.toggle('lit', vaultBagUnlocked(+pips[i].dataset.piptier));
+  }
+  const btn = $('prem-vbag-buy'), desc = $('prem-vbag-desc');
+  const tier = nextVaultBagTier();
+  btn.classList.remove('maxed', 'cant');
+  if (tier < 0){
+    desc.textContent = 'All vault bag slots unlocked.';
+    btn.classList.add('maxed'); btn.textContent = 'Max';
+  } else if (VAULT_BAG_SLOTS[tier].cur === 'gold'){
+    desc.textContent = 'Vault bag slot ' + (tier + 1) + ' is bought with gold, in the vault.';
+    btn.textContent = '🗄️ In vault';
+  } else {
+    desc.textContent = 'Unlocks vault bag slot ' + (tier + 1) + ' — permanent';
+    if (S.credits < VAULT_BAG_SLOTS[tier].cost) btn.classList.add('cant');
+    btn.textContent = '💳 ' + VAULT_BAG_SLOTS[tier].cost;
+  }
 }
 function renderPremiumBags(){
   const pipsEl = $('prem-bag-pips');
@@ -5207,7 +5275,7 @@ function updateUI(force){
   el.resGold.innerHTML = fmtMoney(S.gold);
   el.resFuel.textContent = Math.floor(S.fuel) + '/' + fuelMax();
   refreshPremiumOffline();
-  renderPremiumBags();
+  renderPremiumBags(); renderPremiumVaultBags();
   /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
      och tätare ritning river knappar under fingret på mobil. */
   if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); }
