@@ -1866,7 +1866,7 @@ body.modal-open{overflow:hidden}
         <div class="panel-title">Quick Access</div>
         <div class="qa-grid">
           <div class="qa-btn" id="qa-inventory"><span class="ico">🎒</span><span class="lbl">Inventory</span></div>
-          <div class="qa-btn" id="qa-vault"><span class="ico">🗄️</span><span class="lbl">Item Vault</span></div>
+          <div class="qa-btn" id="qa-vault"><span class="ico">🗄️</span><span class="lbl">Vault</span></div>
           <div class="qa-btn" id="qa-pets"><span class="ico">🐾</span><span class="lbl">Pets</span></div>
           <div class="qa-btn"><span class="ico">📜</span><span class="lbl">Quests</span></div>
           <div class="qa-btn"><span class="ico">🔨</span><span class="lbl">Auction House</span></div>
@@ -1883,7 +1883,7 @@ body.modal-open{overflow:hidden}
     <div class="modal inv-modal">
       <div class="inv-emblem">🗄️</div>
       <div class="inv-titlebar">
-        <span class="inv-title">Item Vault</span>
+        <span class="inv-title">Vault</span>
         <button class="inv-x" id="vault-close">✕</button>
       </div>
       <div class="inv-toolbar">
@@ -2074,7 +2074,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.56.0 — SHIFT-ROUTERN</div>
+            <div class="desc">GENESIS v0.56.1 — VALVETS RUTOR</div>
           </div>
         </div>
       </div>
@@ -2100,7 +2100,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.56.0 — SHIFT-ROUTERN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.56.1 — VALVETS RUTOR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2932,16 +2932,21 @@ function renderVault(){
   if (!grid) return;
   vaultNormalize();
   const cap = vaultSlots();
+  /* Samma rutor som väskan, ritade likadant — valvet ÄR ett andra inventarie,
+     inte ett eget slags låda. Tomma rutor bär sitt nummer så man kan släppa på
+     dem, fyllda bär raritetsramen, staplar sitt antal. */
   let h = '';
   for (let i = 0; i < cap; i++){
     const row = S.vault.inv[i];
-    if (!row){ h += '<div class="inv-cell" data-vault="' + i + '"></div>'; continue; }
-    if (row.gear){
-      h += '<div class="inv-cell filled" data-vault="' + i + '" style="--rc:' + gearRarCol(row.gear) + '">' +
+    if (row && row.gear){
+      h += '<div class="inv-slot filled gear" data-vault="' + i + '" style="--rc:' + gearRarCol(row.gear) + '">' +
         '<div class="iv-img" style="background-image:url(\'' + gearArt(row.gear) + '\')"></div></div>';
+    } else if (row){
+      const showQty = row.stack || row.qty > 1;
+      h += '<div class="inv-slot filled" data-vault="' + i + '"><span class="inv-ico">' + row.ico + '</span>' +
+        (showQty ? '<span class="inv-qty">' + (row.qty > 999 ? '999+' : row.qty) + '</span>' : '') + '</div>';
     } else {
-      h += '<div class="inv-cell filled stack" data-vault="' + i + '">' +
-        '<div class="iv-ico">' + row.ico + '</div><span class="iv-qty">' + row.qty + '</span></div>';
+      h += '<div class="inv-slot" data-vault="' + i + '"></div>';
     }
   }
   grid.innerHTML = h;
@@ -6641,6 +6646,8 @@ $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove
 makeDraggable($('ach-overlay'), $('ach-overlay').querySelector('.inv-titlebar'));
 $('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
 makeDraggable($('inv-overlay'), $('inv-overlay').querySelector('.inv-titlebar'));
+/* Valvet ska gå att flytta precis som väskan — det saknades och rutan satt fast. */
+makeDraggable($('vault-overlay'), $('vault-overlay').querySelector('.inv-titlebar'));
 $('bag-btn').addEventListener('click', openInventory);
 $('inv-sort').addEventListener('click', invSort);
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
