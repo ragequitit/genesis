@@ -1493,7 +1493,7 @@ body.modal-open{overflow:hidden}
   background:rgba(56,232,255,.08);border:1px solid var(--cyan-dim);
 }
 .inv-sort:hover{background:rgba(56,232,255,.18)}
-#inv-onebag.on{background:rgba(56,232,255,.22);border-color:var(--cyan);color:var(--cyan)}
+#inv-onebag.on, #vault-onebag.on{background:rgba(56,232,255,.22);border-color:var(--cyan);color:var(--cyan)}
 /* De separata väskorna i delat läge: små flytande fönster, var och en dragbar i
    sin egen titelrad. Samma rutor som huvudväskan, bara grupperade per väska. */
 .bagwin{
@@ -1911,6 +1911,7 @@ body.modal-open{overflow:hidden}
         <button class="inv-x" id="vault-close">✕</button>
       </div>
       <div class="inv-toolbar">
+        <button class="inv-sort" id="vault-onebag" title="Split the vault into separate bags you can move around — press again to merge">🗄️ One Bag</button>
         <span class="inv-capline">Stored <b id="vault-cap">0 / 20</b></span>
       </div>
       <div class="vault-grid" id="vault-grid"></div>
@@ -2099,7 +2100,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.60.0 — VALVETS VÄSKOR</div>
+            <div class="desc">GENESIS v0.61.0 — ONE BAG (VALVET)</div>
           </div>
         </div>
       </div>
@@ -2125,7 +2126,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.60.0 — VALVETS VÄSKOR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.61.0 — ONE BAG (VALVET)</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2990,8 +2991,8 @@ function moveInVault(from, to){
   S.vault.inv[to] = a; S.vault.inv[from] = b;
   renderVault(); save();
 }
-function hookVaultCells(){
-  const grid = $('vault-grid');
+function hookVaultCells(root){
+  const grid = root || $('vault-grid');
   if (!grid || grid.dataset.hooked) return;
   grid.dataset.hooked = '1';
   hookDragSource(grid, e => {
@@ -3031,7 +3032,11 @@ function hookVaultCells(){
   });
   grid.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
   grid.addEventListener('mouseout', hideGearTip);
+}
+function hookVaultBagSlots(){
   document.querySelectorAll('[data-vaultbag]').forEach(el => {
+    if (el.dataset.hooked) return;
+    el.dataset.hooked = '1';
     const i = +el.dataset.vaultbag;
     hookDragSource(el, () => { const b = vaultBagIn(i); return b ? {from: 'vaultbagslot', gear: b, socket: i} : null; });
     el.addEventListener('click', e => {
@@ -3097,11 +3102,68 @@ function vaultCellHTML(i){
   }
   return '<div class="inv-slot" data-vault="' + i + '"></div>';
 }
+/* ---------- ONE BAG FÖR VALVET ----------
+   Exakt samma modell som ryggsäcken: pjäserna är EN lista (S.vault.inv), och de
+   små väskorna är bara vyer in i platsintervall. Grundvalvet = 0..19, sedan en
+   väska per isatt valvväska. Fritt flöde, orört drag/släpp och sparfil. */
+function vaultBagSegments(){
+  const segs = [{name: 'Vault', start: 0, len: VAULT_BASE_SLOTS}];
+  let at = VAULT_BASE_SLOTS;
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    const b = vaultBagIn(i);
+    if (b && vaultBagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag){
+      segs.push({name: 'Vault · ' + ITEMS[b.t].name, start: at, len: ITEMS[b.t].bag, socket: i});
+      at += ITEMS[b.t].bag;
+    }
+  }
+  return segs;
+}
+function renderVaultSplitBags(){
+  document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
+  if (!S.vault.split) return;
+  const segs = vaultBagSegments();
+  const vw = $('vault-overlay');
+  const base = vw ? vw.getBoundingClientRect() : {left: 380, top: 70};
+  segs.forEach((seg, idx) => {
+    const rows = Math.min(GRID_ROWS, seg.len);
+    const cols = Math.ceil(seg.len / rows);
+    let cells = '';
+    for (let k = 0; k < seg.len; k++) cells += vaultCellHTML(seg.start + k);
+    const win = document.createElement('div');
+    win.className = 'bagwin vaultbagwin';
+    win.dataset.bagname = seg.name;
+    win.innerHTML = '<div class="bagwin-head"><span>' + seg.name + '</span><span>' + seg.len + '</span></div>' +
+      '<div class="bagwin-grid" style="grid-template-columns:repeat(' + cols + ',52px);grid-template-rows:repeat(' + rows + ',52px)">' + cells + '</div>';
+    document.body.appendChild(win);
+    const pos = S.vault.pos[seg.name];
+    if (pos){ win.style.left = pos.x + 'px'; win.style.top = pos.y + 'px'; }
+    else { win.style.left = (base.left + 20 + idx * 30) + 'px'; win.style.top = (base.top + 40 + idx * 30) + 'px'; }
+    const head = win.querySelector('.bagwin-head');
+    makeDraggable(win, head);
+    head.addEventListener('pointerup', () => {
+      const r = win.getBoundingClientRect();
+      S.vault.pos[seg.name] = {x: Math.round(r.left), y: Math.round(r.top)};
+      save();
+    });
+    hookVaultCells(win.querySelector('.bagwin-grid'));
+  });
+}
+function toggleVaultOneBag(){
+  S.vault.split = !S.vault.split;
+  const btn = $('vault-onebag');
+  if (btn) btn.classList.toggle('on', S.vault.split);
+  const grid = $('vault-grid');
+  if (grid) grid.style.display = S.vault.split ? 'none' : '';
+  if (!S.vault.split) document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
+  renderVault();
+  save();
+}
 function renderVault(){
   const grid = $('vault-grid');
   if (!grid) return;
   vaultNormalize();
   const cap = vaultSlots();
+  if (S.vault.split){ renderVaultBagSlots(); renderVaultSplitBags(); $('vault-cap').textContent = vaultUsed() + ' / ' + cap; return; }
   /* Fem rader högt, växer i bredd — kolumn-major så rutorna fylls uppifrån och ner
      som ryggsäcken. Platserna kommer nu från väskor (+4/+6/+8), så det finns ingen
      fast rektangel att hålla; rutnätet är helt enkelt så brett som det behöver. */
@@ -3164,7 +3226,9 @@ function quickEquipFromVault(i){
 }
 function openVault(){
   hookVaultCells();
+  hookVaultBagSlots();
   renderVault();
+  if (S.vault.split) setTimeout(renderVaultSplitBags, 0);
   const w = $('vault-overlay');
   const wasOpen = w.classList.contains('open');
   w.classList.add('open');
@@ -5770,6 +5834,16 @@ function openZone(regionId, zi, keepNote){
     buyVendorGear(regionId, +b.dataset.vbuy);
     openZone(regionId, zi, true);
   }));
+  /* TESTVÄSKOR — TA BORT FÖRE LANSERING */
+  $('region-body').querySelectorAll('[data-testbag]').forEach(b => b.addEventListener('click', () => {
+    buyTestBag(regionId, +b.dataset.testbag);
+    openZone(regionId, zi, true);
+  }));
+  /* TESTPENGAR — TA BORT FÖRE LANSERING */
+  $('region-body').querySelectorAll('[data-testmoney]').forEach(b => b.addEventListener('click', () => {
+    grabTestMoney(b.dataset.testmoney);
+    openZone(regionId, zi, true);
+  }));
   $('region-body').querySelectorAll('[data-start]').forEach(b => {
     b.addEventListener('click', () => {
       /* Startade den? Då är rutan färdig med sitt ärende — stäng den. */
@@ -5925,6 +5999,31 @@ function buildTrader(regionId){
       btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', S.gold >= p) +
       '</div></div>';
   };
+  /* ===== TESTVÄSKOR — TA BORT FÖRE LANSERING =====
+     Tre väskor (4/6/8 platser) för 1 guld hos handlaren i hemregionen, så väskfacken
+     i ryggsäck och valv går att prova. Hela blocket är avgränsat och rivs enkelt. */
+  if (regionId === 'neonhub'){
+    h += '<div class="section-label" style="color:#ffcf6b">Test bags — remove before launch</div>';
+    h += TEST_BAGS.map((tb, i) =>
+      '<div class="trader-row"><div class="tr-item">' +
+      '<span class="vg-art" style="background-image:url(\'' + itemArtFor(tb.key, ITEMS[tb.key].rars[0]) + '\')"></span>' +
+      '<div><div class="tr-name" style="color:' + GEAR_RAR[ITEMS[tb.key].rars[0]].col + '">' + ITEMS[tb.key].name + '</div>' +
+      '<div class="tr-sub">Bag · +' + ITEMS[tb.key].bag + ' slots · test item</div></div></div>' +
+      '<div class="tr-buy">' + btn('Buy — ' + moneyText(GOLD(1)), ' data-testbag="' + i + '"', S.gold >= GOLD(1)) + '</div></div>'
+    ).join('');
+    /* Två knappar som fyller på pengar för testning — grabbar 100 credits respektive
+       100 guld per tryck. TA BORT före lansering, precis som väskorna ovan. */
+    h += '<div class="trader-row"><div class="tr-item">' +
+      '<span class="vg-art" style="background:rgba(56,232,255,.12);display:flex;align-items:center;justify-content:center;font-size:22px">💳</span>' +
+      '<div><div class="tr-name" style="color:var(--cyan)">+100 Credits</div>' +
+      '<div class="tr-sub">Test money · free</div></div></div>' +
+      '<div class="tr-buy">' + btn('Grab 100c', ' data-testmoney="credits"', true) + '</div></div>';
+    h += '<div class="trader-row"><div class="tr-item">' +
+      '<span class="vg-art" style="background:rgba(255,207,107,.14);display:flex;align-items:center;justify-content:center;font-size:22px">🪙</span>' +
+      '<div><div class="tr-name" style="color:#ffcf6b">+100 Gold</div>' +
+      '<div class="tr-sub">Test money · free</div></div></div>' +
+      '<div class="tr-buy">' + btn('Grab 100g', ' data-testmoney="gold"', true) + '</div></div>';
+  }
   const stock = vendorStock(regionId);
   h += '<div class="section-label">Stock <span class="vg-clock" id="vendor-clock">restock in ' +
        fmtDur(vendorRestockIn(regionId)) + '</span></div>';
@@ -5935,6 +6034,34 @@ function buildTrader(regionId){
     : row(s, i)).join('');
   return h;
 }
+/* ===== TESTVÄSKOR — TA BORT FÖRE LANSERING ===== */
+const TEST_BAGS = [
+  {key: 'bag_field_pouch'},      // +4
+  {key: 'bag_courier_satchel'},  // +6
+  {key: 'bag_runners_pack'}      // +8
+];
+function grabTestMoney(kind){
+  if (kind === 'gold'){ S.gold += GOLD(100); vendorNote = 'Grabbed 100 gold.'; }
+  else { S.credits += 100; vendorNote = 'Grabbed 100 credits.'; }
+  updateUI(true); save();
+  return true;
+}
+function buyTestBag(regionId, i){
+  const tb = TEST_BAGS[i];
+  if (!tb || regionId !== 'neonhub') return false;
+  if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
+  if (S.gold < GOLD(1)){ vendorNote = 'Not enough money — you need ' + moneyText(GOLD(1) - S.gold) + ' more.'; return false; }
+  const free = invFirstFree();
+  if (free < 0){ vendorNote = 'Your backpack is full — nothing was bought.'; return false; }
+  S.gold -= GOLD(1);
+  const it = rollItem(tb.key, ITEMS[tb.key].rars[0]);
+  it.src = 'Test bag';
+  S.inv[free] = {gear: it};
+  vendorNote = 'Bought ' + ITEMS[tb.key].name + '.';
+  updateUI(true); renderInventory(); save();
+  return true;
+}
+/* ===== slut testväskor ===== */
 function buyCell(regionId){
   const price = cellPrice(regionId);
   if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
@@ -6908,7 +7035,12 @@ $('qa-inventory').addEventListener('click', openInventory);
 $('qa-vault').addEventListener('click', openVault);
 $('nav-ach').addEventListener('click', openAchievements);
 $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove('open'));
-$('vault-close').addEventListener('click', () => { hideGearTip(); $('vault-overlay').classList.remove('open'); });
+$('vault-close').addEventListener('click', () => {
+  hideGearTip();
+  $('vault-overlay').classList.remove('open');
+  document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
+});
+$('vault-onebag').addEventListener('click', toggleVaultOneBag);
 makeDraggable($('ach-overlay'), [$('ach-overlay').querySelector('.inv-titlebar'), $('ach-overlay').querySelector('.inv-emblem')]);
 $('inv-close').addEventListener('click', () => {
   hideGearTip();
