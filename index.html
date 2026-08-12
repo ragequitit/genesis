@@ -419,8 +419,9 @@ body.dragging *{cursor:grabbing !important}
 .item-art{width:104px;height:104px;flex:0 0 auto;border-radius:10px;border:2px solid var(--rc,var(--border-glow));background:var(--bg-inset) center/contain no-repeat;box-shadow:0 0 18px -6px var(--rc,transparent)}
 .item-head{flex:1;min-width:0}
 /* En statrad: tal, namn, och skillnaden längst ut till höger. */
-.iw-stat{display:flex;align-items:baseline;gap:9px;font-size:13px;padding:2px 0}
-.iw-stat .n{font-family:var(--font-mono);font-weight:900;color:var(--text);min-width:34px}
+.iw-stat{display:flex;align-items:baseline;gap:6px;font-size:13px;padding:2px 0}
+/* Ingen min-bredd på talet: den sköt ut etiketten och gav ett gap på ett halvt kort. */
+.iw-stat .n{font-family:var(--font-mono);font-weight:900;color:var(--text)}
 .iw-stat .l{color:var(--text-dim);flex:1}
 .iw-stat b.up{font-family:var(--font-mono);color:#4ade80}
 .iw-stat b.dn{font-family:var(--font-mono);color:#ff6b74}
@@ -1398,7 +1399,9 @@ body.modal-open{overflow:hidden}
 .vault-grid{display:grid;grid-auto-flow:column;gap:6px;justify-content:center}
 /* Väskemblemet: den runda ikonen som kikar ut över hörnet, som i förlagan */
 .inv-emblem{
-  position:absolute;left:-12px;top:-12px;z-index:3;width:46px;height:46px;border-radius:50%;
+  /* Uppe i MITTEN, halvt utanför ramen — uppe i vänstra hörnet låg för nära WoW. */
+  position:absolute;left:50%;transform:translateX(-50%);top:-23px;
+  z-index:3;width:46px;height:46px;border-radius:50%;
   cursor:grab;user-select:none;
   border:2px solid #46579c;
   background:radial-gradient(circle at 35% 30%, #2a3a78, #101733 70%);
@@ -2116,7 +2119,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.62.2 — RARITET I VÄSKAN</div>
+            <div class="desc">GENESIS v0.62.3 — PACKNINGEN</div>
           </div>
         </div>
       </div>
@@ -2142,7 +2145,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.2 — RARITET I VÄSKAN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.3 — PACKNINGEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4276,35 +4279,49 @@ function compactDims(n){
 }
 function bagIsOpen(socket){ return !!(S.bagOpen && S.bagOpen[socket]); }
 /* ---------- HUVUDRUTNÄTETS FORM ----------
-   Basväskan är 4 breda × 5 höga. De TRE FÖRSTA väskfacken trycker ut sina rutor åt
-   HÖGER (höjden står still på fem rader), de TVÅ SISTA trycker NEDÅT (bredden står
-   still). Så helheten blir en så stor och tät fyrkant som möjligt när allt sitter
-   ihop, i stället för en lång smal remsa. Varje ruta placeras uttryckligen i sin
-   kolumn och rad, så formen blir exakt även när väskorna har ojämna storlekar. */
-const WIDE_SOCKETS = 3;           // fack 0-2 breddar, fack 3-4 växer nedåt
+   Rutorna packas som ETT sammanhängande fält, fyllt uppifrån och ner kolumn för
+   kolumn. Den gamla modellen delade väskorna i en bredd-grupp och en höjd-grupp,
+   och när väskorna hade ojämna storlekar (4/6/8) uppstod hål mitt i rutnätet — en
+   halv kolumn här, tre tomma rutor där. Nu väljs i stället den form som ger MINST
+   antal tomma rutor, bland höjder på fyra till sex rader, och vid lika resultat den
+   som är mest kvadratisk och hellre bred än hög. Oftast går det jämnt ut helt.
+   MIN_ROWS/MAX_ROWS håller höjden lugn: utan dem hoppade rutnätet till nio rader
+   höjd så fort en väska råkade göra det talet jämnare. */
+const PACK_MIN_ROWS = 4, PACK_MAX_ROWS = 6;
+function packDims(n){
+  if (n <= 0) return {cols: 1, rows: 1};
+  let best = null;
+  for (let rows = PACK_MIN_ROWS; rows <= PACK_MAX_ROWS; rows++){
+    const cols = Math.ceil(n / rows);
+    const waste = cols * rows - n;
+    /* Minst glapp först, sedan mest kvadratisk, sedan hellre bred än hög. */
+    const key = [waste, Math.abs(cols - rows), -cols];
+    if (!best || key[0] < best.key[0] ||
+        (key[0] === best.key[0] && (key[1] < best.key[1] ||
+        (key[1] === best.key[1] && key[2] < best.key[2])))){
+      best = {key: key, cols: cols, rows: rows};
+    }
+  }
+  return {cols: best.cols, rows: best.rows};
+}
 function invLayout(){
-  let wide = INV_BASE_SLOTS, tall = 0;
+  /* Platserna i ordning: grunden först, sedan varje inbakad väska. */
+  const order = [];
+  for (let i = 0; i < INV_BASE_SLOTS; i++) order.push(i);
   bagSegments().forEach(seg => {
     if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
-    if (seg.socket < WIDE_SOCKETS) wide += seg.len; else tall += seg.len;
+    for (let k = 0; k < seg.len; k++) order.push(seg.start + k);
   });
-  const cols = Math.max(1, Math.ceil(wide / GRID_ROWS));
-  const rows = GRID_ROWS + (tall ? Math.ceil(tall / cols) : 0);
-  /* Platserna i ordning: först bredd-gruppen (bas + fack 0-2), sedan höjd-gruppen. */
-  const wideIdx = [], tallIdx = [];
-  for (let i = 0; i < INV_BASE_SLOTS; i++) wideIdx.push(i);
-  bagSegments().forEach(seg => {
-    if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
-    const into = seg.socket < WIDE_SOCKETS ? wideIdx : tallIdx;
-    for (let k = 0; k < seg.len; k++) into.push(seg.start + k);
-  });
-  const placed = [];
-  /* Bredd-gruppen fylls kolumnvis inom fem rader — så nya väskor lägger sig som
-     nya kolumner till höger utan att röra det som redan ligger. */
-  wideIdx.forEach((slot, p) => placed.push({slot: slot, col: Math.floor(p / GRID_ROWS) + 1, row: (p % GRID_ROWS) + 1}));
-  /* Höjd-gruppen lägger sig radvis UNDER, tvärs hela bredden. */
-  tallIdx.forEach((slot, q) => placed.push({slot: slot, col: (q % cols) + 1, row: GRID_ROWS + Math.floor(q / cols) + 1}));
-  return {cols: cols, rows: rows, cells: placed};
+  const dim = packDims(order.length);
+  /* Kolumnvis fyllning: plats 0 hamnar överst till vänster, sedan nedåt. Ett
+     eventuellt glapp hamnar därför alltid längst ner i sista kolumnen — aldrig
+     som ett hål mitt i fältet. */
+  const placed = order.map((slot, p) => ({
+    slot: slot,
+    col: Math.floor(p / dim.rows) + 1,
+    row: (p % dim.rows) + 1
+  }));
+  return {cols: dim.cols, rows: dim.rows, cells: placed};
 }
 /* Platserna som huvudrutnätet ritar: grunden plus varje INBAKAD väskas intervall. */
 function mainInvIndices(){
@@ -6756,11 +6773,9 @@ function itemWinActions(win, uid){
   } else if (found.where === 'bag'){
     box.innerHTML = '<button class="ia-cancel" data-act="unbag">Take out<span>→ backpack</span></button>';
   } else if (found.where === 'inv' && ITEMS[found.it.t] && ITEMS[found.it.t].bag){
-    const socket = freeBagSocket();
-    box.innerHTML = (socket >= 0
-        ? '<button class="ia-equip" data-act="fitbag">Fit into bag slot ' + (socket + 2) + '<span>+' + ITEMS[found.it.t].bag + ' slots</span></button>'
-        : '<div class="ia-note">No free bag slot — unlock one, or take another bag out first.</div>') +
-      '<button class="ia-sell" data-act="sell">Sell<span>' + fmtMoney(gearGold(found.it)) + '</span></button>';
+    /* Ingen "sätt i fack"-knapp: en väska sätts i genom att dras till facket eller
+       genom att klicka på ett tomt fack. Knappen var en tredje väg till samma sak. */
+    box.innerHTML = '<button class="ia-sell" data-act="sell">Sell<span>' + fmtMoney(gearGold(found.it)) + '</span></button>';
   } else if (found.where === 'equip'){
     box.innerHTML = '<button class="ia-cancel" data-act="unequip">Unequip<span>→ backpack</span></button>';
   } else {
@@ -6794,7 +6809,6 @@ function spawnItemWin(uid, nearX, nearY){
     if (!cur){ itemWinActions(win, uid); return; }
     if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
     else if (btn.dataset.act === 'unvault'){ if (fromVault(cur.idx)) win.remove(); }
-    else if (btn.dataset.act === 'fitbag'){ if (equipBag(cur.idx, freeBagSocket())) win.remove(); }
     else if (btn.dataset.act === 'unbag'){ if (unequipBag(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unequip'){ if (unequipGear(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'sell'){
