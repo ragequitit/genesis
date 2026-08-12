@@ -354,7 +354,11 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gear-tip{
   /* Över ALLA flytande fönster — den är en förhandstitt, aldrig något man klickar på,
      så den kan ligga högst utan att stjäla något. */
-  position:fixed;z-index:9000;display:none;pointer-events:none;width:224px;
+  /* Bredden följer innehållet i stället för ett fast tal — den fasta bredden gav
+     ett dött fält till höger på nästan varje pjäs. Taket hindrar en lång rad från
+     att dra ut kortet över halva skärmen. */
+  position:fixed;z-index:9000;display:none;pointer-events:none;
+  width:max-content;max-width:280px;
   padding:11px 12px;border-radius:11px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   /* Ramen är NEUTRAL — rariteten säger sig själv i namnet. En färgad ram runt
@@ -2143,7 +2147,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.62.4 — VÄSKANS RUTOR</div>
+            <div class="desc">GENESIS v0.62.5 — KORTET OCH PRICKARNA</div>
           </div>
         </div>
       </div>
@@ -2169,7 +2173,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.4 — VÄSKANS RUTOR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.5 — KORTET OCH PRICKARNA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4252,11 +4256,13 @@ function buildPremiumBags(){
     '<div class="upgrade-row">' +
       '<div class="u-ico">👜</div>' +
       '<div class="u-body">' +
-        '<div class="u-name">Extra Bag Slots</div>' +
+        '<div class="u-name">Extra Bag Slots · Inventory</div>' +
         '<div class="u-desc" id="prem-bag-desc"></div>' +
+        /* Bara de fack som faktiskt köps HÄR får en prick. De två första betalas
+           med guld inne i väskan och hör inte hemma i premiumpanelen. */
         '<div class="pips" id="prem-bag-pips">' +
-          '<span class="pip lit" title="Bag slot 1 (base)"></span>' +
-          BAG_SLOTS.map((b, i) => '<span class="pip" title="Bag slot ' + (i + 2) + '"></span>').join('') +
+          BAG_SLOTS.map((b, i) => b.cur === 'credits'
+            ? '<span class="pip" data-piptier="' + i + '" title="Bag slot ' + (i + 2) + '"></span>' : '').join('') +
         '</div>' +
       '</div>' +
       '<div class="u-buy prisms" id="prem-bag-buy"></div>' +
@@ -4273,9 +4279,13 @@ function renderPremiumBags(){
   const pipsEl = $('prem-bag-pips');
   if (!pipsEl) return;
   const tier = nextBagTier();
-  const owned = tier < 0 ? BAG_SLOTS.length : tier;
+  /* Varje prick bär sitt eget fack i data-piptier, så tändningen stämmer även när
+     panelen bara visar en delmängd av facken. */
   const pips = pipsEl.children;
-  for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('lit', i <= owned);
+  for (let i = 0; i < pips.length; i++){
+    const t = +pips[i].dataset.piptier;
+    pips[i].classList.toggle('lit', bagUnlocked(t));
+  }
   const btn = $('prem-bag-buy'), desc = $('prem-bag-desc');
   btn.classList.remove('maxed', 'cant');
   if (tier < 0){
@@ -6673,7 +6683,9 @@ window.addEventListener('blur', () => gearTip.classList.remove('showhint'));
 function gearTipHTML(it){
   /* stat: talet först i sin färg, namnet efter, och en eventuell skillnad sist. */
   const stat = (n, label, cls, extra) => '<div class="gt-stat"><b class="' + (cls || '') + '">' + n + '</b> ' + label + (extra || '') + '</div>';
-  const line = (k, v) => '<div class="gt-stat">' + v + ' <span style="opacity:.75">' + k + '</span></div>';
+  /* Etiketten står FÖRE summan: "Sells for 12g 10s" läses som en mening, medan
+     summan först läste som en stat bland de andra. */
+  const line = (k, v) => '<div class="gt-stat"><span style="opacity:.75">' + k + '</span> ' + v + '</div>';
   const D = ITEMS[it.t];
   const name = '<div class="gt-name" style="color:' + gearRarCol(it) + '">' + gearName(it) + '</div>';
   /* Hjälpen på TVÅ rader: det var den enda långa raden i kortet, och den ensam
@@ -6699,11 +6711,15 @@ function gearTipHTML(it){
   };
   return name +
     '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
+    /* Tre avgränsade block: plats · kraft och hälsa · förmågor · priset. Strecken
+       gör att ögat hittar rätt grupp utan att läsa. */
+    '<div class="gt-sep"></div>' +
     stat(fmt(gearCP(it)), 'Combat Power', 'cp', delta(gearCP(it) - (cur ? gearCP(cur) : 0))) +
     stat(fmt(it.hp), 'Health', 'hp', delta(it.hp - (cur ? cur.hp : 0))) +
     '<div class="gt-sep"></div>' +
     (it.s === 11 ? '<div class="gt-aff">−' + MOUNT_SPEED[it.r] + '% Travel Time</div>' : '') +
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
+    '<div class="gt-sep"></div>' +
     line('Sells for', fmtMoney(gearGold(it))) +
     hint;
 }
@@ -6712,7 +6728,7 @@ function gearTipHTML(it){
 function stackTipHTML(row){
   const d = itemDef(row);
   const touch = matchMedia('(hover: none)').matches;
-  const line = (k, v) => '<div class="gt-stat">' + v + ' <span style="opacity:.75">' + k + '</span></div>';
+  const line = (k, v) => '<div class="gt-stat"><span style="opacity:.75">' + k + '</span> ' + v + '</div>';
   return '<div class="gt-name">' + row.name + '</div>' +
     '<div class="gt-rar">' + (d ? d.kind : 'Item') + ' · Stack of ' + row.qty + '</div>' +
     '<div class="gt-sep"></div>' +
@@ -7242,7 +7258,18 @@ $('inv-close').addEventListener('click', () => {
 makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar'), $('inv-overlay').querySelector('.inv-emblem')]);
 /* Valvet ska gå att flytta precis som väskan — det saknades och rutan satt fast. */
 makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titlebar'), $('vault-overlay').querySelector('.inv-emblem')]);
-$('bag-btn').addEventListener('click', openInventory);
+/* Knappen VÄXLAR: står väskan öppen stänger nästa tryck den, i stället för att
+   bara rita om ett fönster som redan syns. */
+$('bag-btn').addEventListener('click', () => {
+  const w = $('inv-overlay');
+  if (w.classList.contains('open')){
+    hideGearTip();
+    w.classList.remove('open');
+    document.querySelectorAll('.bagwin').forEach(x => x.remove());
+    return;
+  }
+  openInventory();
+});
 $('inv-sort').addEventListener('click', invSort);
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
    inte: Windows kan skicka rullning i RADER eller SIDOR (deltaMode 1 och 2), och de
