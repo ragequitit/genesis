@@ -371,7 +371,11 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gt-aff.dn{color:#7bffb0}
 .gt-src{font-size:9px;color:var(--text-faint);margin-top:6px;font-style:italic}
 .gt-desc{font-size:10px;line-height:1.5;color:var(--text);margin-bottom:5px}
-.gt-hint{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-top:7px;border-top:1px solid var(--border-soft);padding-top:6px}
+/* Hjälpen är GÖMD som standard — hur man klickar är självklart vid det här laget.
+   Håller man SHIFT medan kortet är uppe visas den där den satt: shift är redan
+   utrustningsknappen, så handen ligger rätt när frågan uppstår. */
+.gt-hint{display:none;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-top:7px;border-top:1px solid var(--border-soft);padding-top:6px}
+.gear-tip.showhint .gt-hint{display:block}
 /* Platsväljaren: liten lista intill en tom ruta med det som passar */
 /* Draget: en genomskinlig kopia under pekaren, och målen lyser upp. */
 .drag-ghost{
@@ -2032,7 +2036,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.52.1 — SMALARE KORT</div>
+            <div class="desc">GENESIS v0.53.1 — GÖMD HJÄLP</div>
           </div>
         </div>
       </div>
@@ -2058,7 +2062,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.52.1 — SMALARE KORT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.53.1 — GÖMD HJÄLP</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2198,6 +2202,17 @@ const AFFIXES = {
   scan:    {name:'Scan Cost',        lo:1.56, hi:2.04, sfx:'%', lower:true}
 };
 const AFFIX_KEYS = Object.keys(AFFIXES);
+/* ---------- SPECIALPOOLEN (spelarens låsta design, byggd i v0.53.0) ----------
+   Ring och halsband har en egen pool: Crit Damage och Expedition Speed. En sådan
+   pjäs får ALLTID exakt EN egenskap ur egen pool — garanterad även på en common
+   med bara en egenskap, för identiteten ska hålla på varje raritetssteg — och
+   fyller resten ur den vanliga. De två egenskaperna är samtidigt UTE ur den
+   vanliga poolen: det är exklusiviteten som gör platserna speciella. Ringen är
+   stället man jagar kritbygget på, halsbandet likaså. Gamla pjäser som hann
+   rulla dem på andra platser behåller dem — de läses som vanligt. */
+const SPECIAL_POOL = ['critdmg', 'expspd'];
+const SPECIAL_SLOTS = {6: true, 8: true};        // halsband, ring
+const NORMAL_KEYS = AFFIX_KEYS.filter(k => SPECIAL_POOL.indexOf(k) < 0);
 const GEAR_HP_BASE = 24;          // hälsa per pjäs vid Common, före rullning
 /* Karaktären har ALLTID hälsa: 100 från början, och utrustningen bygger på uppåt.
    Noll hälsa vore ett dött läge — en spelare som just börjat ska inte se en tom
@@ -2311,13 +2326,22 @@ function rollItem(key, rarIdx){
     return {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: [], hp: 0,
             g: Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]))};
   }
-  const pool = AFFIX_KEYS.slice();
   const affs = [];
-  for (let i = 0; i < R.aff && pool.length; i++){
-    const k = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+  const rollOne = k => {
     const a = AFFIXES[k];
     const v = (a.lo + Math.random() * (a.hi - a.lo)) * R.mult;
     affs.push({k: k, v: Math.round(v * 100) / 100});
+  };
+  /* Specialplats: första egenskapen är GARANTERAT en ur egen pool, resten kommer
+     ur den vanliga. Alla andra platser rullar enbart ur den vanliga. */
+  const pool = NORMAL_KEYS.slice();
+  let want = R.aff;
+  if (SPECIAL_SLOTS[D.slot]){
+    rollOne(SPECIAL_POOL[Math.floor(Math.random() * SPECIAL_POOL.length)]);
+    want--;
+  }
+  for (let i = 0; i < want && pool.length; i++){
+    rollOne(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
   }
   /* Hälsan följer rariteten, inte platsen: en ring och en väst av samma steg är
      lika mycket värda i hälsa (spelarens beslut). */
@@ -5841,6 +5865,10 @@ renderPetPanel();
 
 /* ---------- HOVRINGSRUTAN ---------- */
 const gearTip = $('gear-tip');
+/* Shift håller hjälpen synlig medan den hålls nere — släpper man försvinner den. */
+window.addEventListener('keydown', e => { if (e.key === 'Shift') gearTip.classList.add('showhint'); });
+window.addEventListener('keyup',   e => { if (e.key === 'Shift') gearTip.classList.remove('showhint'); });
+window.addEventListener('blur', () => gearTip.classList.remove('showhint'));
 /* Hovringskortet, spelarens WoW-förlaga: namnet bär raritetens FÄRG (inget
    raritetsord), kraft och hälsa överst med skillnaden mot det man bär inbakad
    direkt på raden — grön siffra om man vinner, röd om man förlorar — sedan ett
