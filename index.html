@@ -1534,10 +1534,22 @@ body.modal-open{overflow:hidden}
   position:absolute;left:50%;transform:translateX(-50%);top:-26px;z-index:3;
   width:44px;height:44px;border-radius:50%;
   border:2px solid #46579c;
-  background:radial-gradient(circle at 35% 30%, #2a3a78, #101733 70%) center/28px 28px no-repeat;
-  background-blend-mode:normal;
+  /* Fonden ligger kvar; väskbilden ritas i ett eget lager ovanpå. Sattes bilden
+     som background-image inline ersatte den gradienten och cirkeln blev genomskinlig. */
+  background:radial-gradient(circle at 35% 30%, #2a3a78, #101733 70%);
+  cursor:grab;user-select:none;
   box-shadow:0 4px 14px rgba(0,0,0,.6), inset 0 0 10px rgba(140,170,255,.25);
+  display:flex;align-items:center;justify-content:center;
 }
+.bagwin-emblem i{
+  width:30px;height:30px;
+  background-position:center;background-size:contain;background-repeat:no-repeat;
+}
+/* Hela fönstret går att dra, inte bara rubriken — men inte när man greppar en ruta,
+   för då är det pjäsen man vill flytta. */
+.bagwin{cursor:grab}
+.bagwin:active{cursor:grabbing}
+.bagwin .bagwin-grid{cursor:default}
 .bagwin{
   position:fixed;z-index:130;width:max-content;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
@@ -2147,7 +2159,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.62.5 — KORTET OCH PRICKARNA</div>
+            <div class="desc">GENESIS v0.62.6 — GREPP OCH SORTERING</div>
           </div>
         </div>
       </div>
@@ -2173,7 +2185,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.5 — KORTET OCH PRICKARNA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.6 — GREPP OCH SORTERING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3007,6 +3019,26 @@ function equipVaultBagFromVault(vaultIdx, socket){
   renderInventory(); renderVault(); updateUI(true); save();
   return true;
 }
+/* Ta ur en väska ur valvets fack och lägga den I VALVET. Samma ordning som alltid:
+   krymp först, leta ruta sedan, och backa hela bytet om väskan inte får plats —
+   annars kunde valvet krympa bort just den ruta väskan skulle till. */
+function unequipVaultBagToVault(socket, toIdx){
+  const b = vaultBagIn(socket);
+  if (!b) return false;
+  S.vault.bagItems[socket] = null;
+  if (!fitVaultAfterResize(1)){
+    S.vault.bagItems[socket] = b;
+    vaultNormalize();
+    return false;
+  }
+  const at = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < vaultSlots() && !S.vault.inv[toIdx])
+    ? toIdx : vaultFirstFree();
+  if (at < 0){ S.vault.bagItems[socket] = b; vaultNormalize(); return false; }
+  S.vault.inv[at] = {gear: b};
+  if (S.vault.open) S.vault.open[socket] = false;
+  renderInventory(); renderVault(); updateUI(true); save();
+  return true;
+}
 function unequipVaultBag(socket, toIdx){
   const b = vaultBagIn(socket);
   if (!b) return false;
@@ -3223,7 +3255,7 @@ function renderVaultMiniBags(){
     win.className = 'bagwin vaultbagwin';
     win.dataset.socket = seg.socket;
     win.innerHTML =
-      '<div class="bagwin-emblem" style="background-image:url(\'' + gearArt(vaultBagIn(seg.socket)) + '\')"></div>' +
+      '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(vaultBagIn(seg.socket)) + '\')"></i></div>' +
       '<div class="bagwin-head"><span>' + seg.name + '</span>' +
       '<button class="bagwin-x" data-closevbag="' + seg.socket + '">✕</button></div>' +
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
@@ -3233,7 +3265,9 @@ function renderVaultMiniBags(){
     else { win.style.left = (base.right + 12 + idx * 24) + 'px'; win.style.top = (base.top + idx * 24) + 'px'; }
     clampToViewport(win);
     const head = win.querySelector('.bagwin-head');
-    makeDraggable(win, head);
+    /* Tre grepp på samma fönster: rubriken, emblemet, och ramen i stort — men
+       inte rutorna, för där är det pjäsen man vill åt. */
+    makeDraggable(win, [head, win.querySelector('.bagwin-emblem'), win]);
     head.addEventListener('pointerup', () => {
       const r = win.getBoundingClientRect();
       S.vault.pos[seg.socket] = {x: Math.round(r.left), y: Math.round(r.top)};
@@ -4368,13 +4402,14 @@ function invLayout(){
     for (let k = 0; k < seg.len; k++) order.push(seg.start + k);
   });
   const dim = packDims(order.length);
-  /* Kolumnvis fyllning: plats 0 hamnar överst till vänster, sedan nedåt. Ett
-     eventuellt glapp hamnar därför alltid längst ner i sista kolumnen — aldrig
-     som ett hål mitt i fältet. */
+  /* RADVIS fyllning: plats 0 överst till vänster, sedan åt höger och ned. Kolumnvis
+     fyllning såg logisk ut men gjorde att en sortering la sig i en stapel längs
+     vänsterkanten i stället för uppifrån och ner — man läser ett rutnät radvis.
+     Ett eventuellt glapp hamnar därför sist på nedersta raden. */
   const placed = order.map((slot, p) => ({
     slot: slot,
-    col: Math.floor(p / dim.rows) + 1,
-    row: (p % dim.rows) + 1
+    col: (p % dim.cols) + 1,
+    row: Math.floor(p / dim.cols) + 1
   }));
   return {cols: dim.cols, rows: dim.rows, cells: placed};
 }
@@ -4433,7 +4468,7 @@ function renderMiniBags(){
     win.className = 'bagwin';
     win.dataset.socket = seg.socket;
     win.innerHTML =
-      '<div class="bagwin-emblem" style="background-image:url(\'' + gearArt(bagIn(seg.socket)) + '\')"></div>' +
+      '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(bagIn(seg.socket)) + '\')"></i></div>' +
       '<div class="bagwin-head"><span>' + seg.name + '</span>' +
       '<button class="bagwin-x" data-closebag="' + seg.socket + '">✕</button></div>' +
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
@@ -4443,7 +4478,9 @@ function renderMiniBags(){
     else { win.style.left = (base.right + 12 + idx * 24) + 'px'; win.style.top = (base.top + idx * 24) + 'px'; }
     clampToViewport(win);
     const head = win.querySelector('.bagwin-head');
-    makeDraggable(win, head);
+    /* Tre grepp på samma fönster: rubriken, emblemet, och ramen i stort — men
+       inte rutorna, för där är det pjäsen man vill åt. */
+    makeDraggable(win, [head, win.querySelector('.bagwin-emblem'), win]);
     head.addEventListener('pointerup', () => {
       const r = win.getBoundingClientRect();
       S.bagPos[seg.socket] = {x: Math.round(r.left), y: Math.round(r.top)};
@@ -7148,7 +7185,10 @@ function makeDraggable(win, handle){
 }
 function attachDragHandle(win, handle){
   handle.addEventListener('pointerdown', e => {
+    /* Knappar och RUTOR är inte draghandtag: greppar man en ruta är det pjäsen
+       man vill flytta, inte fönstret. */
     if (e.target.closest('button')) return;
+    if (e.target.closest('[data-inv], [data-vault], [data-bag], [data-vaultbag]')) return;
     bringToFront(win);
     const r = win.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
@@ -7327,6 +7367,7 @@ function moveGhost(d, x, y){
 }
 /* "Släpptes det i väskan?" — huvudrutnätet ELLER något utbrutet minifönster. */
 function inInvArea(el){ return !!(el.closest('#inv-grid') || el.closest('.bagwin:not(.vaultbagwin)')); }
+function inVaultArea(el){ return !!(el.closest('#vault-grid') || el.closest('.vaultbagwin')); }
 function endDrag(d, x, y){
   highlightBagSlots(-1, false);
   if (d.ghost) d.ghost.remove();
@@ -7339,8 +7380,9 @@ function endDrag(d, x, y){
   /* En ruta räknas som mål oavsett om den sitter i huvudrutnätet eller i ett
      utbrutet minifönster — annars gick det bara att dra ÅT ena hållet. */
   const cell = under.closest('[data-inv]');
-  const vcell = under.closest('#vault-grid [data-vault]');
-  const inVault = !!under.closest('#vault-grid');
+  /* Rutor i valvets minifönster räknas också — samma envägsproblem som väskan hade. */
+  const vcell = under.closest('[data-vault]');
+  const inVault = inVaultArea(under);
   if (d.from === 'vault'){
     /* En väska ur valvet får sättas direkt i ett av valvets fack. */
     const vsock2 = under.closest('[data-vaultbag]');
@@ -7390,7 +7432,10 @@ function endDrag(d, x, y){
     return;
   }
   if (d.from === 'vaultbagslot'){
-    if (cell) unequipVaultBag(d.socket, +cell.dataset.inv);
+    /* Släpps väskan i VALVET stannar den där; släpps den i ryggsäcken går den dit. */
+    if (vcell) unequipVaultBagToVault(d.socket, +vcell.dataset.vault);
+    else if (inVaultArea(under)) unequipVaultBagToVault(d.socket);
+    else if (cell) unequipVaultBag(d.socket, +cell.dataset.inv);
     else if (inInvArea(under)) unequipVaultBag(d.socket);
     return;
   }
