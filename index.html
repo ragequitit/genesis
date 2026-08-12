@@ -1390,7 +1390,10 @@ body.modal-open{overflow:hidden}
 /* Valvet är BREDARE: FEM kolumner i stället för fyra. Det är det enda antalet där
    både grunden (20 = 4 rader) OCH varje köpt lås (10 = 2 rader) går jämnt ut — sex
    kolumner hade lämnat en trasig svans, precis det vi ville bort från. */
-.vault-grid{grid-template-columns:repeat(5, 52px)}
+/* Valvet är en HEL rektangel som fylls kolumnvis (uppifrån och ner, en kolumn i
+   taget). Antal kolumner och rader sätts i JS efter spelarens progression
+   4×5 → 6×5 → 8×5 → 10×5 → 10×6 → 10×7. */
+.vault-grid{display:grid;grid-auto-flow:column;gap:6px;justify-content:center}
 /* Väskemblemet: den runda ikonen som kikar ut över hörnet, som i förlagan */
 .inv-emblem{
   position:absolute;left:-12px;top:-12px;z-index:3;width:46px;height:46px;border-radius:50%;
@@ -1490,6 +1493,22 @@ body.modal-open{overflow:hidden}
   background:rgba(56,232,255,.08);border:1px solid var(--cyan-dim);
 }
 .inv-sort:hover{background:rgba(56,232,255,.18)}
+#inv-onebag.on{background:rgba(56,232,255,.22);border-color:var(--cyan);color:var(--cyan)}
+/* De separata väskorna i delat läge: små flytande fönster, var och en dragbar i
+   sin egen titelrad. Samma rutor som huvudväskan, bara grupperade per väska. */
+.bagwin{
+  position:fixed;z-index:130;width:max-content;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid rgba(255,255,255,.20);border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.7);padding:8px 9px;
+}
+.bagwin-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  cursor:grab;user-select:none;margin-bottom:7px;font-size:10.5px;font-weight:800;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);
+}
+.bagwin-head:active{cursor:grabbing}
+.bagwin-grid{display:grid;grid-auto-flow:column;gap:6px}
 .inv-capline b{color:var(--cyan);font-family:var(--font-mono)}
 /* Rutnätet: 4 breda, kraftiga urgröpta fack med fasade kanter — förlagans ramverk */
 .inv-grid{display:grid;grid-template-columns:repeat(4, 52px);gap:6px;justify-content:center}
@@ -1894,7 +1913,7 @@ body.modal-open{overflow:hidden}
       <div class="inv-toolbar">
         <span class="inv-capline">Stored <b id="vault-cap">0 / 20</b></span>
       </div>
-      <div class="inv-grid vault-grid" id="vault-grid"></div>
+      <div class="vault-grid" id="vault-grid"></div>
       <div class="section-label">Vault slots</div>
       <div class="inv-bagrow" id="vault-bagrow">
         <div class="inv-bagslot" data-vaultlock="0"></div>
@@ -1932,6 +1951,7 @@ body.modal-open{overflow:hidden}
       </div>
       <div class="inv-toolbar">
         <button class="inv-sort" id="inv-sort" title="Sort: gear by slot and rarity, then stacks">⇅ Sort</button>
+        <button class="inv-sort" id="inv-onebag" title="Split the backpack into separate bags you can move around — press again to merge">🎒 One Bag</button>
         <span class="inv-capline">Slots <b id="inv-cap">0 / 20</b></span>
       </div>
       <div class="inv-toprow">
@@ -2079,7 +2099,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.56.5 — DRA I EMBLEMET</div>
+            <div class="desc">GENESIS v0.59.0 — ONE BAG (VÄSKAN)</div>
           </div>
         </div>
       </div>
@@ -2105,7 +2125,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.56.5 — DRA I EMBLEMET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.59.0 — ONE BAG (VÄSKAN)</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2516,6 +2536,8 @@ let S = {
   mil: {},              // "buildId:step" -> true
   ach: {done: {}, unseen: 0},   // avklarade bragder + hur många som inte setts än
   vault: {inv: [], locks: [false, false, false, false, false]},   // föremålsvalvet
+  bagSplit: false,          // väskan visad som separata småväskor (One Bag-läget)
+  bagPos: {},               // sparade positioner för varje delväska: {namn: {x,y}}
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
   savedAt: 0
 };
@@ -2633,6 +2655,13 @@ function load(){
         const g = Array.isArray(d.bagItems) ? readGear(d.bagItems[i]) : null;
         return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.bags[i]) ? g : null;
       });
+      S.bagSplit = !!d.bagSplit;
+      if (d.bagPos && typeof d.bagPos === 'object'){
+        for (const k in d.bagPos){
+          const p = d.bagPos[k];
+          if (p && isFinite(+p.x) && isFinite(+p.y)) S.bagPos[k] = {x: +p.x, y: +p.y};
+        }
+      }
       /* MÅSTE stå EFTER readGear — tredje gången den fällan gillras (moneyV,
          väskorna, nu valvet). Deklarationen är en const längre ned i blocket. */
       /* Valvet läses med samma stränghet som väskan: bara giltiga pjäser och
@@ -2823,7 +2852,20 @@ function maxAffordable(b){
    man köper, inget att stoppa i den. Saker flyttas fritt mellan väskan och valvet
    med samma drag som allt annat. */
 const VAULT_BASE_SLOTS = 20;
-const VAULT_LOCK_SLOTS = 10;      // platser per köpt lås — EN siffra, alla läser den
+const VAULT_LOCK_SLOTS = 10;      // varje köpt lås = exakt 10 rutor
+/* ---------- RUTNÄTETS FORM (spelarens rektangelmodell, v0.58.0) ----------
+   Ett rutnät ska ALLTID vara en hel rektangel. Fem rader högt, och det växer i
+   BREDD tills det når taket, sedan NEDÅT. Kolumnerna fylls uppifrån och ner, så
+   varje köp om tio rutor blir antingen två hela kolumner (medan det breddas) eller
+   en hel rad (när det växer nedåt) — aldrig en svans, aldrig ett hål.
+     20 = 4×5 · 30 = 6×5 · 40 = 8×5 · 50 = 10×5 · 60 = 10×6 · 70 = 10×7
+   maxCols är takbredden. Samma funktion ritar väskan (tak 4) och valvet (tak 10). */
+const GRID_ROWS = 5;
+function gridDims(slots, maxCols){
+  const capCols = GRID_ROWS * maxCols;
+  if (slots <= capCols) return {cols: Math.max(1, Math.round(slots / GRID_ROWS)), rows: GRID_ROWS};
+  return {cols: maxCols, rows: Math.ceil(slots / maxCols)};
+}
 function vaultUnlocked(i){ return !!(S.vault.locks && S.vault.locks[i]); }
 function vaultSlots(){
   let n = VAULT_BASE_SLOTS;
@@ -2932,28 +2974,33 @@ function hookVaultCells(){
     function i(x){ return +x.dataset.vaultlock; }
   });
 }
+function vaultCellHTML(i){
+  const row = S.vault.inv[i];
+  if (row && row.gear){
+    return '<div class="inv-slot filled gear" data-vault="' + i + '" style="--rc:' + gearRarCol(row.gear) + '">' +
+      '<div class="iv-img" style="background-image:url(\'' + gearArt(row.gear) + '\')"></div></div>';
+  }
+  if (row){
+    const showQty = row.stack || row.qty > 1;
+    return '<div class="inv-slot filled" data-vault="' + i + '"><span class="inv-ico">' + row.ico + '</span>' +
+      (showQty ? '<span class="inv-qty">' + (row.qty > 999 ? '999+' : row.qty) + '</span>' : '') + '</div>';
+  }
+  return '<div class="inv-slot" data-vault="' + i + '"></div>';
+}
 function renderVault(){
   const grid = $('vault-grid');
   if (!grid) return;
   vaultNormalize();
   const cap = vaultSlots();
-  /* Samma rutor som väskan, ritade likadant — valvet ÄR ett andra inventarie,
-     inte ett eget slags låda. Tomma rutor bär sitt nummer så man kan släppa på
-     dem, fyllda bär raritetsramen, staplar sitt antal. */
+  const dim = gridDims(cap, 10);
+  /* KOLUMN-major: rutorna fylls uppifrån och ner, en kolumn i taget — så plats 0..4
+     är första kolumnen, 5..9 den andra, precis som spelaren beskrev. CSS lägger dem
+     i den ordningen med grid-auto-flow:column, så DOM-ordningen = platsordningen och
+     drag/släpp behöver inte veta något om formen. */
   let h = '';
-  for (let i = 0; i < cap; i++){
-    const row = S.vault.inv[i];
-    if (row && row.gear){
-      h += '<div class="inv-slot filled gear" data-vault="' + i + '" style="--rc:' + gearRarCol(row.gear) + '">' +
-        '<div class="iv-img" style="background-image:url(\'' + gearArt(row.gear) + '\')"></div></div>';
-    } else if (row){
-      const showQty = row.stack || row.qty > 1;
-      h += '<div class="inv-slot filled" data-vault="' + i + '"><span class="inv-ico">' + row.ico + '</span>' +
-        (showQty ? '<span class="inv-qty">' + (row.qty > 999 ? '999+' : row.qty) + '</span>' : '') + '</div>';
-    } else {
-      h += '<div class="inv-slot" data-vault="' + i + '"></div>';
-    }
-  }
+  for (let i = 0; i < cap; i++) h += vaultCellHTML(i);
+  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
+  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
   grid.innerHTML = h;
   $('vault-cap').textContent = vaultUsed() + ' / ' + cap;
   document.querySelectorAll('[data-vaultlock]').forEach(el => {
@@ -3948,6 +3995,89 @@ function renderPremiumBags(){
     btn.textContent = '💳 ' + BAG_SLOTS[tier].cost;
   }
 }
+/* ---------- ONE BAG: VÄSKAN SOM SEPARATA VÄSKOR ----------
+   Pjäserna förblir EN lista (S.inv) — de små väskorna är bara vyer in i olika
+   platsintervall av samma lista. Så drag, släpp och sparfil är orörda; det enda
+   som ändras är HUR rutorna grupperas på skärmen. Fritt flöde: vad som helst kan
+   ligga var som helst, precis som i det hopslagna läget.
+   Segment: grundväskan = platser 0..19, sedan en väska per upplåst fack, vars
+   längd är väskans egen storlek (+4/+6/+8). */
+function bagSegments(){
+  const segs = [{name: 'Backpack', start: 0, len: INV_BASE_SLOTS}];
+  let at = INV_BASE_SLOTS;
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    const b = bagIn(i);
+    if (b && bagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag){
+      segs.push({name: ITEMS[b.t].name, start: at, len: ITEMS[b.t].bag, socket: i});
+      at += ITEMS[b.t].bag;
+    }
+  }
+  return segs;
+}
+function invCellHTML(i){
+  const it = S.inv[i];
+  if (it && it.gear){
+    return '<div class="inv-slot filled gear" data-inv="' + i + '" style="--rc:' + gearRarCol(it.gear) + '">' +
+      '<div class="iv-img" style="background-image:url(\'' + gearArt(it.gear) + '\')"></div></div>';
+  }
+  if (it){
+    const showQty = it.stack || it.qty > 1;
+    return '<div class="inv-slot filled" data-inv="' + i + '"><span class="inv-ico">' + it.ico + '</span>' +
+      (showQty ? '<span class="inv-qty">' + (it.qty > 999 ? '999+' : it.qty) + '</span>' : '') + '</div>';
+  }
+  return '<div class="inv-slot" data-inv="' + i + '"></div>';
+}
+function renderSplitBags(){
+  /* Rensa gamla delväskefönster och rita ett per segment. */
+  document.querySelectorAll('.bagwin').forEach(w => w.remove());
+  if (!S.bagSplit) return;
+  const segs = bagSegments();
+  const invWin = $('inv-overlay');
+  const base = invWin ? invWin.getBoundingClientRect() : {left: 60, top: 70};
+  segs.forEach((seg, idx) => {
+    const rows = Math.min(GRID_ROWS, seg.len);
+    const cols = Math.ceil(seg.len / rows);
+    let cells = '';
+    for (let k = 0; k < seg.len; k++) cells += invCellHTML(seg.start + k);
+    const win = document.createElement('div');
+    win.className = 'bagwin';
+    win.dataset.bagname = seg.name;
+    win.innerHTML = '<div class="bagwin-head"><span>' + seg.name + '</span><span>' + seg.len + '</span></div>' +
+      '<div class="bagwin-grid" style="grid-template-columns:repeat(' + cols + ',52px);grid-template-rows:repeat(' + rows + ',52px)">' + cells + '</div>';
+    document.body.appendChild(win);
+    /* Sparad position om den finns, annars en trappa ut från väskfönstret. */
+    const pos = S.bagPos[seg.name];
+    if (pos){ win.style.left = pos.x + 'px'; win.style.top = pos.y + 'px'; }
+    else { win.style.left = (base.left + 20 + idx * 30) + 'px'; win.style.top = (base.top + 40 + idx * 30) + 'px'; }
+    hookSplitBag(win, seg.name);
+  });
+}
+function hookSplitBag(win, name){
+  const head = win.querySelector('.bagwin-head');
+  makeDraggable(win, head);
+  /* Kom ihåg var väskan släpps. */
+  head.addEventListener('pointerup', () => {
+    const r = win.getBoundingClientRect();
+    S.bagPos[name] = {x: Math.round(r.left), y: Math.round(r.top)};
+    save();
+  });
+  /* Rutorna i delväskan drar, släpper, hovrar och klickar precis som huvudväskan —
+     samma data-inv, så inga nya vägar behövs. */
+  hookInvCells(win.querySelector('.bagwin-grid'));
+}
+function toggleOneBag(){
+  S.bagSplit = !S.bagSplit;
+  const btn = $('inv-onebag');
+  if (btn) btn.classList.toggle('on', S.bagSplit);
+  /* Huvudrutnätet göms i delat läge; de små väskorna tar över. Slår man AV läget
+     måste delväskorna städas bort explicit — huvudgrenen i renderInventory rör
+     dem inte. */
+  const grid = $('inv-grid');
+  if (grid) grid.style.display = S.bagSplit ? 'none' : '';
+  if (!S.bagSplit) document.querySelectorAll('.bagwin').forEach(w => w.remove());
+  renderInventory();
+  save();
+}
 function renderInventory(){
   renderBagSlots();
   const cap = $('inv-cap');
@@ -3956,27 +4086,12 @@ function renderInventory(){
   if (goldEl) goldEl.innerHTML = fmtMoney(S.gold);
   const grid = $('inv-grid');
   if (!grid) return;
+  if (S.bagSplit){ renderSplitBags(); return; }
+  const dim = gridDims(invSlots(), 4);
+  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
+  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
   let h = '';
-  for (let i = 0; i < invSlots(); i++){
-    const it = S.inv[i];
-    if (it && it.gear){
-      const g = it.gear;
-      /* Ingen title= någonstans i väskan: webbläsarens egen gula ruta la sig ovanpå
-         föremålskortet och sa mindre än det. Kortet är enda hovringen som finns. */
-      h += '<div class="inv-slot filled gear" data-inv="' + i + '" style="--rc:' + gearRarCol(g) + '">' +
-        '<div class="iv-img" style="background-image:url(\'' + gearArt(g) + '\')"></div></div>';
-    } else if (it){
-      /* Antalet visas ALLTID på en stapel, även vid en enda — annars går det inte att
-         se på en resursruta om det ligger en eller tio där. */
-      const showQty = it.stack || it.qty > 1;
-      h += '<div class="inv-slot filled" data-inv="' + i + '"><span class="inv-ico">' + it.ico + '</span>' +
-        (showQty ? '<span class="inv-qty">' + (it.qty > 999 ? '999+' : it.qty) + '</span>' : '') + '</div>';
-    } else {
-      /* Även TOMMA rutor bär sitt nummer — annars går det inte att släppa något
-         på dem, och då kan man inte bestämma sin egen ordning. */
-      h += '<div class="inv-slot" data-inv="' + i + '"></div>';
-    }
-  }
+  for (let i = 0; i < invSlots(); i++) h += invCellHTML(i);
   grid.innerHTML = h;
 }
 
@@ -6400,7 +6515,18 @@ function showItem(it, invIdx, equippedSlot, ev){
 /* Fingrar har ingen högerknapp: på pekskärm öppnar ett vanligt tryck kortet, på
    mus gör högerklick det. Samma ruta, två vägar in. */
 function isTouchInput(){ return matchMedia('(hover: none)').matches; }
-$('inv-grid').addEventListener('click', e => {
+/* Alla väskrutans beteenden i EN funktion, så både huvudrutnätet och varje
+   delväska i One Bag-läget kan kopplas med samma kod — inga parallella vägar. */
+function hookInvCells(root){
+  if (!root || root.dataset.invhooked) return;
+  root.dataset.invhooked = '1';
+  hookDragSource(root, e => {
+    const cell = e.target.closest('[data-inv]');
+    if (!cell) return null;
+    const i = +cell.dataset.inv, row = S.inv[i];
+    return row ? {from: 'inv', gear: row.gear || null, row: row, idx: i} : null;
+  });
+  root.addEventListener('click', e => {
   const cell = e.target.closest('[data-inv]');
   if (!cell) return;
   const idx = +cell.dataset.inv, row = S.inv[idx];
@@ -6421,17 +6547,28 @@ $('inv-grid').addEventListener('click', e => {
     return;
   }
   if (isTouchInput()) showItem(row.gear, idx, null, e);
-});
-$('inv-grid').addEventListener('contextmenu', e => {
-  e.preventDefault();
-  const cell = e.target.closest('[data-inv]');
-  if (!cell) return;
-  const row = S.inv[+cell.dataset.inv];
-  if (!row) return;
-  hideGearTip();
-  if (row.gear) spawnItemWin(row.gear.uid, e.clientX, e.clientY);
-  else spawnStackWin(row.key, e.clientX, e.clientY);
-});
+  });
+  root.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const cell = e.target.closest('[data-inv]');
+    if (!cell) return;
+    const row = S.inv[+cell.dataset.inv];
+    if (!row) return;
+    hideGearTip();
+    if (row.gear) spawnItemWin(row.gear.uid, e.clientX, e.clientY);
+    else spawnStackWin(row.key, e.clientX, e.clientY);
+  });
+  root.addEventListener('mouseover', e => {
+    const cell = e.target.closest('[data-inv]');
+    if (!cell) return hideGearTip();
+    const row = S.inv[+cell.dataset.inv];
+    if (row && row.gear) showGearTip(row.gear, e.clientX, e.clientY);
+    else if (row) showStackTip(row, e.clientX, e.clientY);
+    else hideGearTip();
+  });
+  root.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
+  root.addEventListener('mouseleave', hideGearTip);
+}
 /* ---------- LÅNGTRYCK: hovringsrutan för fingrar ---------- */
 let holdTimer = null, holdFrom = null, holdFired = false;
 function cancelHold(){
@@ -6471,23 +6608,7 @@ document.addEventListener('touchstart', e => {
   if (gearTip.classList.contains('on') && !e.target.closest('#inv-grid')) hideGearTip();
 }, {passive: true});
 
-hookDragSource($('inv-grid'), e => {
-  const cell = e.target.closest('[data-inv]');
-  if (!cell) return null;
-  const i = +cell.dataset.inv, row = S.inv[i];
-  /* ALLT som ligger i väskan går att flytta — gear såväl som staplar. */
-  return row ? {from: 'inv', gear: row.gear || null, row: row, idx: i} : null;
-});
-$('inv-grid').addEventListener('mouseover', e => {
-  const cell = e.target.closest('[data-inv]');
-  if (!cell) return hideGearTip();
-  const row = S.inv[+cell.dataset.inv];
-  if (row && row.gear) showGearTip(row.gear, e.clientX, e.clientY);
-  else if (row) showStackTip(row, e.clientX, e.clientY);
-  else hideGearTip();
-});
-$('inv-grid').addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
-$('inv-grid').addEventListener('mouseleave', hideGearTip);
+hookInvCells($('inv-grid'));
 document.querySelectorAll('#panel-character [data-slot]').forEach(elm => {
   hookDragSource(elm, () => {
     const it = S.equip[+elm.dataset.slot];
@@ -6666,12 +6787,17 @@ $('nav-ach').addEventListener('click', openAchievements);
 $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove('open'));
 $('vault-close').addEventListener('click', () => { hideGearTip(); $('vault-overlay').classList.remove('open'); });
 makeDraggable($('ach-overlay'), [$('ach-overlay').querySelector('.inv-titlebar'), $('ach-overlay').querySelector('.inv-emblem')]);
-$('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
+$('inv-close').addEventListener('click', () => {
+  hideGearTip();
+  $('inv-overlay').classList.remove('open');
+  document.querySelectorAll('.bagwin').forEach(w => w.remove());
+});
 makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar'), $('inv-overlay').querySelector('.inv-emblem')]);
 /* Valvet ska gå att flytta precis som väskan — det saknades och rutan satt fast. */
 makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titlebar'), $('vault-overlay').querySelector('.inv-emblem')]);
 $('bag-btn').addEventListener('click', openInventory);
 $('inv-sort').addEventListener('click', invSort);
+$('inv-onebag').addEventListener('click', toggleOneBag);
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
    inte: Windows kan skicka rullning i RADER eller SIDOR (deltaMode 1 och 2), och de
    släppte jag förbi till webbläsarens egen rullning — som då tog hela listan i ett
