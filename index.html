@@ -1497,7 +1497,7 @@ body.modal-open{overflow:hidden}
 .inv-bagslot.lit{border-color:var(--rc,var(--cyan));box-shadow:0 0 0 1px var(--rc,var(--cyan)) inset, 0 0 14px -2px var(--rc,var(--cyan))}
 .inv-bagslot.detached{opacity:.45}
 /* Väskraden: tre i bredd, sedan ny rad nedåt — växer inte som en lång stapel. */
-.inv-bagrow{display:grid;grid-template-columns:repeat(3, 38px);gap:6px;justify-content:center}
+.inv-bagrow{display:flex;gap:6px;flex-wrap:nowrap;justify-content:center}
 .bagwin-x{
   border:none;background:transparent;color:var(--text-dim);cursor:pointer;
   font-size:13px;line-height:1;padding:2px 4px;border-radius:6px;
@@ -2107,7 +2107,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.62.0 — VÄSKFÖNSTREN</div>
+            <div class="desc">GENESIS v0.62.1 — VÄSKANS FORM</div>
           </div>
         </div>
       </div>
@@ -2133,7 +2133,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.0 — VÄSKFÖNSTREN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.1 — VÄSKANS FORM</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4259,6 +4259,37 @@ function compactDims(n){
   return {cols: cols, rows: Math.ceil(n / cols)};
 }
 function bagIsOpen(socket){ return !!(S.bagOpen && S.bagOpen[socket]); }
+/* ---------- HUVUDRUTNÄTETS FORM ----------
+   Basväskan är 4 breda × 5 höga. De TRE FÖRSTA väskfacken trycker ut sina rutor åt
+   HÖGER (höjden står still på fem rader), de TVÅ SISTA trycker NEDÅT (bredden står
+   still). Så helheten blir en så stor och tät fyrkant som möjligt när allt sitter
+   ihop, i stället för en lång smal remsa. Varje ruta placeras uttryckligen i sin
+   kolumn och rad, så formen blir exakt även när väskorna har ojämna storlekar. */
+const WIDE_SOCKETS = 3;           // fack 0-2 breddar, fack 3-4 växer nedåt
+function invLayout(){
+  let wide = INV_BASE_SLOTS, tall = 0;
+  bagSegments().forEach(seg => {
+    if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
+    if (seg.socket < WIDE_SOCKETS) wide += seg.len; else tall += seg.len;
+  });
+  const cols = Math.max(1, Math.ceil(wide / GRID_ROWS));
+  const rows = GRID_ROWS + (tall ? Math.ceil(tall / cols) : 0);
+  /* Platserna i ordning: först bredd-gruppen (bas + fack 0-2), sedan höjd-gruppen. */
+  const wideIdx = [], tallIdx = [];
+  for (let i = 0; i < INV_BASE_SLOTS; i++) wideIdx.push(i);
+  bagSegments().forEach(seg => {
+    if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
+    const into = seg.socket < WIDE_SOCKETS ? wideIdx : tallIdx;
+    for (let k = 0; k < seg.len; k++) into.push(seg.start + k);
+  });
+  const placed = [];
+  /* Bredd-gruppen fylls kolumnvis inom fem rader — så nya väskor lägger sig som
+     nya kolumner till höger utan att röra det som redan ligger. */
+  wideIdx.forEach((slot, p) => placed.push({slot: slot, col: Math.floor(p / GRID_ROWS) + 1, row: (p % GRID_ROWS) + 1}));
+  /* Höjd-gruppen lägger sig radvis UNDER, tvärs hela bredden. */
+  tallIdx.forEach((slot, q) => placed.push({slot: slot, col: (q % cols) + 1, row: GRID_ROWS + Math.floor(q / cols) + 1}));
+  return {cols: cols, rows: rows, cells: placed};
+}
 /* Platserna som huvudrutnätet ritar: grunden plus varje INBAKAD väskas intervall. */
 function mainInvIndices(){
   const out = [];
@@ -4350,13 +4381,15 @@ function renderInventory(){
   if (goldEl) goldEl.innerHTML = fmtMoney(S.gold);
   const grid = $('inv-grid');
   if (!grid) return;
-  /* Huvudrutnätet ritar grunden plus de väskor som är inbakade. */
-  const idxs = mainInvIndices();
-  const dim = gridDims(idxs.length, 4);
-  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
-  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
+  /* Huvudrutnätet ritar grunden plus de väskor som är inbakade, i den form
+     invLayout räknat ut: bredd först, sedan nedåt. */
+  const L = invLayout();
+  grid.style.gridTemplateColumns = 'repeat(' + L.cols + ', 52px)';
+  grid.style.gridTemplateRows = 'repeat(' + L.rows + ', 52px)';
   let h = '';
-  idxs.forEach(i => { h += invCellHTML(i); });
+  L.cells.forEach(c => {
+    h += invCellHTML(c.slot).replace('<div class="', '<div style="grid-column:' + c.col + ';grid-row:' + c.row + '" class="');
+  });
   grid.innerHTML = h;
   renderMiniBags();
 }
@@ -7183,6 +7216,8 @@ function moveGhost(d, x, y){
   d.ghost.style.left = (x - 26) + 'px';
   d.ghost.style.top = (y - 26) + 'px';
 }
+/* "Släpptes det i väskan?" — huvudrutnätet ELLER något utbrutet minifönster. */
+function inInvArea(el){ return !!(el.closest('#inv-grid') || el.closest('.bagwin:not(.vaultbagwin)')); }
 function endDrag(d, x, y){
   if (d.ghost) d.ghost.remove();
   if (d.targets) d.targets.forEach(t => t.classList.remove('drop-ok', 'drop-hot'));
@@ -7191,7 +7226,9 @@ function endDrag(d, x, y){
   document.body.classList.remove('dragging');
   const under = document.elementFromPoint(x, y);
   if (!under) return;
-  const cell = under.closest('#inv-grid [data-inv]');
+  /* En ruta räknas som mål oavsett om den sitter i huvudrutnätet eller i ett
+     utbrutet minifönster — annars gick det bara att dra ÅT ena hållet. */
+  const cell = under.closest('[data-inv]');
   const vcell = under.closest('#vault-grid [data-vault]');
   const inVault = !!under.closest('#vault-grid');
   if (d.from === 'vault'){
@@ -7204,7 +7241,7 @@ function endDrag(d, x, y){
     /* Ur valvet: till en bestämd väskruta, till väskan i stort, eller flytta om
        inuti valvet självt. */
     if (cell) fromVault(d.idx, +cell.dataset.inv);
-    else if (under.closest('#inv-grid')) fromVault(d.idx);
+    else if (inInvArea(under)) fromVault(d.idx);
     else if (vcell) moveInVault(d.idx, +vcell.dataset.vault);
     return;
   }
@@ -7239,17 +7276,17 @@ function endDrag(d, x, y){
   }
   if (d.from === 'bagslot'){
     if (cell) unequipBag(d.socket, +cell.dataset.inv);
-    else if (under.closest('#inv-grid')) unequipBag(d.socket);
+    else if (inInvArea(under)) unequipBag(d.socket);
     return;
   }
   if (d.from === 'vaultbagslot'){
     if (cell) unequipVaultBag(d.socket, +cell.dataset.inv);
-    else if (under.closest('#inv-grid')) unequipVaultBag(d.socket);
+    else if (inInvArea(under)) unequipVaultBag(d.socket);
     return;
   }
   /* Buren pjäs släppt på en BESTÄMD ruta hamnar just där, om den är ledig. */
   if (cell) unequipGear(d.slot, +cell.dataset.inv);
-  else if (under.closest('#inv-grid')) unequipGear(d.slot);
+  else if (inInvArea(under)) unequipGear(d.slot);
 }
 function hookDragSource(el, read){
   el.addEventListener('pointerdown', e => {
