@@ -1391,6 +1391,46 @@ body.modal-open{overflow:hidden}
 .inv-toprow{display:flex;align-items:center;justify-content:center;margin-bottom:10px}
 /* Sortering och platsräknaren bor i en EGEN ruta under titelraden, byggd av samma
    delar som titelrutan — då står väskraden fri och rymmer alla fem facken. */
+.ach-modal{width:340px;max-width:calc(100vw - 24px)}
+.ach-list{max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
+.ach-group{
+  font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);
+  margin:6px 0 1px;
+}
+.ach-row{
+  display:flex;align-items:center;gap:9px;padding:7px 9px;
+  border:1px solid var(--border-soft);border-radius:9px;background:var(--bg-inset);
+  opacity:.62;
+}
+.ach-row.done{opacity:1;border-color:rgba(120,220,150,.45);background:rgba(70,200,120,.07)}
+.ach-tick{
+  width:20px;height:20px;flex:0 0 auto;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;border:1px solid var(--border);color:var(--text-faint);
+}
+.ach-row.done .ach-tick{border-color:rgba(120,220,150,.6);color:#7bffb0}
+.ach-txt{flex:1;min-width:0}
+.ach-n{font-size:10.5px;font-weight:800}
+.ach-d{font-size:9px;color:var(--text-dim);line-height:1.4}
+.ach-r{font-size:9.5px;font-family:var(--font-mono);white-space:nowrap;color:var(--gold)}
+.ach-r.idle{color:var(--cyan)}
+.ach-toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:9600;
+  display:flex;align-items:center;gap:9px;padding:9px 14px;
+  border:1px solid rgba(120,220,150,.5);border-radius:11px;
+  background:linear-gradient(180deg,rgba(26,44,34,.97),rgba(14,24,20,.97));
+  box-shadow:0 10px 30px -10px #000;pointer-events:none;
+  animation:achpop 3.4s ease forwards;
+}
+.ach-toast .at-ico{font-size:19px}
+.ach-toast .at-n{font-size:11px;font-weight:800;color:#7bffb0}
+.ach-toast .at-d{font-size:9px;color:var(--text-dim)}
+.ach-toast .at-r{font-size:10px;font-family:var(--font-mono);color:var(--gold);margin-left:6px}
+@keyframes achpop{
+  0%{opacity:0;transform:translate(-50%,10px)}
+  10%{opacity:1;transform:translate(-50%,0)}
+  85%{opacity:1;transform:translate(-50%,0)}
+  100%{opacity:0;transform:translate(-50%,-6px)}
+}
 .inv-toolbar{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   margin:0 0 10px;padding:5px 8px;
@@ -1806,6 +1846,7 @@ body.modal-open{overflow:hidden}
         <div class="panel-title">Quick Access</div>
         <div class="qa-grid">
           <div class="qa-btn" id="qa-inventory"><span class="ico">🎒</span><span class="lbl">Inventory</span></div>
+          <div class="qa-btn" id="qa-ach"><span class="ico">🏆</span><span class="lbl">Achievements</span><span class="notif" id="ach-badge" style="display:none">0</span></div>
           <div class="qa-btn" id="qa-pets"><span class="ico">🐾</span><span class="lbl">Pets</span></div>
           <div class="qa-btn"><span class="ico">⚒️</span><span class="lbl">Forge</span></div>
           <div class="qa-btn"><span class="ico">📜</span><span class="lbl">Quests</span></div>
@@ -1817,6 +1858,22 @@ body.modal-open{overflow:hidden}
       </section>
     </div>
   </main>
+
+  <!-- ================= BRAGDERNA ================= -->
+  <div class="float-win" id="ach-overlay">
+    <div class="modal ach-modal">
+      <div class="inv-emblem">🏆</div>
+      <div class="inv-titlebar">
+        <span class="inv-title">Achievements</span>
+        <button class="inv-x" id="ach-close">✕</button>
+      </div>
+      <div class="inv-toolbar">
+        <span class="inv-capline">Done <b id="ach-count">0 / 0</b></span>
+        <span class="inv-capline">Idle bonus <b id="ach-idle">+0%</b></span>
+      </div>
+      <div class="ach-list" id="ach-list"></div>
+    </div>
+  </div>
 
   <!-- ================= INVENTARIET ================= -->
   <div class="float-win" id="inv-overlay">
@@ -1975,7 +2032,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.48.3 — RESA HÄRIFRÅN</div>
+            <div class="desc">GENESIS v0.51.1 — RENA KORTET</div>
           </div>
         </div>
       </div>
@@ -2001,7 +2058,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.48.3 — RESA HÄRIFRÅN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.51.1 — RENA KORTET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2128,6 +2185,11 @@ const AFFIXES = {
   luck:    {name:'Loot Luck',        lo:1.64, hi:2.16, sfx:'%'},
   xp:      {name:'Experience',       lo:3.46, hi:4.54, sfx:'%'},
   offline: {name:'Offline Earnings', lo:2.38, hi:3.12, sfx:'%'},
+  /* Expedition Speed KORTAR uppdragets längd. Belöningarna räknas på den
+     NOMINELLA längden (data, guld, fragment, droppchans läser def.mins), så en
+     snabbare expedition tappar ingenting — den ger fler hämtningar per timme.
+     Det är avsikten och hela värdet av egenskapen. */
+  expspd:  {name:'Expedition Speed', lo:1.90, hi:2.50, sfx:'%'},
   travel:  {name:'Travel Cost',      lo:1.30, hi:1.70, sfx:'%', lower:true},
   scan:    {name:'Scan Cost',        lo:1.56, hi:2.04, sfx:'%', lower:true}
 };
@@ -2381,6 +2443,8 @@ let S = {
   exp: {found: [], runs: []},   // upptäckta expeditions-id + aktiva körningar (max 2)
   credits: 0,
   mil: {},              // "buildId:step" -> true
+  ach: {done: {}, unseen: 0},   // avklarade bragder + hur många som inte setts än
+  stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
   savedAt: 0
 };
 BUILDINGS.forEach(b => S.own[b.id] = 0);
@@ -2454,6 +2518,19 @@ function load(){
           if (stock.length === VENDOR_SLOTS) S.vend[id] = {stock: stock, next: +v.next};
         });
       }
+      if (d.ach && typeof d.ach === 'object'){
+        S.ach = {done: {}, unseen: Math.max(0, Math.floor(+d.ach.unseen) || 0)};
+        if (d.ach.done && typeof d.ach.done === 'object'){
+          /* Bara id:n som fortfarande finns i listan — en borttagen bragd ska inte
+             spöka kvar och betala ut procent för något som inte existerar. */
+          ACH.forEach(a => { if (d.ach.done[a.id]) S.ach.done[a.id] = true; });
+        }
+      }
+      if (d.stats && typeof d.stats === 'object'){
+        ['expDone', 'sold', 'bought'].forEach(k => {
+          const v = Math.floor(+d.stats[k]); if (isFinite(v) && v >= 0) S.stats[k] = v;
+        });
+      }
       if (d.research && REGIONS[d.research.region] && +d.research.eta > 0)
         S.research = {region: d.research.region, eta: +d.research.eta};
       const readGear = g => {
@@ -2513,7 +2590,7 @@ function load(){
         if (Array.isArray(d.exp.runs)){
           S.exp.runs = d.exp.runs.filter(r => r && typeof r.id === 'string' && isFinite(+r.endsAt)).slice(0, 2)
             .map(r => {
-              const run = {id: r.id, endsAt: +r.endsAt, data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0)};
+              const run = {id: r.id, endsAt: +r.endsAt, total: Math.max(0, Math.round(+r.total) || 0), data: Math.max(0, +r.data || 0), xp: Math.max(0, +r.xp || 0)};
               if (r.loot && isFinite(+r.loot.gold) && isFinite(+r.loot.frags)){
                 run.loot = {gold: Math.max(0, +r.loot.gold) * (moneyOld ? COPPER_PER_GOLD : 1), frags: Math.max(0, +r.loot.frags)};
                 /* Fyndet ska ÖVERLEVA en omstart — bytet rullas en gång och ligger
@@ -2574,6 +2651,7 @@ function levelInfo(){
   return {lvl, into: rem, need: xpToNext(lvl)};
 }
 let lastLevel = 1;
+let lastAchCheck = 0;
 let expGate = 0;
 /* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
    gränssnitt hör hemma i uppdateringsrutinen, inte här. */
@@ -2638,7 +2716,7 @@ function milMult(bid){
 }
 function prodPerUnit(b){ return b.prod * milMult(b.id) * (1 + 0.05 * S.up.network); }
 function prodOf(b){ return prodPerUnit(b) * S.own[b.id]; }
-function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + petBonusPct('prod') / 100 + gearBonus('idle') / 100); }
+function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + petBonusPct('prod') / 100 + gearBonus('idle') / 100 + achIdlePct() / 100); }
 function costOfN(b, n){
   const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
   return c0 * (Math.pow(GROWTH, n) - 1) / (GROWTH - 1);
@@ -2648,6 +2726,113 @@ function maxAffordable(b){
   if (S.data < c0) return 0;
   const n = Math.floor(Math.log(S.data * (GROWTH-1) / c0 + 1) / Math.log(GROWTH));
   return Math.max(1, Math.min(n, 10000));
+}
+
+/* ================= BRAGDER =================
+   Fyrtio stycken, i fem grupper. Två sorters belöning: PENGAR för de tidiga och
+   konkreta, och PROCENT PÅ IDLE-INKOMSTEN för de som tar tid — annars vore hela
+   inkomstkurvan uppäten på en kväll. Procenten STAPLAS fritt (spelarens beslut).
+
+   Nästan alla villkor läses ur läget som redan sparas, så en bragd du redan har
+   förtjänat delas ut direkt när systemet startar. De fyra som räknar HÄNDELSER —
+   avklarade expeditioner, sålda pjäser, köp hos vendorn, använda bränsleceller —
+   kunde inte räknas i efterhand, eftersom siffrorna aldrig sparats. De börjar
+   därför på noll här, och det är den ärliga varianten av att inte veta. */
+const ACH = [
+  // ---- Första stegen ----
+  {id:'first_hold',   g:'First steps', n:'Hands On',          d:'Hold the core once',                    r:{s:5},   t:() => S.ticks >= 1},
+  {id:'first_build',  g:'First steps', n:'Groundbreaking',     d:'Own your first machine',                r:{s:10},  t:() => BUILDINGS.some(b => S.own[b.id] > 0)},
+  {id:'first_gear',   g:'First steps', n:'Suited Up',          d:'Equip your first piece of gear',        r:{s:25},  t:() => equippedList().some(Boolean)},
+  {id:'first_zone',   g:'First steps', n:'Out the Door',       d:'Set foot in your first zone',           r:{s:25},  t:() => S.world.zonesSeen.length >= 1},
+  {id:'first_region', g:'First steps', n:'Border Crossing',    d:'Travel to a second region',             r:{s:50},  t:() => S.world.visited.length >= 2},
+  // ---- Expeditioner ----
+  {id:'exp_1',        g:'Expeditions', n:'First Payday',       d:'Claim one expedition',                  r:{s:25},  t:() => (S.stats.expDone || 0) >= 1},
+  {id:'exp_10',       g:'Expeditions', n:'Regular Runner',     d:'Claim 10 expeditions',                  r:{G:2},   t:() => (S.stats.expDone || 0) >= 10},
+  {id:'exp_50',       g:'Expeditions', n:'Old Hand',           d:'Claim 50 expeditions',                  r:{i:1},   t:() => (S.stats.expDone || 0) >= 50},
+  {id:'exp_200',      g:'Expeditions', n:'Never Off Duty',     d:'Claim 200 expeditions',                 r:{i:2},   t:() => (S.stats.expDone || 0) >= 200},
+  {id:'exp_found_20', g:'Expeditions', n:'Word Gets Around',   d:'Discover 20 expeditions',               r:{G:1},   t:() => S.exp.found.length >= 20},
+  {id:'exp_found_all',g:'Expeditions', n:'The Whole Board',    d:'Discover every expedition in the world',r:{i:3},   t:() => S.exp.found.length >= totalExpeditionCount()},
+  // ---- Världen ----
+  {id:'zones_5',      g:'The world',   n:'Getting Around',     d:'See 5 zones',                           r:{s:50},  t:() => S.world.zonesSeen.length >= 5},
+  {id:'zones_home',   g:'The world',   n:'Know Your Block',    d:'See every zone in Neon Hub',            r:{G:1},   t:() => REGIONS.neonhub.zones.every(z => S.world.zonesSeen.includes('neonhub|' + z))},
+  {id:'zones_30',     g:'The world',   n:'Well Travelled',     d:'See 30 zones',                          r:{G:2},   t:() => S.world.zonesSeen.length >= 30},
+  {id:'zones_all',    g:'The world',   n:'Every Corner',       d:'See every zone in the world',           r:{i:3},   t:() => S.world.zonesSeen.length >= totalZoneCount()},
+  {id:'regions_5',    g:'The world',   n:'Five Points',        d:'Discover 5 regions',                    r:{i:1},   t:() => S.world.known.length >= 5},
+  {id:'regions_all',  g:'The world',   n:'Map Complete',       d:'Discover all 15 regions',               r:{i:3},   t:() => S.world.known.length >= Object.keys(REGIONS).length},
+  // ---- Maskinerna ----
+  {id:'own_10',       g:'Machines',    n:'Small Operation',    d:'Own 10 machines in total',              r:{s:25},  t:() => ownedTotal() >= 10},
+  {id:'own_100',      g:'Machines',    n:'Industrialist',      d:'Own 100 machines in total',             r:{G:1},   t:() => ownedTotal() >= 100},
+  {id:'own_500',      g:'Machines',    n:'The Grid Hums',      d:'Own 500 machines in total',             r:{i:1},   t:() => ownedTotal() >= 500},
+  {id:'own_each',     g:'Machines',    n:'Full Catalogue',     d:'Own at least one of every machine',     r:{G:2},   t:() => BUILDINGS.every(b => S.own[b.id] > 0)},
+  {id:'mil_5',        g:'Machines',    n:'Doubling Down',      d:'Reach 5 machine milestones',            r:{G:1},   t:() => milestoneCount() >= 5},
+  {id:'mil_25',       g:'Machines',    n:'Compounding',        d:'Reach 25 machine milestones',           r:{i:2},   t:() => milestoneCount() >= 25},
+  // ---- Utrustningen ----
+  {id:'rare_first',   g:'Gear',        n:'Something Good',     d:'Own a Rare item',                       r:{G:1},   t:() => ownsRarity(2)},
+  {id:'epic_first',   g:'Gear',        n:'Something Great',    d:'Own an Epic item',                      r:{G:3},   t:() => ownsRarity(3)},
+  {id:'legend_first', g:'Gear',        n:'Something Legendary',d:'Own a Legendary item',                  r:{i:1},   t:() => ownsRarity(4)},
+  {id:'mythic_first', g:'Gear',        n:'Something Impossible',d:'Own a Mythic item',                    r:{i:2},   t:() => ownsRarity(5)},
+  {id:'full_kit',     g:'Gear',        n:'Fully Kitted',       d:'Fill all 11 worn slots at once',        r:{G:5},   t:() => wornCount() >= 11},
+  {id:'bag_first',    g:'Gear',        n:'Room to Spare',      d:'Fit your first bag',                    r:{s:50},  t:() => fittedBagCount() >= 1},
+  {id:'bags_all',     g:'Gear',        n:'Pack Mule',          d:'Fit a bag in all five bag slots',       r:{i:1},   t:() => fittedBagCount() >= 5},
+  {id:'mount_first',  g:'Gear',        n:'Wheels',             d:'Equip a transport',                     r:{G:1},   t:() => !!S.equip[11]},
+  // ---- Pengar och handel ----
+  {id:'gold_100',     g:'Money',       n:'Pocket Full',        d:'Hold 100 gold at once',                 r:{G:2},   t:() => S.gold >= GOLD(100)},
+  {id:'gold_1000',    g:'Money',       n:'Deep Pockets',       d:'Hold 1000 gold at once',                r:{i:1},   t:() => S.gold >= GOLD(1000)},
+  {id:'buy_10',       g:'Money',       n:'Regular Customer',   d:'Buy 10 pieces of gear from vendors',    r:{G:1},   t:() => (S.stats.bought || 0) >= 10},
+  {id:'sell_25',      g:'Money',       n:'Clearing House',     d:'Sell 25 pieces of gear',                r:{G:1},   t:() => (S.stats.sold || 0) >= 25},
+  {id:'credits_100',  g:'Money',       n:'Credit Where Due',   d:'Hold 100 credits at once',              r:{G:1},   t:() => S.credits >= 100},
+  // ---- Ryktet och rangen ----
+  {id:'rep_1',        g:'Standing',    n:'A Familiar Face',    d:'Reach 1 reputation star anywhere',      r:{s:25},  t:() => Object.keys(REGIONS).some(id => repRank(id) >= 1)},
+  {id:'rep_5',        g:'Standing',    n:'One of Us',          d:'Reach 5 reputation stars in a region',  r:{G:10},  t:() => Object.keys(REGIONS).some(id => repRank(id) >= 5)},
+  {id:'level_10',     g:'Standing',    n:'Seasoned',           d:'Reach level 10',                        r:{G:2},   t:() => levelInfo().lvl >= 10},
+  {id:'level_25',     g:'Standing',    n:'Veteran',            d:'Reach level 25',                        r:{i:2},   t:() => levelInfo().lvl >= 25}
+];
+/* Hjälpare som villkoren läser. Alla räknar på det som FAKTISKT finns i läget. */
+function ownedTotal(){ return BUILDINGS.reduce((a, b) => a + (S.own[b.id] || 0), 0); }
+function milestoneCount(){ return Object.keys(S.mil).filter(k => S.mil[k]).length; }
+function totalZoneCount(){ return Object.keys(REGIONS).reduce((a, id) => a + REGIONS[id].zones.length, 0); }
+function totalExpeditionCount(){ return Object.keys(EXPEDITIONS).length; }
+function wornCount(){ return equippedList().filter(Boolean).length; }
+function fittedBagCount(){ let n = 0; for (let i = 0; i < BAG_SLOTS.length; i++) if (bagIn(i) && bagUnlocked(i)) n++; return n; }
+function ownsRarity(r){
+  if (equippedList().some(it => it && it.r >= r)) return true;
+  if (S.inv.some(row => row && row.gear && row.gear.r >= r)) return true;
+  for (let i = 0; i < BAG_SLOTS.length; i++){ const b = bagIn(i); if (b && b.r >= r) return true; }
+  return false;
+}
+function achDone(id){ return !!(S.ach && S.ach.done && S.ach.done[id]); }
+/* Summan av alla procentbelöningar. Läses direkt ur de avklarade bragderna, så
+   den kan aldrig hamna i otakt med listan. */
+function achIdlePct(){
+  let p = 0;
+  ACH.forEach(a => { if (a.r.i && achDone(a.id)) p += a.r.i; });
+  return p;
+}
+function achMoney(a){ return a.r.G ? GOLD(a.r.G) : a.r.s ? SILVER(a.r.s) : 0; }
+function achRewardText(a){ return a.r.i ? '+' + a.r.i + '% idle' : moneyText(achMoney(a)); }
+function achCount(){ return ACH.filter(a => achDone(a.id)).length; }
+/* Körs ofta men gör nästan aldrig något: villkoren är billiga jämförelser.
+   Delar ut allt som är förtjänat, även flera på samma gång. */
+function checkAchievements(silent){
+  let got = [];
+  ACH.forEach(a => {
+    if (achDone(a.id)) return;
+    let ok = false;
+    try { ok = !!a.t(); } catch(e){ ok = false; }
+    if (!ok) return;
+    S.ach.done[a.id] = true;
+    const m = achMoney(a);
+    if (m) S.gold += m;
+    got.push(a);
+  });
+  if (!got.length) return 0;
+  S.ach.unseen = (S.ach.unseen || 0) + got.length;
+  if (!silent) got.forEach(a => achToast(a));
+  renderAchBadge();
+  if (achOpen()) renderAchievements();
+  updateUI(true);
+  save();
+  return got.length;
 }
 
 /* ---------- DOM ---------- */
@@ -3124,9 +3309,12 @@ function startExpedition(id){
   if (expIsRunning(id)) return false;
   if (S.world.current !== def.region || S.world.zone !== def.zone) return false;
   if (levelInfo().lvl < def.lvl) return false;
+  /* Farten låses vid START. Byter du utrustning mitt i påverkas inte en resa som
+     redan är igång — tiden på klockan är ett löfte, inte en variabel. */
   S.exp.runs.push({
     id: id,
-    endsAt: Date.now() + def.mins * 60 * 1000,
+    total: expRunSeconds(def),
+    endsAt: Date.now() + expRunSeconds(def) * 1000,
     data: expDataReward(def),
     xp: def.xp
   });
@@ -3317,6 +3505,7 @@ function charStatRows(){
   const up = (k, v) => { v = round(v); if (v > 0) r.push([k, '+' + v + '%']); };
   const down = (k, v) => { v = round(v); if (v > 0) r.push([k, '−' + v + '%']); };
   r.push(['HP', fmt(totalHP())]);
+  if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '% time']);
   up('Crit Chance', gearBonus('crit'));
   up('Idle Data', gearBonus('idle') + petBonusPct('prod'));
   up('Tap Power', gearBonus('tap'));
@@ -3419,8 +3608,10 @@ function sellGear(idx){
   const row = S.inv[idx];
   if (!row || !row.gear) return;
   S.gold += gearGold(row.gear);
+  S.stats.sold = (S.stats.sold || 0) + 1;
   S.inv[idx] = null;
   renderInventory(); updateUI(true); save();
+  checkAchievements();
 }
 
 function renderBagSlots(){
@@ -3559,6 +3750,15 @@ const EXP_TAX = 0.15;
 function taxOn(gold){ return Math.floor(gold * EXP_TAX); }
 function goldAfterTax(gold){ return Math.max(0, gold - taxOn(gold)); }
 const GEAR_DROP_BASE = 0.22, GEAR_DROP_ANCHOR = 2, GEAR_DROP_CURVE = 0.45, GEAR_DROP_MAX = 0.75;
+/* Expeditionens verkliga längd i sekunder: nominell tid minus Expedition Speed. */
+function expTimeText(def){
+  const s = expRunSeconds(def), nom = def.mins * 60;
+  if (s >= nom) return fmtMins(def.mins);
+  return fmtDur(s) + ' ⚡';
+}
+function expRunSeconds(def){
+  return Math.max(30, Math.round(def.mins * 60 * (1 - gearBonus('expspd') / 100)));
+}
 function gearDropChance(def){
   const t = Math.max(1, def.mins) / GEAR_DROP_ANCHOR;
   return Math.min(GEAR_DROP_MAX, GEAR_DROP_BASE * Math.pow(t, GEAR_DROP_CURVE));
@@ -3632,7 +3832,8 @@ function showRewards(run){
     rg.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
     rg.addEventListener('mouseleave', hideGearTip);
   }
-  $('rw-dur').textContent = fmtDur(def.mins * 60);
+  /* Belöningsrutan visar tiden KÖRNINGEN faktiskt tog, inte katalogens. */
+  $('rw-dur').textContent = fmtDur(run.total || def.mins * 60);
   $('rw-lvl').textContent = 'Lv ' + def.lvl;
   $('reward-overlay').classList.add('open');
 }
@@ -3645,6 +3846,7 @@ function confirmClaim(){
   $('reward-overlay').classList.remove('open');
   if (i < 0) return;
   const run = S.exp.runs.splice(i, 1)[0];
+  S.stats.expDone = (S.stats.expDone || 0) + 1;
   S.data += run.data;
   S.totalData += run.data;
   grantXP(run.xp);
@@ -3676,7 +3878,8 @@ function openTravelNow(regionId){
     '<div class="region-kv">' +
     '<div class="kv"><span class="k">Destination</span><span class="v">' + R.ico + ' ' + R.name + '</span></div>' +
     '<div class="kv"><span class="k">Cost</span><span class="v" style="color:var(--cyan)">⛽ ' + price + ' fuel</span></div>' +
-    '<div class="kv"><span class="k">Travel time</span><span class="v">⏱ ' + fmtDur(t.time) + '</span></div>' +
+    '<div class="kv"><span class="k">Travel time</span><span class="v">⏱ ' + fmtDur(travelSeconds(t.time)) +
+      (mountSpeed() ? ' <span style="color:var(--cyan);font-size:9px">−' + mountSpeed() + '%</span>' : '') + '</span></div>' +
     '</div>' +
     '<div class="shelf-empty">You arrive at the region gate — enter the zone on arrival to start the expedition.</div>' +
     '<div class="region-actions">' +
@@ -3711,7 +3914,10 @@ function renderExpPanel(){
     }
     const def = expDefById(run.id);
     const left = Math.max(0, (run.endsAt - Date.now()) / 1000);
-    const total = def.mins * 60;
+    /* Mätarens helhet är den tid KÖRNINGEN faktiskt fick, inte katalogens — annars
+       ser en snabbad expedition ut att börja halvfull. Total räknas ur endsAt om
+       den finns sparad, med katalogtiden som golv för gamla körningar. */
+    const total = Math.max(1, (run.total || def.mins * 60));
     const pct = Math.min(100, ((total - left) / total) * 100);
     const done = left <= 0;
     h += '<div class="exp-run' + (done ? ' done' : '') + '">' +
@@ -3766,7 +3972,7 @@ function renderExpPanel(){
         if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-travelto="' + def.region + '">Travel</button>';
       }
       h += '<div class="exp-found"><div class="ef-head"><span class="ef-name">' + def.name + '</span>' + status + '</div>' +
-        '<div class="ef-meta"><span>⏱ ' + fmtMins(def.mins) + '</span><span>Lv ' + def.lvl + '</span><span>🪙 ' + expGoldText(def.lvl) + '</span><span>🔷 ' + expFragRange(def.lvl).join('-') + '</span>' + action + '</div></div>';
+        '<div class="ef-meta"><span>⏱ ' + expTimeText(def) + '</span><span>Lv ' + def.lvl + '</span><span>🪙 ' + expGoldText(def.lvl) + '</span><span>🔷 ' + expFragRange(def.lvl).join('-') + '</span>' + action + '</div></div>';
     });
     disc.innerHTML = h;
   }
@@ -4169,6 +4375,10 @@ function loopBody(now){
 
   // Handlarens klocka: bara när man faktiskt tittar på en handelsbod
   tickVendorClock();
+
+  /* Bragderna prövas en gång i sekunden. Villkoren är billiga jämförelser, men
+     varje bildruta vore ändå slöseri. */
+  if (now - lastAchCheck > 1000){ lastAchCheck = now; checkAchievements(); }
 
   // Forskningsdrönarna
   checkResearch();
@@ -4621,6 +4831,19 @@ const DISCOVER_TIME = {1: 600, 2: 1500, 3: 2400, 4: 3300};
 const TRAVEL_BY_TIER = {0: {cost: 25000, time: 120}, 1: {cost: 25000, time: 120}, 2: {cost: 2.5e6, time: 300}, 3: {cost: 2.5e8, time: 600}, 4: {cost: 2.5e10, time: 1200}};
 /* Zonbyte inom regionen du står i: gratis, men inte gratis i TID. */
 const ZONE_TRAVEL_TIME = 10;
+/* ---------- TRANSPORTENS FÖRMÅGA ----------
+   Ett fordon KORTAR RESAN. Förmågan är inte rullad utan sitter i rariteten, så en
+   mytisk motorcykel är alltid snabbare än en vanlig — det är hela poängen med att
+   byta upp sig. Gäller både regionresor och zonhopp; expeditionernas längd rör den
+   inte (det är Mission Speed, som inte finns än). */
+const MOUNT_SPEED = [6, 10, 15, 21, 28, 36];   // procent kortare restid per raritet
+function mountSpeed(){
+  const m = S.equip[11];
+  return m ? MOUNT_SPEED[m.r] || 0 : 0;
+}
+function travelSeconds(base){
+  return Math.max(1, Math.round(base * (1 - mountSpeed() / 100)));
+}
 /* Premiumgenvägen: hoppa över resten av väntan. En credit per påbörjad minut kvar. */
 function skipCost(){
   if (!S.world.travel) return 0;
@@ -4976,7 +5199,7 @@ function openRegion(id){
     } else if (S.world.travel){
       action = '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">Traveling…</button></div>';
     } else {
-      action = '<div class="region-actions"><button class="btn-primary" id="region-travel"' + (S.data < t.cost ? ' disabled style="opacity:.5"' : '') + '>🚀 Travel — ' + fmt(t.cost) + ' Data · ' + fmtDur(t.time) + '</button></div>';
+      action = '<div class="region-actions"><button class="btn-primary" id="region-travel"' + (S.data < t.cost ? ' disabled style="opacity:.5"' : '') + '>🚀 Travel — ' + fmt(t.cost) + ' Data · ' + fmtDur(travelSeconds(t.time)) + '</button></div>';
     }
     body.innerHTML =
       '<div class="region-kv">' +
@@ -5161,6 +5384,7 @@ function buyVendorGear(regionId, i){
   stock.sold = true;
   const it = rollItem(stock.k, stock.r);
   it.src = 'Bought in ' + REGIONS[regionId].name;
+  S.stats.bought = (S.stats.bought || 0) + 1;
   S.inv[free] = {gear: it};
   S.gold -= price;
   vendorNote = 'Bought ' + gearName(it) + ' — ' + gearCP(it) + ' CP. It is in your backpack.';
@@ -5233,7 +5457,7 @@ function buildZoneExpeditions(regionId, zone){
     else btn = '<button class="zx-btn" data-start="' + def.id + '">Start</button>';
     return '<div class="zx-row"><div class="zx-info">' +
       '<div class="zx-name">' + def.name + '</div>' +
-      '<div class="zx-meta">⏱ ' + fmtMins(def.mins) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · 🪙 ' + expGoldText(def.lvl) + ' · 🔷 ' + expFragRange(def.lvl).join('-') + '</div>' +
+      '<div class="zx-meta">⏱ ' + expTimeText(def) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · 🪙 ' + expGoldText(def.lvl) + ' · 🔷 ' + expFragRange(def.lvl).join('-') + '</div>' +
       '<div class="zx-levy">🪙 Tax — ' + Math.round(EXP_TAX * 100) + '% of gold is taken on claim</div>' +
       '</div>' + btn + '</div>';
   }).join('');
@@ -5257,7 +5481,7 @@ function buildZoneAction(regionId, zone){
   if (S.world.travel){
     return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">In transit…</button></div>';
   }
-  return '<div class="region-actions"><button class="btn-primary" id="zone-enter">🛰 Travel to ' + zone + ' — ' + fmtDur(ZONE_TRAVEL_TIME) + '</button></div>';
+  return '<div class="region-actions"><button class="btn-primary" id="zone-enter">🛰 Travel to ' + zone + ' — ' + fmtDur(travelSeconds(ZONE_TRAVEL_TIME)) + '</button></div>';
 }
 
 /* --- Resandet --- */
@@ -5325,7 +5549,7 @@ function startTravel(id){
   S.fuel -= cost;
   /* fuel-fältet är ärlighet i avbrottsvarningen: ingen återbetalning, och
      varningen ska kunna säga exakt hur mycket bränsle som gick förlorat. */
-  S.world.travel = {to: id, from: S.world.current, eta: Date.now() + t.time * 1000, cost: 0, fuel: cost};
+  S.world.travel = {to: id, from: S.world.current, eta: Date.now() + travelSeconds(t.time) * 1000, cost: 0, fuel: cost};
   refreshTravelBar();
   refreshWarp();
 }
@@ -5465,7 +5689,7 @@ function updateTravelInfo(){
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
   if (!t){ travelCost.textContent = '—'; travelTime.textContent = '—'; return; }
   travelCost.textContent = '⛽ ' + costToTravel(id) + ' fuel';
-  travelTime.textContent = '⏱ ' + fmtDur(t.time);
+  travelTime.textContent = '⏱ ' + fmtDur(travelSeconds(t.time));
 }
 travelSelect.addEventListener('change', updateTravelInfo);
 $('exp-active-list').addEventListener('pointerdown', e => {
@@ -5492,7 +5716,7 @@ function goToZone(pair){
   if (S.world.zone === zone) return true;
   if (S.fuel < ZONE_FUEL_COST) return false;
   S.fuel -= ZONE_FUEL_COST;
-  S.world.travel = {to: regionId, zone: zone, from: regionId, eta: Date.now() + ZONE_TRAVEL_TIME * 1000, cost: 0, fuel: ZONE_FUEL_COST};
+  S.world.travel = {to: regionId, zone: zone, from: regionId, eta: Date.now() + travelSeconds(ZONE_TRAVEL_TIME) * 1000, cost: 0, fuel: ZONE_FUEL_COST};
   refreshTravelBar();
   refreshWarp();
   renderExpPanel();
@@ -5605,36 +5829,44 @@ renderPetPanel();
 
 /* ---------- HOVRINGSRUTAN ---------- */
 const gearTip = $('gear-tip');
+/* Hovringskortet, spelarens WoW-förlaga: namnet bär raritetens FÄRG (inget
+   raritetsord), kraft och hälsa överst med skillnaden mot det man bär inbakad
+   direkt på raden — grön siffra om man vinner, röd om man förlorar — sedan ett
+   streck, sedan pjäsens egna förmågor, och säljvärdet längst ner. Jämförelsen
+   står alltså EN gång, inte som ett eget block till. Den fullständiga rad-för-
+   rad-jämförelsen bor kvar i högerklicksfönstret. */
 function gearTipHTML(it){
-  const r = GEAR_RAR[it.r];
   const line = (k, v, col) => '<div class="gt-line"><span class="k">' + k + '</span><span class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + v + '</span></div>';
   const D = ITEMS[it.t];
+  const name = '<div class="gt-name" style="color:' + gearRarCol(it) + '">' + gearName(it) + '</div>';
+  const hint = '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
+      ? 'Tap for options · hold to preview'
+      : 'Right-click for options · Shift+click to equip') + '</div>';
   if (D && D.bag){
-    return '<div class="gt-name">' + gearName(it) + '</div>' +
-      '<div class="gt-rar">' + r.name + ' · Bag</div>' +
+    return name +
+      '<div class="gt-rar">Bag</div>' +
       '<div class="gt-sep"></div>' +
       '<div class="gt-desc">Carried in a bag slot. Adds <b style="color:var(--cyan)">' + D.bag +
         '</b> more slots to your backpack while it is equipped.</div>' +
       line('Sells for', fmtMoney(gearGold(it))) +
-      (it.src ? '<div class="gt-src">Found on ' + it.src + '</div>' : '<div class="gt-src">Origin unknown</div>') +
-      '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
-        ? 'Tap for options · hold to preview'
-        : 'Right-click for options · Shift+click to fit it') + '</div>';
+      hint;
   }
-  return '<div class="gt-name">' + gearName(it) + '</div>' +
-    '<div class="gt-rar">' + r.name + ' · ' + GEAR_SLOTS[it.s].name + '</div>' +
+  /* Skillnaden räknas mot pjäsen man BÄR på samma plats. Bär man ingen, eller
+     hovrar man den burna själv, finns inget att jämföra — då står raden ren. */
+  const cur = S.equip[it.s];
+  const delta = n => {
+    if (!cur || cur.uid === it.uid || !n) return '';
+    return ' <b style="color:' + (n > 0 ? '#4ade80' : '#ff6b74') + '">' + (n > 0 ? '+' : '−') + fmt(Math.abs(n)) + '</b>';
+  };
+  return name +
+    '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
+    line('Combat Power', fmt(gearCP(it)) + delta(gearCP(it) - (cur ? gearCP(cur) : 0)), 'var(--cyan)') +
+    line('Health', fmt(it.hp) + ' HP' + delta(it.hp - (cur ? cur.hp : 0)), '#7bffb0') +
     '<div class="gt-sep"></div>' +
-    line('Combat Power', fmt(gearCP(it)), 'var(--cyan)') +
-    line('Health', fmt(it.hp) + ' HP', '#7bffb0') +
-    line('Sells for', fmtMoney(gearGold(it)), null) +
-    '<div class="gt-sep"></div>' +
+    (it.s === 11 ? line('Travel Speed', '<b style="color:var(--green)">−' + MOUNT_SPEED[it.r] + '% time</b>') : '') +
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
-    '<div class="gt-sep"></div>' +
-    gearCompare(it) +
-    (it.src ? '<div class="gt-src">Found on ' + it.src + '</div>' : '<div class="gt-src">Origin unknown</div>') +
-    '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
-      ? 'Tap for options · hold to preview'
-      : 'Right-click for options · Shift+click to equip') + '</div>';
+    line('Sells for', fmtMoney(gearGold(it)), null) +
+    hint;
 }
 /* Samma ruta som gear använder, men med staplarnas tre svar. Ingen påhittad
    raritet — en resurs har ingen; den får spelets egen cyanfärg. */
@@ -5720,6 +5952,8 @@ function itemWinHTML(it, worn){
         '<div class="item-slot">' + GEAR_SLOTS[it.s].name + ' · ' + it.hp + ' HP</div>' +
       '</div>' +
     '</div>' +
+    (it.s === 11 ? '<div class="iw-desc">Ridden, flown or driven: cuts <b style="color:var(--green)">' +
+      MOUNT_SPEED[it.r] + '%</b> off every travel time while it is equipped.</div>' : '') +
     '<div class="item-affs">' + it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') + '</div>' +
     '<div class="section-label">Compared to equipped</div>' +
     '<div class="item-cmp">' + (worn ? '<div class="gc-row">You are wearing this</div>' : gearCompare(it)) + '</div>' +
@@ -6051,6 +6285,62 @@ function makeDraggable(win, handle){
   });
   win.addEventListener('pointerdown', () => bringToFront(win));
 }
+function achOpen(){ const w = $('ach-overlay'); return !!w && w.classList.contains('open'); }
+function renderAchBadge(){
+  const b = $('ach-badge');
+  if (!b) return;
+  const n = (S.ach && S.ach.unseen) || 0;
+  b.textContent = n > 99 ? '99+' : n;
+  b.style.display = n > 0 ? '' : 'none';
+}
+function achToast(a){
+  const el2 = document.createElement('div');
+  el2.className = 'ach-toast';
+  el2.innerHTML = '<span class="at-ico">🏆</span><span><span class="at-n">' + a.n + '</span><br>' +
+    '<span class="at-d">' + a.d + '</span></span><span class="at-r">' + achRewardText(a) + '</span>';
+  document.body.appendChild(el2);
+  setTimeout(() => el2.remove(), 3500);
+  Sound.play('ding');
+}
+function renderAchievements(){
+  const box = $('ach-list');
+  if (!box) return;
+  const groups = [];
+  ACH.forEach(a => { if (!groups.includes(a.g)) groups.push(a.g); });
+  box.innerHTML = groups.map(g => {
+    /* Ogjorda först inom varje grupp — det är dem man vill läsa. */
+    const list = ACH.filter(a => a.g === g).sort((x, y) => (achDone(x.id) ? 1 : 0) - (achDone(y.id) ? 1 : 0));
+    return '<div class="ach-group">' + g + '</div>' + list.map(a => {
+      const done = achDone(a.id);
+      return '<div class="ach-row' + (done ? ' done' : '') + '">' +
+        '<span class="ach-tick">' + (done ? '✓' : '') + '</span>' +
+        '<span class="ach-txt"><div class="ach-n">' + a.n + '</div><div class="ach-d">' + a.d + '</div></span>' +
+        '<span class="ach-r' + (a.r.i ? ' idle' : '') + '">' + achRewardText(a) + '</span>' +
+        '</div>';
+    }).join('');
+  }).join('');
+  $('ach-count').textContent = achCount() + ' / ' + ACH.length;
+  $('ach-idle').textContent = '+' + achIdlePct() + '%';
+}
+function openAchievements(){
+  checkAchievements();
+  renderAchievements();
+  const w = $('ach-overlay');
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open');
+  bringToFront(w);
+  if (!wasOpen){
+    const panel = document.getElementById('panel-character');
+    const r = panel ? panel.getBoundingClientRect() : {right: 40, top: 60};
+    let x = r.right + 12, y = Math.max(8, r.top);
+    if (x + 360 > window.innerWidth) x = Math.max(8, window.innerWidth - 360);
+    w.style.left = x + 'px'; w.style.top = y + 'px';
+  }
+  /* Att öppna listan är att ha sett dem. */
+  S.ach.unseen = 0;
+  renderAchBadge();
+  save();
+}
 function openInventory(){
   renderInventory();
   const w = $('inv-overlay');
@@ -6067,8 +6357,11 @@ function openInventory(){
   }
 }
 $('qa-inventory').addEventListener('click', openInventory);
+$('qa-ach').addEventListener('click', openAchievements);
+$('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove('open'));
+makeDraggable($('ach-overlay'), $('ach-overlay').querySelector('.inv-titlebar'));
 $('inv-close').addEventListener('click', () => { hideGearTip(); $('inv-overlay').classList.remove('open'); });
-makeDraggable($('inv-overlay'), document.querySelector('.inv-titlebar'));
+makeDraggable($('inv-overlay'), $('inv-overlay').querySelector('.inv-titlebar'));
 $('bag-btn').addEventListener('click', openInventory);
 $('inv-sort').addEventListener('click', invSort);
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
@@ -6215,6 +6508,8 @@ document.addEventListener('keydown', e => {
   if (picker) open.push(picker);
   const inv = $('inv-overlay');
   if (inv.classList.contains('open')) open.push(inv);
+  const ach = $('ach-overlay');
+  if (ach.classList.contains('open')) open.push(ach);
   if (!open.length) return;
   /* Högst z-nivå = det översta fönstret = det man senast öppnade eller klickade på. */
   open.sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
@@ -6424,6 +6719,12 @@ buildRows();
 buildCoreUpgrades();
 refreshShelf();
 updateUI(true);
+/* Bragder som redan är förtjänade delas ut TYST vid start — en gammal sparfil ska
+   inte begravas under tjugo popuprutor.
+   MÅSTE stå EFTER updateUI: kontrollen ritar om gränssnittet när något delas ut,
+   och görs det innan raderna byggts kraschar hela uppstarten. Det gjorde det. */
+checkAchievements(true);
+renderAchBadge();
 window.addEventListener('pagehide', () => { if (!resetInProgress) save(); });
 window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); });
 document.addEventListener('visibilitychange', () => {
