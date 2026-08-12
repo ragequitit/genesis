@@ -1914,13 +1914,13 @@ body.modal-open{overflow:hidden}
         <span class="inv-capline">Stored <b id="vault-cap">0 / 20</b></span>
       </div>
       <div class="vault-grid" id="vault-grid"></div>
-      <div class="section-label">Vault slots</div>
+      <div class="section-label">Vault bags</div>
       <div class="inv-bagrow" id="vault-bagrow">
-        <div class="inv-bagslot" data-vaultlock="0"></div>
-        <div class="inv-bagslot" data-vaultlock="1"></div>
-        <div class="inv-bagslot" data-vaultlock="2"></div>
-        <div class="inv-bagslot" data-vaultlock="3"></div>
-        <div class="inv-bagslot" data-vaultlock="4"></div>
+        <div class="inv-bagslot" data-vaultbag="0">🔒</div>
+        <div class="inv-bagslot" data-vaultbag="1">🔒</div>
+        <div class="inv-bagslot" data-vaultbag="2">🔒</div>
+        <div class="inv-bagslot" data-vaultbag="3">🔒</div>
+        <div class="inv-bagslot" data-vaultbag="4">🔒</div>
       </div>
     </div>
   </div>
@@ -2099,7 +2099,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.59.0 — ONE BAG (VÄSKAN)</div>
+            <div class="desc">GENESIS v0.60.0 — VALVETS VÄSKOR</div>
           </div>
         </div>
       </div>
@@ -2125,7 +2125,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.59.0 — ONE BAG (VÄSKAN)</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.60.0 — VALVETS VÄSKOR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2535,7 +2535,9 @@ let S = {
   credits: 0,
   mil: {},              // "buildId:step" -> true
   ach: {done: {}, unseen: 0},   // avklarade bragder + hur många som inte setts än
-  vault: {inv: [], locks: [false, false, false, false, false]},   // föremålsvalvet
+  vault: {inv: [], bags: [false,false,false,false,false], bagItems: [null,null,null,null,null], split: false, pos: {}},
+  // ^ valvet speglar ryggsäcken: 20 grundplatser + fem fack man LÅSER upp och
+  //   sätter VÄSKOR i. Platserna kommer från väskorna, precis som i ryggsäcken.
   bagSplit: false,          // väskan visad som separata småväskor (One Bag-läget)
   bagPos: {},               // sparade positioner för varje delväska: {namn: {x,y}}
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
@@ -2666,9 +2668,29 @@ function load(){
          väskorna, nu valvet). Deklarationen är en const längre ned i blocket. */
       /* Valvet läses med samma stränghet som väskan: bara giltiga pjäser och
          staplar överlever, och aldrig fler än platserna räcker till. */
-      S.vault = {inv: [], locks: [0,1,2,3,4].map(i => !!(d.vault && Array.isArray(d.vault.locks) && d.vault.locks[i]))};
-      if (d.vault && Array.isArray(d.vault.inv)){
-        S.vault.inv = d.vault.inv.map(r => {
+      const dv = d.vault || {};
+      /* Väskfacken: nya sparfiler har .bags/.bagItems. Gamla hade fasta lås i
+         .locks — de räknas som köpta FACK (spelaren betalade platsen), men utan
+         väska i sig, så de börjar tomma tills en väska sätts i. */
+      const vbagsSrc = Array.isArray(dv.bags) ? dv.bags : (Array.isArray(dv.locks) ? dv.locks : []);
+      S.vault = {
+        inv: [],
+        bags: [0,1,2,3,4].map(i => !!vbagsSrc[i]),
+        bagItems: [null,null,null,null,null],
+        split: !!dv.split,
+        pos: {}
+      };
+      if (Array.isArray(dv.bagItems)){
+        S.vault.bagItems = [0,1,2,3,4].map(i => {
+          const g = readGear(dv.bagItems[i]);
+          return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.vault.bags[i]) ? g : null;
+        });
+      }
+      if (dv.pos && typeof dv.pos === 'object'){
+        for (const k in dv.pos){ const p = dv.pos[k]; if (p && isFinite(+p.x) && isFinite(+p.y)) S.vault.pos[k] = {x:+p.x, y:+p.y}; }
+      }
+      if (Array.isArray(dv.inv)){
+        S.vault.inv = dv.inv.map(r => {
           if (!r) return null;
           if (r.gear){ const g = readGear(r.gear); return g ? {gear: g} : null; }
           if (r.key && ITEM_DEFS[r.key]){
@@ -2852,24 +2874,26 @@ function maxAffordable(b){
    man köper, inget att stoppa i den. Saker flyttas fritt mellan väskan och valvet
    med samma drag som allt annat. */
 const VAULT_BASE_SLOTS = 20;
-const VAULT_LOCK_SLOTS = 10;      // varje köpt lås = exakt 10 rutor
-/* ---------- RUTNÄTETS FORM (spelarens rektangelmodell, v0.58.0) ----------
-   Ett rutnät ska ALLTID vara en hel rektangel. Fem rader högt, och det växer i
-   BREDD tills det når taket, sedan NEDÅT. Kolumnerna fylls uppifrån och ner, så
-   varje köp om tio rutor blir antingen två hela kolumner (medan det breddas) eller
-   en hel rad (när det växer nedåt) — aldrig en svans, aldrig ett hål.
-     20 = 4×5 · 30 = 6×5 · 40 = 8×5 · 50 = 10×5 · 60 = 10×6 · 70 = 10×7
-   maxCols är takbredden. Samma funktion ritar väskan (tak 4) och valvet (tak 10). */
+/* ---------- RUTNÄTETS FORM ----------
+   gridDims håller ett rutnät rektangulärt: fem rader högt, växer i bredd till taket
+   sedan nedåt. Ryggsäcken använder den (tak 4). Valvet räknar numera sina rutor från
+   isatta väskor och ritar sitt eget kolumn-major rutnät direkt i renderVault. */
 const GRID_ROWS = 5;
 function gridDims(slots, maxCols){
   const capCols = GRID_ROWS * maxCols;
   if (slots <= capCols) return {cols: Math.max(1, Math.round(slots / GRID_ROWS)), rows: GRID_ROWS};
   return {cols: maxCols, rows: Math.ceil(slots / maxCols)};
 }
-function vaultUnlocked(i){ return !!(S.vault.locks && S.vault.locks[i]); }
+function vaultBagUnlocked(i){ return !!(S.vault.bags && S.vault.bags[i]); }
+function vaultBagIn(i){ return (S.vault.bagItems && S.vault.bagItems[i]) || null; }
+/* Platserna kommer från väskorna man satt i valvets fack — samma räkning som
+   ryggsäcken. En låst plats kan aldrig bära något, så inget extrautrymme smyger in. */
 function vaultSlots(){
   let n = VAULT_BASE_SLOTS;
-  for (let i = 0; i < BAG_SLOTS.length; i++) if (vaultUnlocked(i)) n += VAULT_LOCK_SLOTS;
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    const b = vaultBagIn(i);
+    if (b && vaultBagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag) n += ITEMS[b.t].bag;
+  }
   return n;
 }
 function vaultUsed(){ return S.vault.inv.filter(Boolean).length; }
@@ -2885,11 +2909,57 @@ function vaultNormalize(){
 }
 function unlockVault(i){
   const b = BAG_SLOTS[i];
-  if (!b || vaultUnlocked(i)) return false;
+  if (!b || vaultBagUnlocked(i)) return false;
   if (b.cur === 'gold'){ if (S.gold < b.cost) return false; S.gold -= b.cost; }
   else { if (S.credits < b.cost) return false; S.credits -= b.cost; }
-  S.vault.locks[i] = true;
-  vaultNormalize(); renderVault(); updateUI(true); save();
+  S.vault.bags[i] = true;
+  renderVault(); updateUI(true); save();
+  return true;
+}
+/* Sätta en väska i valvets fack, och ta ur den igen — spegling av ryggsäckens
+   equipBag/unequipBag, men mot valvets egen lista. Krymper valvet FÖRST vid uttag,
+   letar ruta SEDAN, och backar hela bytet om något inte får plats. */
+function equipVaultBag(invIdx, socket){
+  const row = S.inv[invIdx];
+  if (!row || !row.gear || !ITEMS[row.gear.t] || !ITEMS[row.gear.t].bag) return false;
+  if (!vaultBagUnlocked(socket)) return false;
+  const old = vaultBagIn(socket);
+  S.inv[invIdx] = old ? {gear: old} : null;
+  S.vault.bagItems[socket] = row.gear;
+  if (!fitVaultAfterResize()){
+    S.vault.bagItems[socket] = old;
+    S.inv[invIdx] = row;
+    invNormalize();
+    return false;
+  }
+  renderInventory(); renderVault(); updateUI(true); save();
+  return true;
+}
+function unequipVaultBag(socket, toIdx){
+  const b = vaultBagIn(socket);
+  if (!b) return false;
+  S.vault.bagItems[socket] = null;
+  if (!fitVaultAfterResize(1)){
+    S.vault.bagItems[socket] = b;
+    vaultNormalize();
+    return false;
+  }
+  const at = (typeof toIdx === "number" && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx]) ? toIdx : invFirstFree();
+  if (at < 0){ S.vault.bagItems[socket] = b; vaultNormalize(); return false; }
+  S.inv[at] = {gear: b};
+  renderInventory(); renderVault(); updateUI(true); save();
+  return true;
+}
+function fitVaultAfterResize(reserve){
+  const cap = vaultSlots();
+  const spill = [];
+  for (let i = cap; i < S.vault.inv.length; i++) if (S.vault.inv[i]) spill.push(S.vault.inv[i]);
+  let free = 0;
+  for (let i = 0; i < cap; i++) if (!S.vault.inv[i]) free++;
+  if (free < spill.length + (reserve || 0)) return false;
+  for (let i = cap; i < S.vault.inv.length; i++) S.vault.inv[i] = null;
+  spill.forEach(it => { const f = vaultFirstFree(); if (f >= 0) S.vault.inv[f] = it; });
+  vaultNormalize();
   return true;
 }
 /* Flytt mellan väskan och valvet. Båda hållen använder samma två steg: finns det
@@ -2961,17 +3031,57 @@ function hookVaultCells(){
   });
   grid.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
   grid.addEventListener('mouseout', hideGearTip);
-  document.querySelectorAll('[data-vaultlock]').forEach(el => {
-    el.addEventListener('click', () => {
-      const i = +el.dataset.vaultlock;
-      if (vaultUnlocked(i)) return;
+  document.querySelectorAll('[data-vaultbag]').forEach(el => {
+    const i = +el.dataset.vaultbag;
+    hookDragSource(el, () => { const b = vaultBagIn(i); return b ? {from: 'vaultbagslot', gear: b, socket: i} : null; });
+    el.addEventListener('click', e => {
+      const b = vaultBagIn(i);
+      if (b){
+        if (e.shiftKey){ if (!unequipVaultBag(i)) showBagTip(el, 'No room in the backpack for the bag itself.'); return; }
+        if (isTouchInput()) spawnItemWin(b.uid, e.clientX, e.clientY);
+        return;
+      }
+      if (vaultBagUnlocked(i)){ showVaultBagPicker(i, el); return; }
       if (!unlockVault(i)) showBagTip(el, 'Not enough — you need ' + bagShortText(i) + ' more.');
     });
-    el.addEventListener('mouseenter', () => showBagTip(el, vaultUnlocked(i(el))
-      ? 'Vault expansion ' + (i(el) + 1) + ' — unlocked. ' + VAULT_LOCK_SLOTS + ' more places to store things.'
-      : 'Vault expansion ' + (i(el) + 1) + ' — locked.<br>Unlock ' + VAULT_LOCK_SLOTS + ' more slots for <b>' + bagCostText(i(el)) + '</b>.'));
-    el.addEventListener('mouseleave', hideBagTip);
-    function i(x){ return +x.dataset.vaultlock; }
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const b = vaultBagIn(i);
+      if (b){ hideBagTip(); spawnItemWin(b.uid, e.clientX, e.clientY); }
+    });
+    el.addEventListener('mouseenter', e => {
+      const b = vaultBagIn(i);
+      if (b){ showGearTip(b, e.clientX, e.clientY); return; }
+      showBagTip(el, vaultBagUnlocked(i)
+        ? 'Vault bag slot ' + (i + 1) + ' — empty. Click to fit a bag from your backpack.'
+        : 'Vault bag slot ' + (i + 1) + ' — locked.<br>Unlock for <b>' + bagCostText(i) + '</b>.');
+    });
+    el.addEventListener('mousemove', e => { if (vaultBagIn(i) && gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
+    el.addEventListener('mouseleave', () => { hideBagTip(); hideGearTip(); });
+  });
+}
+/* Tomt valvfack: lista väskor i ryggsäcken som passar — samma väljare som
+   ryggsäckens fack, men den sätter väskan i VALVET. */
+function showVaultBagPicker(socket, anchor){
+  const old = document.querySelector('.slot-picker');
+  if (old) old.remove();
+  const fits = [];
+  S.inv.forEach((row, i) => { if (row && row.gear && ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) fits.push({i: i, g: row.gear}); });
+  const pick = document.createElement('div');
+  pick.className = 'slot-picker';
+  pick.innerHTML = '<div class="sp-head">Vault bag slot ' + (socket + 1) + '</div>' +
+    (fits.length ? fits.map(f => '<div class="sp-opt" data-fitvbag="' + f.i + '"><span class="sp-img" style="background-image:url(\'' +
+      gearArt(f.g) + '\')"></span><span>' + gearName(f.g) + '</span><span class="sp-plus">+' + ITEMS[f.g.t].bag + '</span></div>').join('')
+      : '<div class="sp-empty">No bags in your backpack.</div>');
+  document.body.appendChild(pick);
+  const r = anchor.getBoundingClientRect();
+  pick.style.left = Math.min(r.left, window.innerWidth - 220) + 'px';
+  pick.style.top = (r.bottom + 6) + 'px';
+  bringToFront(pick);
+  pick.querySelectorAll('[data-fitvbag]').forEach(opt => {
+    opt.addEventListener('click', () => {
+      if (equipVaultBag(+opt.dataset.fitvbag, socket)) pick.remove();
+    });
   });
 }
 function vaultCellHTML(i){
@@ -2992,21 +3102,34 @@ function renderVault(){
   if (!grid) return;
   vaultNormalize();
   const cap = vaultSlots();
-  const dim = gridDims(cap, 10);
-  /* KOLUMN-major: rutorna fylls uppifrån och ner, en kolumn i taget — så plats 0..4
-     är första kolumnen, 5..9 den andra, precis som spelaren beskrev. CSS lägger dem
-     i den ordningen med grid-auto-flow:column, så DOM-ordningen = platsordningen och
-     drag/släpp behöver inte veta något om formen. */
+  /* Fem rader högt, växer i bredd — kolumn-major så rutorna fylls uppifrån och ner
+     som ryggsäcken. Platserna kommer nu från väskor (+4/+6/+8), så det finns ingen
+     fast rektangel att hålla; rutnätet är helt enkelt så brett som det behöver. */
+  const rows = Math.min(GRID_ROWS, Math.max(1, cap));
+  const cols = Math.max(1, Math.ceil(cap / rows));
   let h = '';
   for (let i = 0; i < cap; i++) h += vaultCellHTML(i);
-  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
-  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', 52px)';
+  grid.style.gridTemplateRows = 'repeat(' + rows + ', 52px)';
   grid.innerHTML = h;
   $('vault-cap').textContent = vaultUsed() + ' / ' + cap;
-  document.querySelectorAll('[data-vaultlock]').forEach(el => {
-    const i = +el.dataset.vaultlock;
-    el.classList.toggle('locked', !vaultUnlocked(i));
-    el.textContent = vaultUnlocked(i) ? '📦' : '🔒';
+  renderVaultBagSlots();
+}
+function renderVaultBagSlots(){
+  document.querySelectorAll('[data-vaultbag]').forEach(el => {
+    const i = +el.dataset.vaultbag;
+    el.removeAttribute('title');
+    el.style.removeProperty('--rc');
+    const b = vaultBagIn(i);
+    if (vaultBagUnlocked(i) && b){
+      el.classList.remove('locked'); el.classList.add('has');
+      el.style.setProperty('--rc', gearRarCol(b));
+      el.innerHTML = '<span class="bs-img" style="background-image:url(\'' + gearArt(b) + '\')"></span>';
+    } else if (vaultBagUnlocked(i)){
+      el.classList.remove('locked', 'has'); el.textContent = '👜';
+    } else {
+      el.classList.remove('has'); el.classList.add('locked'); el.textContent = '🔒';
+    }
   });
 }
 /* ---------- SHIFT+KLICK-ROUTERN (spelarens prioritetsordning, v0.56.0) ----------
@@ -6816,7 +6939,8 @@ let drag = null;
    visas ruta för ruta under pekaren i stället för som en ram runt allt. */
 function dragTargetsFor(d){
   if (d.from === 'inv' && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag)
-    return Array.from(document.querySelectorAll('[data-bag]')).filter(el => bagUnlocked(+el.dataset.bag));
+    return Array.from(document.querySelectorAll('[data-bag]')).filter(el => bagUnlocked(+el.dataset.bag))
+      .concat(Array.from(document.querySelectorAll('[data-vaultbag]')).filter(el => vaultBagUnlocked(+el.dataset.vaultbag)));
   if (d.from === 'inv' && d.gear)
     return Array.from(document.querySelectorAll('#panel-character [data-slot="' + d.gear.s + '"]'));
   return [];
@@ -6876,6 +7000,12 @@ function endDrag(d, x, y){
       if (row >= 0) equipBag(row, +sock.dataset.bag);
       return;
     }
+    const vsock = under.closest('[data-vaultbag]');
+    if (vsock && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag){
+      const row = S.inv.findIndex(r => r && r.gear && r.gear.uid === d.gear.uid);
+      if (row >= 0) equipVaultBag(row, +vsock.dataset.vaultbag);
+      return;
+    }
     const slot = under.closest('#panel-character [data-slot]');
     /* Endast rätt plats tar emot — en hjälm hör inte hemma i vapenrutan. */
     if (slot && d.gear && +slot.dataset.slot === d.gear.s){
@@ -6891,6 +7021,11 @@ function endDrag(d, x, y){
   if (d.from === 'bagslot'){
     if (cell) unequipBag(d.socket, +cell.dataset.inv);
     else if (under.closest('#inv-grid')) unequipBag(d.socket);
+    return;
+  }
+  if (d.from === 'vaultbagslot'){
+    if (cell) unequipVaultBag(d.socket, +cell.dataset.inv);
+    else if (under.closest('#inv-grid')) unequipVaultBag(d.socket);
     return;
   }
   /* Buren pjäs släppt på en BESTÄMD ruta hamnar just där, om den är ledig. */
