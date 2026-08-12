@@ -1485,7 +1485,6 @@ body.modal-open{overflow:hidden}
   box-shadow:inset 0 0 0 1px rgba(120,150,255,.15), inset 0 2px 8px rgba(0,0,0,.55);
   display:flex;align-items:center;justify-content:center;font-size:17px;opacity:.6;
 }
-.inv-bagrow{display:flex;gap:6px;flex-wrap:nowrap}
 .inv-capline{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:8px}
 .inv-sort{
   font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;cursor:pointer;
@@ -1493,7 +1492,17 @@ body.modal-open{overflow:hidden}
   background:rgba(56,232,255,.08);border:1px solid var(--cyan-dim);
 }
 .inv-sort:hover{background:rgba(56,232,255,.18)}
-#inv-onebag.on, #vault-onebag.on{background:rgba(56,232,255,.22);border-color:var(--cyan);color:var(--cyan)}
+/* Ett fack med en INBAKAD väska LYSER — dess rutor finns i huvudrutnätet. Är
+   väskan utbruten till eget fönster är facket släckt. */
+.inv-bagslot.lit{border-color:var(--rc,var(--cyan));box-shadow:0 0 0 1px var(--rc,var(--cyan)) inset, 0 0 14px -2px var(--rc,var(--cyan))}
+.inv-bagslot.detached{opacity:.45}
+/* Väskraden: tre i bredd, sedan ny rad nedåt — växer inte som en lång stapel. */
+.inv-bagrow{display:grid;grid-template-columns:repeat(3, 38px);gap:6px;justify-content:center}
+.bagwin-x{
+  border:none;background:transparent;color:var(--text-dim);cursor:pointer;
+  font-size:13px;line-height:1;padding:2px 4px;border-radius:6px;
+}
+.bagwin-x:hover{color:var(--text);background:rgba(255,255,255,.10)}
 /* De separata väskorna i delat läge: små flytande fönster, var och en dragbar i
    sin egen titelrad. Samma rutor som huvudväskan, bara grupperade per väska. */
 .bagwin{
@@ -1911,7 +1920,6 @@ body.modal-open{overflow:hidden}
         <button class="inv-x" id="vault-close">✕</button>
       </div>
       <div class="inv-toolbar">
-        <button class="inv-sort" id="vault-onebag" title="Split the vault into separate bags you can move around — press again to merge">🗄️ One Bag</button>
         <span class="inv-capline">Stored <b id="vault-cap">0 / 20</b></span>
       </div>
       <div class="vault-grid" id="vault-grid"></div>
@@ -1952,7 +1960,6 @@ body.modal-open{overflow:hidden}
       </div>
       <div class="inv-toolbar">
         <button class="inv-sort" id="inv-sort" title="Sort: gear by slot and rarity, then stacks">⇅ Sort</button>
-        <button class="inv-sort" id="inv-onebag" title="Split the backpack into separate bags you can move around — press again to merge">🎒 One Bag</button>
         <span class="inv-capline">Slots <b id="inv-cap">0 / 20</b></span>
       </div>
       <div class="inv-toprow">
@@ -2100,7 +2107,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.61.0 — ONE BAG (VALVET)</div>
+            <div class="desc">GENESIS v0.62.0 — VÄSKFÖNSTREN</div>
           </div>
         </div>
       </div>
@@ -2126,7 +2133,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.61.0 — ONE BAG (VALVET)</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.0 — VÄSKFÖNSTREN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2536,11 +2543,15 @@ let S = {
   credits: 0,
   mil: {},              // "buildId:step" -> true
   ach: {done: {}, unseen: 0},   // avklarade bragder + hur många som inte setts än
-  vault: {inv: [], bags: [false,false,false,false,false], bagItems: [null,null,null,null,null], split: false, pos: {}},
+  vault: {inv: [], bags: [false,false,false,false,false], bagItems: [null,null,null,null,null],
+          open: [false,false,false,false,false], pos: {}},
   // ^ valvet speglar ryggsäcken: 20 grundplatser + fem fack man LÅSER upp och
   //   sätter VÄSKOR i. Platserna kommer från väskorna, precis som i ryggsäcken.
-  bagSplit: false,          // väskan visad som separata småväskor (One Bag-läget)
-  bagPos: {},               // sparade positioner för varje delväska: {namn: {x,y}}
+  /* En isatt väska är antingen INBAKAD i huvudrutnätet (facket lyser) eller
+     UTBRUTEN till ett eget litet fönster (facket är släckt). Bara en flagga per
+     fack — inga pjäser flyttas, platsnumren är orörda. */
+  bagOpen: [false, false, false, false, false],
+  bagPos: {},               // sparade positioner per fack: {socket: {x,y}}
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
   savedAt: 0
 };
@@ -2658,7 +2669,7 @@ function load(){
         const g = Array.isArray(d.bagItems) ? readGear(d.bagItems[i]) : null;
         return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.bags[i]) ? g : null;
       });
-      S.bagSplit = !!d.bagSplit;
+      S.bagOpen = [0,1,2,3,4].map(i => !!(Array.isArray(d.bagOpen) && d.bagOpen[i]));
       if (d.bagPos && typeof d.bagPos === 'object'){
         for (const k in d.bagPos){
           const p = d.bagPos[k];
@@ -2678,7 +2689,7 @@ function load(){
         inv: [],
         bags: [0,1,2,3,4].map(i => !!vbagsSrc[i]),
         bagItems: [null,null,null,null,null],
-        split: !!dv.split,
+        open: [0,1,2,3,4].map(i => !!(Array.isArray(dv.open) && dv.open[i])),
         pos: {}
       };
       if (Array.isArray(dv.bagItems)){
@@ -2875,6 +2886,7 @@ function maxAffordable(b){
    man köper, inget att stoppa i den. Saker flyttas fritt mellan väskan och valvet
    med samma drag som allt annat. */
 const VAULT_BASE_SLOTS = 20;
+const VAULT_MAX_COLS = 10;        // taket på bredden, så rutnätet aldrig spränger ramen
 /* ---------- RUTNÄTETS FORM ----------
    gridDims håller ett rutnät rektangulärt: fem rader högt, växer i bredd till taket
    sedan nedåt. Ryggsäcken använder den (tak 4). Valvet räknar numera sina rutor från
@@ -2936,6 +2948,25 @@ function equipVaultBag(invIdx, socket){
   renderInventory(); renderVault(); updateUI(true); save();
   return true;
 }
+/* Sätta en väska som redan ligger I VALVET i ett av valvets fack. Väskan lämnar
+   sin ruta, och krymper valvet i samma andetag — så kontrollen måste ske på det
+   NYA antalet platser, med väskans egen ruta redan tömd. */
+function equipVaultBagFromVault(vaultIdx, socket){
+  const row = S.vault.inv[vaultIdx];
+  if (!row || !row.gear || !ITEMS[row.gear.t] || !ITEMS[row.gear.t].bag) return false;
+  if (!vaultBagUnlocked(socket)) return false;
+  const old = vaultBagIn(socket);
+  S.vault.inv[vaultIdx] = old ? {gear: old} : null;
+  S.vault.bagItems[socket] = row.gear;
+  if (!fitVaultAfterResize()){
+    S.vault.bagItems[socket] = old;
+    S.vault.inv[vaultIdx] = row;
+    vaultNormalize();
+    return false;
+  }
+  renderInventory(); renderVault(); updateUI(true); save();
+  return true;
+}
 function unequipVaultBag(socket, toIdx){
   const b = vaultBagIn(socket);
   if (!b) return false;
@@ -2948,6 +2979,7 @@ function unequipVaultBag(socket, toIdx){
   const at = (typeof toIdx === "number" && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx]) ? toIdx : invFirstFree();
   if (at < 0){ S.vault.bagItems[socket] = b; vaultNormalize(); return false; }
   S.inv[at] = {gear: b};
+  if (S.vault.open) S.vault.open[socket] = false;
   renderInventory(); renderVault(); updateUI(true); save();
   return true;
 }
@@ -3043,7 +3075,7 @@ function hookVaultBagSlots(){
       const b = vaultBagIn(i);
       if (b){
         if (e.shiftKey){ if (!unequipVaultBag(i)) showBagTip(el, 'No room in the backpack for the bag itself.'); return; }
-        if (isTouchInput()) spawnItemWin(b.uid, e.clientX, e.clientY);
+        setVaultBagOpen(i, !vaultBagIsOpen(i));
         return;
       }
       if (vaultBagUnlocked(i)){ showVaultBagPicker(i, el); return; }
@@ -3070,14 +3102,18 @@ function hookVaultBagSlots(){
 function showVaultBagPicker(socket, anchor){
   const old = document.querySelector('.slot-picker');
   if (old) old.remove();
+  /* Väskor i BÅDE ryggsäcken och valvet duger — en väska som redan ligger i valvet
+     ska inte behöva ta omvägen via ryggsäcken för att sättas i ett valvfack. */
   const fits = [];
-  S.inv.forEach((row, i) => { if (row && row.gear && ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) fits.push({i: i, g: row.gear}); });
+  S.inv.forEach((row, i) => { if (row && row.gear && ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) fits.push({src: 'inv', i: i, g: row.gear}); });
+  S.vault.inv.forEach((row, i) => { if (row && row.gear && ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) fits.push({src: 'vault', i: i, g: row.gear}); });
   const pick = document.createElement('div');
   pick.className = 'slot-picker';
   pick.innerHTML = '<div class="sp-head">Vault bag slot ' + (socket + 1) + '</div>' +
-    (fits.length ? fits.map(f => '<div class="sp-opt" data-fitvbag="' + f.i + '"><span class="sp-img" style="background-image:url(\'' +
-      gearArt(f.g) + '\')"></span><span>' + gearName(f.g) + '</span><span class="sp-plus">+' + ITEMS[f.g.t].bag + '</span></div>').join('')
-      : '<div class="sp-empty">No bags in your backpack.</div>');
+    (fits.length ? fits.map(f => '<div class="sp-opt" data-fitvbag="' + f.i + '" data-fitvsrc="' + f.src + '"><span class="sp-img" style="background-image:url(\'' +
+      gearArt(f.g) + '\')"></span><span>' + gearName(f.g) + '</span><span class="sp-plus">+' + ITEMS[f.g.t].bag +
+      (f.src === 'vault' ? ' · in vault' : '') + '</span></div>').join('')
+      : '<div class="sp-empty">No bags in your backpack or vault.</div>');
   document.body.appendChild(pick);
   const r = anchor.getBoundingClientRect();
   pick.style.left = Math.min(r.left, window.innerWidth - 220) + 'px';
@@ -3085,7 +3121,10 @@ function showVaultBagPicker(socket, anchor){
   bringToFront(pick);
   pick.querySelectorAll('[data-fitvbag]').forEach(opt => {
     opt.addEventListener('click', () => {
-      if (equipVaultBag(+opt.dataset.fitvbag, socket)) pick.remove();
+      const ok = opt.dataset.fitvsrc === 'vault'
+        ? equipVaultBagFromVault(+opt.dataset.fitvbag, socket)
+        : equipVaultBag(+opt.dataset.fitvbag, socket);
+      if (ok) pick.remove();
     });
   });
 }
@@ -3118,64 +3157,80 @@ function vaultBagSegments(){
   }
   return segs;
 }
-function renderVaultSplitBags(){
+function vaultBagIsOpen(socket){ return !!(S.vault.open && S.vault.open[socket]); }
+/* Platserna som valvets huvudrutnät ritar: grunden plus varje INBAKAD väska. */
+function mainVaultIndices(){
+  const out = [];
+  for (let i = 0; i < VAULT_BASE_SLOTS; i++) out.push(i);
+  vaultBagSegments().forEach(seg => {
+    if (seg.socket === undefined || vaultBagIsOpen(seg.socket)) return;
+    for (let k = 0; k < seg.len; k++) out.push(seg.start + k);
+  });
+  return out;
+}
+function renderVaultMiniBags(){
   document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
-  if (!S.vault.split) return;
-  const segs = vaultBagSegments();
   const vw = $('vault-overlay');
-  const base = vw ? vw.getBoundingClientRect() : {left: 380, top: 70};
-  segs.forEach((seg, idx) => {
-    const rows = Math.min(GRID_ROWS, seg.len);
-    const cols = Math.ceil(seg.len / rows);
+  if (!vw || !vw.classList.contains('open')) return;
+  const base = vw.getBoundingClientRect();
+  let idx = 0;
+  vaultBagSegments().forEach(seg => {
+    if (seg.socket === undefined || !vaultBagIsOpen(seg.socket)) return;
+    const dim = compactDims(seg.len);
     let cells = '';
     for (let k = 0; k < seg.len; k++) cells += vaultCellHTML(seg.start + k);
     const win = document.createElement('div');
     win.className = 'bagwin vaultbagwin';
-    win.dataset.bagname = seg.name;
-    win.innerHTML = '<div class="bagwin-head"><span>' + seg.name + '</span><span>' + seg.len + '</span></div>' +
-      '<div class="bagwin-grid" style="grid-template-columns:repeat(' + cols + ',52px);grid-template-rows:repeat(' + rows + ',52px)">' + cells + '</div>';
+    win.dataset.socket = seg.socket;
+    win.innerHTML =
+      '<div class="bagwin-head"><span>' + seg.name + '</span>' +
+      '<button class="bagwin-x" data-closevbag="' + seg.socket + '">✕</button></div>' +
+      '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
     document.body.appendChild(win);
-    const pos = S.vault.pos[seg.name];
+    const pos = S.vault.pos[seg.socket];
     if (pos){ win.style.left = pos.x + 'px'; win.style.top = pos.y + 'px'; }
-    else { win.style.left = (base.left + 20 + idx * 30) + 'px'; win.style.top = (base.top + 40 + idx * 30) + 'px'; }
+    else { win.style.left = (base.right + 12 + idx * 24) + 'px'; win.style.top = (base.top + idx * 24) + 'px'; }
+    clampToViewport(win);
     const head = win.querySelector('.bagwin-head');
     makeDraggable(win, head);
     head.addEventListener('pointerup', () => {
       const r = win.getBoundingClientRect();
-      S.vault.pos[seg.name] = {x: Math.round(r.left), y: Math.round(r.top)};
+      S.vault.pos[seg.socket] = {x: Math.round(r.left), y: Math.round(r.top)};
       save();
     });
+    win.querySelector('[data-closevbag]').addEventListener('click', e => {
+      e.stopPropagation();
+      setVaultBagOpen(seg.socket, false);
+    });
     hookVaultCells(win.querySelector('.bagwin-grid'));
+    idx++;
   });
 }
-function toggleVaultOneBag(){
-  S.vault.split = !S.vault.split;
-  const btn = $('vault-onebag');
-  if (btn) btn.classList.toggle('on', S.vault.split);
-  const grid = $('vault-grid');
-  if (grid) grid.style.display = S.vault.split ? 'none' : '';
-  if (!S.vault.split) document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
+function setVaultBagOpen(socket, open){
+  if (!vaultBagIn(socket) || !vaultBagUnlocked(socket)) return false;
+  S.vault.open[socket] = !!open;
   renderVault();
   save();
+  return true;
 }
 function renderVault(){
   const grid = $('vault-grid');
   if (!grid) return;
   vaultNormalize();
   const cap = vaultSlots();
-  if (S.vault.split){ renderVaultBagSlots(); renderVaultSplitBags(); $('vault-cap').textContent = vaultUsed() + ' / ' + cap; return; }
-  /* Fem rader högt, växer i bredd — kolumn-major så rutorna fylls uppifrån och ner
-     som ryggsäcken. Platserna kommer nu från väskor (+4/+6/+8), så det finns ingen
-     fast rektangel att hålla; rutnätet är helt enkelt så brett som det behöver. */
-  const rows = Math.min(GRID_ROWS, Math.max(1, cap));
-  const cols = Math.max(1, Math.ceil(cap / rows));
+  /* Huvudrutnätet ritar grunden plus de väskor som är inbakade. Bredden är KAPAD
+     till tio kolumner — utan taket växte valvet ut ur sin egen ram när fler väskor
+     sattes i. Över taket växer det nedåt i stället. */
+  const idxs = mainVaultIndices();
+  const dim = gridDims(idxs.length, VAULT_MAX_COLS);
   let h = '';
-  for (let i = 0; i < cap; i++) h += vaultCellHTML(i);
-  grid.style.gridTemplateColumns = 'repeat(' + cols + ', 52px)';
-  grid.style.gridTemplateRows = 'repeat(' + rows + ', 52px)';
+  idxs.forEach(i => { h += vaultCellHTML(i); });
+  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
+  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
   grid.innerHTML = h;
   $('vault-cap').textContent = vaultUsed() + ' / ' + cap;
   renderVaultBagSlots();
+  renderVaultMiniBags();
 }
 function renderVaultBagSlots(){
   document.querySelectorAll('[data-vaultbag]').forEach(el => {
@@ -3183,9 +3238,11 @@ function renderVaultBagSlots(){
     el.removeAttribute('title');
     el.style.removeProperty('--rc');
     const b = vaultBagIn(i);
+    el.classList.remove('lit', 'detached');
     if (vaultBagUnlocked(i) && b){
       el.classList.remove('locked'); el.classList.add('has');
       el.style.setProperty('--rc', gearRarCol(b));
+      el.classList.add(vaultBagIsOpen(i) ? 'detached' : 'lit');
       el.innerHTML = '<span class="bs-img" style="background-image:url(\'' + gearArt(b) + '\')"></span>';
     } else if (vaultBagUnlocked(i)){
       el.classList.remove('locked', 'has'); el.textContent = '👜';
@@ -3227,12 +3284,12 @@ function quickEquipFromVault(i){
 function openVault(){
   hookVaultCells();
   hookVaultBagSlots();
-  renderVault();
-  if (S.vault.split) setTimeout(renderVaultSplitBags, 0);
   const w = $('vault-overlay');
   const wasOpen = w.classList.contains('open');
   w.classList.add('open');
   bringToFront(w);
+  /* Ritas EFTER öppningen: minifönstren placeras relativt valvet. */
+  renderVault();
   if (!wasOpen){
     let x = Math.max(8, Math.min(window.innerWidth - 360, window.innerWidth / 2 - 160));
     w.style.left = x + 'px'; w.style.top = '80px';
@@ -3924,6 +3981,9 @@ function unequipBag(socket, toIdx){
     return false;
   }
   S.inv[at] = {gear: b};
+  /* Facket är tomt nu — utan den här raden står flaggan kvar och nästa väska som
+     sätts i föds utbruten i ett eget fönster utan att någon bett om det. */
+  if (S.bagOpen) S.bagOpen[socket] = false;
   renderInventory(); updateUI(true); save();
   return true;
 }
@@ -4117,10 +4177,14 @@ function renderBagSlots(){
     el.removeAttribute('title');
     el.style.removeProperty('--rc');
     const b = bagIn(i);
+    el.classList.remove('lit', 'detached');
     if (bagUnlocked(i) && b){
       el.classList.remove('locked');
       el.classList.add('has');
       el.style.setProperty('--rc', gearRarCol(b));
+      /* Lyser = väskans rutor sitter i huvudrutnätet. Släckt = utbruten till
+         eget fönster, och ett klick bakar in den igen. */
+      el.classList.add(bagIsOpen(i) ? 'detached' : 'lit');
       el.innerHTML = '<span class="bs-img" style="background-image:url(\'' + gearArt(b) + '\')"></span>';
     } else if (bagUnlocked(i)){
       el.classList.remove('locked', 'has');
@@ -4182,13 +4246,29 @@ function renderPremiumBags(){
     btn.textContent = '💳 ' + BAG_SLOTS[tier].cost;
   }
 }
-/* ---------- ONE BAG: VÄSKAN SOM SEPARATA VÄSKOR ----------
-   Pjäserna förblir EN lista (S.inv) — de små väskorna är bara vyer in i olika
-   platsintervall av samma lista. Så drag, släpp och sparfil är orörda; det enda
-   som ändras är HUR rutorna grupperas på skärmen. Fritt flöde: vad som helst kan
-   ligga var som helst, precis som i det hopslagna läget.
-   Segment: grundväskan = platser 0..19, sedan en väska per upplåst fack, vars
-   längd är väskans egen storlek (+4/+6/+8). */
+/* ---------- VÄSKOR SOM KAN BRYTAS UT ----------
+   Pjäserna är EN lista (S.inv). En isatt väska äger ett platsintervall i den
+   listan, och intervallet ritas ANTINGEN i huvudrutnätet (facket lyser) ELLER i
+   ett eget litet fönster (facket släckt). Ingenting flyttas när man växlar — bara
+   var rutorna ritas — så drag, släpp, shift och sparfil är orörda, och saker kan
+   flyttas fritt mellan huvudrutnätet och alla öppna minifönster.
+   Grundväskans 20 platser bryts ALDRIG ut; de hör alltid till huvudfönstret. */
+/* Minifönstret ska vara så kvadratiskt som möjligt: 4=2×2, 6=3×2, 8=3×3, 10=4×3. */
+function compactDims(n){
+  const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+  return {cols: cols, rows: Math.ceil(n / cols)};
+}
+function bagIsOpen(socket){ return !!(S.bagOpen && S.bagOpen[socket]); }
+/* Platserna som huvudrutnätet ritar: grunden plus varje INBAKAD väskas intervall. */
+function mainInvIndices(){
+  const out = [];
+  for (let i = 0; i < INV_BASE_SLOTS; i++) out.push(i);
+  bagSegments().forEach(seg => {
+    if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
+    for (let k = 0; k < seg.len; k++) out.push(seg.start + k);
+  });
+  return out;
+}
 function bagSegments(){
   const segs = [{name: 'Backpack', start: 0, len: INV_BASE_SLOTS}];
   let at = INV_BASE_SLOTS;
@@ -4214,56 +4294,53 @@ function invCellHTML(i){
   }
   return '<div class="inv-slot" data-inv="' + i + '"></div>';
 }
-function renderSplitBags(){
-  /* Rensa gamla delväskefönster och rita ett per segment. */
+/* Ett minifönster per UTBRUTEN väska. Fönstret bär sitt fack i data-socket, så
+   krysset och facket kan stänga samma sak. */
+function renderMiniBags(){
   document.querySelectorAll('.bagwin').forEach(w => w.remove());
-  if (!S.bagSplit) return;
-  const segs = bagSegments();
   const invWin = $('inv-overlay');
-  const base = invWin ? invWin.getBoundingClientRect() : {left: 60, top: 70};
-  segs.forEach((seg, idx) => {
-    const rows = Math.min(GRID_ROWS, seg.len);
-    const cols = Math.ceil(seg.len / rows);
+  if (!invWin || !invWin.classList.contains('open')) return;
+  const base = invWin.getBoundingClientRect();
+  let idx = 0;
+  bagSegments().forEach(seg => {
+    if (seg.socket === undefined || !bagIsOpen(seg.socket)) return;
+    const dim = compactDims(seg.len);
     let cells = '';
     for (let k = 0; k < seg.len; k++) cells += invCellHTML(seg.start + k);
     const win = document.createElement('div');
     win.className = 'bagwin';
-    win.dataset.bagname = seg.name;
-    win.innerHTML = '<div class="bagwin-head"><span>' + seg.name + '</span><span>' + seg.len + '</span></div>' +
-      '<div class="bagwin-grid" style="grid-template-columns:repeat(' + cols + ',52px);grid-template-rows:repeat(' + rows + ',52px)">' + cells + '</div>';
+    win.dataset.socket = seg.socket;
+    win.innerHTML =
+      '<div class="bagwin-head"><span>' + seg.name + '</span>' +
+      '<button class="bagwin-x" data-closebag="' + seg.socket + '">✕</button></div>' +
+      '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
     document.body.appendChild(win);
-    /* Sparad position om den finns, annars en trappa ut från väskfönstret. */
-    const pos = S.bagPos[seg.name];
+    const pos = S.bagPos[seg.socket];
     if (pos){ win.style.left = pos.x + 'px'; win.style.top = pos.y + 'px'; }
-    else { win.style.left = (base.left + 20 + idx * 30) + 'px'; win.style.top = (base.top + 40 + idx * 30) + 'px'; }
-    hookSplitBag(win, seg.name);
+    else { win.style.left = (base.right + 12 + idx * 24) + 'px'; win.style.top = (base.top + idx * 24) + 'px'; }
+    clampToViewport(win);
+    const head = win.querySelector('.bagwin-head');
+    makeDraggable(win, head);
+    head.addEventListener('pointerup', () => {
+      const r = win.getBoundingClientRect();
+      S.bagPos[seg.socket] = {x: Math.round(r.left), y: Math.round(r.top)};
+      save();
+    });
+    win.querySelector('[data-closebag]').addEventListener('click', e => {
+      e.stopPropagation();
+      setBagOpen(seg.socket, false);
+    });
+    hookInvCells(win.querySelector('.bagwin-grid'));
+    idx++;
   });
 }
-function hookSplitBag(win, name){
-  const head = win.querySelector('.bagwin-head');
-  makeDraggable(win, head);
-  /* Kom ihåg var väskan släpps. */
-  head.addEventListener('pointerup', () => {
-    const r = win.getBoundingClientRect();
-    S.bagPos[name] = {x: Math.round(r.left), y: Math.round(r.top)};
-    save();
-  });
-  /* Rutorna i delväskan drar, släpper, hovrar och klickar precis som huvudväskan —
-     samma data-inv, så inga nya vägar behövs. */
-  hookInvCells(win.querySelector('.bagwin-grid'));
-}
-function toggleOneBag(){
-  S.bagSplit = !S.bagSplit;
-  const btn = $('inv-onebag');
-  if (btn) btn.classList.toggle('on', S.bagSplit);
-  /* Huvudrutnätet göms i delat läge; de små väskorna tar över. Slår man AV läget
-     måste delväskorna städas bort explicit — huvudgrenen i renderInventory rör
-     dem inte. */
-  const grid = $('inv-grid');
-  if (grid) grid.style.display = S.bagSplit ? 'none' : '';
-  if (!S.bagSplit) document.querySelectorAll('.bagwin').forEach(w => w.remove());
+/* Bryt ut en väska ur huvudrutnätet, eller baka in den igen. */
+function setBagOpen(socket, open){
+  if (!bagIn(socket) || !bagUnlocked(socket)) return false;
+  S.bagOpen[socket] = !!open;
   renderInventory();
   save();
+  return true;
 }
 function renderInventory(){
   renderBagSlots();
@@ -4273,13 +4350,15 @@ function renderInventory(){
   if (goldEl) goldEl.innerHTML = fmtMoney(S.gold);
   const grid = $('inv-grid');
   if (!grid) return;
-  if (S.bagSplit){ renderSplitBags(); return; }
-  const dim = gridDims(invSlots(), 4);
+  /* Huvudrutnätet ritar grunden plus de väskor som är inbakade. */
+  const idxs = mainInvIndices();
+  const dim = gridDims(idxs.length, 4);
   grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
   grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
   let h = '';
-  for (let i = 0; i < invSlots(); i++) h += invCellHTML(i);
+  idxs.forEach(i => { h += invCellHTML(i); });
   grid.innerHTML = h;
+  renderMiniBags();
 }
 
 /* ---------- BYTET ----------
@@ -7017,11 +7096,13 @@ function openAchievements(){
   save();
 }
 function openInventory(){
-  renderInventory();
   const w = $('inv-overlay');
   const wasOpen = w.classList.contains('open');
   w.classList.add('open');
   bringToFront(w);
+  /* Ritas EFTER att fönstret är öppet: minifönstren placeras relativt det, och
+     de ritas inte alls när väskan är stängd. */
+  renderInventory();
   if (!wasOpen){
     /* Standardplatsen: till höger om karaktärsbladet, så båda syns samtidigt. */
     const panel = document.getElementById('panel-character');
@@ -7040,7 +7121,6 @@ $('vault-close').addEventListener('click', () => {
   $('vault-overlay').classList.remove('open');
   document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
 });
-$('vault-onebag').addEventListener('click', toggleVaultOneBag);
 makeDraggable($('ach-overlay'), [$('ach-overlay').querySelector('.inv-titlebar'), $('ach-overlay').querySelector('.inv-emblem')]);
 $('inv-close').addEventListener('click', () => {
   hideGearTip();
@@ -7052,7 +7132,6 @@ makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar')
 makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titlebar'), $('vault-overlay').querySelector('.inv-emblem')]);
 $('bag-btn').addEventListener('click', openInventory);
 $('inv-sort').addEventListener('click', invSort);
-$('inv-onebag').addEventListener('click', toggleOneBag);
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
    inte: Windows kan skicka rullning i RADER eller SIDOR (deltaMode 1 och 2), och de
    släppte jag förbi till webbläsarens egen rullning — som då tog hela listan i ett
@@ -7070,6 +7149,8 @@ let drag = null;
 /* Bara kroppens rätta plats lyser upp i förväg. Väskan tar alltid emot, men det
    visas ruta för ruta under pekaren i stället för som en ram runt allt. */
 function dragTargetsFor(d){
+  if (d.from === 'vault' && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag)
+    return Array.from(document.querySelectorAll('[data-vaultbag]')).filter(el => vaultBagUnlocked(+el.dataset.vaultbag));
   if (d.from === 'inv' && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag)
     return Array.from(document.querySelectorAll('[data-bag]')).filter(el => bagUnlocked(+el.dataset.bag))
       .concat(Array.from(document.querySelectorAll('[data-vaultbag]')).filter(el => vaultBagUnlocked(+el.dataset.vaultbag)));
@@ -7114,6 +7195,12 @@ function endDrag(d, x, y){
   const vcell = under.closest('#vault-grid [data-vault]');
   const inVault = !!under.closest('#vault-grid');
   if (d.from === 'vault'){
+    /* En väska ur valvet får sättas direkt i ett av valvets fack. */
+    const vsock2 = under.closest('[data-vaultbag]');
+    if (vsock2 && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag){
+      equipVaultBagFromVault(d.idx, +vsock2.dataset.vaultbag);
+      return;
+    }
     /* Ur valvet: till en bestämd väskruta, till väskan i stort, eller flytta om
        inuti valvet självt. */
     if (cell) fromVault(d.idx, +cell.dataset.inv);
@@ -7226,7 +7313,7 @@ document.addEventListener('keydown', e => {
   document.querySelectorAll('.item-win').forEach(w => open.push({el: w, kill: true}));
   const picker = document.querySelector('.slot-picker');
   if (picker) open.push({el: picker, kill: true});
-  ['inv-overlay', 'ach-overlay', 'vault-overlay'].forEach(id => {
+  ['inv-overlay', 'ach-overlay', 'vault-overlay', 'region-overlay'].forEach(id => {
     const w = $(id);
     if (w && w.classList.contains('open')) open.push({el: w, kill: false});
   });
@@ -7236,6 +7323,9 @@ document.addEventListener('keydown', e => {
   const top = open[open.length - 1];
   hideGearTip();
   if (top.kill) top.el.remove();
+  /* Vendorrutan har egen städning (den öppna zonens referens driver klockan och
+     omritningen) — bara ta bort klassen och den pekar på ett stängt fönster. */
+  else if (top.el.id === 'region-overlay') closeRegion();
   else top.el.classList.remove('open');
   e.preventDefault();
 });
@@ -7265,9 +7355,10 @@ document.querySelectorAll('[data-bag]').forEach(el => {
   el.addEventListener('click', e => {
     const b = bagIn(i);
     if (b){
-      /* Shift+klick tar ut väskan direkt, precis som på kroppens platser. */
+      /* Shift+klick tar ut VÄSKAN ur facket, precis som på kroppens platser. */
       if (e.shiftKey){ if (!unequipBag(i)) showBagTip(el, 'No room in the backpack for the bag itself.'); return; }
-      if (isTouchInput()) spawnItemWin(b.uid, e.clientX, e.clientY);
+      /* Vanligt klick växlar mellan inbakad och utbruten. */
+      setBagOpen(i, !bagIsOpen(i));
       return;
     }
     if (bagUnlocked(i)){ showBagSlotPicker(i, el); return; }
