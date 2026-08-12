@@ -1383,15 +1383,53 @@ body.modal-open{overflow:hidden}
 .iw-stackart{font-size:30px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--border-soft);border-radius:10px;background:var(--bg-inset)}
 .iw-desc{font-size:10.5px;line-height:1.55;color:var(--text);margin:8px 0 4px}
+/* ---------- FÖNSTRENS TON ----------
+   Väskan och valvet skiljs åt på FÄRG i stället för på en textetikett i varje
+   minifönster ("Vault · Field Pouch" tryckte ut rutorna i sidled och upprepade
+   samma ord i varje fönster). En behållare och alla dess utbrutna småväskor delar
+   ton, så man ser direkt vad som hör ihop. Fyra variabler styr allt. */
+.inv-modal, .bagwin{
+  --win-edge:#3a4a8a;                     /* ramen */
+  --win-fill:26,34,70;                    /* fondens övre ton, som RGB-tripel */
+  --win-glow:120,150,255;                 /* den svaga inre kanten */
+  --win-emblem:#2a3a78;                   /* emblemets cirkel */
+}
+/* VALVET och alla dess utbrutna småväskor bär en egen ton, vald med prickarna
+   uppe till vänster i valvet. Tonen sätts som en klass på <body> så både valvet
+   och dess minifönster följer med, var de än ligger i sidan. */
+body.vt-bronze #vault-overlay .inv-modal, body.vt-bronze .bagwin.vaultbagwin{
+  --win-edge:#8a6a3a; --win-fill:70,50,26; --win-glow:255,196,120; --win-emblem:#78582a;
+}
+body.vt-red #vault-overlay .inv-modal, body.vt-red .bagwin.vaultbagwin{
+  --win-edge:#8a3a4a; --win-fill:66,26,36; --win-glow:255,140,160; --win-emblem:#782a3c;
+}
+body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
+  --win-edge:#3a8a5c; --win-fill:26,62,44; --win-glow:130,255,190; --win-emblem:#2a7850;
+}
+/* Prickarna: uppe till vänster i valvets fönster, halvt utanför precis som emblemet. */
+.vt-picker{
+  position:absolute;left:12px;top:-11px;z-index:4;display:flex;gap:5px;
+}
+.vt-dot{
+  width:13px;height:13px;border-radius:50%;cursor:pointer;
+  border:2px solid rgba(0,0,0,.55);
+  box-shadow:0 2px 6px rgba(0,0,0,.6);
+  opacity:.55;transition:opacity .12s, transform .12s;
+}
+.vt-dot:hover{opacity:1;transform:scale(1.15)}
+.vt-dot.on{opacity:1;border-color:#fff}
+.vt-dot[data-tone="bronze"]{background:#8a6a3a}
+.vt-dot[data-tone="red"]{background:#8a3a4a}
+.vt-dot[data-tone="green"]{background:#3a8a5c}
 .inv-modal{
   /* max-width från .modal kapade fönstret vid 420px, så rutnätet stack utanför
      ramen så fort ett par väskor breddade det. Väskfönstret följer sitt innehåll. */
   position:relative;width:max-content;max-width:none;
-  border:2px solid #3a4a8a;border-radius:14px;
+  border:2px solid var(--win-edge);border-radius:14px;
   background:
-    linear-gradient(180deg, rgba(26,34,70,.55), rgba(10,14,32,.92)),
+    linear-gradient(180deg, rgba(var(--win-fill),.55), rgba(10,14,32,.92)),
     var(--bg-panel);
-  box-shadow:0 18px 50px rgba(0,0,0,.7), inset 0 0 0 1px rgba(120,150,255,.12);
+  box-shadow:0 18px 50px rgba(0,0,0,.7), inset 0 0 0 1px rgba(var(--win-glow),.12);
   padding:14px 14px 12px;
 }
 /* Valvet är BREDARE: FEM kolumner i stället för fyra. Det är det enda antalet där
@@ -1407,9 +1445,9 @@ body.modal-open{overflow:hidden}
   position:absolute;left:50%;transform:translateX(-50%);top:-30px;
   z-index:3;width:46px;height:46px;border-radius:50%;
   cursor:grab;user-select:none;
-  border:2px solid #46579c;
-  background:radial-gradient(circle at 35% 30%, #2a3a78, #101733 70%);
-  box-shadow:0 4px 14px rgba(0,0,0,.6), inset 0 0 10px rgba(140,170,255,.25);
+  border:2px solid var(--win-edge);
+  background:radial-gradient(circle at 35% 30%, var(--win-emblem), #101733 70%);
+  box-shadow:0 4px 14px rgba(0,0,0,.6), inset 0 0 10px rgba(var(--win-glow),.28);
   display:flex;align-items:center;justify-content:center;font-size:20px;
 }
 /* Luft upptill så emblemet, som hänger halvvägs ovanför ramen, inte krockar
@@ -1533,10 +1571,10 @@ body.modal-open{overflow:hidden}
 .bagwin-emblem{
   position:absolute;left:50%;transform:translateX(-50%);top:-26px;z-index:3;
   width:44px;height:44px;border-radius:50%;
-  border:2px solid #46579c;
+  border:2px solid var(--win-edge);
   /* Fonden ligger kvar; väskbilden ritas i ett eget lager ovanpå. Sattes bilden
      som background-image inline ersatte den gradienten och cirkeln blev genomskinlig. */
-  background:radial-gradient(circle at 35% 30%, #2a3a78, #101733 70%);
+  background:radial-gradient(circle at 35% 30%, var(--win-emblem), #101733 70%);
   cursor:grab;user-select:none;
   box-shadow:0 4px 14px rgba(0,0,0,.6), inset 0 0 10px rgba(140,170,255,.25);
   display:flex;align-items:center;justify-content:center;
@@ -1552,9 +1590,12 @@ body.modal-open{overflow:hidden}
 .bagwin .bagwin-grid{cursor:default}
 .bagwin{
   position:fixed;z-index:130;width:max-content;
-  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
-  border:1px solid rgba(255,255,255,.20);border-radius:12px;
-  box-shadow:0 14px 40px rgba(0,0,0,.7);padding:26px 9px 9px;
+  background:
+    linear-gradient(180deg, rgba(var(--win-fill),.55), rgba(10,14,32,.92)),
+    var(--bg-panel);
+  border:2px solid var(--win-edge);border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.7), inset 0 0 0 1px rgba(var(--win-glow),.12);
+  padding:26px 9px 9px;
 }
 .bagwin-head{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -1966,25 +2007,33 @@ body.modal-open{overflow:hidden}
   <!-- ================= FÖREMÅLSVALVET ================= -->
   <div class="float-win" id="vault-overlay">
     <div class="modal inv-modal vault-modal">
+      <div class="vt-picker">
+        <span class="vt-dot" data-tone="bronze" title="Bronze"></span>
+        <span class="vt-dot" data-tone="red" title="Red"></span>
+        <span class="vt-dot" data-tone="green" title="Green"></span>
+      </div>
       <div class="inv-emblem">🗄️</div>
       <div class="inv-titlebar">
         <span class="inv-title">Vault</span>
         <button class="inv-x" id="vault-close">✕</button>
       </div>
       <div class="inv-toolbar">
-        <span class="inv-capline">Stored <b id="vault-cap">0 / 20</b></span>
+        <button class="inv-sort" id="vault-sort" title="Sort: gear by slot and rarity, then stacks">⇅ Sort</button>
+        <span class="inv-capline">Slots used <b id="vault-cap">0 / 20</b></span>
+      </div>
+      <!-- Väskraden ligger ÖVER rutnätet, precis som i ryggsäcken. -->
+      <div class="inv-toprow">
+        <div class="inv-bagrow" id="vault-bagrow">
+          <div class="inv-bagslot" data-vaultbag="0">🔒</div>
+          <div class="inv-bagslot" data-vaultbag="1">🔒</div>
+          <div class="inv-bagslot" data-vaultbag="2">🔒</div>
+          <div class="inv-bagslot" data-vaultbag="3">🔒</div>
+          <div class="inv-bagslot" data-vaultbag="4">🔒</div>
+          <div class="inv-bagslot" data-vaultbag="5">🔒</div>
+          <div class="inv-bagslot" data-vaultbag="6">🔒</div>
+        </div>
       </div>
       <div class="vault-grid" id="vault-grid"></div>
-      <div class="section-label">Vault bags</div>
-      <div class="inv-bagrow" id="vault-bagrow">
-        <div class="inv-bagslot" data-vaultbag="0">🔒</div>
-        <div class="inv-bagslot" data-vaultbag="1">🔒</div>
-        <div class="inv-bagslot" data-vaultbag="2">🔒</div>
-        <div class="inv-bagslot" data-vaultbag="3">🔒</div>
-        <div class="inv-bagslot" data-vaultbag="4">🔒</div>
-        <div class="inv-bagslot" data-vaultbag="5">🔒</div>
-        <div class="inv-bagslot" data-vaultbag="6">🔒</div>
-      </div>
     </div>
   </div>
 
@@ -2014,7 +2063,7 @@ body.modal-open{overflow:hidden}
       </div>
       <div class="inv-toolbar">
         <button class="inv-sort" id="inv-sort" title="Sort: gear by slot and rarity, then stacks">⇅ Sort</button>
-        <span class="inv-capline">Slots <b id="inv-cap">0 / 20</b></span>
+        <span class="inv-capline">Slots used <b id="inv-cap">0 / 20</b></span>
       </div>
       <div class="inv-toprow">
         <div class="inv-bagrow">
@@ -2161,7 +2210,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.63.0 — VALVETS SJU FACK</div>
+            <div class="desc">GENESIS v0.64.0 — VALVET SPEGLAR VÄSKAN</div>
           </div>
         </div>
       </div>
@@ -2187,7 +2236,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.63.0 — VALVETS SJU FACK</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.0 — VALVET SPEGLAR VÄSKAN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2605,6 +2654,7 @@ let S = {
   /* En isatt väska är antingen INBAKAD i huvudrutnätet (facket lyser) eller
      UTBRUTEN till ett eget litet fönster (facket är släckt). Bara en flagga per
      fack — inga pjäser flyttas, platsnumren är orörda. */
+  vaultTone: 'bronze',      // valvets färgton: bronze | red | green
   bagOpen: [false, false, false, false, false],
   bagPos: {},               // sparade positioner per fack: {socket: {x,y}}
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
@@ -2724,6 +2774,7 @@ function load(){
         const g = Array.isArray(d.bagItems) ? readGear(d.bagItems[i]) : null;
         return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.bags[i]) ? g : null;
       });
+      if (['bronze','red','green'].includes(d.vaultTone)) S.vaultTone = d.vaultTone;
       S.bagOpen = [0,1,2,3,4].map(i => !!(Array.isArray(d.bagOpen) && d.bagOpen[i]));
       if (d.bagPos && typeof d.bagPos === 'object'){
         for (const k in d.bagPos){
@@ -3164,13 +3215,13 @@ function hookVaultBagSlots(){
     });
     el.addEventListener('mouseenter', e => {
       const b = vaultBagIn(i);
-      if (b){ showGearTip(b, e.clientX, e.clientY); return; }
+      if (b){ highlightVaultBagSlots(i, true); showGearTip(b, e.clientX, e.clientY); return; }
       showBagTip(el, vaultBagUnlocked(i)
         ? 'Vault bag slot ' + (i + 1) + ' — empty. Click to fit a bag from your backpack.'
         : 'Vault bag slot ' + (i + 1) + ' — locked.<br>Unlock for <b>' + vaultBagCostText(i) + '</b>.');
     });
     el.addEventListener('mousemove', e => { if (vaultBagIn(i) && gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
-    el.addEventListener('mouseleave', () => { hideBagTip(); hideGearTip(); });
+    el.addEventListener('mouseleave', () => { highlightVaultBagSlots(i, false); hideBagTip(); hideGearTip(); });
   });
 }
 /* Tomt valvfack: lista väskor i ryggsäcken som passar — samma väljare som
@@ -3227,7 +3278,8 @@ function vaultBagSegments(){
   for (let i = 0; i < VAULT_BAG_SLOTS.length; i++){
     const b = vaultBagIn(i);
     if (b && vaultBagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag){
-      segs.push({name: 'Vault · ' + ITEMS[b.t].name, start: at, len: ITEMS[b.t].bag, socket: i});
+      /* Bara väskans namn — vilken behållare den hör till syns på FÄRGEN. */
+      segs.push({name: ITEMS[b.t].name, start: at, len: ITEMS[b.t].bag, socket: i});
       at += ITEMS[b.t].bag;
     }
   }
@@ -4135,6 +4187,29 @@ function invSort(){
   for (let i = 0; i < invSlots(); i++) S.inv[i] = out[i] || null;
   renderInventory(); save();
 }
+/* Valvets sortering: samma ordning som väskans, men mot valvets egen lista. */
+const VAULT_TONES = ['bronze', 'red', 'green'];
+function setVaultTone(tone){
+  if (!VAULT_TONES.includes(tone)) return false;
+  S.vaultTone = tone;
+  applyVaultTone();
+  save();
+  return true;
+}
+function applyVaultTone(){
+  const tone = VAULT_TONES.includes(S.vaultTone) ? S.vaultTone : 'bronze';
+  VAULT_TONES.forEach(t => document.body.classList.toggle('vt-' + t, t === tone));
+  document.querySelectorAll('.vt-dot').forEach(d => d.classList.toggle('on', d.dataset.tone === tone));
+}
+function vaultSort(){
+  const items = S.vault.inv.filter(Boolean);
+  const gear = items.filter(x => x.gear).sort((a, b) =>
+    (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearCP(b.gear) - gearCP(a.gear)));
+  const rest = items.filter(x => !x.gear).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const out = gear.concat(rest);
+  for (let i = 0; i < vaultSlots(); i++) S.vault.inv[i] = out[i] || null;
+  renderVault(); save();
+}
 function invSwap(a, b){
   if (a === b || a < 0 || b < 0 || a >= invSlots() || b >= invSlots()) return false;
   const t = S.inv[a]; S.inv[a] = S.inv[b]; S.inv[b] = t;
@@ -4423,6 +4498,24 @@ function bagSlotRange(socket){
   const seg = bagSegments().find(s => s.socket === socket);
   return seg ? {start: seg.start, len: seg.len} : null;
 }
+/* Samma sak för valvet: hovrar eller drar man en väska i ett valvfack lyser exakt
+   de rutor väskan ger, så man ser vad som försvinner innan man tar ur den. */
+function vaultBagSlotRange(socket){
+  const seg = vaultBagSegments().find(s => s.socket === socket);
+  return seg ? {start: seg.start, len: seg.len} : null;
+}
+function highlightVaultBagSlots(socket, on){
+  document.querySelectorAll('.inv-slot.bag-owned').forEach(el => el.classList.remove('bag-owned', 'bag-owned-full'));
+  if (!on) return;
+  const r = vaultBagSlotRange(socket);
+  if (!r) return;
+  for (let i = r.start; i < r.start + r.len; i++){
+    document.querySelectorAll('[data-vault="' + i + '"]').forEach(el => {
+      el.classList.add('bag-owned');
+      if (S.vault.inv[i]) el.classList.add('bag-owned-full');
+    });
+  }
+}
 function highlightBagSlots(socket, on){
   document.querySelectorAll('.inv-slot.bag-owned').forEach(el => el.classList.remove('bag-owned', 'bag-owned-full'));
   if (!on) return;
@@ -4522,7 +4615,9 @@ function invCellHTML(i, pos){
 /* Ett minifönster per UTBRUTEN väska. Fönstret bär sitt fack i data-socket, så
    krysset och facket kan stänga samma sak. */
 function renderMiniBags(){
-  document.querySelectorAll('.bagwin').forEach(w => w.remove());
+  /* BARA väskans egna minifönster: '.bagwin' träffar även valvets, och då raderade
+   ett öppnande av väskan valvets utbrutna väskor. */
+  document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
   const invWin = $('inv-overlay');
   if (!invWin || !invWin.classList.contains('open')) return;
   const base = invWin.getBoundingClientRect();
@@ -7361,11 +7456,15 @@ makeDraggable($('ach-overlay'), [$('ach-overlay').querySelector('.inv-titlebar')
 $('inv-close').addEventListener('click', () => {
   hideGearTip();
   $('inv-overlay').classList.remove('open');
-  document.querySelectorAll('.bagwin').forEach(w => w.remove());
+  /* BARA väskans egna minifönster: '.bagwin' träffar även valvets, och då raderade
+   ett öppnande av väskan valvets utbrutna väskor. */
+  document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
 });
-makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar'), $('inv-overlay').querySelector('.inv-emblem')]);
+/* Hela fönstret är draghandtag — rutorna och knapparna undantas i attachDragHandle,
+   så man kan lyfta rutan var som helst utan att tappa greppet om pjäserna. */
+makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar'), $('inv-overlay').querySelector('.inv-emblem'), $('inv-overlay')]);
 /* Valvet ska gå att flytta precis som väskan — det saknades och rutan satt fast. */
-makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titlebar'), $('vault-overlay').querySelector('.inv-emblem')]);
+makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titlebar'), $('vault-overlay').querySelector('.inv-emblem'), $('vault-overlay')]);
 /* Knappen VÄXLAR: står väskan öppen stänger nästa tryck den, i stället för att
    bara rita om ett fönster som redan syns. */
 $('bag-btn').addEventListener('click', () => {
@@ -7373,12 +7472,19 @@ $('bag-btn').addEventListener('click', () => {
   if (w.classList.contains('open')){
     hideGearTip();
     w.classList.remove('open');
-    document.querySelectorAll('.bagwin').forEach(x => x.remove());
+    document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(x => x.remove());
     return;
   }
   openInventory();
 });
 $('inv-sort').addEventListener('click', invSort);
+$('vault-sort').addEventListener('click', vaultSort);
+document.querySelectorAll('.vt-dot').forEach(dot => {
+  dot.addEventListener('click', e => {
+    e.stopPropagation();
+    setVaultTone(dot.dataset.tone);
+  });
+});
 /* Maskinlistan rullade i ett enda jättekliv. Att skala ned hjulets deltaY räckte
    inte: Windows kan skicka rullning i RADER eller SIDOR (deltaMode 1 och 2), och de
    släppte jag förbi till webbläsarens egen rullning — som då tog hela listan i ett
@@ -7411,6 +7517,7 @@ function beginDrag(d, x, y){
   /* Drar man en väska ur sitt fack lyser rutorna den äger — samma besked som vid
      hovring, men nu när det spelar som mest roll. */
   if (d.from === 'bagslot') highlightBagSlots(d.socket, true);
+  if (d.from === 'vaultbagslot') highlightVaultBagSlots(d.socket, true);
   const g = document.createElement('div');
   g.className = 'drag-ghost';
   if (d.gear){
@@ -7438,6 +7545,7 @@ function inInvArea(el){ return !!(el.closest('#inv-grid') || el.closest('.bagwin
 function inVaultArea(el){ return !!(el.closest('#vault-grid') || el.closest('.vaultbagwin')); }
 function endDrag(d, x, y){
   highlightBagSlots(-1, false);
+  highlightVaultBagSlots(-1, false);
   if (d.ghost) d.ghost.remove();
   if (d.targets) d.targets.forEach(t => t.classList.remove('drop-ok', 'drop-hot'));
   if (d.cell) d.cell.classList.remove('drop-cell');
@@ -7796,6 +7904,9 @@ updateUI(true);
    och görs det innan raderna byggts kraschar hela uppstarten. Det gjorde det. */
 checkAchievements(true);
 renderAchBadge();
+/* Valvets ton måste sättas vid start — annars står sidan utan tonklass tills man
+   råkar klicka på en prick, och valvet ritas i ryggsäckens blå. */
+applyVaultTone();
 window.addEventListener('pagehide', () => { if (!resetInProgress) save(); });
 window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); });
 document.addEventListener('visibilitychange', () => {
