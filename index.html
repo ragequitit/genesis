@@ -1379,7 +1379,9 @@ body.modal-open{overflow:hidden}
   border:1px solid var(--border-soft);border-radius:10px;background:var(--bg-inset)}
 .iw-desc{font-size:10.5px;line-height:1.55;color:var(--text);margin:8px 0 4px}
 .inv-modal{
-  position:relative;width:max-content;
+  /* max-width från .modal kapade fönstret vid 420px, så rutnätet stack utanför
+     ramen så fort ett par väskor breddade det. Väskfönstret följer sitt innehåll. */
+  position:relative;width:max-content;max-width:none;
   border:2px solid #3a4a8a;border-radius:14px;
   background:
     linear-gradient(180deg, rgba(26,34,70,.55), rgba(10,14,32,.92)),
@@ -1534,6 +1536,13 @@ body.modal-open{overflow:hidden}
 .inv-slot.filled{
   background:linear-gradient(180deg, #1d2850, #121837);
   box-shadow:inset 0 0 0 1px var(--border-glow), inset 0 2px 8px rgba(0,0,0,.5);
+}
+/* En pjäs bär sin raritet i ramen även när den ligger i väskan — inte bara när den
+   sitter på kroppen. --rc sätts per ruta i renderingen; väskor får en neutral färg
+   och ser därför likadana ut oavsett vilket steg de rullades på. */
+.inv-slot.filled.gear{
+  border-color:var(--rc, var(--border-glow));
+  box-shadow:inset 0 0 0 1px var(--rc, var(--border-glow)), inset 0 2px 8px rgba(0,0,0,.5);
 }
 .inv-ico{font-size:21px}
 /* Antalet står i övre högra hörnet på stapelbara saker — ALLTID, även vid en enda,
@@ -2107,7 +2116,7 @@ body.modal-open{overflow:hidden}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.62.1 — VÄSKANS FORM</div>
+            <div class="desc">GENESIS v0.62.2 — RARITET I VÄSKAN</div>
           </div>
         </div>
       </div>
@@ -2133,7 +2142,7 @@ body.modal-open{overflow:hidden}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.1 — VÄSKANS FORM</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.62.2 — RARITET I VÄSKAN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4046,7 +4055,14 @@ function invSwap(a, b){
   return true;
 }
 /* ---------- UTRUSTNINGEN: ritning, jämförelse, av och på ---------- */
-function gearRarCol(it){ return rarCol(it.r); }
+/* Väskorna rullas på raritetssteg — det styr droppchans och säljvärde — men de
+   ska inte SE ut som olika raritetssteg. De är behållare i olika storlekar, och
+   visar därför alltid en neutral ram och ett neutralt namn. */
+const NEUTRAL_COL = 'var(--text)';
+function isBagItem(it){ return !!(it && ITEMS[it.t] && ITEMS[it.t].bag); }
+function gearRarCol(it){ return isBagItem(it) ? NEUTRAL_COL : rarCol(it.r); }
+/* Där ett raritetsNAMN skulle stått säger en väska hur stor den är i stället. */
+function gearRarName(it){ return isBagItem(it) ? ('+' + ITEMS[it.t].bag + ' slots') : GEAR_RAR[it.r].name; }
 function renderEquip(){
   document.querySelectorAll('#panel-character [data-slot]').forEach(el => {
     const i = +el.dataset.slot, it = S.equip[i];
@@ -4312,18 +4328,21 @@ function bagSegments(){
   }
   return segs;
 }
-function invCellHTML(i){
+/* pos är valfri {col,row} och vävs in i SAMMA style-attribut som raritetsfärgen —
+   två style-attribut på samma tagg vinner det första, och då tappade rutan sin färg. */
+function invCellHTML(i, pos){
   const it = S.inv[i];
+  const at = pos ? 'grid-column:' + pos.col + ';grid-row:' + pos.row + ';' : '';
   if (it && it.gear){
-    return '<div class="inv-slot filled gear" data-inv="' + i + '" style="--rc:' + gearRarCol(it.gear) + '">' +
+    return '<div class="inv-slot filled gear" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
       '<div class="iv-img" style="background-image:url(\'' + gearArt(it.gear) + '\')"></div></div>';
   }
   if (it){
     const showQty = it.stack || it.qty > 1;
-    return '<div class="inv-slot filled" data-inv="' + i + '"><span class="inv-ico">' + it.ico + '</span>' +
+    return '<div class="inv-slot filled" data-inv="' + i + '"' + (at ? ' style="' + at + '"' : '') + '><span class="inv-ico">' + it.ico + '</span>' +
       (showQty ? '<span class="inv-qty">' + (it.qty > 999 ? '999+' : it.qty) + '</span>' : '') + '</div>';
   }
-  return '<div class="inv-slot" data-inv="' + i + '"></div>';
+  return '<div class="inv-slot" data-inv="' + i + '"' + (at ? ' style="' + at + '"' : '') + '></div>';
 }
 /* Ett minifönster per UTBRUTEN väska. Fönstret bär sitt fack i data-socket, så
    krysset och facket kan stänga samma sak. */
@@ -4388,7 +4407,7 @@ function renderInventory(){
   grid.style.gridTemplateRows = 'repeat(' + L.rows + ', 52px)';
   let h = '';
   L.cells.forEach(c => {
-    h += invCellHTML(c.slot).replace('<div class="', '<div style="grid-column:' + c.col + ';grid-row:' + c.row + '" class="');
+    h += invCellHTML(c.slot, c);
   });
   grid.innerHTML = h;
   renderMiniBags();
@@ -4497,7 +4516,7 @@ function showRewards(run){
     const g = run.loot.gear;
     found += '<div class="rw-gear" data-rwgear="1" style="--rc:' + gearRarCol(g) + '">' +
       '<span class="rwg-art" style="background-image:url(\'' + gearArt(g) + '\')"></span>' +
-      '<span class="rwg-txt"><b>' + gearName(g) + '</b><i>' + GEAR_RAR[g.r].name + '</i></span></div>';
+      '<span class="rwg-txt"><b>' + gearName(g) + '</b><i>' + gearRarName(g) + '</i></span></div>';
   }
   if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
   $('rw-found').innerHTML = found ? '<div class="section-label">Gear found</div>' + found : '';
@@ -6119,7 +6138,7 @@ function buildTrader(regionId){
     h += TEST_BAGS.map((tb, i) =>
       '<div class="trader-row"><div class="tr-item">' +
       '<span class="vg-art" style="background-image:url(\'' + itemArtFor(tb.key, ITEMS[tb.key].rars[0]) + '\')"></span>' +
-      '<div><div class="tr-name" style="color:' + GEAR_RAR[ITEMS[tb.key].rars[0]].col + '">' + ITEMS[tb.key].name + '</div>' +
+      '<div><div class="tr-name" style="color:' + NEUTRAL_COL + '">' + ITEMS[tb.key].name + '</div>' +
       '<div class="tr-sub">Bag · +' + ITEMS[tb.key].bag + ' slots · test item</div></div></div>' +
       '<div class="tr-buy">' + btn('Buy — ' + moneyText(GOLD(1)), ' data-testbag="' + i + '"', S.gold >= GOLD(1)) + '</div></div>'
     ).join('');
@@ -6781,7 +6800,7 @@ function spawnItemWin(uid, nearX, nearY){
     else if (btn.dataset.act === 'sell'){
       const box = win.querySelector('.item-actions');
       box.innerHTML =
-        '<div class="ia-note">Sell ' + gearName(cur.it) + ' (' + GEAR_RAR[cur.it.r].name + ') for ' + moneyText(gearGold(cur.it)) + '?<br>It is gone for good.</div>' +
+        '<div class="ia-note">Sell ' + gearName(cur.it) + ' (' + gearRarName(cur.it) + ') for ' + moneyText(gearGold(cur.it)) + '?<br>It is gone for good.</div>' +
         '<button class="ia-danger" data-act="sell-yes">Yes, sell it<span>' + fmtMoney(gearGold(cur.it)) + '</span></button>' +
         '<button class="ia-cancel" data-act="sell-no">Keep it</button>';
     }
