@@ -1778,6 +1778,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 /* Husdjuren följer samma form som väskan och valvet: flyttbar, ser igenom, ESC.
    max-width från .modal måste släppas, precis som för de andra flytande. */
 .pets-modal{width:420px;max-width:none;max-height:76vh;overflow-y:auto}
+/* Handlar- och regionkortet: flyttbart som de andra. Höjden begränsas och innehållet
+   rullar, annars kan ett långt lager växa ut ur skärmen när fönstret står fritt. */
+.region-modal{width:430px;max-width:none;max-height:80vh;overflow-y:auto}
 .pet-sprite{
   position:relative;border-radius:10px;overflow:hidden;flex:0 0 auto;
   background:var(--bg-inset);border:1px solid var(--border-soft);
@@ -2289,11 +2292,12 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   </div>
 
   <!-- ================= REGION-MODAL ================= -->
-  <div class="modal-overlay" id="region-overlay">
-    <div class="modal">
-      <div class="modal-head">
-        <span class="modal-title" id="region-title">Region</span>
-        <button class="modal-close" id="region-close">✕</button>
+  <div class="float-win" id="region-overlay">
+    <div class="modal inv-modal region-modal">
+      <div class="inv-emblem">🌐</div>
+      <div class="inv-titlebar">
+        <span class="inv-title" id="region-title">Region</span>
+        <button class="inv-x" id="region-close">✕</button>
       </div>
       <div id="region-body"></div>
     </div>
@@ -2362,7 +2366,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.69.0 — EN REGEL FÖR FÖNSTREN</div>
+            <div class="desc">GENESIS v0.69.1 — FLYTTBAR HANDLARE</div>
           </div>
         </div>
       </div>
@@ -2388,7 +2392,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.69.0 — EN REGEL FÖR FÖNSTREN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.69.1 — FLYTTBAR HANDLARE</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5356,6 +5360,7 @@ function openTravelNow(regionId){
       : '<button class="btn-primary" id="travelnow-go"' + (cant ? ' disabled style="opacity:.5"' : '') + '>🚀 Confirm — ' + price + ' fuel</button>') +
     '</div>';
   regionOverlay.classList.add('open');
+  placeRegionWin(); bringToFront(regionOverlay);
   const go = $('travelnow-go');
   if (go) go.addEventListener('click', () => {
     startTravel(regionId);
@@ -6878,8 +6883,17 @@ let openZoneRef = null;
 let openSurveyRef = null;      // vilken OSEDD region som visas, för den levande nedräkningen
 function closeRegion(){ regionOverlay.classList.remove('open'); openZoneRef = null; openSurveyRef = null; }
 $('region-close').addEventListener('click', closeRegion);
-regionOverlay.addEventListener('click', e => { if (e.target === regionOverlay) closeRegion(); });
+/* Kortet är flytande sedan v0.69.1 — det finns ingen fond att klicka bredvid, så
+   den gamla "klicka utanför"-stängningen är borta. Krysset och ESC gäller. */
+makeDraggable(regionOverlay, [regionOverlay.querySelector('.inv-titlebar'), regionOverlay.querySelector('.inv-emblem'), regionOverlay]);
 
+function placeRegionWin(){
+  const w = regionOverlay;
+  if (w.dataset.placed) return;
+  w.dataset.placed = '1';
+  w.style.left = Math.max(8, Math.min(window.innerWidth - 450, window.innerWidth / 2 - 215)) + 'px';
+  w.style.top = '64px';
+}
 function openRegion(id){
   const R = REGIONS[id];
   const body = $('region-body');
@@ -6937,6 +6951,7 @@ function openRegion(id){
     });
   }
   regionOverlay.classList.add('open');
+  placeRegionWin(); bringToFront(regionOverlay);
 }
 
 /* --- Zonvyn: platsen där expeditionerna kommer bo --- */
@@ -6975,6 +6990,7 @@ function openZone(regionId, zi, keepNote){
     '<div class="shelf-empty">Only you — other players appear when the server goes live.</div>' +
     buildZoneAction(regionId, zone);
   regionOverlay.classList.add('open');
+  placeRegionWin(); bringToFront(regionOverlay);
   $('zone-back').addEventListener('click', () => openRegion(regionId));
   const tbuy = $('trader-buy');
   /* Rutan ritas om oavsett utfall: lyckas köpet syns kvittot, misslyckas det syns
