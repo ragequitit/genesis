@@ -2217,7 +2217,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.64.3 — VÄSKORNA TILL VÄNSTER</div>
+            <div class="desc">GENESIS v0.64.4 — REN ÖPPNING</div>
           </div>
         </div>
       </div>
@@ -2243,7 +2243,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.3 — VÄSKORNA TILL VÄNSTER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.4 — REN ÖPPNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -7485,19 +7485,31 @@ $('qa-inventory').addEventListener('click', openInventory);
 $('qa-vault').addEventListener('click', openVault);
 $('nav-ach').addEventListener('click', openAchievements);
 $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove('open'));
-$('vault-close').addEventListener('click', () => {
+/* Att stänga en basruta nollställer också UTBRYTNINGEN. Utan det låg flaggorna
+   kvar, och nästa öppning kastade upp alla småväskor på skärmen igen — man vill
+   börja rent med bara basrutan. Alla stängningsvägar går via dessa två. */
+function closeInventoryWindow(){
+  hideGearTip();
+  $('inv-overlay').classList.remove('open');
+  /* BARA väskans egna: '.bagwin' träffar även valvets. */
+  document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
+  if (S.bagOpen && S.bagOpen.some(Boolean)){
+    S.bagOpen = S.bagOpen.map(() => false);
+    save();
+  }
+}
+function closeVaultWindow(){
   hideGearTip();
   $('vault-overlay').classList.remove('open');
   document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
-});
+  if (S.vault.open && S.vault.open.some(Boolean)){
+    S.vault.open = S.vault.open.map(() => false);
+    save();
+  }
+}
+$('vault-close').addEventListener('click', closeVaultWindow);
 makeDraggable($('ach-overlay'), [$('ach-overlay').querySelector('.inv-titlebar'), $('ach-overlay').querySelector('.inv-emblem')]);
-$('inv-close').addEventListener('click', () => {
-  hideGearTip();
-  $('inv-overlay').classList.remove('open');
-  /* BARA väskans egna minifönster: '.bagwin' träffar även valvets, och då raderade
-   ett öppnande av väskan valvets utbrutna väskor. */
-  document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
-});
+$('inv-close').addEventListener('click', closeInventoryWindow);
 /* Hela fönstret är draghandtag — rutorna och knapparna undantas i attachDragHandle,
    så man kan lyfta rutan var som helst utan att tappa greppet om pjäserna. */
 makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar'), $('inv-overlay').querySelector('.inv-emblem'), $('inv-overlay')]);
@@ -7506,13 +7518,7 @@ makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titleb
 /* Knappen VÄXLAR: står väskan öppen stänger nästa tryck den, i stället för att
    bara rita om ett fönster som redan syns. */
 $('bag-btn').addEventListener('click', () => {
-  const w = $('inv-overlay');
-  if (w.classList.contains('open')){
-    hideGearTip();
-    w.classList.remove('open');
-    document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(x => x.remove());
-    return;
-  }
+  if ($('inv-overlay').classList.contains('open')){ closeInventoryWindow(); return; }
   openInventory();
 });
 $('inv-sort').addEventListener('click', invSort);
@@ -7756,9 +7762,9 @@ document.addEventListener('keydown', e => {
   else {
     top.el.classList.remove('open');
     /* Stänger man en basruta med ESC ska dess utbrutna småväskor följa med, precis
-       som när man klickar krysset. */
-    if (top.el.id === 'inv-overlay') document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(x => x.remove());
-    if (top.el.id === 'vault-overlay') document.querySelectorAll('.vaultbagwin').forEach(x => x.remove());
+       som när man klickar krysset — och utbrytningen nollställas. */
+    if (top.el.id === 'inv-overlay') closeInventoryWindow();
+    if (top.el.id === 'vault-overlay') closeVaultWindow();
   }
   e.preventDefault();
 });
