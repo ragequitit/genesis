@@ -1479,6 +1479,36 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .survey-skip-row{display:flex;justify-content:center;margin-top:10px}
 /* Handlarens två flikar. Samma språk som spelets övriga flikar: den valda bär
    färgen, den andra är dämpad men fullt klickbar. */
+/* ---------- INKORGEN ---------- */
+.mail-modal{width:380px}
+.mail-list{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto}
+.mail-row{
+  padding:10px 11px;border-radius:11px;cursor:default;
+  background:var(--bg-inset);border:1px solid var(--border-soft);
+}
+.mail-row.unread{border-color:var(--cyan-dim);background:rgba(56,232,255,.06)}
+.mail-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:3px}
+.mail-from{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);font-weight:800}
+.mail-age{font-size:9.5px;color:var(--text-dim);font-family:var(--font-mono)}
+.mail-subject{font-size:12.5px;font-weight:800;color:var(--text);margin-bottom:3px}
+.mail-body{font-size:11px;color:var(--text-dim);line-height:1.5}
+.mail-items{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.mail-item{
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:5px 7px;border-radius:8px;
+  background:var(--bg-panel);border:1px solid var(--rc, var(--border-soft));
+}
+.mail-item:hover{border-color:var(--cyan)}
+.mail-item .mi-art{width:26px;height:26px;background:center/contain no-repeat;flex:0 0 auto}
+.mail-item .mi-ico{font-size:17px;width:26px;text-align:center;flex:0 0 auto}
+.mail-item .mi-name{flex:1;font-size:11.5px;color:var(--text)}
+.mail-item .mi-take{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--cyan);text-transform:uppercase}
+.mail-del{
+  margin-top:8px;padding:5px 10px;border-radius:7px;cursor:pointer;
+  font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--border-soft);color:var(--text-dim);
+}
+.mail-del:hover{color:var(--text);border-color:var(--border-glow)}
 .vendor-tabs{display:flex;gap:6px;margin-bottom:10px}
 .vendor-tab{
   flex:1;padding:8px 10px;border-radius:9px;cursor:pointer;
@@ -1785,7 +1815,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 
     <!-- Navigeringen -->
     <div class="panel hpanel" id="panel-nav">
-      <div class="nav-btn"><span class="ico">📩</span><span class="lbl">Inbox</span></div>
+      <div class="nav-btn" id="nav-inbox"><span class="ico">📩</span><span class="lbl">Inbox</span><span class="notif" id="mail-badge" style="display:none">0</span></div>
       <div class="nav-btn" id="nav-ach"><span class="ico">🏆</span><span class="lbl">Achievements</span><span class="notif" id="ach-badge" style="display:none">0</span></div>
       <div class="nav-btn"><span class="ico">🌟</span><span class="lbl">Events<small>2d 14h</small></span></div>
       <div class="nav-btn glow-gold"><span class="ico">🎁</span><span class="lbl">Daily Rewards</span></div>
@@ -2086,6 +2116,22 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   </div>
 
   <!-- ================= BRAGDERNA ================= -->
+  <!-- ================= INKORGEN ================= -->
+  <div class="float-win" id="mail-overlay">
+    <div class="modal inv-modal mail-modal">
+      <div class="inv-emblem">📩</div>
+      <div class="inv-titlebar">
+        <span class="inv-title">Inbox</span>
+        <button class="inv-x" id="mail-close">✕</button>
+      </div>
+      <div class="inv-toolbar">
+        <button class="inv-sort" id="mail-takeall" title="Take every attachment that fits in your backpack">📥 Take all</button>
+        <span class="inv-capline">Messages <b id="mail-count">0 / 30</b></span>
+      </div>
+      <div class="mail-list" id="mail-list"></div>
+    </div>
+  </div>
+
   <div class="float-win" id="ach-overlay">
     <div class="modal ach-modal">
       <div class="inv-emblem">🏆</div>
@@ -2258,7 +2304,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.66.1 — LÅNGA PENGATAL</div>
+            <div class="desc">GENESIS v0.67.0 — INKORGEN</div>
           </div>
         </div>
       </div>
@@ -2284,7 +2330,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.66.1 — LÅNGA PENGATAL</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.67.0 — INKORGEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2717,6 +2763,7 @@ let S = {
   /* En isatt väska är antingen INBAKAD i huvudrutnätet (facket lyser) eller
      UTBRUTEN till ett eget litet fönster (facket är släckt). Bara en flagga per
      fack — inga pjäser flyttas, platsnumren är orörda. */
+  mail: [],                 // inkorgen — se addMail för meddelandets form
   boosts: {},               // aktiva flaskor: {nyckel: utgångstid i ms}
   vaultTone: 'green',       // valvets färgton: green (standard) | bronze | red
   bagOpen: [false, false, false, false, false],
@@ -2837,6 +2884,27 @@ function load(){
         const g = Array.isArray(d.bagItems) ? readGear(d.bagItems[i]) : null;
         return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.bags[i]) ? g : null;
       });
+      /* Posten läses med samma stränghet som väskan: bara giltiga pjäser och kända
+         staplar överlever, och aldrig fler meddelanden än taket. */
+      if (Array.isArray(d.mail)){
+        S.mail = d.mail.slice(0, MAIL_MAX).map(m => {
+          if (!m || !m.subject) return null;
+          const items = Array.isArray(m.items) ? m.items.map(it => {
+            if (!it) return null;
+            if (it.gear){ const g = readGear(it.gear); return g ? {gear: g} : null; }
+            if (it.key && ITEM_DEFS[it.key]){
+              return {key: it.key, name: ITEM_DEFS[it.key].name, ico: ITEM_DEFS[it.key].ico,
+                      qty: Math.max(1, Math.floor(+it.qty) || 1)};
+            }
+            return null;
+          }).filter(Boolean) : [];
+          return {
+            id: m.id || newMailId(), from: m.from || 'System', subject: m.subject,
+            body: m.body || '', at: +m.at || Date.now(), items: items,
+            read: !!m.read, src: m.src || 'local'
+          };
+        }).filter(Boolean);
+      }
       if (d.boosts && typeof d.boosts === 'object'){
         for (const k in BOOSTS){
           const t = +d.boosts[k];
@@ -3457,6 +3525,76 @@ function quickEquipFromVault(i){
   S.equip[g.s] = g;
   renderEquip(); renderVault(); updateUI(true); save();
   return true;
+}
+/* ---------- INKORGENS RUTA ---------- */
+function mailAgeText(at){
+  const s = Math.max(0, (Date.now() - at) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+function mailItemHTML(it, mid, i){
+  if (it.gear){
+    return '<div class="mail-item" data-take="' + mid + '" data-idx="' + i + '" style="--rc:' + gearRarCol(it.gear) + '">' +
+      '<span class="mi-art" style="background-image:url(\'' + gearArt(it.gear) + '\')"></span>' +
+      '<span class="mi-name">' + gearName(it.gear) + '</span>' +
+      '<span class="mi-take">Take</span></div>';
+  }
+  return '<div class="mail-item" data-take="' + mid + '" data-idx="' + i + '">' +
+    '<span class="mi-ico">' + (it.ico || '📦') + '</span>' +
+    '<span class="mi-name">' + (it.name || it.key) + (it.qty > 1 ? ' ×' + it.qty : '') + '</span>' +
+    '<span class="mi-take">Take</span></div>';
+}
+function renderMail(){
+  const list = $('mail-list');
+  if (!list) return;
+  const cap = $('mail-count');
+  if (cap) cap.textContent = S.mail.length + ' / ' + MAIL_MAX;
+  if (!S.mail.length){
+    list.innerHTML = '<div class="shelf-empty">Your inbox is empty.</div>';
+    return;
+  }
+  list.innerHTML = S.mail.map(m =>
+    '<div class="mail-row' + (m.read ? '' : ' unread') + '" data-mail="' + m.id + '">' +
+      '<div class="mail-head">' +
+        '<span class="mail-from">' + m.from + '</span>' +
+        '<span class="mail-age">' + mailAgeText(m.at) + '</span>' +
+      '</div>' +
+      '<div class="mail-subject">' + m.subject + '</div>' +
+      (m.body ? '<div class="mail-body">' + m.body + '</div>' : '') +
+      (m.items.length ? '<div class="mail-items">' + m.items.map((it, i) => mailItemHTML(it, m.id, i)).join('') + '</div>' : '') +
+      (m.items.length ? '' : '<button class="mail-del" data-del="' + m.id + '">Delete</button>') +
+    '</div>').join('');
+  list.querySelectorAll('[data-take]').forEach(el => el.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!takeMailItem(el.dataset.take, +el.dataset.idx)) spawnFloat({text: 'Backpack full!'});
+  }));
+  list.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', e => {
+    e.stopPropagation();
+    deleteMail(el.dataset.del);
+  }));
+  list.querySelectorAll('[data-mail]').forEach(el => el.addEventListener('click', () => markMailRead(el.dataset.mail)));
+}
+function renderMailBadge(){
+  const b = $('mail-badge');
+  if (!b) return;
+  /* Märket räknar OHÄMTADE saker i första hand — det är det som brådskar — och
+     faller tillbaka på olästa meddelanden. */
+  const n = mailWithItems() || mailUnread();
+  b.textContent = n;
+  b.style.display = n ? '' : 'none';
+}
+function openMail(){
+  const w = $('mail-overlay');
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open');
+  bringToFront(w);
+  if (!wasOpen){
+    w.style.left = Math.max(8, Math.min(window.innerWidth - 380, window.innerWidth / 2 - 190)) + 'px';
+    w.style.top = '80px';
+  }
+  renderMail();
 }
 function openVault(){
   hookVaultCells();
@@ -4914,6 +5052,12 @@ function showRewards(run){
   $('reward-overlay').classList.add('open');
 }
 
+/* Vilken zon en körning kom från — körningen bär bara sitt id, så zonen slås upp
+   i katalogen när posten ska formuleras. */
+function expZoneOf(runId){
+  const d = expDefById(runId);
+  return d ? d.zone : null;
+}
 let pendingClaimId = null;
 function confirmClaim(){
   if (pendingClaimId == null) return;
@@ -4929,12 +5073,30 @@ function confirmClaim(){
   S.gold += goldAfterTax(run.loot.gold);
   S.frags += run.loot.frags;
   if (run.loot.cell){
-    addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true});
+    if (!addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true})){
+      addMail({
+        from: 'Salvage Bay', src: 'overflow',
+        subject: 'Warp Fuel Cell held for you',
+        body: 'Your backpack was full when this came in from ' + (expZoneOf(run.id) || 'the field') + '.',
+        items: [{key: 'fuelcell', name: 'Warp Fuel Cell', ico: '⛽', qty: 1}]
+      });
+    }
   }
   if (run.loot.gear){
     const free = invFirstFree();
     if (free >= 0){ S.inv[free] = {gear: run.loot.gear}; renderInventory(); }
-    else spawnFloat({ text: 'Backpack full!' });
+    else {
+      /* Full väska tappar INTE längre pjäsen — den läggs i posten och väntar. Att
+         tyst förlora ett fynd man just tjänat in är det värsta spelet kan göra. */
+      addMail({
+        from: 'Salvage Bay', src: 'overflow',
+        subject: gearName(run.loot.gear) + ' held for you',
+        body: 'Your backpack was full when this came back from ' + (expZoneOf(run.id) || 'the field') +
+              '. Make room and collect it here.',
+        items: [{gear: run.loot.gear}]
+      });
+      spawnFloat({ text: 'Backpack full — sent to Inbox' });
+    }
   }
   spawnFloat({ text: '+' + fmt(run.data) });
   renderExpPanel();
@@ -5906,6 +6068,88 @@ function drinkBoost(key){
   const now = Date.now();
   const from = (S.boosts[key] && S.boosts[key] > now) ? S.boosts[key] : now;
   S.boosts[key] = from + B.mins * 60000;    // staplar tid, kastar aldrig bort
+  return true;
+}
+/* ================= INKORGEN =================
+   Ett meddelande har MEDVETET samma form som en server skulle skicka det:
+   {id, from, subject, body, at, items[], read, src}. Allt som skapar post går genom
+   addMail(), och allt som hämtar går genom takeMailItem()/takeAll(). Ska posten en
+   dag komma från en server räcker det att fylla på S.mail från nätet i stället för
+   lokalt — resten av spelet rör aldrig listan direkt.
+   id:s är unika över tid (tidsstämpel + räknare), så lokala och serverskapade
+   meddelanden aldrig kan krocka. at är absolut tid i ms, inte "för N minuter sedan",
+   av samma skäl. */
+const MAIL_MAX = 30;
+let mailSeq = 1;
+function newMailId(){ return 'm' + Date.now().toString(36) + '-' + (mailSeq++).toString(36); }
+function addMail(msg){
+  if (!msg || !msg.subject) return null;
+  const m = {
+    id: msg.id || newMailId(),
+    from: msg.from || 'System',
+    subject: msg.subject,
+    body: msg.body || '',
+    at: msg.at || Date.now(),
+    items: Array.isArray(msg.items) ? msg.items.slice() : [],
+    read: !!msg.read,
+    src: msg.src || 'local'
+  };
+  S.mail.unshift(m);
+  /* Taket gäller bara TOMMA meddelanden — post med bifogade saker får aldrig
+     kastas bort automatiskt, för då försvinner spelarens gear i tysthet. */
+  if (S.mail.length > MAIL_MAX){
+    for (let i = S.mail.length - 1; i >= 0 && S.mail.length > MAIL_MAX; i--){
+      if (!S.mail[i].items.length) S.mail.splice(i, 1);
+    }
+  }
+  renderMailBadge();
+  save();
+  return m;
+}
+function mailUnread(){ return S.mail.filter(m => !m.read).length; }
+function mailWithItems(){ return S.mail.filter(m => m.items.length).length; }
+function findMail(id){ return S.mail.find(m => m.id === id) || null; }
+/* Hämta EN bifogad sak. Får den inte plats händer ingenting — saken ligger kvar
+   i posten hellre än att försvinna. */
+function takeMailItem(id, i){
+  const m = findMail(id);
+  if (!m || !m.items[i]) return false;
+  const it = m.items[i];
+  const ok = it.gear
+    ? (invFirstFree() >= 0 && (S.inv[invFirstFree()] = {gear: it.gear}, true))
+    : addInvItem({key: it.key, name: it.name, ico: it.ico, stack: true, qty: it.qty || 1});
+  if (!ok) return false;
+  m.items.splice(i, 1);
+  m.read = true;
+  if (!m.items.length && m.autoDelete !== false) deleteMail(id);
+  renderInventory(); renderMail(); renderMailBadge(); save();
+  return true;
+}
+function takeAllMail(){
+  let took = 0;
+  /* Bakifrån, så en borttagning inte hoppar över nästa meddelande. */
+  for (let mi = S.mail.length - 1; mi >= 0; mi--){
+    const m = S.mail[mi];
+    for (let i = m.items.length - 1; i >= 0; i--){
+      if (takeMailItem(m.id, i)) took++;
+    }
+  }
+  return took;
+}
+function deleteMail(id){
+  const i = S.mail.findIndex(m => m.id === id);
+  if (i < 0) return false;
+  /* Ett meddelande med saker kvar raderas ALDRIG av misstag. */
+  if (S.mail[i].items.length) return false;
+  S.mail.splice(i, 1);
+  renderMail(); renderMailBadge(); save();
+  return true;
+}
+function markMailRead(id){
+  const m = findMail(id);
+  if (!m || m.read) return false;
+  m.read = true;
+  renderMailBadge(); save();
   return true;
 }
 const ITEM_DEFS = {
@@ -7797,6 +8041,13 @@ $('bag-btn').addEventListener('click', () => {
   });
   pill.addEventListener('mouseleave', hideBagTip);
 })();
+$('nav-inbox').addEventListener('click', openMail);
+$('mail-close').addEventListener('click', () => { $('mail-overlay').classList.remove('open'); });
+$('mail-takeall').addEventListener('click', () => {
+  const n = takeAllMail();
+  spawnFloat({text: n ? 'Took ' + n + ' item' + (n === 1 ? '' : 's') : 'Nothing fits — backpack full'});
+});
+makeDraggable($('mail-overlay'), [$('mail-overlay').querySelector('.inv-titlebar'), $('mail-overlay').querySelector('.inv-emblem'), $('mail-overlay')]);
 $('inv-sort').addEventListener('click', invSort);
 $('vault-sort').addEventListener('click', vaultSort);
 document.querySelectorAll('.vt-dot').forEach(dot => {
@@ -8022,7 +8273,7 @@ document.addEventListener('keydown', e => {
   document.querySelectorAll('.item-win').forEach(w => open.push({el: w, kill: true}));
   const picker = document.querySelector('.slot-picker');
   if (picker) open.push({el: picker, kill: true});
-  ['inv-overlay', 'ach-overlay', 'vault-overlay', 'region-overlay'].forEach(id => {
+  ['inv-overlay', 'ach-overlay', 'vault-overlay', 'mail-overlay', 'region-overlay'].forEach(id => {
     const w = $(id);
     if (w && w.classList.contains('open')) open.push({el: w, kill: false});
   });
