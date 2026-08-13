@@ -741,7 +741,7 @@ body.dragging *{cursor:grabbing !important}
 }
 .core-wrap::before{
   content:'';position:absolute;left:50%;top:50%;
-  width:340px;height:340px;
+  width:306px;height:306px;
   transform:translate(-50%,-50%) scale(0.6);
   border-radius:50%;
   background:radial-gradient(circle, rgba(34,211,238,0.45), rgba(34,211,238,0.14) 38%, transparent 68%);
@@ -757,21 +757,38 @@ body.dragging *{cursor:grabbing !important}
 .core-hex svg{pointer-events:none;touch-action:none;display:block}
 .core-wrap.core-holding .core-hex{transform:scale(1.03)}
 .core-hex.core-hit{transform:scale(1.07)}
-.core-svg{filter:drop-shadow(0 0 26px rgba(34,211,238,.4))}
+/* 212 -> 191 px, alltsa exakt 10 % mindre (v0.72.0). Attributen i markupen
+   ligger kvar som reserv; CSS vinner over dem. */
+.core-svg{width:191px;height:191px;filter:drop-shadow(0 0 26px rgba(34,211,238,.4))}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes spinr{to{transform:rotate(-360deg)}}
 .core-ring-slow{animation:spin 26s linear infinite;transform-origin:100px 100px}
 .core-ring-rev{animation:spinr 16s linear infinite;transform-origin:100px 100px}
-@keyframes coreBreath{
-  0%,100%{transform:translateY(0) scale(1)}
-  50%{transform:translateY(-5px) scale(1.015)}
+/* ---------- ANDNINGEN (omgjord v0.72.0) ----------
+   Fram till nu gungade HELA kärnrutan upp och ner. Prismats sken ar en riktig
+   skugglaggning som foljer hexagonens form, och den maste ritas om fran grunden
+   varje gang det som bar den flyttar sig eller byter storlek - Chrome doljer det,
+   Firefox gjorde det inte och det hackade. Nu star prismat helt stilla och
+   andningen ligger i ett eget glodlager bakom det som bara andrar genomskinlighet.
+   Det ar det billigaste en webblasare kan gora och kan darfor inte hacka nagonstans. */
+.core-wrap::after{
+  content:'';position:absolute;left:50%;top:50%;
+  width:250px;height:250px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(34,211,238,0.30), rgba(34,211,238,0.10) 42%, transparent 70%);
+  pointer-events:none;z-index:0;opacity:.34;
 }
-.core-alive{animation:coreBreath 5.5s ease-in-out infinite;will-change:transform}
-.core-alive.core-holding{animation-play-state:paused}
+@keyframes coreBreath{
+  0%,100%{opacity:.30}
+  50%{opacity:.60}
+}
+.core-alive::after{animation:coreBreath 5.5s ease-in-out infinite}
+.core-alive.core-holding::after{animation-play-state:paused}
 @keyframes sparkle{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
 .core-spark-anim{animation:sparkle .3s ease}
 @media (prefers-reduced-motion: reduce){
-  .core-alive,.core-ring-slow,.core-ring-rev,.core-spark-anim{animation:none}
+  .core-alive::after,.core-ring-slow,.core-ring-rev,.core-spark-anim{animation:none}
 }
 /* Siffrorna som sprutar ur kärnan — referenskonsten från spelarens andra bygge.
    Flyger alltid uppåt/utåt (aldrig ner under tummen), fasta vinklar i sekvens
@@ -2413,7 +2430,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.71.0 — LEVANDE FOND</div>
+            <div class="desc">GENESIS v0.72.0 — STILLA KÄRNA</div>
           </div>
         </div>
       </div>
@@ -2439,7 +2456,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.71.0 — LEVANDE FOND</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.72.0 — STILLA KÄRNA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -9063,17 +9080,14 @@ window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); })
   ['muted', 'loop', 'autoplay', 'playsinline'].forEach(a => v.setAttribute(a, ''));
   v.setAttribute('aria-hidden', 'true');
   v.setAttribute('tabindex', '-1');
-  /* Tva namn, eftersom filen heter olika i spelarens repo och i hans beskrivning.
-     Lasaren gar vidare till nasta rad om den forsta inte gar att hamta. */
-  const SOURCES = ['assets/bg/bg_data_node.mp4', 'assets/bg/background_video.mp4'];
-  let dead = 0;
-  SOURCES.forEach(src => {
-    const so = document.createElement('source');
-    so.src = src; so.type = 'video/mp4';
-    so.addEventListener('error', () => { if (++dead >= SOURCES.length) drop(); });
-    v.appendChild(so);
-  });
+  /* En kalla, spelarens bekraftade filnamn. Gar den inte att hamta tas elementet
+     bort och stillbilden i .hero star kvar. */
   function drop(){ hero.classList.remove('hasvideo'); v.remove(); }
+  const so = document.createElement('source');
+  so.src = 'assets/bg/background_video.mp4';
+  so.type = 'video/mp4';
+  so.addEventListener('error', drop);
+  v.appendChild(so);
   v.addEventListener('error', drop);
   /* Klassen sätts forst nar en bildruta faktiskt syns - da byts stillbilden mot
      videon i en mjuk overgang och morkningen flyttar med. */
