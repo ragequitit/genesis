@@ -2220,7 +2220,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.64.5 — VALVET SORTERAR UPPÅT</div>
+            <div class="desc">GENESIS v0.64.6 — LEVANDE NEDRÄKNING</div>
           </div>
         </div>
       </div>
@@ -2246,7 +2246,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.5 — VALVET SORTERAR UPPÅT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.6 — LEVANDE NEDRÄKNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5382,6 +5382,7 @@ function loopBody(now){
 
   // Handlarens klocka: bara när man faktiskt tittar på en handelsbod
   tickVendorClock();
+  tickSurveyClock();
 
   /* Bragderna prövas en gång i sekunden. Villkoren är billiga jämförelser, men
      varje bildruta vore ändå slöseri. */
@@ -6171,7 +6172,8 @@ const regionOverlay = $('region-overlay');
 /* Vilken zonruta som står öppen — behövs för att klockan ska kunna ticka och för
    att kortet ska rita om sig själv i samma sekund som lagret fylls på. */
 let openZoneRef = null;
-function closeRegion(){ regionOverlay.classList.remove('open'); openZoneRef = null; }
+let openSurveyRef = null;      // vilken OSEDD region som visas, för den levande nedräkningen
+function closeRegion(){ regionOverlay.classList.remove('open'); openZoneRef = null; openSurveyRef = null; }
 $('region-close').addEventListener('click', closeRegion);
 regionOverlay.addEventListener('click', e => { if (e.target === regionOverlay) closeRegion(); });
 
@@ -6179,6 +6181,9 @@ function openRegion(id){
   const R = REGIONS[id];
   const body = $('region-body');
   if (!isKnown(id)){
+    /* Kom ihåg vilken osedd region som visas, så nedräkningen kan uppdateras i
+       loopen — texten byggdes en gång vid öppning och stod därför still. */
+    openSurveyRef = id;
     $('region-title').textContent = 'Unknown Region';
     body.innerHTML =
       '<div class="region-kv"><div class="kv"><span class="k">Signal strength</span><span class="v">Tier ' + R.tier + '</span></div>' +
@@ -6187,6 +6192,7 @@ function openRegion(id){
     const btn = $('region-discover');
     if (btn) btn.addEventListener('click', () => startResearch(id));
   } else {
+    openSurveyRef = null;
     const rank = repRank(id);
     $('region-title').textContent = R.name;
     let zonesHtml = '';
@@ -6579,7 +6585,8 @@ function buildDiscoverBody(id, R){
   if (S.research){
     const here = S.research.region === id;
     return '<div class="shelf-empty">' + (here
-      ? 'Research drones are surveying this signal — ' + fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000)) + ' remaining.'
+      ? 'Research drones are surveying this signal — <span id="survey-clock">' +
+        fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000)) + '</span> remaining.'
       : 'Your research drones are busy surveying another signal.') + '</div>';
   }
   const req = DISCOVER_REQ[R.tier];
@@ -6601,6 +6608,15 @@ function startResearch(id){
 /* Klockan uppdateras i den befintliga loopen i stället för med en egen timer, så
    den kan aldrig leva vidare efter att rutan stängts. Går tiden ut medan du står
    och tittar ritas hela kortet om — nytt lager, direkt framför ögonen. */
+/* Undersökningens nedräkning, uppdaterad i samma loop som handlarens klocka — av
+   samma skäl: ingen egen timer som kan leva vidare efter att rutan stängts. Blir
+   signalen färdig medan man tittar ritas kortet om av checkResearch. */
+function tickSurveyClock(){
+  if (!openSurveyRef || !regionOverlay.classList.contains('open')) return;
+  const el = $('survey-clock');
+  if (!el || !S.research || S.research.region !== openSurveyRef) return;
+  el.textContent = fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000));
+}
 function tickVendorClock(){
   if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
   if (openZoneRef.zone !== TRADE_ZONE) return;
@@ -6616,6 +6632,9 @@ function checkResearch(){
   if (!isKnown(id)) S.world.known.push(id);
   grantXP(50);
   renderMap(); refreshTravelBar();
+  /* Står man och tittar på signalen när den blir färdig ska kortet bytas ut på
+     plats — annars står "Unknown Region" kvar tills man stänger och öppnar. */
+  if (openSurveyRef === id && regionOverlay.classList.contains('open')) openRegion(id);
   save();
 }
 function startTravel(id){
