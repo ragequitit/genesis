@@ -2466,7 +2466,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.78.0 — EGNA FÖRMÅGOR</div>
+            <div class="desc">GENESIS v0.79.0 — RULLADE HUSDJUR</div>
           </div>
         </div>
       </div>
@@ -2492,7 +2492,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.78.0 — EGNA FÖRMÅGOR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.79.0 — RULLADE HUSDJUR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2911,11 +2911,11 @@ function petSpriteVars(sp, px){
    OBS: det har ar medvetet TILLFALLIGT. Nar yrken, isarplockning och resten finns
    oppnar sig langt fler saker att haka formagor pa, och da gors listan om igen. */
 const PETS = {
-  byte:  {name: 'Byte',  cx: 482.5,  cy: 62.7,  fam: 'machinecost', base: 2},
-  patch: {name: 'Patch', cx: 374.0,  cy: 63.0,  fam: 'fuelregen',   base: 8},
-  glint: {name: 'Glint', cx: 269.8,  cy: 68.0,  fam: 'cacheluck',   base: 6},
-  zipp:  {name: 'Zipp',  cx: 56.7,   cy: 325.7, fam: 'boostpot',    base: 4},
-  dot:   {name: 'Dot',   cx: 1007.2, cy: 186.3, fam: 'dust',        base: 10}
+  byte:  {name: 'Byte',  cx: 482.5,  cy: 62.7,  fam: 'machinecost'},
+  patch: {name: 'Patch', cx: 374.0,  cy: 63.0,  fam: 'fuelregen'},
+  glint: {name: 'Glint', cx: 269.8,  cy: 68.0,  fam: 'cacheluck'},
+  zipp:  {name: 'Zipp',  cx: 56.7,   cy: 325.7, fam: 'boostpot'},
+  dot:   {name: 'Dot',   cx: 1007.2, cy: 186.3, fam: 'dust'}
 };
 /* De tva som annu ingen art bar - Sell Value och Boost Duration - ar byggda och
    inkopplade anda, sa att de arter som laggs till i de andra regionerna kan
@@ -2930,6 +2930,51 @@ const FAM_TEXT = {
   boostdur:    v => '+' + v + '% Boost duration'
 };
 const PET_FAMS = Object.keys(FAM_TEXT);
+/* ---------- HUSDJUREN RULLAR SINA SIFFROR (v0.79.0) ----------
+   Forut hade varje art ETT fast tal. Nu rullas vardet i ett band pa +-14 % kring
+   mitten, gangat med sallsynthetens multiplikator - exakt samma regel som gear
+   foljer, sa spelaren slipper lara sig ett andra system. Tva common Zipp ar
+   darfor inte langre utbytbara.
+   ARTEN GER ALLTID SIN FORMAGA. Ovanpa det kan en ANDRA formaga rullas, och
+   chansen vaxer med sallsyntheten: en mythic har den alltid, en common aldrig.
+   Da ar en mythic inte bara starkare utan djupare, vilket ger den ett andra skal
+   att jagas. Den andra formagan rullas fritt bland alla sju - blir det samma som
+   artens egen slas de ihop till EN storre siffra, och det ar jackpotten. */
+const PET_BANDS = {
+  cacheluck:   {lo: 5.16, hi: 6.84},
+  dust:        {lo: 8.60, hi: 11.40},
+  fuelregen:   {lo: 6.88, hi: 9.12},
+  machinecost: {lo: 1.72, hi: 2.28},
+  sellvalue:   {lo: 5.16, hi: 6.84},
+  boostpot:    {lo: 3.44, hi: 4.56},
+  boostdur:    {lo: 3.44, hi: 4.56}
+};
+const PET_SECOND_CHANCE = [0, 0.10, 0.25, 0.45, 0.70, 1];
+function rollPetFamValue(fam, rar){
+  const b = PET_BANDS[fam];
+  return Math.round((b.lo + Math.random() * (b.hi - b.lo)) * RARITIES[rar].mult * 100) / 100;
+}
+/* Bygger ett husdjurs egenskaper. Dubbletter slas ihop har och inte vid
+   avlasningen, sa att det som lagras ar det som visas. */
+function rollPetAffixes(sp, rar){
+  const rows = [{f: PETS[sp].fam, v: rollPetFamValue(PETS[sp].fam, rar)}];
+  if (Math.random() < PET_SECOND_CHANCE[rar]){
+    const f2 = PET_FAMS[Math.floor(Math.random() * PET_FAMS.length)];
+    const v2 = rollPetFamValue(f2, rar);
+    const same = rows.find(r => r.f === f2);
+    if (same) same.v = Math.round((same.v + v2) * 100) / 100;
+    else rows.push({f: f2, v: v2});
+  }
+  return rows;
+}
+/* Husdjur ur en gammal sparfil bar inga rullade siffror. De far artens formaga
+   pa bandets MITT gangat med sin sallsynthet - inte ett slumptal, for da hade
+   samma husdjur andrat sig varje gang spelet startade. */
+function petAffixes(p){
+  if (Array.isArray(p.a) && p.a.length) return p.a;
+  const fam = PETS[p.sp].fam, b = PET_BANDS[fam];
+  return [{f: fam, v: Math.round((b.lo + b.hi) / 2 * RARITIES[p.rar].mult * 100) / 100}];
+}
 const REGION_PETS = { neonhub: ['byte', 'patch', 'glint', 'zipp', 'dot'] };
 const RARITIES = [
   {id: 'common',    name: 'Common',    mult: 1},
@@ -3057,7 +3102,17 @@ function petSelSummary(){
   };
 }
 function petLvlMult(lvl){ return 1 + 0.5 * (lvl - 1) / (PET_MAX_LVL - 1); }
-function petVal(p){ return Math.round(PETS[p.sp].base * RARITIES[p.rar].mult * petLvlMult(petLvl(p)) * 10) / 10; }
+/* Vad husdjuret ger i EN formaga just nu: den rullade siffran med nivan pa.
+   Sallsyntheten sitter redan i siffran, satt nar husdjuret foddes. */
+function petValOf(p, fam){
+  const row = petAffixes(p).find(r => r.f === fam);
+  return row ? Math.round(row.v * petLvlMult(petLvl(p)) * 10) / 10 : 0;
+}
+/* Summan av allt husdjuret ger - anvands dar en enda siffra behovs, som i
+   jamforelser och sorteringen. */
+function petVal(p){
+  return Math.round(petAffixes(p).reduce((a, r) => a + r.v, 0) * petLvlMult(petLvl(p)) * 10) / 10;
+}
 /* Bara husdjur i det AKTIVA laget far XP - banken tjanar ingenting. Laget ar en
    plats i dag och tak tre, sa listan har redan den form den ska ha. */
 function activeTeam(){ const a = activePet(); return a ? [a] : []; }
@@ -3083,7 +3138,7 @@ function feedAmount(p){
 function activePet(){ return S.pets.owned.find(o => o && o.uid === S.pets.active) || null; }
 function petBonusPct(fam){
   const a = activePet();
-  return (a && PETS[a.sp].fam === fam) ? petVal(a) : 0;
+  return a ? petValOf(a, fam) : 0;
 }
 function petExtraFrags(rnd){
   const b = gearBonus('frag') / 100;
@@ -3324,7 +3379,13 @@ function load(){
           S.pets.owned = d.pets.owned.slice(0, 4000).map(p =>
             (p && PETS[p.sp] && +p.rar >= 0 && +p.rar <= 5 && +p.uid > 0)
               ? {uid: +p.uid, sp: p.sp, rar: Math.floor(+p.rar),
-                 xp: Math.min(PET_XP_MAX, Math.max(0, +p.xp || 0))}
+                 xp: Math.min(PET_XP_MAX, Math.max(0, +p.xp || 0)),
+                 /* Rader med okand formaga tas bort; ar allt borta far
+                    petAffixes falla tillbaka pa artens mitt. */
+                 a: Array.isArray(p.a)
+                      ? p.a.filter(r => r && PET_BANDS[r.f] && isFinite(+r.v))
+                           .map(r => ({f: r.f, v: Math.round(+r.v * 100) / 100}))
+                      : undefined}
               : null);
         S.pets.seq = Math.max(1, Math.floor(+d.pets.seq) || 1, ...petsOwned().map(o => o.uid + 1));
         S.pets.dust = Math.max(0, Math.floor(+d.pets.dust) || 0);
@@ -8006,7 +8067,12 @@ function goToZone(pair){
 }
 /* ---------- HUSDJUREN: panel, samling, cachen ---------- */
 function rarCol(r){ return 'var(--rarity-' + RARITIES[r].id + ')'; }
-function petEffText(p){ return FAM_TEXT[PETS[p.sp].fam](petVal(p)); }
+/* En rad per formaga. Sammanfogaren skickas in av den som ritar, for panelen har
+   en rad medan fonstret har flera. */
+function petEffLines(p){
+  return petAffixes(p).map(r => FAM_TEXT[r.f](Math.round(r.v * petLvlMult(petLvl(p)) * 10) / 10));
+}
+function petEffText(p, join){ return petEffLines(p).join(join || ' \u00b7 '); }
 function renderPetPanel(){
   const slot = $('pet-slot-active'), buff = $('pet-buff-line'), cnt = $('pet-team-count');
   const a = activePet();
@@ -8172,7 +8238,7 @@ function petWinHTML(p){
         '<div class="gt-rar">' + RARITIES[p.rar].name + (on ? ' \u00b7 Active' : '') + '</div>' +
         stat(max ? 'MAX' : li.lvl, max ? 'Level 10' : 'Level') +
         '<div class="iw-affs">' +
-          '<div class="af">' + petEffText(p) + '</div>' +
+          petEffLines(p).map(t => '<div class="af">' + t + '</div>').join('') +
           '<div class="af">' + (max ? 'Fully grown' : Math.floor(li.into) + ' / ' + li.need + ' XP to next level') + '</div>' +
           '<div class="af">Recycles into ' + dustFor(p) + ' ✨</div>' +
         '</div>' +
@@ -8260,7 +8326,7 @@ function showReveal(pet){
     '<div class="rv-card" style="--rv-col:' + rarCol(pet.rar) + '">' +
     '<div class="pet-sprite" style="' + petSpriteVars(pet.sp, 84) + ';border-color:' + rarCol(pet.rar) + '">' + PETS[pet.sp].name[0] + '</div>' +
     '<div><div class="rv-name">' + PETS[pet.sp].name + '</div><div class="rv-rar">' + RARITIES[pet.rar].name + '</div>' +
-    '<div class="rv-eff">' + petEffText(pet) + '</div></div></div>';
+    '<div class="rv-eff">' + petEffText(pet, '<br>') + '</div></div></div>';
 }
 function openCache(){
   const pool = REGION_PETS[S.world.current];
@@ -8268,7 +8334,7 @@ function openCache(){
   S.frags -= CACHE_COST;
   const sp = pool[Math.floor(Math.random() * pool.length)];
   const rar = rollRarity(cacheWeights(), Math.random());
-  const pet = {uid: S.pets.seq++, sp: sp, rar: rar, xp: 0};
+  const pet = {uid: S.pets.seq++, sp: sp, rar: rar, xp: 0, a: rollPetAffixes(sp, rar)};
   addPet(pet);
   if (S.pets.active == null) S.pets.active = pet.uid;
   save(); renderPets(); renderPetPanel(); showReveal(pet);
@@ -8337,7 +8403,7 @@ $('pet-grid').addEventListener('mouseover', e => {
   if (!p) return;
   const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
   showPlainTip('<b style="color:' + rarCol(p.rar) + '">' + PETS[p.sp].name + '</b><br>' +
-    RARITIES[p.rar].name + ' \u00b7 Lv ' + li.lvl + (max ? ' (max)' : '') + '<br>' + petEffText(p) +
+    RARITIES[p.rar].name + ' \u00b7 Lv ' + li.lvl + (max ? ' (max)' : '') + '<br>' + petEffText(p, '<br>') +
     '<br>' + (max ? 'Fully grown' : Math.floor(li.into) + ' / ' + li.need + ' XP') +
     '<br>Recycles into ' + dustFor(p) + ' ✨', e.clientX, e.clientY);
 });
