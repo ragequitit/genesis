@@ -1775,7 +1775,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .inv-coin{font-size:13px}
 
 /* ================= HUSDJUREN ================= */
-.pets-modal{max-width:440px;max-height:86vh;overflow-y:auto}
+/* Husdjuren följer samma form som väskan och valvet: flyttbar, ser igenom, ESC.
+   max-width från .modal måste släppas, precis som för de andra flytande. */
+.pets-modal{width:420px;max-width:none;max-height:76vh;overflow-y:auto}
 .pet-sprite{
   position:relative;border-radius:10px;overflow:hidden;flex:0 0 auto;
   background:var(--bg-inset);border:1px solid var(--border-soft);
@@ -2230,11 +2232,12 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 
   <div class="gear-tip" id="gear-tip"></div>
   <!-- ================= HUSDJUREN ================= -->
-  <div class="modal-overlay" id="pets-overlay">
-    <div class="modal pets-modal">
-      <div class="modal-head">
-        <span class="modal-title">Pets</span>
-        <button class="modal-close" id="pets-close">✕</button>
+  <div class="float-win" id="pets-overlay">
+    <div class="modal inv-modal pets-modal">
+      <div class="inv-emblem"><span class="qi qi-pets"></span></div>
+      <div class="inv-titlebar">
+        <span class="inv-title">Pets</span>
+        <button class="inv-x" id="pets-close">✕</button>
       </div>
       <div class="cache-box">
         <div class="cache-info">
@@ -2359,7 +2362,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.68.3 — TIO PLATSER</div>
+            <div class="desc">GENESIS v0.69.0 — EN REGEL FÖR FÖNSTREN</div>
           </div>
         </div>
       </div>
@@ -2385,7 +2388,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.68.3 — TIO PLATSER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.69.0 — EN REGEL FÖR FÖNSTREN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -7704,7 +7707,30 @@ function openCache(){
   if (S.pets.active == null) S.pets.active = pet.uid;
   save(); renderPets(); renderPetPanel(); showReveal(pet);
 }
-function openPetsModal(){ $('cache-reveal').innerHTML = ''; renderPets(); $('pets-overlay').classList.add('open'); }
+function openPetsModal(){
+  $('cache-reveal').innerHTML = '';
+  renderPets();
+  const w = $('pets-overlay');
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open');
+  bringToFront(w);
+  if (!wasOpen){
+    w.style.left = Math.max(8, Math.min(window.innerWidth - 440, window.innerWidth / 2 - 210)) + 'px';
+    w.style.top = '70px';
+  }
+}
+function closePetsWindow(){ $('pets-overlay').classList.remove('open'); }
+/* ---------- EN REGEL FÖR ALLA FÖNSTER ----------
+   Varje knapp som öppnar något STÄNGER det också. Utan det blir knappen enkelriktad
+   och man måste sikta på krysset för att bli av med rutan man just öppnade.
+   toggleWindow tar öppnaren och stängaren, så varje fönster får behålla sin egen
+   städning (delväskor, referenser) i stället för att växlingen gissar. */
+function toggleWindow(id, open, close){
+  const w = $(id);
+  if (w && w.classList.contains('open')){ close ? close() : w.classList.remove('open'); return false; }
+  open();
+  return true;
+}
 /* Sidan bakom låses så länge någon ruta är öppen — vi lyssnar på klassbytet i stället
    för att haka på varje enskild öppna/stäng-knapp, så ingen ruta kan glömmas bort. */
 (function lockScrollWhileModalOpen(){
@@ -7715,7 +7741,7 @@ function openPetsModal(){ $('cache-reveal').innerHTML = ''; renderPets(); $('pet
   sync();
 })();
 
-$('qa-pets').addEventListener('click', openPetsModal);
+$('qa-pets').addEventListener('click', () => toggleWindow('pets-overlay', openPetsModal, closePetsWindow));
 $('pet-slot-active').addEventListener('click', openPetsModal);
 $('pets-close').addEventListener('click', () => $('pets-overlay').classList.remove('open'));
 $('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
@@ -8312,9 +8338,9 @@ function openInventory(){
     w.style.left = x + 'px'; w.style.top = y + 'px';
   }
 }
-$('qa-inventory').addEventListener('click', openInventory);
-$('qa-vault').addEventListener('click', openVault);
-$('nav-ach').addEventListener('click', openAchievements);
+$('qa-inventory').addEventListener('click', () => toggleWindow('inv-overlay', openInventory, closeInventoryWindow));
+$('qa-vault').addEventListener('click', () => toggleWindow('vault-overlay', openVault, closeVaultWindow));
+$('nav-ach').addEventListener('click', () => toggleWindow('ach-overlay', openAchievements, () => $('ach-overlay').classList.remove('open')));
 $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove('open'));
 /* Att stänga en basruta nollställer också UTBRYTNINGEN. Utan det låg flaggorna
    kvar, och nästa öppning kastade upp alla småväskor på skärmen igen — man vill
@@ -8367,13 +8393,17 @@ $('bag-btn').addEventListener('click', () => {
   });
   pill.addEventListener('mouseleave', hideBagTip);
 })();
-$('nav-inbox').addEventListener('click', openMail);
+$('nav-inbox').addEventListener('click', () => toggleWindow('mail-overlay', openMail, () => {
+  $('mail-overlay').classList.remove('open');
+  document.querySelectorAll('.mail-note').forEach(n => n.remove());
+}));
 $('mail-close').addEventListener('click', () => { $('mail-overlay').classList.remove('open'); });
 $('mail-takeall').addEventListener('click', () => {
   const n = takeAllMail();
   spawnFloat({text: n ? 'Took ' + n + ' item' + (n === 1 ? '' : 's') : 'Nothing fits — backpack full'});
 });
 makeDraggable($('mail-overlay'), [$('mail-overlay').querySelector('.inv-titlebar'), $('mail-overlay').querySelector('.inv-emblem'), $('mail-overlay')]);
+makeDraggable($('pets-overlay'), [$('pets-overlay').querySelector('.inv-titlebar'), $('pets-overlay').querySelector('.inv-emblem'), $('pets-overlay')]);
 $('inv-sort').addEventListener('click', invSort);
 $('vault-sort').addEventListener('click', vaultSort);
 document.querySelectorAll('.vt-dot').forEach(dot => {
@@ -8599,7 +8629,7 @@ document.addEventListener('keydown', e => {
   document.querySelectorAll('.item-win').forEach(w => open.push({el: w, kill: true}));
   const picker = document.querySelector('.slot-picker');
   if (picker) open.push({el: picker, kill: true});
-  ['inv-overlay', 'ach-overlay', 'vault-overlay', 'mail-overlay', 'region-overlay'].forEach(id => {
+  ['inv-overlay', 'ach-overlay', 'vault-overlay', 'mail-overlay', 'pets-overlay', 'region-overlay'].forEach(id => {
     const w = $(id);
     if (w && w.classList.contains('open')) open.push({el: w, kill: false});
   });
