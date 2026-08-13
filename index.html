@@ -1503,12 +1503,28 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .mail-item .mi-ico{font-size:17px;width:26px;text-align:center;flex:0 0 auto}
 .mail-item .mi-name{flex:1;font-size:11.5px;color:var(--text)}
 .mail-item .mi-take{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--cyan);text-transform:uppercase}
+.mail-row{cursor:pointer}
+.mail-row:hover{border-color:var(--cyan-dim)}
+.mail-foot{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:6px}
+.mail-hasitems{font-size:10px;font-weight:800;color:var(--cyan);letter-spacing:.06em}
+.mail-hasitems.empty{color:var(--text-dim);font-weight:600;text-transform:uppercase}
+.mail-ttl{font-size:9.5px;font-family:var(--font-mono);color:var(--text-dim)}
+.mail-ttl.soon{color:#ff6b74}
+/* Lappen — ett meddelande i sin helhet. */
+.mail-note{width:330px}
+.mail-note .mn-from{font-size:10.5px;color:var(--text-dim);margin-bottom:8px}
+.mail-note .mn-from b{color:var(--cyan)}
+.mail-note .mn-body{font-size:12px;color:var(--text);line-height:1.55;margin-bottom:10px}
+.mail-note .mn-hint{font-size:10px;color:var(--text-dim);margin-top:7px}
+.mail-note .mn-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}
 .mail-del{
   margin-top:8px;padding:5px 10px;border-radius:7px;cursor:pointer;
   font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   background:transparent;border:1px solid var(--border-soft);color:var(--text-dim);
 }
 .mail-del:hover{color:var(--text);border-color:var(--border-glow)}
+/* Paketet lyser — det är hela anledningen till att man reste hit. */
+.trader-row.gift{border-color:var(--gold);box-shadow:0 0 14px -4px var(--gold)}
 .vendor-tabs{display:flex;gap:6px;margin-bottom:10px}
 .vendor-tab{
   flex:1;padding:8px 10px;border-radius:9px;cursor:pointer;
@@ -2304,7 +2320,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.67.2 — VÄSKA PÅ KÖPET</div>
+            <div class="desc">GENESIS v0.68.0 — POSTEN OCH PAKETET</div>
           </div>
         </div>
       </div>
@@ -2330,7 +2346,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.67.2 — VÄSKA PÅ KÖPET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.68.0 — POSTEN OCH PAKETET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2765,6 +2781,7 @@ let S = {
      fack — inga pjäser flyttas, platsnumren är orörda. */
   mail: [],                 // inkorgen — se addMail för meddelandets form
   vendTip: {},              // senaste tipset per region, så det blir högst ett per dygn
+  vendGift: {},             // femstjärnepaketet per region: 'invited' | 'taken'
   boosts: {},               // aktiva flaskor: {nyckel: utgångstid i ms}
   vaultTone: 'green',       // valvets färgton: green (standard) | bronze | red
   bagOpen: [false, false, false, false, false],
@@ -2887,6 +2904,11 @@ function load(){
       });
       /* Posten läses med samma stränghet som väskan: bara giltiga pjäser och kända
          staplar överlever, och aldrig fler meddelanden än taket. */
+      if (d.vendGift && typeof d.vendGift === 'object'){
+        for (const k in d.vendGift){
+          if (d.vendGift[k] === 'invited' || d.vendGift[k] === 'taken') S.vendGift[k] = d.vendGift[k];
+        }
+      }
       if (d.vendTip && typeof d.vendTip === 'object'){
         for (const k in d.vendTip){ const v = +d.vendTip[k]; if (isFinite(v) && v > 0) S.vendTip[k] = v; }
       }
@@ -2905,7 +2927,7 @@ function load(){
           return {
             id: m.id || newMailId(), from: m.from || 'System', subject: m.subject,
             body: m.body || '', at: +m.at || Date.now(), items: items,
-            read: !!m.read, src: m.src || 'local'
+            read: !!m.read, readAt: +m.readAt || null, src: m.src || 'local'
           };
         }).filter(Boolean);
       }
@@ -3043,6 +3065,7 @@ function levelInfo(){
 let lastLevel = 1;
 let lastAchCheck = 0;
 let lastTipCheck = 0;
+let lastMailPrune = 0;
 let expGate = 0;
 /* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
    gränssnitt hör hemma i uppdateringsrutinen, inte här. */
@@ -3136,9 +3159,43 @@ function sendVendorTip(regionId){
 }
 /* Körs i den vanliga loopen. Alla kända regioner prövas, men var och en har sitt
    eget dygn, så tipsen sprids ut av sig själva. */
+/* ---------- KALLELSEN VID FEM STJÄRNOR ----------
+   Brevet har INGEN bilaga — det är just det som är poängen. Belöningen ligger hos
+   handlaren och kräver att man reser dit, vilket ger ryktet en plats i världen i
+   stället för att bli ännu en notis. */
+function checkVendorInvite(regionId){
+  if (!isKnown(regionId) || repRank(regionId) < 5) return false;
+  if (S.vendGift[regionId]) return false;          // redan bjuden
+  S.vendGift[regionId] = 'invited';
+  addMail({
+    from: REGIONS[regionId].name + ' Vendor',
+    src: 'vendorgift',
+    subject: 'Come by when you are next in the area',
+    body: 'Word is you have earned yourself quite a name around here. Next time you are ' +
+          'in ' + REGIONS[regionId].name + ', stop by the shop — I have set something aside for you.',
+    items: []
+  });
+  save();
+  return true;
+}
+function vendorGiftReady(regionId){ return S.vendGift[regionId] === 'invited'; }
+function claimVendorGift(regionId){
+  if (!vendorGiftReady(regionId)) return false;
+  if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to collect it.'; return false; }
+  /* Full väska nekar hämtningen — paketet ligger kvar hos handlaren tills det
+     finns plats, hellre än att falla mellan stolarna. */
+  if (invFirstFree() < 0){ vendorNote = 'Your backpack is full — make room and come back.'; return false; }
+  const def = bundleDef(regionId);
+  if (!addInvItem({key: bundleKey(regionId), name: def.name, ico: def.ico, stack: true})) return false;
+  S.vendGift[regionId] = 'taken';
+  vendorNote = 'The vendor hands you a care package.';
+  updateUI(true); save();
+  return true;
+}
 function checkVendorTips(){
   if (!S.vendTip) S.vendTip = {};
   for (const id of S.world.known){
+    checkVendorInvite(id);
     if (vendorTipDue(id)) sendVendorTip(id);
   }
 }
@@ -3610,26 +3667,72 @@ function renderMail(){
     list.innerHTML = '<div class="shelf-empty">Your inbox is empty.</div>';
     return;
   }
-  list.innerHTML = S.mail.map(m =>
-    '<div class="mail-row' + (m.read ? '' : ' unread') + '" data-mail="' + m.id + '">' +
+  /* Listan är en ÖVERSIKT: avsändare, ämne, hur många saker som väntar och hur
+     lång tid meddelandet har kvar. Innehållet läses i lappen man öppnar. */
+  list.innerHTML = S.mail.map(m => {
+    const left = mailLeftMs(m);
+    const soon = left < 86400000;
+    return '<div class="mail-row' + (m.read ? '' : ' unread') + '" data-open="' + m.id + '">' +
       '<div class="mail-head">' +
         '<span class="mail-from">' + m.from + '</span>' +
         '<span class="mail-age">' + mailAgeText(m.at) + '</span>' +
       '</div>' +
       '<div class="mail-subject">' + m.subject + '</div>' +
-      (m.body ? '<div class="mail-body">' + m.body + '</div>' : '') +
-      (m.items.length ? '<div class="mail-items">' + m.items.map((it, i) => mailItemHTML(it, m.id, i)).join('') + '</div>' : '') +
-      (m.items.length ? '' : '<button class="mail-del" data-del="' + m.id + '">Delete</button>') +
-    '</div>').join('');
-  list.querySelectorAll('[data-take]').forEach(el => el.addEventListener('click', e => {
+      '<div class="mail-foot">' +
+        (m.items.length ? '<span class="mail-hasitems">📦 ' + m.items.length + '</span>' : '<span class="mail-hasitems empty">read</span>') +
+        '<span class="mail-ttl' + (soon ? ' soon' : '') + '">expires in ' + fmtDur(left / 1000) + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  list.querySelectorAll('[data-open]').forEach(el =>
+    el.addEventListener('click', () => openMailNote(el.dataset.open)));
+}
+/* Lappen: ETT meddelande i sin helhet. Den föds vid behov och tas bort med ESC
+   eller krysset, precis som föremålsfönstren. */
+function openMailNote(id){
+  const m = findMail(id);
+  if (!m) return;
+  markMailRead(id);
+  renderMail();
+  document.querySelectorAll('.mail-note').forEach(n => n.remove());
+  const note = document.createElement('div');
+  note.className = 'item-win mail-note';
+  note.dataset.mailnote = id;
+  const left = mailLeftMs(m);
+  note.innerHTML =
+    '<div class="iw-head"><span class="iw-title">' + m.subject + '</span><button class="iw-x">✕</button></div>' +
+    '<div class="mn-from">From <b>' + m.from + '</b> · ' + mailAgeText(m.at) + '</div>' +
+    (m.body ? '<div class="mn-body">' + m.body + '</div>' : '') +
+    (m.items.length
+      ? '<div class="mail-items">' + m.items.map((it, i) => mailItemHTML(it, m.id, i)).join('') + '</div>' +
+        '<div class="mn-hint">Click an item to collect it. It stays here until you do.</div>'
+      : '') +
+    '<div class="mn-foot">' +
+      '<span class="mail-ttl' + (left < 86400000 ? ' soon' : '') + '">Expires in ' + fmtDur(left / 1000) + '</span>' +
+      '<button class="mail-del" data-delnote="' + m.id + '">' + (m.items.length ? 'Delete anyway' : 'Delete') + '</button>' +
+    '</div>';
+  document.body.appendChild(note);
+  const w = $('mail-overlay').getBoundingClientRect();
+  note.style.left = Math.max(8, Math.min(window.innerWidth - 360, w.right + 12)) + 'px';
+  note.style.top = Math.max(8, w.top) + 'px';
+  bringToFront(note);
+  makeDraggable(note, [note.querySelector('.iw-head'), note]);
+  note.querySelector('.iw-x').addEventListener('click', () => note.remove());
+  note.querySelectorAll('[data-take]').forEach(el => el.addEventListener('click', e => {
     e.stopPropagation();
-    if (!takeMailItem(el.dataset.take, +el.dataset.idx)) spawnFloat({text: 'Backpack full!'});
+    if (takeMailItem(el.dataset.take, +el.dataset.idx)){
+      const still = findMail(id);
+      if (still) openMailNote(id); else note.remove();
+    } else spawnFloat({text: 'Backpack full!'});
   }));
-  list.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', e => {
+  note.querySelector('[data-delnote]').addEventListener('click', e => {
     e.stopPropagation();
-    deleteMail(el.dataset.del);
-  }));
-  list.querySelectorAll('[data-mail]').forEach(el => el.addEventListener('click', () => markMailRead(el.dataset.mail)));
+    const msg = findMail(id);
+    if (msg && msg.items.length && !confirm('This message still holds ' + msg.items.length +
+        ' item(s). Delete it anyway? They will be lost.')) return;
+    deleteMail(id, true);
+    note.remove();
+  });
 }
 function renderMailBadge(){
   const b = $('mail-badge');
@@ -4613,6 +4716,11 @@ function unequipGear(slotIdx, toIdx){
 function useInvItem(idx){
   const row = S.inv[idx];
   if (!row) return false;
+  if (isBundleKey(row.key)){
+    const got = openBundle(idx);
+    if (got && got.length) spawnFloat({text: 'Opened — ' + got.length + ' pieces'});
+    return !!(got && got.length);
+  }
   const bk = BOOST_KEY_BY_ITEM[row.key];
   if (bk){
     drinkBoost(bk);
@@ -5710,6 +5818,9 @@ function loopBody(now){
      det kostar inget att pröva ofta. */
   if (now - lastTipCheck > 30000){ lastTipCheck = now; checkVendorTips(); }
 
+  /* Postens livslängd. En gång i minuten räcker — dygn är enheten. */
+  if (now - lastMailPrune > 60000){ lastMailPrune = now; pruneMail(); }
+
   // Ankomstkontroll för resande
   checkTravel();
 
@@ -6164,6 +6275,30 @@ function drinkBoost(key){
    meddelanden aldrig kan krocka. at är absolut tid i ms, inte "för N minuter sedan",
    av samma skäl. */
 const MAIL_MAX = 30;
+/* ---------- POSTENS LIVSLÄNGD ----------
+   Ett LÄST meddelande ligger kvar i sju dagar, så man hinner läsa om det och se
+   vad man fick. Ett OLÄST ligger i trettio, som i de flesta spel med post — utan
+   ett tak växer listan för alltid, och den dagen posten ligger i en databas är
+   det inte längre gratis.
+   Det här är enda stället där vi medvetet kan förlora spelarens saker, så det
+   får ALDRIG ske tyst: varje meddelande visar hur lång tid det har kvar, och
+   sista dygnet är siffran röd. */
+const MAIL_READ_TTL = 7 * 86400000;
+const MAIL_UNREAD_TTL = 30 * 86400000;
+function mailExpiresAt(m){
+  return m.readAt ? m.readAt + MAIL_READ_TTL : m.at + MAIL_UNREAD_TTL;
+}
+function mailLeftMs(m){ return Math.max(0, mailExpiresAt(m) - Date.now()); }
+function pruneMail(){
+  const before = S.mail.length;
+  S.mail = S.mail.filter(m => mailLeftMs(m) > 0);
+  if (S.mail.length !== before){
+    renderMailBadge();
+    if ($('mail-overlay') && $('mail-overlay').classList.contains('open')) renderMail();
+    save();
+  }
+  return before - S.mail.length;
+}
 let mailSeq = 1;
 function newMailId(){ return 'm' + Date.now().toString(36) + '-' + (mailSeq++).toString(36); }
 function addMail(msg){
@@ -6176,11 +6311,12 @@ function addMail(msg){
     at: msg.at || Date.now(),
     items: Array.isArray(msg.items) ? msg.items.slice() : [],
     read: !!msg.read,
+    readAt: msg.readAt || null,      // när det LÄSTES — startar sjudagarsklockan
     src: msg.src || 'local'
   };
   S.mail.unshift(m);
-  /* Taket gäller bara TOMMA meddelanden — post med bifogade saker får aldrig
-     kastas bort automatiskt, för då försvinner spelarens gear i tysthet. */
+  /* Taket gäller bara TOMMA meddelanden — post med bifogade saker gallras aldrig
+     av ANTAL, bara av tid, och då med synlig nedräkning. */
   if (S.mail.length > MAIL_MAX){
     for (let i = S.mail.length - 1; i >= 0 && S.mail.length > MAIL_MAX; i--){
       if (!S.mail[i].items.length) S.mail.splice(i, 1);
@@ -6204,8 +6340,9 @@ function takeMailItem(id, i){
     : addInvItem({key: it.key, name: it.name, ico: it.ico, stack: true, qty: it.qty || 1});
   if (!ok) return false;
   m.items.splice(i, 1);
-  m.read = true;
-  if (!m.items.length && m.autoDelete !== false) deleteMail(id);
+  /* Meddelandet ligger KVAR efter hämtning — man ska kunna läsa om vad man fick
+     och av vem. Det försvinner när tiden går ut eller när man raderar det själv. */
+  if (!m.read){ m.read = true; m.readAt = Date.now(); }
   renderInventory(); renderMail(); renderMailBadge(); save();
   return true;
 }
@@ -6220,11 +6357,12 @@ function takeAllMail(){
   }
   return took;
 }
-function deleteMail(id){
+function deleteMail(id, force){
   const i = S.mail.findIndex(m => m.id === id);
   if (i < 0) return false;
-  /* Ett meddelande med saker kvar raderas ALDRIG av misstag. */
-  if (S.mail[i].items.length) return false;
+  /* Ett meddelande med saker kvar raderas ALDRIG av ett oavsiktligt klick —
+     bara med force, som bara sätts efter en uttrycklig bekräftelse. */
+  if (S.mail[i].items.length && !force) return false;
   S.mail.splice(i, 1);
   renderMail(); renderMailBadge(); save();
   return true;
@@ -6233,6 +6371,7 @@ function markMailRead(id){
   const m = findMail(id);
   if (!m || m.read) return false;
   m.read = true;
+  m.readAt = Date.now();
   renderMailBadge(); save();
   return true;
 }
@@ -6265,7 +6404,62 @@ const ITEM_DEFS = {
   }
 };
 const BOOST_KEY_BY_ITEM = {boost_idle: 'idle', boost_expspd: 'expspd', boost_luck: 'luck'};
-function itemDef(row){ return (row && row.key && ITEM_DEFS[row.key]) || null; }
+/* ---------- HANDLARENS PAKET ----------
+   Vid femstjärnigt rykte skickar handlaren bud: kom förbi, jag har något åt dig.
+   Paketet hämtas PÅ PLATS hos handlaren, läggs i väskan, och kan sparas hur länge
+   som helst — ett oöppnat paket är en trevlig sak att äga. Det öppnas när man vill
+   och ger tre slag ur den regionens egen droppool, så ett rykte förtjänat långt ut
+   är värt mer än ett i hemregionen utan att någon separat tabell behövs.
+   Paketet bär sin region i nyckeln, därför en egen definition per region skapad i
+   farten i stället för en fast lista. */
+const BUNDLE_DROPS = 3;
+function bundleKey(regionId){ return 'bundle_' + regionId; }
+function isBundleKey(k){ return typeof k === 'string' && k.indexOf('bundle_') === 0; }
+function bundleRegionOf(k){ return isBundleKey(k) ? k.slice('bundle_'.length) : null; }
+function bundleDef(regionId){
+  const R = REGIONS[regionId];
+  return {
+    name: (R ? R.name : 'Vendor') + ' Care Package',
+    ico: '🎁',
+    kind: 'Consumable',
+    desc: 'A parcel from the ' + (R ? R.name : 'local') + ' vendor. Open it for ' +
+          BUNDLE_DROPS + ' pieces of gear from that region. Keep it as long as you like.',
+    sell: GOLD(0)
+  };
+}
+/* Öppnandet kräver plats för ALLA tre — annars vore det oklart vad man förlorade. */
+function openBundle(idx){
+  const row = S.inv[idx];
+  if (!row || !isBundleKey(row.key)) return false;
+  const region = bundleRegionOf(row.key);
+  if (!REGIONS[region]) return false;
+  let free = 0;
+  for (let i = 0; i < invSlots(); i++) if (!S.inv[i]) free++;
+  /* Paketets egen ruta blir ledig när det öppnas, om det var sista i stapeln. */
+  if (row.qty <= 1) free++;
+  if (free < BUNDLE_DROPS){
+    spawnFloat({text: 'Need ' + BUNDLE_DROPS + ' free slots'});
+    return false;
+  }
+  row.qty--;
+  if (row.qty <= 0) S.inv[idx] = null;
+  const got = [];
+  for (let i = 0; i < BUNDLE_DROPS; i++){
+    const rar = rollRarity(gearWeightsFor(region), Math.random());
+    const g = rollItem(pickItemKey(rar), rar);
+    g.src = REGIONS[region].name + ' care package';
+    const f = invFirstFree();
+    if (f >= 0){ S.inv[f] = {gear: g}; got.push(g); }
+  }
+  renderInventory(); updateUI(true); save();
+  return got;
+}
+/* Paketen finns inte i ITEM_DEFS — de skapas per region — så uppslagningen känner
+   igen dem på nyckeln och bygger definitionen i farten. */
+function itemDef(row){
+  if (row && isBundleKey(row.key)) return bundleDef(bundleRegionOf(row.key));
+  return (row && row.key && ITEM_DEFS[row.key]) || null;
+}
 /* Regionresor: priset är SUMMAN av ringstegen (spelarens beslut) — inga rabatter
    för långa hopp, ingen billigare hemresa. Hela världen i ett svep = 95, alltså
    nästan full tank: spelets längsta resa är också dess största beslut. */
@@ -6747,6 +6941,8 @@ function openZone(regionId, zi, keepNote){
     vendorTab = b.dataset.vtab;
     openZone(regionId, zi, true);
   }));
+  const gbtn = $('vendor-gift');
+  if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); openZone(regionId, zi, true); });
   if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
   $('region-body').querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
     buyBoost(regionId, b.dataset.buyboost);
@@ -6915,6 +7111,13 @@ function buildTrader(regionId){
     '</div></div>';
   /* Flaskorna: samma sorts rad som cellen, en per boost. De stackar och köps med
      guld, så de är en guldsänka som inte kräver att man reser någonstans särskilt. */
+  /* Väntar ett femstjärnepaket ligger det ÖVERST — det är dit man rest. */
+  if (vendorGiftReady(regionId)){
+    sup = '<div class="trader-row gift"><div class="tr-item">' +
+      '<span class="tr-ico">🎁</span><div><div class="tr-name">Care Package</div>' +
+      '<div class="tr-sub">Set aside for you · ★★★★★ reputation</div></div></div>' +
+      '<div class="tr-buy">' + btn('Collect', ' id="vendor-gift"', true) + '</div></div>' + sup;
+  }
   sup += Object.keys(BOOST_KEY_BY_ITEM).map(key => {
     const D = ITEM_DEFS[key], B = BOOSTS[BOOST_KEY_BY_ITEM[key]];
     const p = boostPrice(key, regionId);
