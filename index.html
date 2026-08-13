@@ -1487,16 +1487,28 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 }
 .vendor-tab:hover{color:var(--text);border-color:var(--border-glow)}
 .vendor-tab.on{background:rgba(56,232,255,.12);border-color:var(--cyan-dim);color:var(--cyan)}
-/* Aktiva flaskor: en bricka per boost, med tiden som återstår. */
-.boost-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;min-height:0}
-.boost-chip{
-  display:flex;align-items:center;gap:6px;
-  padding:4px 10px;border-radius:999px;
-  background:rgba(56,232,255,.10);border:1px solid var(--cyan-dim);
-  font-size:11px;font-weight:800;letter-spacing:.04em;color:var(--text);
+/* Aktiva flaskor: en lodrät lista uppe till vänster i scenen. Bara ikonen i sin
+   cirkel plus tiden — texten om vad boosten gör bor i hovringen, så listan aldrig
+   växer över halva skärmen när tre boostar går samtidigt. */
+.boost-bar{
+  position:absolute;left:10px;top:10px;z-index:4;
+  display:flex;flex-direction:column;gap:6px;align-items:flex-start;
+  pointer-events:none;                 /* listan får inte skugga kärnan för klick */
 }
-.boost-chip .bc-ico{font-size:13px}
-.boost-chip .bc-time{font-family:var(--font-mono);color:var(--cyan)}
+.boost-chip{
+  display:flex;align-items:center;gap:7px;
+  pointer-events:auto;cursor:default;
+}
+.boost-chip .bc-ico{
+  width:28px;height:28px;flex:0 0 auto;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  background:rgba(56,232,255,.12);border:1px solid var(--cyan-dim);
+  box-shadow:0 2px 10px rgba(0,0,0,.45);
+}
+.boost-chip .bc-time{
+  font-family:var(--font-mono);font-size:11px;font-weight:800;color:var(--cyan);
+  text-shadow:0 1px 3px rgba(0,0,0,.85);
+}
 .inv-toprow{display:flex;align-items:center;justify-content:flex-start;margin-bottom:10px}
 /* Sortering och platsräknaren bor i en EGEN ruta under titelraden, byggd av samma
    delar som titelrutan — då står väskraden fri och rymmer alla fem facken. */
@@ -1876,6 +1888,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 
         <!-- Placeholder-yta: byt mot canvas/animation i spelet -->
         <div class="core-stage" id="core-stage">
+          <!-- Aktiva flaskor: bara ikonen och tiden, uppe i vänstra hörnet av
+               scenen. Vad boosten gör står i hovringen, inte på skärmen jämt. -->
+          <div class="boost-bar" id="boost-bar"></div>
           <div class="core-wrap core-alive" id="core-wrap">
             <div class="core-hex" id="core-hex">
               <svg viewBox="0 0 200 200" width="212" height="212" class="core-svg">
@@ -1916,8 +1931,6 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         </div>
 
         <div class="tap-block">
-          <!-- Aktiva flaskor, med nedräkning. Tom rad när inget går. -->
-          <div class="boost-bar" id="boost-bar"></div>
           <div class="hold-hint" id="hold-hint">HOLD CORE TO COLLECT DATA</div>
           <div class="hold-meter" id="hold-meter"><div class="hold-meter-fill" id="hold-meter-fill"></div></div>
           <div class="tap-meta"><span>CRIT <b id="critx-now">×5</b> · <b id="crit-now">5%</b></span><span>RATE <b id="rate-now">4.0/s</b></span><span>BONUS <b id="mult-now">×1.00</b></span></div>
@@ -6814,11 +6827,30 @@ function renderBoostBar(){
   for (const k in BOOSTS){
     const left = boostLeft(k);
     if (left <= 0) continue;
-    h += '<div class="boost-chip"><span class="bc-ico">' + BOOSTS[k].ico + '</span>' +
-      '<span>+' + BOOSTS[k].pct + '% ' + BOOSTS[k].what + '</span>' +
+    const B = BOOSTS[k];
+    h += '<div class="boost-chip" data-boost="' + k + '">' +
+      '<span class="bc-ico">' + B.ico + '</span>' +
       '<span class="bc-time">' + fmtDur(left) + '</span></div>';
   }
   bar.innerHTML = h;
+  hookBoostTips(bar);
+}
+/* Hovringen berättar vad boosten gör. Samma kort som allt annat i spelet använder,
+   så det ser likadant ut och stängs på samma sätt. */
+function hookBoostTips(bar){
+  if (bar.dataset.tipped) return;
+  bar.dataset.tipped = '1';
+  bar.addEventListener('mouseover', e => {
+    const chip = e.target.closest('[data-boost]');
+    if (!chip) return;
+    const B = BOOSTS[chip.dataset.boost];
+    if (!B) return;
+    showPlainTip('<b>' + B.name + '</b><br>+' + B.pct + '% ' + B.what, e.clientX, e.clientY);
+  });
+  bar.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
+  bar.addEventListener('mouseout', e => {
+    if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-boost]')) hideGearTip();
+  });
 }
 function tickVendorClock(){
   if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
@@ -7199,6 +7231,13 @@ function stackTipHTML(row){
 function showStackTip(row, x, y, above){
   gearTip.style.setProperty('--rc', 'var(--cyan)');
   gearTip.innerHTML = stackTipHTML(row);
+  gearTip.classList.add('on');
+  moveGearTip(x, y, above);
+}
+/* Ett kort med ren text — för sådant som inte är en pjäs eller en stapel. */
+function showPlainTip(html, x, y, above){
+  gearTip.style.setProperty('--rc', 'var(--cyan)');
+  gearTip.innerHTML = '<div class="gt-name" style="color:var(--text)">' + html + '</div>';
   gearTip.classList.add('on');
   moveGearTip(x, y, above);
 }
