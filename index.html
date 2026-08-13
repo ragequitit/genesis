@@ -703,6 +703,24 @@ body.dragging *{cursor:grabbing !important}
       linear-gradient(180deg,#0b1024,#070a16);
   }
 }
+/* ---------- LEVANDE FOND (v0.71.0) ----------
+   Videon ar en BAKGRUND, inte en spelare. Den ligger underst i rutan, gar aldrig
+   att traffa med muspekaren och visas forst nar den faktiskt spelar - darfor
+   opacity 0 fran start. Tills dess (och for alltid om filen inte gar att spela)
+   syns stillbilden som redan ligger i .hero, med sin egen morkning. Nar videon
+   tar over gors morkningen om till ett eget lager OVANPA den, med exakt samma
+   varden, sa texten ar lika lasbar och overgangen inte syns. */
+.hero-video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  z-index:0;pointer-events:none;border:0;background:transparent;
+  opacity:0;transition:opacity .45s ease;
+}
+.hero.hasvideo .hero-video{opacity:1}
+.hero.hasvideo::after{
+  content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6));
+}
 .hero-head{text-align:center;padding-top:6px;z-index:2}
 .hero-title{font-size:30px;font-weight:900;letter-spacing:.06em;margin:0 0 2px;text-shadow:0 0 24px rgba(56,232,255,.35)}
 .hero-bonus{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
@@ -710,7 +728,7 @@ body.dragging *{cursor:grabbing !important}
 
 /* Core-visualisering (placeholder-yta för animation/canvas) */
 .core-stage{
-  position:relative;flex:1;width:100%;min-height:220px;
+  position:relative;flex:1;width:100%;min-height:220px;z-index:2;
   display:flex;align-items:center;justify-content:center;
 }
 /* Datakärnan — referenskonsten från spelarens andra bygge, integrerad rakt av.
@@ -1779,7 +1797,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
    max-width från .modal måste släppas, precis som för de andra flytande. */
 /* Ingen overflow på själva fönstret — emblemet hänger 30px ovanför kanten och
    klipptes bort. Innehållet rullar i stället i sin egen behållare. */
-.pets-modal{width:420px;max-width:none}
+.pets-modal{width:420px;max-width:calc(100vw - 16px)}
 .pets-scroll{max-height:66vh;overflow-y:auto;overscroll-behavior:contain}
 /* Handlar- och regionkortet: flyttbart som de andra. SAMMA fälla som husdjuren —
    overflow på fönstret klipper emblemet, så rullningen ligger på innehållet. */
@@ -1838,6 +1856,26 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 }
 .pet-set.on{border-color:var(--cyan-dim);color:var(--cyan);cursor:default}
 .pets-empty{font-size:10px;color:var(--text-dim);text-align:center;padding:10px;border:1px dashed var(--border-soft);border-radius:9px}
+/* NIVAERNA (v0.70.0): niva, matare och de tva knapparna. Matare och knappar far
+   inte tvinga raden bredare - texten kortas hellre. */
+.pet-row .pr-lvl{font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--cyan)}
+.pr-bar{height:4px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border-soft);margin-top:4px;overflow:hidden}
+.pr-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan))}
+.pr-bar.max i{background:linear-gradient(90deg,#7a5cff,var(--cyan))}
+.pr-btns{display:flex;flex-direction:column;gap:4px;align-items:stretch}
+.pet-btn{
+  border:1px solid var(--border-soft);background:transparent;color:var(--text-dim);
+  border-radius:99px;padding:4px 9px;font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;white-space:nowrap;
+}
+.pet-btn:hover{color:var(--text);border-color:var(--border-glow)}
+.pet-btn.go{border-color:var(--cyan-dim);color:var(--cyan)}
+.pet-btn.danger{border-color:#ff6a6a;color:#ff8a8a}
+.pr-ask{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:200px}
+.pr-ask span{font-size:9px;color:var(--text-dim)}
+.pr-ask span.warn{color:#ff8a8a}
+.dust-line{font-size:10px;color:var(--text-dim);margin:-4px 0 8px}
+.dust-line b{color:var(--text);font-weight:800}
 #pet-slot-active.haspet{border-style:solid;padding:4px}
 #pet-slot-active.haspet .pet-sprite{width:100%;height:100%}
 </style>
@@ -2260,6 +2298,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="section-label" id="pet-coll-label">Collection</div>
         <div class="pet-coll" id="pet-coll"></div>
         <div class="section-label">Your Pets</div>
+        <div class="dust-line" id="pet-dust"></div>
         <div class="pet-owned" id="pet-owned"></div>
       </div>
     </div>
@@ -2374,7 +2413,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.69.2 — EMBLEMET SYNS</div>
+            <div class="desc">GENESIS v0.71.0 — LEVANDE FOND</div>
           </div>
         </div>
       </div>
@@ -2400,7 +2439,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.69.2 — EMBLEMET SYNS</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.71.0 — LEVANDE FOND</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2517,8 +2556,9 @@ const GEAR_RAR = [
 ];
 /* Egenskaper som ALLA sex platser kan rulla. Ring och halsband får en egen pool när
    de finns. Loot Luck är med från start eftersom den styr just gear-droppen.
-   Utelämnade tills systemen finns: Echo XP (husdjur saknar nivåer), Boost Duration
-   (inga flaskor). Capsule Cost struken av spelaren. */
+   Utelämnade tills spelaren säger till: Echo XP (husdjuren HAR nivåer sedan
+   v0.70.0, så egenskapen är inte längre blockerad - den ar bara inte tillagd) och
+   Boost Duration (flaskorna finns sedan v0.65.0, samma sak). Capsule Cost struken. */
 const AFFIXES = {
   idle:    {name:'Idle Data',        lo:1.73, hi:2.27, sfx:'%'},
   tap:     {name:'Tap Power',        lo:2.03, hi:2.67, sfx:'%'},
@@ -2795,7 +2835,51 @@ function rollRarity(weights, rnd){
   for (let i = 0; i < weights.length; i++){ x -= weights[i]; if (x < 0) return i; }
   return weights.length - 1;
 }
-function petVal(p){ return Math.round(PETS[p.sp].base * RARITIES[p.rar].mult * 10) / 10; }
+/* ---------- HUSDJURENS NIVAER (v0.70.0) ----------
+   Tio nivaer. Full niva ger +50 % pa husdjurets EGEN siffra, alltsa exakt ETT
+   sallsynthetssteg: en maxad common blir lika bra som en fars uncommon, aldrig
+   battre. Sallsyntheten gar aldrig att hoja - den rullas nar cachen oppnas och
+   ligger fast. Sammanslagning av dubbletter provades i design och forkastades:
+   den ar matematiskt samre an att oppna fler cacher anda upp till epic, och
+   over epic vill vi inte ha den alls.
+   NIVAN LAGRAS ALDRIG - den raknas ur XP:n. Tva tal som beskriver samma sak
+   glider forr eller senare isar. */
+const PET_MAX_LVL = 10;
+const PET_XP_SHARE = 0.15;                    /* andel av din egen XP som droppar ner i laget */
+const DUST_XP = 25;                           /* vad ett dammkorn ar vart i husdjurs-XP */
+const DUST_YIELD = [2, 6, 16, 40, 100, 250];  /* atervinning per sallsynthetssteg */
+function petXpToNext(lvl){ return lvl >= PET_MAX_LVL ? Infinity : Math.round(40 * Math.pow(lvl, 1.6)); }
+const PET_XP_MAX = (function(){ let t = 0; for (let l = 1; l < PET_MAX_LVL; l++) t += petXpToNext(l); return t; })();
+function petLevelInfo(xp){
+  let lvl = 1, rem = Math.max(0, xp || 0);
+  while (lvl < PET_MAX_LVL && rem >= petXpToNext(lvl)){ rem -= petXpToNext(lvl); lvl++; }
+  return {lvl: lvl, into: rem, need: lvl >= PET_MAX_LVL ? 0 : petXpToNext(lvl)};
+}
+function petLvl(p){ return petLevelInfo(p.xp).lvl; }
+function petLvlMult(lvl){ return 1 + 0.5 * (lvl - 1) / (PET_MAX_LVL - 1); }
+function petVal(p){ return Math.round(PETS[p.sp].base * RARITIES[p.rar].mult * petLvlMult(petLvl(p)) * 10) / 10; }
+/* Bara husdjur i det AKTIVA laget far XP - banken tjanar ingenting. Laget ar en
+   plats i dag och tak tre, sa listan har redan den form den ska ha. */
+function activeTeam(){ const a = activePet(); return a ? [a] : []; }
+function grantPetXP(n){
+  const share = n * PET_XP_SHARE;
+  if (!(share > 0)) return;
+  for (const p of activeTeam()){
+    if (p.xp >= PET_XP_MAX) continue;
+    const before = petLvl(p);
+    p.xp = Math.min(PET_XP_MAX, (p.xp || 0) + share);
+    if (petLvl(p) > before) petLevelUpFx(p);
+  }
+}
+function petLevelUpFx(p){
+  spawnFloat({text: PETS[p.sp].name + ' Lv ' + petLvl(p)});
+  renderPetPanel();
+  if ($('pets-overlay').classList.contains('open')) renderPets();
+}
+function feedAmount(p){
+  const need = Math.ceil((PET_XP_MAX - (p.xp || 0)) / DUST_XP);
+  return Math.max(0, Math.min(S.pets.dust, need));
+}
 function activePet(){ return S.pets.owned.find(o => o.uid === S.pets.active) || null; }
 function petBonusPct(fam){
   const a = activePet();
@@ -2808,7 +2892,7 @@ function petExtraFrags(rnd){
 
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
-  pets: {owned: [], active: null, seq: 1},
+  pets: {owned: [], active: null, seq: 1, dust: 0},
   equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
   bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
@@ -3037,8 +3121,10 @@ function load(){
         if (Array.isArray(d.pets.owned))
           S.pets.owned = d.pets.owned
             .filter(p => p && PETS[p.sp] && +p.rar >= 0 && +p.rar <= 5 && +p.uid > 0)
-            .map(p => ({uid: +p.uid, sp: p.sp, rar: Math.floor(+p.rar)}));
+            .map(p => ({uid: +p.uid, sp: p.sp, rar: Math.floor(+p.rar),
+                        xp: Math.min(PET_XP_MAX, Math.max(0, +p.xp || 0))}));
         S.pets.seq = Math.max(1, Math.floor(+d.pets.seq) || 1, ...S.pets.owned.map(o => o.uid + 1));
+        S.pets.dust = Math.max(0, Math.floor(+d.pets.dust) || 0);
         if (d.pets.active != null && S.pets.owned.some(o => o.uid === d.pets.active)) S.pets.active = d.pets.active;
       }
       S.gold = Math.max(0, +d.gold || 0) * (moneyOld ? COPPER_PER_GOLD : 1);
@@ -3124,7 +3210,9 @@ let expGate = 0;
 /* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
    gränssnitt hör hemma i uppdateringsrutinen, inte här. */
 function grantXP(n){
-  S.xp += n * (1 + petBonusPct('xp') / 100 + gearBonus('xp') / 100);
+  const gained = n * (1 + petBonusPct('xp') / 100 + gearBonus('xp') / 100);
+  S.xp += gained;
+  grantPetXP(gained);
   const li = levelInfo();
   if (li.lvl > lastLevel){
     lastLevel = li.lvl;
@@ -7664,7 +7752,7 @@ function renderPetPanel(){
     slot.style.borderColor = rarCol(a.rar);
     slot.style.boxShadow = '0 0 12px -4px ' + rarCol(a.rar);
     slot.innerHTML = '<div class="pet-sprite" style="' + petSpriteVars(a.sp, 64) + ';border-color:' + rarCol(a.rar) + '">' + PETS[a.sp].name[0] + '</div>';
-    buff.textContent = PETS[a.sp].name + ' — ' + petEffText(a);
+    buff.textContent = PETS[a.sp].name + ' Lv ' + petLvl(a) + ' — ' + petEffText(a);
     cnt.textContent = '1/3';
   } else {
     slot.classList.add('empty'); slot.classList.remove('haspet');
@@ -7700,18 +7788,69 @@ function renderPets(){
   } else {
     coll.innerHTML = '<div class="pets-empty" style="grid-column:1/-1">Nothing to collect here</div>';
   }
+  $('pet-dust').innerHTML = S.pets.dust
+    ? '<b>✨ ' + S.pets.dust + ' Dust</b> — feed it to any pet, ' + DUST_XP + ' XP each'
+    : '<b>✨ 0 Dust</b> — recycle a pet you don\'t want to get some';
   const list = $('pet-owned');
   if (!S.pets.owned.length){
     list.innerHTML = '<div class="pets-empty">No pets yet — open a Cache</div>';
   } else {
     list.innerHTML = S.pets.owned.map(p => {
       const on = p.uid === S.pets.active;
+      const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
+      const pct = max ? 100 : Math.floor(li.into / li.need * 100);
+      const bar = max
+        ? '<div class="pr-bar max"><i style="width:100%"></i></div>'
+        : '<div class="pr-bar"><i style="width:' + pct + '%"></i></div>';
+      /* Tva steg pa bada de handelser som inte gar att angra: att mata bort dust
+         och att lamna ifran sig ett husdjur. Samma form som forsaljningen. */
+      let btns;
+      if (petAsk && petAsk.uid === p.uid && petAsk.act === 'feed'){
+        const spend = feedAmount(p);
+        const after = petLevelInfo(Math.min(PET_XP_MAX, p.xp + spend * DUST_XP)).lvl;
+        btns = '<div class="pr-ask"><span>Feed ' + spend + ' ✨ → Lv ' + after + '?</span>' +
+               '<button class="pet-btn go" data-dofeed="' + p.uid + '">Feed</button>' +
+               '<button class="pet-btn" data-petcancel="1">Cancel</button></div>';
+      } else if (petAsk && petAsk.uid === p.uid && petAsk.act === 'rec'){
+        btns = '<div class="pr-ask"><span class="warn">Recycle for ' + DUST_YIELD[p.rar] + ' ✨? Gone for good.</span>' +
+               '<button class="pet-btn danger" data-dorec="' + p.uid + '">Recycle</button>' +
+               '<button class="pet-btn" data-petcancel="1">Cancel</button></div>';
+      } else {
+        btns = '<div class="pr-btns">' +
+          '<button class="pet-set' + (on ? ' on' : '') + '" data-setpet="' + p.uid + '"' + (on ? ' disabled' : '') + '>' + (on ? 'Active' : 'Set Active') + '</button>' +
+          (max || !S.pets.dust ? '' : '<button class="pet-btn" data-feedpet="' + p.uid + '">Feed ✨</button>') +
+          (on ? '' : '<button class="pet-btn" data-recpet="' + p.uid + '">Recycle</button>') +
+          '</div>';
+      }
       return '<div class="pet-row"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 44) + ';border-color:' + rarCol(p.rar) + '">' + PETS[p.sp].name[0] + '</div>' +
-        '<div class="pr-main"><div class="pr-name">' + PETS[p.sp].name + ' <span class="pr-rar" style="color:' + rarCol(p.rar) + '">' + RARITIES[p.rar].name + '</span></div>' +
-        '<div class="pr-eff">' + petEffText(p) + '</div></div>' +
-        '<button class="pet-set' + (on ? ' on' : '') + '" data-setpet="' + p.uid + '"' + (on ? ' disabled' : '') + '>' + (on ? 'Active' : 'Set Active') + '</button></div>';
+        '<div class="pr-main"><div class="pr-name">' + PETS[p.sp].name +
+        ' <span class="pr-rar" style="color:' + rarCol(p.rar) + '">' + RARITIES[p.rar].name + '</span>' +
+        ' <span class="pr-lvl">Lv ' + li.lvl + (max ? ' · MAX' : '') + '</span></div>' +
+        '<div class="pr-eff">' + petEffText(p) + '</div>' + bar + '</div>' + btns + '</div>';
     }).join('');
   }
+}
+/* Vilken rad som star och fragar just nu - null nar ingen gor det. */
+let petAsk = null;
+function feedPet(uid){
+  const p = S.pets.owned.find(o => o.uid === uid);
+  if (!p) return;
+  const spend = feedAmount(p);
+  if (spend <= 0) return;
+  S.pets.dust -= spend;
+  p.xp = Math.min(PET_XP_MAX, (p.xp || 0) + spend * DUST_XP);
+  save(); renderPets(); renderPetPanel();
+}
+/* Det aktiva husdjuret gar aldrig att atervinna - det ar den enda spärr som
+   behovs for att ingen ska rada bort det man faktiskt anvander av misstag. */
+function recyclePet(uid){
+  const i = S.pets.owned.findIndex(o => o.uid === uid);
+  if (i < 0) return;
+  const p = S.pets.owned[i];
+  if (p.uid === S.pets.active) return;
+  S.pets.dust += DUST_YIELD[p.rar];
+  S.pets.owned.splice(i, 1);
+  save(); renderPets(); renderPetPanel();
 }
 function showReveal(pet){
   $('cache-reveal').innerHTML =
@@ -7726,13 +7865,14 @@ function openCache(){
   S.frags -= CACHE_COST;
   const sp = pool[Math.floor(Math.random() * pool.length)];
   const rar = rollRarity(CACHE_WEIGHTS_T0, Math.random());
-  const pet = {uid: S.pets.seq++, sp: sp, rar: rar};
+  const pet = {uid: S.pets.seq++, sp: sp, rar: rar, xp: 0};
   S.pets.owned.push(pet);
   if (S.pets.active == null) S.pets.active = pet.uid;
   save(); renderPets(); renderPetPanel(); showReveal(pet);
 }
 function openPetsModal(){
   $('cache-reveal').innerHTML = '';
+  petAsk = null;
   renderPets();
   const w = $('pets-overlay');
   const wasOpen = w.classList.contains('open');
@@ -7771,12 +7911,26 @@ $('pets-close').addEventListener('click', () => $('pets-overlay').classList.remo
 $('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
 $('cache-buy').addEventListener('click', openCache);
 $('pet-owned').addEventListener('click', e => {
-  const b = e.target.closest('[data-setpet]');
-  if (!b) return;
-  const uid = +b.dataset.setpet;
-  if (!S.pets.owned.some(o => o.uid === uid)) return;
-  S.pets.active = uid;
-  save(); renderPets(); renderPetPanel();
+  const t = e.target;
+  const set = t.closest('[data-setpet]'), feed = t.closest('[data-feedpet]'),
+        rec = t.closest('[data-recpet]'), doFeed = t.closest('[data-dofeed]'),
+        doRec = t.closest('[data-dorec]'), cancel = t.closest('[data-petcancel]');
+  if (set){
+    const uid = +set.dataset.setpet;
+    if (!S.pets.owned.some(o => o.uid === uid)) return;
+    S.pets.active = uid; petAsk = null;
+    save(); renderPets(); renderPetPanel();
+  } else if (feed){
+    petAsk = {uid: +feed.dataset.feedpet, act: 'feed'}; renderPets();
+  } else if (rec){
+    petAsk = {uid: +rec.dataset.recpet, act: 'rec'}; renderPets();
+  } else if (doFeed){
+    petAsk = null; feedPet(+doFeed.dataset.dofeed);
+  } else if (doRec){
+    petAsk = null; recyclePet(+doRec.dataset.dorec);
+  } else if (cancel){
+    petAsk = null; renderPets();
+  }
 });
 renderPetPanel();
 
@@ -8887,6 +9041,53 @@ renderAchBadge();
 applyVaultTone();
 window.addEventListener('pagehide', () => { if (!resetInProgress) save(); });
 window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); });
+/* ---------- LEVANDE FOND I KARNRUTAN (v0.71.0) ----------
+   Elementet SKAPAS bara nar det ska spelas: pa telefon och med minskad rorelse
+   finns det inte alls, sa ingen fil laddas ned i onodan. Ljudlos, utan kontroller,
+   utan bild-i-bild och genomskinlig for muspekaren - den kan varken pausas eller
+   klickas pa av misstag. Gar filen inte att spela tas elementet bort helt och
+   stillbilden star kvar; rutan kan aldrig bli svart. */
+(function heroVideo(){
+  const hero = $('panel-home-server');
+  if (!hero) return;
+  if (reduceMotion) return;                                        /* spelaren har bett om lugn */
+  if (window.matchMedia('(max-width:820px)').matches) return;      /* telefonen behaller stillbilden */
+  const v = document.createElement('video');
+  v.className = 'hero-video';
+  v.id = 'hero-video';
+  v.muted = true; v.defaultMuted = true; v.loop = true; v.autoplay = true;
+  v.playsInline = true; v.controls = false; v.preload = 'auto';
+  v.disablePictureInPicture = true;
+  /* Attributen sätts ocksa som riktiga attribut: vissa lasare laser dem darifran
+     nar de avgor om en video far starta av sig sjalv. */
+  ['muted', 'loop', 'autoplay', 'playsinline'].forEach(a => v.setAttribute(a, ''));
+  v.setAttribute('aria-hidden', 'true');
+  v.setAttribute('tabindex', '-1');
+  /* Tva namn, eftersom filen heter olika i spelarens repo och i hans beskrivning.
+     Lasaren gar vidare till nasta rad om den forsta inte gar att hamta. */
+  const SOURCES = ['assets/bg/bg_data_node.mp4', 'assets/bg/background_video.mp4'];
+  let dead = 0;
+  SOURCES.forEach(src => {
+    const so = document.createElement('source');
+    so.src = src; so.type = 'video/mp4';
+    so.addEventListener('error', () => { if (++dead >= SOURCES.length) drop(); });
+    v.appendChild(so);
+  });
+  function drop(){ hero.classList.remove('hasvideo'); v.remove(); }
+  v.addEventListener('error', drop);
+  /* Klassen sätts forst nar en bildruta faktiskt syns - da byts stillbilden mot
+     videon i en mjuk overgang och morkningen flyttar med. */
+  v.addEventListener('playing', () => hero.classList.add('hasvideo'));
+  hero.insertBefore(v, hero.firstChild);
+  const tryPlay = () => { const pr = v.play(); if (pr && pr.catch) pr.catch(() => {}); };
+  tryPlay();
+  /* Samma regel som musiken: goms fliken stannar den och drar ingen strom. */
+  document.addEventListener('visibilitychange', () => {
+    if (!v.isConnected) return;
+    if (document.hidden) v.pause(); else tryPlay();
+  });
+})();
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden'){
     Sound.stopMusic();
