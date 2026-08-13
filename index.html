@@ -2304,7 +2304,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.67.0 — INKORGEN</div>
+            <div class="desc">GENESIS v0.67.2 — VÄSKA PÅ KÖPET</div>
           </div>
         </div>
       </div>
@@ -2330,7 +2330,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.67.0 — INKORGEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.67.2 — VÄSKA PÅ KÖPET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2764,6 +2764,7 @@ let S = {
      UTBRUTEN till ett eget litet fönster (facket är släckt). Bara en flagga per
      fack — inga pjäser flyttas, platsnumren är orörda. */
   mail: [],                 // inkorgen — se addMail för meddelandets form
+  vendTip: {},              // senaste tipset per region, så det blir högst ett per dygn
   boosts: {},               // aktiva flaskor: {nyckel: utgångstid i ms}
   vaultTone: 'green',       // valvets färgton: green (standard) | bronze | red
   bagOpen: [false, false, false, false, false],
@@ -2886,6 +2887,9 @@ function load(){
       });
       /* Posten läses med samma stränghet som väskan: bara giltiga pjäser och kända
          staplar överlever, och aldrig fler meddelanden än taket. */
+      if (d.vendTip && typeof d.vendTip === 'object'){
+        for (const k in d.vendTip){ const v = +d.vendTip[k]; if (isFinite(v) && v > 0) S.vendTip[k] = v; }
+      }
       if (Array.isArray(d.mail)){
         S.mail = d.mail.slice(0, MAIL_MAX).map(m => {
           if (!m || !m.subject) return null;
@@ -3038,6 +3042,7 @@ function levelInfo(){
 }
 let lastLevel = 1;
 let lastAchCheck = 0;
+let lastTipCheck = 0;
 let expGate = 0;
 /* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
    gränssnitt hör hemma i uppdateringsrutinen, inte här. */
@@ -3088,6 +3093,55 @@ function repRank(regionId){
   let r = 0; for (const th of REP_THRESH){ if (t >= th) r++; } return r;
 }
 function repBonusMult(){ return 1 + 0.02 * repRank(); }
+/* ---------- HANDLARENS TIPS ----------
+   En handlare som verkligen litar på dig lägger undan saker. Vid fyra stjärnor
+   kommer en epic-pjäs, vid fem en rare eller bättre — HÖGST en per region och dygn,
+   så det förblir en trevlig överraskning och inte en inkomstkälla man optimerar.
+   Tipset skickas bara för regioner man faktiskt SETT; annars vore det post från
+   främlingar. */
+const VENDOR_TIP_MS = 24 * 3600 * 1000;
+const VENDOR_TIP_MIN_RANK = 4;
+function vendorTipRarity(rank){
+  /* 4★ ger epic (4). 5★ ger rare eller bättre — alltså 3, 4 eller 5, viktat mot
+     det ovanliga, eftersom fem stjärnor tar en vecka att nå. */
+  if (rank >= 5){
+    const r = Math.random();
+    return r < 0.45 ? 3 : r < 0.85 ? 4 : 5;
+  }
+  return 4;
+}
+function vendorTipDue(regionId){
+  if (!isKnown(regionId)) return false;
+  if (repRank(regionId) < VENDOR_TIP_MIN_RANK) return false;
+  const last = (S.vendTip && S.vendTip[regionId]) || 0;
+  return Date.now() - last >= VENDOR_TIP_MS;
+}
+function sendVendorTip(regionId){
+  if (!vendorTipDue(regionId)) return false;
+  const rank = repRank(regionId);
+  const rar = vendorTipRarity(rank);
+  const g = rollItem(pickItemKey(rar), rar);
+  if (!g) return false;
+  g.src = REGIONS[regionId].name + ' vendor';
+  S.vendTip[regionId] = Date.now();
+  addMail({
+    from: REGIONS[regionId].name + ' Vendor',
+    src: 'vendortip',
+    subject: 'Set aside for you',
+    body: 'You have been good to this shop. This came in and I thought of you — ' +
+          '★'.repeat(rank) + ' reputation.',
+    items: [{gear: g}]
+  });
+  return true;
+}
+/* Körs i den vanliga loopen. Alla kända regioner prövas, men var och en har sitt
+   eget dygn, så tipsen sprids ut av sig själva. */
+function checkVendorTips(){
+  if (!S.vendTip) S.vendTip = {};
+  for (const id of S.world.known){
+    if (vendorTipDue(id)) sendVendorTip(id);
+  }
+}
 function fmtDur(sec){
   sec = Math.max(0, Math.round(sec));
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
@@ -3152,6 +3206,7 @@ function unlockVault(i){
   if (b.cur === 'gold'){ if (S.gold < b.cost) return false; S.gold -= b.cost; }
   else { if (S.credits < b.cost) return false; S.credits -= b.cost; }
   S.vault.bags[i] = true;
+  if (S.vault.bags.filter(Boolean).length === 1) giveStarterBag('vault');
   renderVault(); renderPremiumVaultBags(); updateUI(true); save();
   return true;
 }
@@ -4254,12 +4309,37 @@ function bagShortText(i){
   const b = BAG_SLOTS[i];
   return b.cur === 'gold' ? moneyText(Math.max(0, b.cost - S.gold)) : Math.max(0, b.cost - S.credits) + ' credits';
 }
+/* ---------- FÖRSTA FACKET BJUDER PÅ EN VÄSKA ----------
+   Ett tomt fack är obegripligt tills man har något att stoppa i det. Därför kommer
+   en fyrafacksväska med posten när man köper sitt FÖRSTA fack — i ryggsäcken och i
+   valvet var för sig. Den skickas som post och inte rakt ned i väskan av ett skäl:
+   posten förklarar vad som hänt och varför, och kan inte tappas bort om väskan
+   råkar vara full just då. Ett fack kan bara låsas upp en gång, så gåvan kan inte
+   upprepas. */
+function giveStarterBag(where){
+  const g = rollItem('bag_field_pouch', 0);
+  if (!g) return false;
+  g.src = 'First bag slot';
+  const isVault = where === 'vault';
+  addMail({
+    from: isVault ? 'Vault Keeper' : 'Quartermaster',
+    src: 'starterbag',
+    subject: 'A bag for your new slot',
+    body: 'You opened your first ' + (isVault ? 'vault' : 'backpack') +
+          ' bag slot. Here is something to put in it — fit it into the slot to add its ' +
+          ITEMS.bag_field_pouch.bag + ' places.',
+    items: [{gear: g}]
+  });
+  return true;
+}
 function unlockBag(i){
   if (i < 0 || i >= BAG_SLOTS.length || bagUnlocked(i)) return false;
   const b = BAG_SLOTS[i];
   if (!bagAfford(i)) return false;
   if (b.cur === 'gold') S.gold -= b.cost; else S.credits -= b.cost;
   S.bags[i] = true;
+  /* Bara det ALLRA första facket — inte vart och ett. */
+  if (S.bags.filter(Boolean).length === 1) giveStarterBag('inv');
   renderInventory(); renderPremiumBags(); renderPremiumVaultBags(); updateUI(true); save();
   return true;
 }
@@ -5625,6 +5705,10 @@ function loopBody(now){
 
   // Forskningsdrönarna
   checkResearch();
+
+  /* Handlarnas tips — dygnsklockan gör att detta nästan alltid är ett no-op, så
+     det kostar inget att pröva ofta. */
+  if (now - lastTipCheck > 30000){ lastTipCheck = now; checkVendorTips(); }
 
   // Ankomstkontroll för resande
   checkTravel();
