@@ -208,7 +208,12 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-layout{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center}
 /* Panelens egen fond — bilden överst, panelens vanliga toning kvar under som reserv */
 #panel-character{
-  background:url('assets/bg/bg_character_2.png') center/cover no-repeat,
+  /* Ett dämpande lager LÄGGS ÖVER bilden: kretskortet syns kvar men träder tillbaka
+     med 20%. Att sänka bildens egen opacity hade krävt ett extra element, eftersom
+     background-image inte kan tonas för sig — den här gradienten är ett jämnt
+     halvgenomskinligt täcke i panelens egen färg. */
+  background:linear-gradient(rgba(10,14,32,.20), rgba(10,14,32,.20)),
+             url('assets/bg/bg_character_2.png') center/cover no-repeat,
              linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
 }
 
@@ -946,14 +951,19 @@ body.dragging *{cursor:grabbing !important}
 .exp-add .cost{color:var(--violet);font-family:var(--font-mono);font-weight:800}
 
 /* --- QUICK ACCESS --- */
-.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+/* FEM i bredd: två rader ger tio platser. Rutorna blir smalare, men ikonen och
+   texten VÄXER — det är innehållet som ska synas, inte ramen runt det. */
+.qa-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .qa-btn{
   position:relative;aspect-ratio:1/0.95;border-radius:var(--radius-sm);cursor:pointer;
   background:var(--bg-row);border:1px solid var(--border-soft);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  transition:border-color .15s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  padding:2px;transition:border-color .15s;
 }
 .qa-btn:hover{border-color:var(--border-glow)}
+/* Lediga platser: syns som rutor men reagerar inte och lyser inte upp. */
+.qa-btn.empty{opacity:.35;cursor:default;border-style:dashed}
+.qa-btn.empty:hover{border-color:var(--border-soft)}
 /* De ritade ikonerna. En klass, en bild — samma fil används överallt där en
    viss sak nämns, så inventariet ser likadant ut i snabbknappen, i emblemet och
    på karaktärsbladets knapp. */
@@ -970,13 +980,17 @@ body.dragging *{cursor:grabbing !important}
 .qi-friends{background-image:url('assets/ui/friends.png')}
 .qi-guild{background-image:url('assets/ui/guild.png')}
 /* I snabbknapparna och emblemen får de ta mer plats än en textrad. */
-.qa-btn .ico .qi{width:30px;height:30px}
+.qa-btn .ico .qi{width:33px;height:33px}
 .nav-btn .ico .qi{width:22px;height:22px}
 .inv-emblem .qi{width:28px;height:28px}
 .bag-btn .qi{width:24px;height:24px}
 .u-ico .qi{width:22px;height:22px}
 .qa-btn .ico{font-size:22px}
-.qa-btn .lbl{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+/* Texten: 10% större, tyngre och ljusare — den var nätt intill oläslig i grått. */
+.qa-btn .lbl{
+  font-size:8.8px;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:800;color:var(--text);text-align:center;line-height:1.15;
+}
 /* Märket sitter numera på toppradens knapp — samma utseende, annan förälder. */
 .nav-btn{position:relative}
 .nav-btn .notif, .qa-btn .notif{
@@ -2114,6 +2128,10 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
           <div class="qa-btn"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-guild"></span></span><span class="lbl">Guild</span></div>
+          <!-- Två lediga platser: rutnätet rymmer tio, och tomma rutor är ärligare
+               än att sträcka ut åtta över fem kolumner. De fylls när vi har innehåll. -->
+          <div class="qa-btn empty" aria-hidden="true"></div>
+          <div class="qa-btn empty" aria-hidden="true"></div>
         </div>
       </section>
     </div>
@@ -2341,7 +2359,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.68.1 — RITADE IKONER</div>
+            <div class="desc">GENESIS v0.68.3 — TIO PLATSER</div>
           </div>
         </div>
       </div>
@@ -2367,7 +2385,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.68.1 — RITADE IKONER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.68.3 — TIO PLATSER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
