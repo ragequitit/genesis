@@ -688,8 +688,11 @@ body.dragging *{cursor:grabbing !important}
   position:relative;min-height:480px;overflow:hidden;
   display:flex;flex-direction:column;align-items:center;
   /* Spelarens bakgrundsbild överst; gradienterna under som fallback om filen saknas */
+  /* Morkningen ar AVSTANGD (v0.80.0) pa spelarens begaran, for att se hur lasbart
+     det faktiskt ar utan. Gradienten ligger kvar som en kommentar sa den gar att
+     satta tillbaka pa en rad:
+     linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6)), */
   background:
-    linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6)),
     url('assets/bg/bg_data_node.png?v=2') center/cover no-repeat,
     radial-gradient(ellipse at 50% 15%, rgba(56,140,255,.16), transparent 55%),
     radial-gradient(ellipse at 50% 100%, rgba(123,108,255,.14), transparent 60%),
@@ -698,7 +701,6 @@ body.dragging *{cursor:grabbing !important}
 @media (max-width:820px){
   .hero{
     background:
-      linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6)),
       url('assets/bg/bg_data_node_mobile.png?v=2') center/cover no-repeat,
       linear-gradient(180deg,#0b1024,#070a16);
   }
@@ -717,9 +719,11 @@ body.dragging *{cursor:grabbing !important}
   opacity:0;transition:opacity .45s ease;
 }
 .hero.hasvideo .hero-video{opacity:1}
+/* Videons morkning ar avstangd med samma beslut. Lagret finns kvar men ar tomt,
+   sa att bada halvorna slas pa igen pa samma stalle. */
 .hero.hasvideo::after{
   content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(180deg, rgba(7,10,22,.55), rgba(7,10,22,.25) 40%, rgba(7,10,22,.6));
+  background:none;
 }
 .hero-head{text-align:center;padding-top:6px;z-index:2}
 .hero-title{font-size:30px;font-weight:900;letter-spacing:.06em;margin:0 0 2px;text-shadow:0 0 24px rgba(56,232,255,.35)}
@@ -856,7 +860,10 @@ body.dragging *{cursor:grabbing !important}
 .mascot{position:absolute;bottom:8px;right:14%;font-size:40px;filter:drop-shadow(0 0 10px rgba(164,92,255,.5))}
 
 /* Tap-sektionen */
-.tap-block{z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:4px;width:100%}
+/* Raden med CRIT/RATE/BONUS ar borttagen (v0.80.0): den tickade langsamt uppat
+   under de trettio sekunder man haller och var inte vard sin plats. Texten och
+   mataren flyttar ner dit rutan lag i stallet for att lamna ett hal. */
+.tap-block{z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px;padding-bottom:26px;width:100%}
 .tap-btn{
   min-width:230px;padding:16px 40px;border-radius:14px;cursor:pointer;
   font-size:20px;font-weight:900;letter-spacing:.08em;color:#fff;
@@ -866,12 +873,6 @@ body.dragging *{cursor:grabbing !important}
   transition:transform .06s;
 }
 .tap-btn:active{transform:scale(.97)}
-.tap-meta{
-  display:flex;gap:14px;align-items:center;
-  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);
-  padding:7px 16px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);
-}
-.tap-meta b{color:var(--text);font-family:var(--font-mono)}
 .tap-counter{
   display:flex;gap:12px;align-items:center;
   background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);
@@ -2101,7 +2102,6 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="tap-block">
           <div class="hold-hint" id="hold-hint">HOLD CORE TO COLLECT DATA</div>
           <div class="hold-meter" id="hold-meter"><div class="hold-meter-fill" id="hold-meter-fill"></div></div>
-          <div class="tap-meta"><span>CRIT <b id="critx-now">×5</b> · <b id="crit-now">5%</b></span><span>RATE <b id="rate-now">4.0/s</b></span><span>BONUS <b id="mult-now">×1.00</b></span></div>
         </div>
       </section>
 
@@ -2466,7 +2466,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.79.0 — RULLADE HUSDJUR</div>
+            <div class="desc">GENESIS v0.80.0 — REN RUTA</div>
           </div>
         </div>
       </div>
@@ -2492,7 +2492,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.79.0 — RULLADE HUSDJUR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.80.0 — REN RUTA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4291,7 +4291,6 @@ const $ = id => document.getElementById(id);
 const el = {
   data: $('res-data'), dps: $('res-dps'),
   hex: $('core-hex'), coreWrap: $('core-wrap'), coreSpark: $('core-spark'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
-  crit: $('crit-now'), critx: $('critx-now'), rate: $('rate-now'), mult: $('mult-now'),
   list: $('machine-list'), shelf: $('milestone-shelf'), core: $('core-upgrades'),
   stage: $('core-stage'), saveStatus: $('save-status'), nextSave: $('next-save'),
   lvlBadge: $('lvl-badge'), lvlText: $('player-level-text'), xpFill: $('xp-fill'), xpLabel: $('xp-label'),
@@ -6313,13 +6312,6 @@ function updateUI(force){
 
   const p = holding ? Math.min(1, holdT / HOLD.duration) : 0;
   el.fill.style.width = (p * 100) + '%';
-  el.crit.textContent = (Math.round((HOLD.critBase + (HOLD.critMax - HOLD.critBase) * p) * 100 + gearBonus('crit')) ) + '%';
-  /* Multiplikatorn skrivs utan decimal när den är hel (×5), med en när gear
-     skjutit på den (×5.4) — ingen låtsasprecision. */
-  const cm = critMultNow();
-  el.critx.textContent = '×' + (Math.abs(cm - Math.round(cm)) < 0.005 ? Math.round(cm) : cm.toFixed(1));
-  el.rate.textContent = holdRate().toFixed(1) + '/s';
-  el.mult.textContent = '×' + (1 + (HOLD.incomeMaxMult - 1) * p).toFixed(2);
   const full = holding && holdT >= HOLD.duration;
   el.hint.textContent = full ? 'RELEASE & HOLD AGAIN' : 'HOLD CORE TO COLLECT DATA';
   el.hint.classList.toggle('full', full);
