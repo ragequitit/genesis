@@ -1443,7 +1443,10 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 /* Valvet är en HEL rektangel som fylls kolumnvis (uppifrån och ner, en kolumn i
    taget). Antal kolumner och rader sätts i JS efter spelarens progression
    4×5 → 6×5 → 8×5 → 10×5 → 10×6 → 10×7. */
-.vault-grid{display:grid;grid-auto-flow:column;gap:6px;justify-content:center}
+/* RADVIS fyllning, som väskan: plats 0 överst till vänster, sedan åt höger och ned.
+   Med kolumnvis flöde la sig en sortering som en stapel längs vänsterkanten i
+   stället för uppifrån — samma fel som väskan hade i v0.62.6. */
+.vault-grid{display:grid;grid-auto-flow:row;gap:6px;justify-content:flex-start}
 /* Väskemblemet: den runda ikonen som kikar ut över hörnet, som i förlagan */
 .inv-emblem{
   /* Uppe i MITTEN, halvt utanför ramen — uppe i vänstra hörnet låg för nära WoW. */
@@ -2217,7 +2220,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.64.4 — REN ÖPPNING</div>
+            <div class="desc">GENESIS v0.64.5 — VALVET SORTERAR UPPÅT</div>
           </div>
         </div>
       </div>
@@ -2243,7 +2246,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.4 — REN ÖPPNING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.5 — VALVET SORTERAR UPPÅT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2989,17 +2992,9 @@ function maxAffordable(b){
    man köper, inget att stoppa i den. Saker flyttas fritt mellan väskan och valvet
    med samma drag som allt annat. */
 const VAULT_BASE_SLOTS = 20;
-const VAULT_MAX_COLS = 10;        // taket på bredden, så rutnätet aldrig spränger ramen
-/* ---------- RUTNÄTETS FORM ----------
-   gridDims håller ett rutnät rektangulärt: fem rader högt, växer i bredd till taket
-   sedan nedåt. Ryggsäcken använder den (tak 4). Valvet räknar numera sina rutor från
-   isatta väskor och ritar sitt eget kolumn-major rutnät direkt i renderVault. */
-const GRID_ROWS = 5;
-function gridDims(slots, maxCols){
-  const capCols = GRID_ROWS * maxCols;
-  if (slots <= capCols) return {cols: Math.max(1, Math.round(slots / GRID_ROWS)), rows: GRID_ROWS};
-  return {cols: maxCols, rows: Math.ceil(slots / maxCols)};
-}
+/* Både väskan och valvet packas av packDims: minsta antal tomma rutor, fyra till
+   sex rader, hellre bred än hög. gridDims som fanns här byggde för KOLUMNVIS
+   fyllning och blev död när båda rutnäten gick över till radvis. */
 function vaultBagUnlocked(i){ return !!(S.vault.bags && S.vault.bags[i]); }
 function vaultBagIn(i){ return (S.vault.bagItems && S.vault.bagItems[i]) || null; }
 /* Platserna kommer från väskorna man satt i valvets fack — samma räkning som
@@ -3341,7 +3336,10 @@ function renderVault(){
      till tio kolumner — utan taket växte valvet ut ur sin egen ram när fler väskor
      sattes i. Över taket växer det nedåt i stället. */
   const idxs = mainVaultIndices();
-  const dim = gridDims(idxs.length, VAULT_MAX_COLS);
+  /* Samma packning som väskan: minsta möjliga antal tomma rutor, fyra till sex
+     rader, hellre bred än hög. gridDims byggdes för KOLUMNVIS fyllning och gav ett
+     smalt högt fält som såg fel ut när flödet blev radvis. */
+  const dim = packDims(idxs.length);
   let h = '';
   idxs.forEach(i => { h += vaultCellHTML(i); });
   grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
