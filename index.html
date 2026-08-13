@@ -121,7 +121,9 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 .hpanel .res-pill .res-icon{font-size:13px}
 /* Pengarutan bär tre valörer och blev trång på 72px — den enda som får vara bredare. */
-.hpanel .res-pill[data-color="gold"]{width:118px}
+/* Guldet visas nu i HELA tal, som kan bli långa. Rutan får växa med innehållet
+   men aldrig krympa under sin gamla bredd, så toppraden inte hoppar. */
+.hpanel .res-pill[data-color="gold"]{min-width:118px;width:auto}
 .hpanel .nav-btn{
   border:1px solid var(--border);background:var(--bg-inset);
   border-radius:9px;padding:4px 3px;
@@ -1475,6 +1477,16 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 }
 .inv-x:hover{color:var(--text);border-color:var(--border-glow)}
 .survey-skip-row{display:flex;justify-content:center;margin-top:10px}
+/* Handlarens två flikar. Samma språk som spelets övriga flikar: den valda bär
+   färgen, den andra är dämpad men fullt klickbar. */
+.vendor-tabs{display:flex;gap:6px;margin-bottom:10px}
+.vendor-tab{
+  flex:1;padding:8px 10px;border-radius:9px;cursor:pointer;
+  font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--bg-inset);border:1px solid var(--border-soft);color:var(--text-dim);
+}
+.vendor-tab:hover{color:var(--text);border-color:var(--border-glow)}
+.vendor-tab.on{background:rgba(56,232,255,.12);border-color:var(--cyan-dim);color:var(--cyan)}
 /* Aktiva flaskor: en bricka per boost, med tiden som återstår. */
 .boost-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;min-height:0}
 .boost-chip{
@@ -2233,7 +2245,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.65.1 — FLASKBALANS</div>
+            <div class="desc">GENESIS v0.66.1 — LÅNGA PENGATAL</div>
           </div>
         </div>
       </div>
@@ -2259,7 +2271,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.65.1 — FLASKBALANS</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.66.1 — LÅNGA PENGATAL</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2560,10 +2572,25 @@ function splitMoney(c){
    Lägre valörer nollställs aldrig bort mitt i — 1g 00s 07c ska synas som sådant. */
 /* Nollvalörer utelämnas helt — varje valör har egen bokstav och färg, så '1g 7c'
    är otvetydigt och '6g 0s 0c' vore bara brus. Är allt noll visas '0c'. */
+/* Pengar skrivs med HELA tal och tusenavskiljare — förkortningar som "1.2K guld"
+   döljer precis den skillnad man vill se när man räknar ihop ett köp. Övriga
+   resurser (Data, Fragments) behåller sina förkortningar; de blir astronomiska. */
+function fmtLong(n){
+  n = Math.floor(n);
+  if (!isFinite(n)) return '∞';
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+/* Bara guldet, i långt tal — för toppradens ruta. Silver och koppar syns i
+   hovringsrutan i stället, så siffran där uppe alltid går att läsa i ett ögonkast. */
+function goldOnlyText(c){ return fmtLong(splitMoney(c).g) + 'g'; }
+function moneyLongText(c){
+  const m = splitMoney(c);
+  return fmtLong(m.g) + 'g ' + m.s + 's ' + m.c + 'c';
+}
 function fmtMoney(c){
   const m = splitMoney(c);
   let out = '';
-  if (m.g) out += '<span class="co-g">' + fmt(m.g) + 'g</span>';
+  if (m.g) out += '<span class="co-g">' + fmtLong(m.g) + 'g</span>';
   if (m.s) out += '<span class="co-s">' + m.s + 's</span>';
   if (m.c || (!m.g && !m.s)) out += '<span class="co-c">' + m.c + 'c</span>';
   return '<span class="coins">' + out + '</span>';
@@ -2571,7 +2598,7 @@ function fmtMoney(c){
 function moneyText(c){
   const m = splitMoney(c);
   const p = [];
-  if (m.g) p.push(fmt(m.g) + 'g');
+  if (m.g) p.push(fmtLong(m.g) + 'g');
   if (m.s) p.push(m.s + 's');
   if (m.c || !p.length) p.push(m.c + 'c');
   return p.join(' ');
@@ -5437,7 +5464,9 @@ function updateUI(force){
   el.dps.textContent = fmt(totalDps()) + '/s';
   el.resCredits.textContent = fmt(S.credits);
   el.resFragments.textContent = fmt(S.frags);
-  el.resGold.innerHTML = fmtMoney(S.gold);
+  el.resGold.textContent = goldOnlyText(S.gold);
+  const gp = el.resGold.closest('.res-pill');
+  if (gp) gp.dataset.tip = moneyLongText(S.gold);
   el.resFuel.textContent = Math.floor(S.fuel) + '/' + fuelMax();
   refreshPremiumOffline();
   renderPremiumBags(); renderPremiumVaultBags();
@@ -6373,6 +6402,10 @@ function openZone(regionId, zi, keepNote){
   const tbuy = $('trader-buy');
   /* Rutan ritas om oavsett utfall: lyckas köpet syns kvittot, misslyckas det syns
      skälet. Ett tyst avslag är det värsta ett gränssnitt kan göra. */
+  $('region-body').querySelectorAll('[data-vtab]').forEach(b => b.addEventListener('click', () => {
+    vendorTab = b.dataset.vtab;
+    openZone(regionId, zi, true);
+  }));
   if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
   $('region-body').querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
     buyBoost(regionId, b.dataset.buyboost);
@@ -6529,7 +6562,10 @@ function buildTrader(regionId){
     '<button class="zx-btn tr-btn"' + attr + (enabled ? '' : ' disabled style="opacity:.5"') + '>' + label + '</button>';
   /* Knapparna är levande även på håll: trycker du på en säger boden ifrån i klartext
      i stället för att en varningsruta ska ta plats i kortet varje gång du tittar in. */
-  let h = '<div class="trader-row">' +
+  /* Kortet är delat i två flikar: GEAR är handlarens rullande lager, SUPPLIES är
+     det som alltid finns att köpa. Odelat blev rutan så lång att lagret hamnade
+     långt under skärmkanten så fort flaskorna kom in. */
+  let sup = '<div class="trader-row">' +
     '<div class="tr-item"><span class="tr-ico">⛽</span><div><div class="tr-name">Warp Fuel Cell</div>' +
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
@@ -6538,7 +6574,7 @@ function buildTrader(regionId){
     '</div></div>';
   /* Flaskorna: samma sorts rad som cellen, en per boost. De stackar och köps med
      guld, så de är en guldsänka som inte kräver att man reser någonstans särskilt. */
-  h += Object.keys(BOOST_KEY_BY_ITEM).map(key => {
+  sup += Object.keys(BOOST_KEY_BY_ITEM).map(key => {
     const D = ITEM_DEFS[key], B = BOOSTS[BOOST_KEY_BY_ITEM[key]];
     const p = boostPrice(key, regionId);
     return '<div class="trader-row">' +
@@ -6564,8 +6600,8 @@ function buildTrader(regionId){
      Tre väskor (4/6/8 platser) för 1 guld hos handlaren i hemregionen, så väskfacken
      i ryggsäck och valv går att prova. Hela blocket är avgränsat och rivs enkelt. */
   if (regionId === 'neonhub'){
-    h += '<div class="section-label" style="color:#ffcf6b">Test bags — remove before launch</div>';
-    h += TEST_BAGS.map((tb, i) =>
+    sup += '<div class="section-label" style="color:#ffcf6b">Test bags — remove before launch</div>';
+    sup += TEST_BAGS.map((tb, i) =>
       '<div class="trader-row"><div class="tr-item">' +
       '<span class="vg-art" style="background-image:url(\'' + itemArtFor(tb.key, ITEMS[tb.key].rars[0]) + '\')"></span>' +
       '<div><div class="tr-name" style="color:' + NEUTRAL_COL + '">' + ITEMS[tb.key].name + '</div>' +
@@ -6574,27 +6610,36 @@ function buildTrader(regionId){
     ).join('');
     /* Två knappar som fyller på pengar för testning — grabbar 100 credits respektive
        100 guld per tryck. TA BORT före lansering, precis som väskorna ovan. */
-    h += '<div class="trader-row"><div class="tr-item">' +
+    sup += '<div class="trader-row"><div class="tr-item">' +
       '<span class="vg-art" style="background:rgba(56,232,255,.12);display:flex;align-items:center;justify-content:center;font-size:22px">💳</span>' +
       '<div><div class="tr-name" style="color:var(--cyan)">+100 Credits</div>' +
       '<div class="tr-sub">Test money · free</div></div></div>' +
       '<div class="tr-buy">' + btn('Grab 100c', ' data-testmoney="credits"', true) + '</div></div>';
-    h += '<div class="trader-row"><div class="tr-item">' +
+    sup += '<div class="trader-row"><div class="tr-item">' +
       '<span class="vg-art" style="background:rgba(255,207,107,.14);display:flex;align-items:center;justify-content:center;font-size:22px">🪙</span>' +
       '<div><div class="tr-name" style="color:#ffcf6b">+100 Gold</div>' +
       '<div class="tr-sub">Test money · free</div></div></div>' +
       '<div class="tr-buy">' + btn('Grab 100g', ' data-testmoney="gold"', true) + '</div></div>';
   }
   const stock = vendorStock(regionId);
-  h += '<div class="section-label">Stock <span class="vg-clock" id="vendor-clock">restock in ' +
+  let gear = '<div class="section-label">Stock <span class="vg-clock" id="vendor-clock">restock in ' +
        fmtDur(vendorRestockIn(regionId)) + '</span></div>';
-  if (vendorNote) h += '<div class="vg-note' + (/standing|full|Not enough/.test(vendorNote) ? ' warn' : '') + '">' + vendorNote + '</div>';
-  h += stock.map((s, i) => s.sold
+  gear += stock.map((s, i) => s.sold
     ? '<div class="trader-row sold"><div class="tr-item"><span class="vg-art empty"></span>' +
       '<div><div class="tr-name">Sold out</div><div class="tr-sub">Restocks when the clock runs out</div></div></div></div>'
     : row(s, i)).join('');
-  return h;
+  /* Beskedet hör till HELA boden, inte till en flik, så det står ovanför bådas
+     innehåll — annars kunde man köpa fel och få svaret på en flik man inte tittar på. */
+  const note = vendorNote
+    ? '<div class="vg-note' + (/standing|full|Not enough/.test(vendorNote) ? ' warn' : '') + '">' + vendorNote + '</div>'
+    : '';
+  const tab = vendorTab === 'supplies' ? 'supplies' : 'gear';
+  return '<div class="vendor-tabs">' +
+      '<button class="vendor-tab' + (tab === 'gear' ? ' on' : '') + '" data-vtab="gear">Gear</button>' +
+      '<button class="vendor-tab' + (tab === 'supplies' ? ' on' : '') + '" data-vtab="supplies">Supplies</button>' +
+    '</div>' + note + (tab === 'gear' ? gear : sup);
 }
+let vendorTab = 'gear';    // vilken flik som visas hos handlaren
 /* ===== TESTVÄSKOR — TA BORT FÖRE LANSERING ===== */
 const TEST_BAGS = [
   {key: 'bag_field_pouch'},      // +4
@@ -6780,6 +6825,8 @@ function tickVendorClock(){
   if (openZoneRef.zone !== TRADE_ZONE) return;
   const id = openZoneRef.region, v = S.vend && S.vend[id];
   if (v && Date.now() >= v.next){ openZone(id, openZoneRef.zi); return; }
+  /* Klockan finns bara på gear-fliken; står man på supplies är elementet borta
+     och då är det inget att uppdatera. */
   const el = $('vendor-clock');
   if (el) el.textContent = 'restock in ' + fmtDur(vendorRestockIn(id));
 }
@@ -7696,6 +7743,21 @@ $('bag-btn').addEventListener('click', () => {
   if ($('inv-overlay').classList.contains('open')){ closeInventoryWindow(); return; }
   openInventory();
 });
+/* Pengarutan i toppen visar bara guldet; hovringen ger hela summan i guld, silver
+   och koppar. Samma lilla ruta som väskfacken använder — ingen gul webbläsarruta. */
+(function(){
+  const pill = $('res-gold') && $('res-gold').closest('.res-pill');
+  if (!pill) return;
+  pill.style.cursor = 'help';
+  pill.addEventListener('mouseenter', () => {
+    const m = splitMoney(S.gold);
+    showBagTip(pill,
+      '<b>' + fmtLong(m.g) + '</b> gold<br>' +
+      '<b>' + m.s + '</b> silver<br>' +
+      '<b>' + m.c + '</b> copper');
+  });
+  pill.addEventListener('mouseleave', hideBagTip);
+})();
 $('inv-sort').addEventListener('click', invSort);
 $('vault-sort').addEventListener('click', vaultSort);
 document.querySelectorAll('.vt-dot').forEach(dot => {
