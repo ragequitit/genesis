@@ -1474,6 +1474,17 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;
 }
 .inv-x:hover{color:var(--text);border-color:var(--border-glow)}
+.survey-skip-row{display:flex;justify-content:center;margin-top:10px}
+/* Aktiva flaskor: en bricka per boost, med tiden som återstår. */
+.boost-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;min-height:0}
+.boost-chip{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:999px;
+  background:rgba(56,232,255,.10);border:1px solid var(--cyan-dim);
+  font-size:11px;font-weight:800;letter-spacing:.04em;color:var(--text);
+}
+.boost-chip .bc-ico{font-size:13px}
+.boost-chip .bc-time{font-family:var(--font-mono);color:var(--cyan)}
 .inv-toprow{display:flex;align-items:center;justify-content:flex-start;margin-bottom:10px}
 /* Sortering och platsräknaren bor i en EGEN ruta under titelraden, byggd av samma
    delar som titelrutan — då står väskraden fri och rymmer alla fem facken. */
@@ -1893,6 +1904,8 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         </div>
 
         <div class="tap-block">
+          <!-- Aktiva flaskor, med nedräkning. Tom rad när inget går. -->
+          <div class="boost-bar" id="boost-bar"></div>
           <div class="hold-hint" id="hold-hint">HOLD CORE TO COLLECT DATA</div>
           <div class="hold-meter" id="hold-meter"><div class="hold-meter-fill" id="hold-meter-fill"></div></div>
           <div class="tap-meta"><span>CRIT <b id="critx-now">×5</b> · <b id="crit-now">5%</b></span><span>RATE <b id="rate-now">4.0/s</b></span><span>BONUS <b id="mult-now">×1.00</b></span></div>
@@ -2220,7 +2233,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.64.6 — LEVANDE NEDRÄKNING</div>
+            <div class="desc">GENESIS v0.65.1 — FLASKBALANS</div>
           </div>
         </div>
       </div>
@@ -2246,7 +2259,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.64.6 — LEVANDE NEDRÄKNING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.65.1 — FLASKBALANS</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2664,6 +2677,7 @@ let S = {
   /* En isatt väska är antingen INBAKAD i huvudrutnätet (facket lyser) eller
      UTBRUTEN till ett eget litet fönster (facket är släckt). Bara en flagga per
      fack — inga pjäser flyttas, platsnumren är orörda. */
+  boosts: {},               // aktiva flaskor: {nyckel: utgångstid i ms}
   vaultTone: 'green',       // valvets färgton: green (standard) | bronze | red
   bagOpen: [false, false, false, false, false],
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
@@ -2783,6 +2797,12 @@ function load(){
         const g = Array.isArray(d.bagItems) ? readGear(d.bagItems[i]) : null;
         return (g && ITEMS[g.t] && ITEMS[g.t].bag && S.bags[i]) ? g : null;
       });
+      if (d.boosts && typeof d.boosts === 'object'){
+        for (const k in BOOSTS){
+          const t = +d.boosts[k];
+          if (isFinite(t) && t > Date.now()) S.boosts[k] = t;
+        }
+      }
       if (['bronze','red','green'].includes(d.vaultTone)) S.vaultTone = d.vaultTone;
       S.bagOpen = [0,1,2,3,4].map(i => !!(Array.isArray(d.bagOpen) && d.bagOpen[i]));
       /* MÅSTE stå EFTER readGear — tredje gången den fällan gillras (moneyV,
@@ -2974,7 +2994,7 @@ function milMult(bid){
 }
 function prodPerUnit(b){ return b.prod * milMult(b.id) * (1 + 0.05 * S.up.network); }
 function prodOf(b){ return prodPerUnit(b) * S.own[b.id]; }
-function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + petBonusPct('prod') / 100 + gearBonus('idle') / 100 + achIdlePct() / 100); }
+function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + petBonusPct('prod') / 100 + gearBonus('idle') / 100 + achIdlePct() / 100 + boostPct('idle') / 100); }
 function costOfN(b, n){
   const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
   return c0 * (Math.pow(GROWTH, n) - 1) / (GROWTH - 1);
@@ -4285,7 +4305,7 @@ function charStatRows(){
   up('Idle Data', gearBonus('idle') + petBonusPct('prod'));
   up('Tap Power', gearBonus('tap'));
   up('Fragment Find', gearBonus('frag') + petBonusPct('frag'));
-  up('Loot Luck', gearBonus('luck'));
+  up('Loot Luck', gearBonus('luck') + boostPct('luck'));
   up('XP Bonus', gearBonus('xp') + petBonusPct('xp'));
   up('Offline Earnings', gearBonus('offline') + petBonusPct('offline'));
   down('Travel Cost', gearBonus('travel'));
@@ -4334,7 +4354,17 @@ function unequipGear(slotIdx, toIdx){
    föremålsfönstret — en handling, ett ställe. */
 function useInvItem(idx){
   const row = S.inv[idx];
-  if (!row || row.key !== 'fuelcell') return false;
+  if (!row) return false;
+  const bk = BOOST_KEY_BY_ITEM[row.key];
+  if (bk){
+    drinkBoost(bk);
+    row.qty--;
+    if (row.qty <= 0) S.inv[idx] = null;
+    renderInventory(); updateUI(true); renderBoostBar(); save();
+    spawnFloat({text: BOOSTS[bk].name + ' active'});
+    return true;
+  }
+  if (row.key !== 'fuelcell') return false;
   if (S.fuel >= fuelMax()) return false;      // full tank vägrar hellre än slösar
   addFuel(FUEL_CELL_RESTORE);
   row.qty--;
@@ -4761,7 +4791,9 @@ function expTimeText(def){
   return fmtDur(s) + ' ⚡';
 }
 function expRunSeconds(def){
-  return Math.max(30, Math.round(def.mins * 60 * (1 - gearBonus('expspd') / 100)));
+  /* Boosten läggs till utrustningens egen förkortning; golvet på 30 sekunder gäller
+     fortfarande, så en körning kan aldrig bli ögonblicklig. */
+  return Math.max(30, Math.round(def.mins * 60 * (1 - (gearBonus('expspd') + boostPct('expspd')) / 100)));
 }
 function gearDropChance(def){
   const t = Math.max(1, def.mins) / GEAR_DROP_ANCHOR;
@@ -4788,7 +4820,7 @@ function rollExpeditionLoot(def){
   if (Math.random() < Math.min(0.20, 0.05 * Math.pow(Math.max(1, def.mins) / 2, 0.4))){
     loot.cell = true;
   }
-  const chance = Math.min(0.95, gearDropChance(def) * (1 + gearBonus('luck') / 100));
+  const chance = Math.min(0.95, gearDropChance(def) * (1 + (gearBonus('luck') + boostPct('luck')) / 100));
   if (Math.random() < chance){
     const rar = rollRarity(gearWeightsFor(def.region), Math.random());
     loot.gear = rollItem(pickItemKey(rar), rar);
@@ -5383,6 +5415,7 @@ function loopBody(now){
   // Handlarens klocka: bara när man faktiskt tittar på en handelsbod
   tickVendorClock();
   tickSurveyClock();
+  renderBoostBar();
 
   /* Bragderna prövas en gång i sekunden. Villkoren är billiga jämförelser, men
      varje bildruta vore ändå slöseri. */
@@ -5807,6 +5840,32 @@ const ZONE_FUEL_COST = 2;
 /* ---------- FAKTA OM STAPELBARA FÖREMÅL ----------
    Allt som INTE är gear behöver samma tre svar som gear ger: vad är det, vad gör
    det, vad är det värt. Utan facit här kan hovringsrutan bara visa ett namn. */
+/* ---------- FLASKORNA ----------
+   Tre boostar som håller i en bestämd tid. En flaska är en STAPELBAR sak i väskan;
+   dricker man den startar (eller förlänger) sin boost. Att dricka en till av samma
+   sort LÄGGER TILL tid i stället för att kasta bort den som redan går — annars
+   straffas man för att råka klicka. Boostarna ligger i S.boosts som utgångstider,
+   så de överlever omladdning och räknas ned även när fliken är stängd. */
+const BOOSTS = {
+  idle:   {name: 'Data Surge',    ico: '🧪', mins: 15, pct: 100, what: 'Data per second'},
+  expspd: {name: 'Chrono Draft',  ico: '⏱️', mins: 30, pct: 25,  what: 'shorter expeditions'},
+  luck:   {name: 'Fortune Vial',  ico: '🍀', mins: 20, pct: 50,  what: 'more Loot Luck'}
+};
+function boostLeft(key){
+  const t = S.boosts && S.boosts[key];
+  return t && t > Date.now() ? (t - Date.now()) / 1000 : 0;
+}
+function boostActive(key){ return boostLeft(key) > 0; }
+/* Boostens bidrag i procent, noll när den inte går. */
+function boostPct(key){ return boostActive(key) ? BOOSTS[key].pct : 0; }
+function drinkBoost(key){
+  const B = BOOSTS[key];
+  if (!B) return false;
+  const now = Date.now();
+  const from = (S.boosts[key] && S.boosts[key] > now) ? S.boosts[key] : now;
+  S.boosts[key] = from + B.mins * 60000;    // staplar tid, kastar aldrig bort
+  return true;
+}
 const ITEM_DEFS = {
   fuelcell: {
     name: 'Warp Fuel Cell',
@@ -5814,8 +5873,28 @@ const ITEM_DEFS = {
     kind: 'Consumable',
     desc: 'A sealed charge of warp fuel. Use it to restore ' + FUEL_CELL_RESTORE + ' fuel — the tank never overflows, so a full tank refuses the cell instead of wasting it.',
     sell: GOLD(5)
+  },
+  boost_idle: {
+    name: BOOSTS.idle.name, ico: BOOSTS.idle.ico, kind: 'Consumable',
+    desc: 'Drink to double your Data per second for ' + BOOSTS.idle.mins +
+          ' minutes. Drinking another adds its time to the one already running.',
+    sell: GOLD(12)
+  },
+  boost_expspd: {
+    name: BOOSTS.expspd.name, ico: BOOSTS.expspd.ico, kind: 'Consumable',
+    desc: 'Drink to finish expeditions ' + BOOSTS.expspd.pct + '% faster for ' +
+          BOOSTS.expspd.mins + ' minutes. Runs already under way keep their own clock.',
+    /* Priset följde timmen; halverad tid, halverat värde. */
+    sell: GOLD(10)
+  },
+  boost_luck: {
+    name: BOOSTS.luck.name, ico: BOOSTS.luck.ico, kind: 'Consumable',
+    desc: 'Drink for ' + BOOSTS.luck.pct + '% more Loot Luck for ' + BOOSTS.luck.mins +
+          ' minutes. It raises the chance of a drop, not its rarity.',
+    sell: GOLD(15)
   }
 };
+const BOOST_KEY_BY_ITEM = {boost_idle: 'idle', boost_expspd: 'expspd', boost_luck: 'luck'};
 function itemDef(row){ return (row && row.key && ITEM_DEFS[row.key]) || null; }
 /* Regionresor: priset är SUMMAN av ringstegen (spelarens beslut) — inga rabatter
    för långa hopp, ingen billigare hemresa. Hela världen i ett svep = 95, alltså
@@ -5860,6 +5939,24 @@ function travelSeconds(base){
 function skipCost(){
   if (!S.world.travel) return 0;
   return Math.max(1, Math.ceil((S.world.travel.eta - Date.now()) / 60000));
+}
+/* Undersökningen kostar TID; credits köper bort den. Samma taxa som resan:
+   en credit per påbörjad återstående minut, så priset sjunker medan man väntar
+   och man aldrig betalar för tid som redan gått. */
+function surveySkipCost(){
+  if (!S.research) return 0;
+  return Math.max(1, Math.ceil((S.research.eta - Date.now()) / 60000));
+}
+function skipSurvey(){
+  if (!S.research) return false;
+  const c = surveySkipCost();
+  if (S.credits < c) return false;
+  S.credits -= c;
+  S.research.eta = Date.now();
+  checkResearch();          // gör klart signalen på plats och ritar om kortet
+  updateUI(true);
+  save();
+  return true;
 }
 
 function isKnown(id){ return S.world.known.includes(id); }
@@ -6191,6 +6288,8 @@ function openRegion(id){
       buildDiscoverBody(id, R);
     const btn = $('region-discover');
     if (btn) btn.addEventListener('click', () => startResearch(id));
+    const sk = $('survey-skip');
+    if (sk) sk.addEventListener('click', () => { if (skipSurvey()) renderMap(); });
   } else {
     openSurveyRef = null;
     const rank = repRank(id);
@@ -6275,6 +6374,10 @@ function openZone(regionId, zi, keepNote){
   /* Rutan ritas om oavsett utfall: lyckas köpet syns kvittot, misslyckas det syns
      skälet. Ett tyst avslag är det värsta ett gränssnitt kan göra. */
   if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
+  $('region-body').querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
+    buyBoost(regionId, b.dataset.buyboost);
+    openZone(regionId, zi, true);
+  }));
   /* Kortet ritas om efter varje köp — priser, råd och knapparnas läge ska stämma. */
   $('region-body').querySelectorAll('[data-vbuy]').forEach(b => b.addEventListener('click', () => {
     buyVendorGear(regionId, +b.dataset.vbuy);
@@ -6433,6 +6536,18 @@ function buildTrader(regionId){
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
     btn('Buy — ' + moneyText(price), ' id="trader-buy"', canPay) +
     '</div></div>';
+  /* Flaskorna: samma sorts rad som cellen, en per boost. De stackar och köps med
+     guld, så de är en guldsänka som inte kräver att man reser någonstans särskilt. */
+  h += Object.keys(BOOST_KEY_BY_ITEM).map(key => {
+    const D = ITEM_DEFS[key], B = BOOSTS[BOOST_KEY_BY_ITEM[key]];
+    const p = boostPrice(key, regionId);
+    return '<div class="trader-row">' +
+      '<div class="tr-item"><span class="tr-ico">' + D.ico + '</span><div><div class="tr-name">' + D.name + '</div>' +
+      '<div class="tr-sub">+' + B.pct + '% ' + B.what + ' · ' + B.mins + ' min · stackable</div></div></div>' +
+      /* Knappen förblir LEVANDE på distans, precis som bodens övriga: trycker man
+         säger boden ifrån i klartext i stället för att sitta grå och tyst. */
+      '<div class="tr-buy">' + btn('Buy — ' + moneyText(p), ' data-buyboost="' + key + '"', S.gold >= p) + '</div></div>';
+  }).join('');
   const row = (s, i) => {
     const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId);
     const full = vendorGearPrice(s.r);
@@ -6508,6 +6623,25 @@ function buyTestBag(regionId, i){
   return true;
 }
 /* ===== slut testväskor ===== */
+/* Priset följer samma rep-rabatt som cellen — en handlare som gillar dig är
+   billigare på allt, annars vore rabatten en gåta. */
+function boostPrice(key, regionId){
+  const base = ITEM_DEFS[key].sell * 4;
+  const stars = repRank(regionId);
+  return Math.max(1, Math.round(base * (1 - 0.03 * stars)));
+}
+function buyBoost(regionId, key){
+  const D = ITEM_DEFS[key];
+  if (!D || !BOOST_KEY_BY_ITEM[key]) return false;
+  if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
+  const p = boostPrice(key, regionId);
+  if (S.gold < p){ vendorNote = 'Not enough money — you need ' + moneyText(p - S.gold) + ' more.'; return false; }
+  if (!addInvItem({key: key, name: D.name, ico: D.ico, stack: true})) return false;
+  S.gold -= p;
+  vendorNote = 'Bought ' + D.name + '.';
+  updateUI(true); save();
+  return true;
+}
 function buyCell(regionId){
   const price = cellPrice(regionId);
   if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
@@ -6586,7 +6720,9 @@ function buildDiscoverBody(id, R){
     const here = S.research.region === id;
     return '<div class="shelf-empty">' + (here
       ? 'Research drones are surveying this signal — <span id="survey-clock">' +
-        fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000)) + '</span> remaining.'
+        fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000)) + '</span> remaining.' +
+        '<div class="survey-skip-row"><button class="wh-btn skip" id="survey-skip"' +
+        (S.credits < surveySkipCost() ? ' disabled' : '') + '>Skip — ' + surveySkipCost() + ' 💳</button></div>'
       : 'Your research drones are busy surveying another signal.') + '</div>';
   }
   const req = DISCOVER_REQ[R.tier];
@@ -6616,6 +6752,28 @@ function tickSurveyClock(){
   const el = $('survey-clock');
   if (!el || !S.research || S.research.region !== openSurveyRef) return;
   el.textContent = fmtDur(Math.max(0, (S.research.eta - Date.now()) / 1000));
+  /* Priset följer med nedåt medan tiden går. */
+  const sk = $('survey-skip');
+  if (sk){
+    const c = surveySkipCost();
+    sk.textContent = 'Skip — ' + c + ' 💳';
+    sk.disabled = S.credits < c;
+  }
+}
+/* Ritas om varje tick — brickorna räknar ned och försvinner av sig själva när
+   tiden går ut, utan någon egen timer att städa. */
+function renderBoostBar(){
+  const bar = $('boost-bar');
+  if (!bar) return;
+  let h = '';
+  for (const k in BOOSTS){
+    const left = boostLeft(k);
+    if (left <= 0) continue;
+    h += '<div class="boost-chip"><span class="bc-ico">' + BOOSTS[k].ico + '</span>' +
+      '<span>+' + BOOSTS[k].pct + '% ' + BOOSTS[k].what + '</span>' +
+      '<span class="bc-time">' + fmtDur(left) + '</span></div>';
+  }
+  bar.innerHTML = h;
 }
 function tickVendorClock(){
   if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
