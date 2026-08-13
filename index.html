@@ -2466,7 +2466,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.76.0 — NODEN LEVER</div>
+            <div class="desc">GENESIS v0.78.0 — EGNA FÖRMÅGOR</div>
           </div>
         </div>
       </div>
@@ -2492,7 +2492,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.76.0 — NODEN LEVER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.78.0 — EGNA FÖRMÅGOR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2647,8 +2647,6 @@ const AFFIXES = {
      snabbare expedition tappar ingenting — den ger fler hämtningar per timme.
      Det är avsikten och hela värdet av egenskapen. */
   expspd:  {name:'Expedition Speed', lo:1.90, hi:2.50, sfx:'%'},
-  travel:  {name:'Travel Cost',      lo:1.30, hi:1.70, sfx:'%', lower:true},
-  scan:    {name:'Scan Cost',        lo:1.56, hi:2.04, sfx:'%', lower:true},
   /* De tva sista som stod och vantade pa sina system (v0.73.0).
      PET XP snabbar husdjurens nivaer. Mitten ar satt hogre an vanlig Experience
      (5,0 mot 4,0) darfor att den ar SMALARE: din egen XP oppnar expeditioner och
@@ -2656,8 +2654,7 @@ const AFFIXES = {
      echoes ar ett pensionerat ord sedan husdjuren fick sitt namn.
      BOOST DURATION forlanger flaskorna. Den bor i ring- och halsbandspoolen, dar
      spelaren placerade den redan innan flaskorna fanns. */
-  petxp:   {name:'Pet XP',           lo:4.30, hi:5.70, sfx:'%'},
-  boostdur:{name:'Boost Duration',   lo:2.15, hi:2.85, sfx:'%'}
+  petxp:   {name:'Pet XP',           lo:4.30, hi:5.70, sfx:'%'}
 };
 const AFFIX_KEYS = Object.keys(AFFIXES);
 /* ---------- SPECIALPOOLEN (spelarens låsta design, byggd i v0.53.0) ----------
@@ -2668,9 +2665,21 @@ const AFFIX_KEYS = Object.keys(AFFIXES);
    vanliga poolen: det är exklusiviteten som gör platserna speciella. Ringen är
    stället man jagar kritbygget på, halsbandet likaså. Gamla pjäser som hann
    rulla dem på andra platser behåller dem — de läses som vanligt. */
-const SPECIAL_POOL = ['critdmg', 'expspd', 'boostdur'];
+/* ---------- POOLERNA (omgjorda v0.77.0) ----------
+   Spelaren rensade listan sjalv, och skalet var minnet: med tretton egenskaper och
+   tolv platser kunde man bara ha 36 rader text pa sig samtidigt, och da betyder
+   ingen av dem nagot. Scan Cost och Travel Cost ar helt borta - bada var doda sa
+   fort varlden var kartlagd.
+   SMYCKENA AR KRITPLATSERNA. Ring och halsband ar de enda som kan ge Crit Chance
+   och Crit Damage, och de gar inte att fa nagon annanstans. Det ger de tva
+   platserna en identitet man minns, och nu nar krit fungerar bade nar man haller
+   noden och nar man later den ga ar den identiteten vard nagot for alla. */
+const JEWEL_POOL = ['crit', 'critdmg'];
 const SPECIAL_SLOTS = {6: true, 8: true};        // halsband, ring
-const NORMAL_KEYS = AFFIX_KEYS.filter(k => SPECIAL_POOL.indexOf(k) < 0);
+const NORMAL_KEYS = AFFIX_KEYS.filter(k => JEWEL_POOL.indexOf(k) < 0);
+/* Smyckenas ovriga rullningar far ta bade ur kritparet och ur den vanliga poolen -
+   sa en ring KAN bli helt kritinriktad, men behover inte bli det. */
+const JEWEL_REST = JEWEL_POOL.concat(NORMAL_KEYS);
 const GEAR_HP_BASE = 24;          // hälsa per pjäs vid Common, före rullning
 /* Karaktären har ALLTID hälsa: 100 från början, och utrustningen bygger på uppåt.
    Noll hälsa vore ett dött läge — en spelare som just börjat ska inte se en tom
@@ -2790,16 +2799,20 @@ function rollItem(key, rarIdx){
     const v = (a.lo + Math.random() * (a.hi - a.lo)) * R.mult;
     affs.push({k: k, v: Math.round(v * 100) / 100});
   };
-  /* Specialplats: första egenskapen är GARANTERAT en ur egen pool, resten kommer
-     ur den vanliga. Alla andra platser rullar enbart ur den vanliga. */
-  const pool = NORMAL_KEYS.slice();
+  /* Smycke: forsta egenskapen ar GARANTERAT krit, resten far komma ur bade
+     kritparet och den vanliga poolen. Alla andra platser rullar enbart vanligt.
+     DUBBLETTER AR TILLATNA (spelarens beslut) - poolen tommas inte langre pa det
+     som redan rullats. Tvartom: tva Idle Data pa samma pjas ar meningen, for da
+     betyder turen nagot igen. Med atta i den vanliga poolen och tre rullningar
+     blir det 65,6 % tre olika, 32,8 % ett par och 1,6 % alla tre lika. */
+  const pool = SPECIAL_SLOTS[D.slot] ? JEWEL_REST : NORMAL_KEYS;
   let want = R.aff;
   if (SPECIAL_SLOTS[D.slot]){
-    rollOne(SPECIAL_POOL[Math.floor(Math.random() * SPECIAL_POOL.length)]);
+    rollOne(JEWEL_POOL[Math.floor(Math.random() * JEWEL_POOL.length)]);
     want--;
   }
   for (let i = 0; i < want && pool.length; i++){
-    rollOne(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    rollOne(pool[Math.floor(Math.random() * pool.length)]);
   }
   /* Hälsan följer rariteten, inte platsen: en ring och en väst av samma steg är
      lika mycket värda i hälsa (spelarens beslut). */
@@ -2854,7 +2867,11 @@ function moneyText(c){
 }
 function gearGold(it){
   const r = GEAR_RAR[it.r];
-  return (it.g >= r.gold[0] && it.g <= r.gold[1]) ? it.g : Math.round((r.gold[0] + r.gold[1]) / 2);
+  const base = (it.g >= r.gold[0] && it.g <= r.gold[1]) ? it.g : Math.round((r.gold[0] + r.gold[1]) / 2);
+  /* Sell Value laggs pa HAR, dar bade prislappen i vaskan och den verkliga
+     forsaljningen laser den - inte vid forsaljningen ensam, for da hade pjasen
+     visat ett pris och gett ett annat. */
+  return Math.round(base * (1 + petBonusPct('sellvalue') / 100));
 }
 function gearCP(it){
   return Math.round(it.hp + 10 * it.a.reduce((s, x) => s + x.v, 0));
@@ -2884,19 +2901,35 @@ function petSpriteVars(sp, px){
 }
 /* Fem arter i v1, alla hemma i Neon Hub. base = effekt i procent vid Common; sällsynthet
    multiplicerar. cx/cy = ikonens uppmätta mittpunkt i arket (källpixlar). */
+/* ---------- HUSDJURENS FORMAGOR (helt omgjorda v0.78.0) ----------
+   De fyra gamla - produktion, offline, XP och fragment - var alla KOPIOR av
+   egenskaper utrustningen redan gav. Da spelar det ingen roll vilket man bar, och
+   husdjuren blir en andra hylla med samma varor. De sju nya ror system som gear
+   inte ror alls, sa de tva sakerna aldrig konkurrerar om samma plats i huvudet.
+   Ett husdjur har EN formaga och bara ett ar aktivt, sa spelaren laser aldrig mer
+   an en rad - darfor tal husdjuren mer variation an utrustningen nagonsin gor.
+   OBS: det har ar medvetet TILLFALLIGT. Nar yrken, isarplockning och resten finns
+   oppnar sig langt fler saker att haka formagor pa, och da gors listan om igen. */
 const PETS = {
-  byte:  {name: 'Byte',  cx: 482.5,  cy: 62.7,  fam: 'prod',    base: 4},
-  patch: {name: 'Patch', cx: 374.0,  cy: 63.0,  fam: 'offline', base: 4},
-  glint: {name: 'Glint', cx: 269.8,  cy: 68.0,  fam: 'prod',    base: 4},
-  zipp:  {name: 'Zipp',  cx: 56.7,   cy: 325.7, fam: 'xp',      base: 5},
-  dot:   {name: 'Dot',   cx: 1007.2, cy: 186.3, fam: 'frag',    base: 25}
+  byte:  {name: 'Byte',  cx: 482.5,  cy: 62.7,  fam: 'machinecost', base: 2},
+  patch: {name: 'Patch', cx: 374.0,  cy: 63.0,  fam: 'fuelregen',   base: 8},
+  glint: {name: 'Glint', cx: 269.8,  cy: 68.0,  fam: 'cacheluck',   base: 6},
+  zipp:  {name: 'Zipp',  cx: 56.7,   cy: 325.7, fam: 'boostpot',    base: 4},
+  dot:   {name: 'Dot',   cx: 1007.2, cy: 186.3, fam: 'dust',        base: 10}
 };
+/* De tva som annu ingen art bar - Sell Value och Boost Duration - ar byggda och
+   inkopplade anda, sa att de arter som laggs till i de andra regionerna kan
+   plockas rakt ur listan utan nytt arbete. */
 const FAM_TEXT = {
-  prod:    v => '+' + v + '% Data production',
-  offline: v => '+' + v + '% offline rate',
-  xp:      v => '+' + v + '% XP from all sources',
-  frag:    v => '+' + v + '% Fragments from expeditions'
+  cacheluck:   v => '+' + v + '% better Cache odds',
+  dust:        v => '+' + v + '% Dust from recycling',
+  fuelregen:   v => '+' + v + '% Fuel regeneration',
+  machinecost: v => '\u2212' + v + '% Machine cost',
+  sellvalue:   v => '+' + v + '% Gear sell value',
+  boostpot:    v => '+' + v + '% Boost strength',
+  boostdur:    v => '+' + v + '% Boost duration'
 };
+const PET_FAMS = Object.keys(FAM_TEXT);
 const REGION_PETS = { neonhub: ['byte', 'patch', 'glint', 'zipp', 'dot'] };
 const RARITIES = [
   {id: 'common',    name: 'Common',    mult: 1},
@@ -2909,6 +2942,23 @@ const RARITIES = [
 /* Vikter per tusendel för tier 0 (hemma). Avståndet ska förskjuta dessa när fler regioner får arter. */
 const CACHE_WEIGHTS_T0 = [600, 250, 100, 40, 9, 1];
 const CACHE_COST = 10;
+/* Cache Luck flyttar VIKT fran de tva lagsta stegen till de fyra oversta i stallet
+   for att bara skala upp toppen. Skalar man bara upp toppen blir en mythic 10 %
+   vanligare vid +10 %, vilket later rimligt men later procenten betyda olika saker
+   vid olika sallsyntheter. Sa har betyder +10 % samma sak overallt: en tiondel av
+   skrapet blir nagot battre. */
+function cacheWeights(){
+  const w = CACHE_WEIGHTS_T0.slice();
+  const luck = petBonusPct('cacheluck') / 100;
+  if (luck <= 0) return w;
+  const moved = (w[0] + w[1]) * Math.min(0.9, luck);
+  const lowTotal = w[0] + w[1];
+  w[0] -= moved * (w[0] / lowTotal);
+  w[1] -= moved * (w[1] / lowTotal);
+  const highTotal = w[2] + w[3] + w[4] + w[5];
+  for (let i = 2; i < w.length; i++) w[i] += moved * (w[i] / highTotal);
+  return w;
+}
 function rollRarity(weights, rnd){
   const total = weights.reduce((a, b) => a + b, 0);
   let x = rnd * total;
@@ -2991,11 +3041,17 @@ function petSort(){
 }
 /* Vad ett hopp av markerade husdjur ar vart, och vilka av dem som bar pa nagot
    man inte kan kopa tillbaka. */
+/* Vad ETT husdjur ger i damm just nu, med det aktiva husdjurets formaga inraknad.
+   Rakas pa ett stalle sa varningen, summeringen och den verkliga utbetalningen
+   aldrig kan saga olika saker. */
+function dustFor(p){
+  return Math.round(DUST_YIELD[p.rar] * (1 + petBonusPct('dust') / 100));
+}
 function petSelSummary(){
   const list = Array.from(petSel).map(petByUid).filter(Boolean);
   return {
     list: list,
-    dust: list.reduce((a, p) => a + DUST_YIELD[p.rar], 0),
+    dust: list.reduce((a, p) => a + dustFor(p), 0),
     levelled: list.filter(p => petLvl(p) > 1),
     maxed: list.filter(p => petLvl(p) >= PET_MAX_LVL)
   };
@@ -3030,7 +3086,7 @@ function petBonusPct(fam){
   return (a && PETS[a.sp].fam === fam) ? petVal(a) : 0;
 }
 function petExtraFrags(rnd){
-  const b = (petBonusPct('frag') + gearBonus('frag')) / 100;
+  const b = gearBonus('frag') / 100;
   return Math.floor(b) + ((rnd !== undefined ? rnd : Math.random()) < (b % 1) ? 1 : 0);
 }
 
@@ -3317,7 +3373,7 @@ function load(){
    Kärnuppgradering höjer takten (+10%/nivå till 100%). Siffror justerbara. */
 const OFFLINE_HOURS = [6, 12, 16, 20, 24];
 function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 6; }
-function offlineRate(){ return Math.min(1, 0.5 + 0.10 * S.up.offlinePct + petBonusPct('offline') / 100 + gearBonus('offline') / 100); }
+function offlineRate(){ return Math.min(1, 0.5 + 0.10 * S.up.offlinePct + gearBonus('offline') / 100); }
 function computeOffline(){
   if (!S.savedAt) return null;
   const away = (Date.now() - S.savedAt) / 1000;
@@ -3357,7 +3413,7 @@ let expGate = 0;
 /* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
    gränssnitt hör hemma i uppdateringsrutinen, inte här. */
 function grantXP(n){
-  const gained = n * (1 + petBonusPct('xp') / 100 + gearBonus('xp') / 100);
+  const gained = n * (1 + gearBonus('xp') / 100);
   S.xp += gained;
   grantPetXP(gained);
   const li = levelInfo();
@@ -3502,13 +3558,17 @@ function milMult(bid){
 }
 function prodPerUnit(b){ return b.prod * milMult(b.id) * (1 + 0.05 * S.up.network); }
 function prodOf(b){ return prodPerUnit(b) * S.own[b.id]; }
-function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + petBonusPct('prod') / 100 + gearBonus('idle') / 100 + achIdlePct() / 100 + boostPct('idle') / 100); }
+function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + gearBonus('idle') / 100 + achIdlePct() / 100 + boostPct('idle') / 100); }
+/* Machine Cost sanker priset. Rabatten sitter i EN funktion som bade kostnaden
+   och "hur manga har jag rad med" laser, annars skulle knappen kunna saga en sak
+   och plangboken en annan. */
+function machineCostMult(){ return Math.max(0.25, 1 - petBonusPct('machinecost') / 100); }
 function costOfN(b, n){
-  const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
+  const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]) * machineCostMult();
   return c0 * (Math.pow(GROWTH, n) - 1) / (GROWTH - 1);
 }
 function maxAffordable(b){
-  const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]);
+  const c0 = b.cost * Math.pow(GROWTH, S.own[b.id]) * machineCostMult();
   if (S.data < c0) return 0;
   const n = Math.floor(Math.log(S.data * (GROWTH-1) / c0 + 1) / Math.log(GROWTH));
   return Math.max(1, Math.min(n, 10000));
@@ -4970,16 +5030,22 @@ function charStatRows(){
   r.push(['HP', fmt(totalHP())]);
   if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '% time']);
   up('Crit Chance', gearBonus('crit'));
-  up('Idle Data', gearBonus('idle') + petBonusPct('prod'));
+  up('Idle Data', gearBonus('idle'));
   up('Tap Power', gearBonus('tap'));
-  up('Fragment Find', gearBonus('frag') + petBonusPct('frag'));
+  up('Fragment Find', gearBonus('frag'));
   up('Loot Luck', gearBonus('luck') + boostPct('luck'));
-  up('XP Bonus', gearBonus('xp') + petBonusPct('xp'));
-  up('Offline Earnings', gearBonus('offline') + petBonusPct('offline'));
+  up('XP Bonus', gearBonus('xp'));
+  up('Offline Earnings', gearBonus('offline'));
   up('Pet XP', gearBonus('petxp'));
-  up('Boost Duration', gearBonus('boostdur'));
-  down('Travel Cost', gearBonus('travel'));
-  down('Scan Time', gearBonus('scan'));
+  /* Husdjurets egen formaga hor hemma i samma lista - annars maste man oppna ett
+     annat fonster for att se halva sin karaktar. */
+  up('Cache Odds', petBonusPct('cacheluck'));
+  up('Dust Yield', petBonusPct('dust'));
+  up('Fuel Regen', petBonusPct('fuelregen'));
+  down('Machine Cost', petBonusPct('machinecost'));
+  up('Gear Sell Value', petBonusPct('sellvalue'));
+  up('Boost Strength', petBonusPct('boostpot'));
+  up('Boost Duration', petBonusPct('boostdur'));
   const rep = 2 * repRank();
   if (rep > 0) r.push(['Region Rep', '+' + rep + '% production']);
   return r;
@@ -5517,7 +5583,7 @@ function claimExpedition(id){
 /* Belöningspopupen — spelarens mockup: fyra piedestalkort + sammanfattning + hämtknapp */
 function showRewards(run){
   const def = expDefById(run.id);
-  const xpShown = Math.round(run.xp * (1 + petBonusPct('xp') / 100));
+  const xpShown = Math.round(run.xp);
   pendingClaimId = run.id;
   $('reward-sub').textContent = def.name + ' — ' + def.zone;
   $('reward-cards').innerHTML =
@@ -6113,7 +6179,7 @@ function loopBody(now){
 
   // Bränslet regenererar BARA online — dt kommer ur den levande loopen,
   // så stängd flik ger ingenting. Det är regeln, inte en brist.
-  if (S.fuel < fuelMax()) addFuel(FUEL_REGEN_PER_MIN * dt / 60);
+  if (S.fuel < fuelMax()) addFuel(fuelRegenPerMin() * dt / 60);
 
   // Handlarens klocka: bara när man faktiskt tittar på en handelsbod
   tickVendorClock();
@@ -6569,13 +6635,19 @@ function boostLeft(key){
 }
 function boostActive(key){ return boostLeft(key) > 0; }
 /* Boostens bidrag i procent, noll när den inte går. */
-function boostPct(key){ return boostActive(key) ? BOOSTS[key].pct : 0; }
+/* Boost Potency gor flaskan STARKARE, Boost Duration gor den LANGRE. Styrkan
+   raknas nar den anvands, sa den foljer det husdjur du bar just nu; langden lases
+   nar du dricker. Det ar med flit: en langd som andrade sig mitt i vore ett lofte
+   som brots, medan en styrka som andrar sig ar en anledning att byta husdjur. */
+function boostPct(key){
+  return boostActive(key) ? BOOSTS[key].pct * (1 + petBonusPct('boostpot') / 100) : 0;
+}
 /* Hur lange en flaska FAKTISKT racker med det man bar pa sig. Rakas ut har och
    inte pa flera stallen, sa boden, hovringen och den verkliga tiden alltid sager
    samma sak. */
 function boostMinutes(key){
   const B = BOOSTS[key];
-  return B ? Math.round(B.mins * (1 + gearBonus('boostdur') / 100) * 10) / 10 : 0;
+  return B ? Math.round(B.mins * (1 + petBonusPct('boostdur') / 100) * 10) / 10 : 0;
 }
 function drinkBoost(key){
   const B = BOOSTS[key];
@@ -6788,6 +6860,7 @@ function itemDef(row){
    nästan full tank: spelets längsta resa är också dess största beslut. */
 const FUEL_STEP = {0: 15, 1: 20, 2: 25, 3: 35};   // steg mellan ring N och N+1
 function fuelMax(){ return FUEL_MAX_BASE; }
+function fuelRegenPerMin(){ return FUEL_REGEN_PER_MIN * (1 + petBonusPct('fuelregen') / 100); }
 function fuelBetween(fromId, toId){
   let a = REGIONS[fromId].tier, b = REGIONS[toId].tier;
   if (a > b){ const t = a; a = b; b = t; }
@@ -7635,7 +7708,7 @@ function buildZoneAction(regionId, zone){
 
 /* --- Resandet --- */
 function costToTravel(id){
-  return Math.max(1, Math.round(fuelBetween(S.world.current, id) * (1 - gearBonus('travel') / 100)));
+  return Math.max(1, fuelBetween(S.world.current, id));
 }
 /* Drönarupptäckten. Grinden är en byggnad per ring — inte pengar. Bara en
    forskning åt gången, och Scan Cost-egenskapen kortar TIDEN i stället. */
@@ -7645,7 +7718,7 @@ function discoverReqMet(tier){
 }
 function researchTime(id){
   const base = DISCOVER_TIME[REGIONS[id].tier] || 180;
-  return Math.max(30, Math.round(base * (1 - gearBonus('scan') / 100)));
+  return Math.max(30, Math.round(base));
 }
 function buildDiscoverBody(id, R){
   if (S.research){
@@ -8077,7 +8150,7 @@ function doPetRecycle(){
   sum.list.forEach(p => {
     const i = petIndexOf(p.uid);
     if (i < 0 || p.uid === S.pets.active) return;   /* det aktiva ar alltid fredat */
-    S.pets.dust += DUST_YIELD[p.rar];
+    S.pets.dust += dustFor(p);
     S.pets.owned[i] = null;
   });
   petSel.clear(); petSelMode = false;
@@ -8101,7 +8174,7 @@ function petWinHTML(p){
         '<div class="iw-affs">' +
           '<div class="af">' + petEffText(p) + '</div>' +
           '<div class="af">' + (max ? 'Fully grown' : Math.floor(li.into) + ' / ' + li.need + ' XP to next level') + '</div>' +
-          '<div class="af">Recycles into ' + DUST_YIELD[p.rar] + ' ✨</div>' +
+          '<div class="af">Recycles into ' + dustFor(p) + ' ✨</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -8117,7 +8190,7 @@ function petWinActions(win, uid){
     (on ? '' : '<button class="ia-equip" data-act="active">Set Active</button>') +
     (max || !spend ? '' : '<button class="ia-cancel" data-act="feed">Feed dust<span>' + spend + ' ✨ → Lv ' +
       petLevelInfo(Math.min(PET_XP_MAX, p.xp + spend * DUST_XP)).lvl + '</span></button>') +
-    (on ? '' : '<button class="ia-sell" data-act="rec">Recycle<span>' + DUST_YIELD[p.rar] + ' ✨</span></button>');
+    (on ? '' : '<button class="ia-sell" data-act="rec">Recycle<span>' + dustFor(p) + ' ✨</span></button>');
 }
 function spawnPetWin(uid, nearX, nearY){
   hideGearTip();
@@ -8150,9 +8223,9 @@ function spawnPetWin(uid, nearX, nearY){
       const li = petLevelInfo(cur.xp), lost = li.lvl > 1;
       win.querySelector('.item-actions').innerHTML =
         '<div class="ia-note">' + (li.lvl >= PET_MAX_LVL ? '⚠ MAX LEVEL. ' : (lost ? '⚠ ' : '')) +
-        'Recycle ' + PETS[cur.sp].name + ' (' + RARITIES[cur.rar].name + ') for ' + DUST_YIELD[cur.rar] + ' ✨?' +
+        'Recycle ' + PETS[cur.sp].name + ' (' + RARITIES[cur.rar].name + ') for ' + dustFor(cur) + ' ✨?' +
         (lost ? '<br>You lose Lv ' + li.lvl + ' \u2014 the dust does not pay it back.' : '<br>It is gone for good.') + '</div>' +
-        '<button class="ia-danger" data-act="rec-yes">Yes, recycle<span>' + DUST_YIELD[cur.rar] + ' ✨</span></button>' +
+        '<button class="ia-danger" data-act="rec-yes">Yes, recycle<span>' + dustFor(cur) + ' ✨</span></button>' +
         '<button class="ia-cancel" data-act="rec-no">Keep it</button>';
     }
     else if (act === 'rec-yes'){ recyclePet(uid); win.remove(); }
@@ -8177,7 +8250,7 @@ function recyclePet(uid){
   if (i < 0) return;
   const p = S.pets.owned[i];
   if (p.uid === S.pets.active) return;
-  S.pets.dust += DUST_YIELD[p.rar];
+  S.pets.dust += dustFor(p);
   S.pets.owned[i] = null;
   petSel.delete(uid);
   save(); renderPets(); renderPetPanel();
@@ -8194,7 +8267,7 @@ function openCache(){
   if (!pool || S.frags < CACHE_COST) return;
   S.frags -= CACHE_COST;
   const sp = pool[Math.floor(Math.random() * pool.length)];
-  const rar = rollRarity(CACHE_WEIGHTS_T0, Math.random());
+  const rar = rollRarity(cacheWeights(), Math.random());
   const pet = {uid: S.pets.seq++, sp: sp, rar: rar, xp: 0};
   addPet(pet);
   if (S.pets.active == null) S.pets.active = pet.uid;
@@ -8266,7 +8339,7 @@ $('pet-grid').addEventListener('mouseover', e => {
   showPlainTip('<b style="color:' + rarCol(p.rar) + '">' + PETS[p.sp].name + '</b><br>' +
     RARITIES[p.rar].name + ' \u00b7 Lv ' + li.lvl + (max ? ' (max)' : '') + '<br>' + petEffText(p) +
     '<br>' + (max ? 'Fully grown' : Math.floor(li.into) + ' / ' + li.need + ' XP') +
-    '<br>Recycles into ' + DUST_YIELD[p.rar] + ' ✨', e.clientX, e.clientY);
+    '<br>Recycles into ' + dustFor(p) + ' ✨', e.clientX, e.clientY);
 });
 $('pet-grid').addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
 $('pet-grid').addEventListener('mouseout', e => {
