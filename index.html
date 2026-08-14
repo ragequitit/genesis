@@ -462,6 +462,7 @@ body.dragging *{cursor:grabbing !important}
 .ia-salvage span{opacity:.85;font-size:10px;margin-left:5px}
 .ia-bonus{color:#c9b6ff;font-weight:700}
 .ia-note-dim{color:var(--text-dim);font-size:10px}
+.gt-craft{font-size:10px;color:var(--cyan);letter-spacing:.06em;margin-top:3px}
 .ia-sell{border:1px solid rgba(255,197,66,.5);background:transparent;color:var(--gold)}
 .ia-danger{border:1px solid rgba(255,70,85,.6);background:transparent;color:#ff8b95}
 .ia-cancel{border:1px solid var(--border-soft);background:transparent;color:var(--text-dim)}
@@ -1904,6 +1905,26 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .gl-last{font-size:9px;margin-top:4px;font-family:var(--font-mono)}
 .gl-hit{color:var(--cyan)}
 .gl-miss{color:var(--text-dim)}
+.pc-book{margin-top:8px;border:1px solid var(--cyan);background:linear-gradient(180deg,rgba(56,180,255,.16),rgba(56,180,255,.04));
+  color:var(--cyan);font-weight:800;font-size:12px;padding:8px 12px;border-radius:9px;cursor:pointer}
+.recipe-list{display:flex;flex-direction:column;gap:8px;padding:2px}
+.recipe-row{display:flex;gap:11px;align-items:center;background:var(--bg-row);border:1px solid var(--border-soft);
+  border-radius:10px;padding:10px 12px}
+.recipe-row.locked{opacity:.6}
+.recipe-row.cant{opacity:.82}
+.rr-art{width:44px;height:44px;border-radius:8px;flex:0 0 auto;background:var(--bg-inset) center/contain no-repeat;
+  border:1px solid var(--rc);box-shadow:inset 0 0 14px -8px var(--rc)}
+.rr-body{flex:1;min-width:0}
+.rr-name{font-size:14px;font-weight:800;margin-bottom:4px}
+.rr-rar{font-size:10px;font-weight:800;letter-spacing:.06em;margin-left:4px}
+.rr-cost{display:flex;flex-wrap:wrap;gap:4px 10px}
+.rc-mat{font-size:10px;color:var(--text-dim)}
+.rc-mat.short{color:#ff8a8a}
+.rc-mat b{color:var(--text);font-family:var(--font-mono);font-weight:700}
+.rr-locked{font-size:10px;color:var(--text-dim)}
+.rr-craft{border:1px solid var(--gold);background:linear-gradient(180deg,rgba(210,170,60,.2),rgba(210,170,60,.05));
+  color:var(--gold);font-weight:800;font-size:12px;padding:9px 15px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.rr-craft:disabled{opacity:.4;cursor:default;border-color:var(--border-soft);color:var(--text-dim);background:var(--bg-inset)}
 .pets-modal{width:420px;max-width:calc(100vw - 16px)}
 .pets-scroll{max-height:66vh;overflow-y:auto;overscroll-behavior:contain}
 /* Handlar- och regionkortet: flyttbart som de andra. SAMMA fälla som husdjuren —
@@ -2443,6 +2464,19 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 
   <div class="gear-tip" id="gear-tip"></div>
   <!-- ================= HUSDJUREN ================= -->
+  <div class="float-win" id="recipe-overlay">
+    <div class="modal inv-modal recipe-modal">
+      <div class="inv-emblem"><span class="qi qi-professions"></span></div>
+      <div class="inv-titlebar">
+        <span class="inv-title" id="recipe-title">Recipe Book</span>
+        <button class="inv-x" id="recipe-close">✕</button>
+      </div>
+      <div class="pets-scroll">
+        <div class="recipe-list" id="recipe-list"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="float-win" id="prof-overlay">
     <div class="modal inv-modal prof-modal">
       <div class="inv-emblem"><span class="qi qi-professions"></span></div>
@@ -2607,7 +2641,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.91.0 — SALVAGE</div>
+            <div class="desc">GENESIS v0.92.0 — CRAFTNING</div>
           </div>
         </div>
       </div>
@@ -2633,7 +2667,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.91.0 — SALVAGE</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.92.0 — CRAFTNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2771,6 +2805,27 @@ const MATERIALS = {
   catalyst_essence:{name:'Catalyst Essence',ico:'⚗️', tier:1, bop:true, prof:'chemist', comp:true}
 };
 function isMaterial(key){ return !!MATERIALS[key]; }
+/* Hur manga av ett material spelaren har i vaskan (staplar summeras). */
+function matCount(key){
+  let n = 0;
+  for (const row of S.inv) if (row && row.key === key && row.stack) n += row.qty;
+  return n;
+}
+/* Drar av ett antal ur staplarna; tommer rader som gar till noll. Returnerar
+   false om det inte fanns nog - INGET dras da (allt-eller-inget). */
+function takeMaterial(key, qty){
+  if (matCount(key) < qty) return false;
+  let left = qty;
+  for (let i = 0; i < S.inv.length && left > 0; i++){
+    const row = S.inv[i];
+    if (row && row.key === key && row.stack){
+      const take = Math.min(row.qty, left);
+      row.qty -= take; left -= take;
+      if (row.qty <= 0) S.inv[i] = null;
+    }
+  }
+  return true;
+}
 
 /* ==================== GATHERING (professions, lager 3) ====================
    Varje gathering-profession har en egen liten idle-loop: en cykel om nagra
@@ -2970,6 +3025,78 @@ const PROFESSIONS = [
    mats:['neon_bloom','circuit_root','static_cap','glass_moss']}
 ];
 const PROF_BY = {}; PROFESSIONS.forEach(p => PROF_BY[p.id] = p);
+
+/* ==================== RECEPT + CRAFTNING (lager 5) ====================
+   Ett recept tillverkar EN bestamd foremalsnyckel i EN bestamd raritet. Craftat
+   gear rullar genom rollItem med capFrac 0.5 - samma stat-, raritets- och
+   egenskapssystem som droppat, men bara nedre halvan av bandet (last design).
+   source: 'known' = larda automatiskt nar yrket kan (early/common), 'drop' = maste
+   hittas som recipe-item forst. Detta ar STARTUPPSATTNINGEN som bevisar motorn;
+   de fulla 64 recepten fylls i nasta lager. Formen ar den slutliga. */
+const RECIPES = [
+  /* Outfitter - anvander ringföremál/vast osv som redan finns i katalogen */
+  {id:'r_field_vest',   prof:'outfitter',   item:'runners_vest',    rar:0, source:'known',
+   cost:{synthetic_fiber:4, polymer_mesh:2}},
+  {id:'r_work_gloves',  prof:'outfitter',   item:'runners_gloves',  rar:0, source:'known',
+   cost:{synthetic_fiber:3, carbon_weave:1}},
+  {id:'r_carbon_vest',  prof:'outfitter',   item:'runners_vest',    rar:2, source:'known',
+   cost:{static_silk:4, carbon_weave:3, polymer_mesh:2}},
+  {id:'r_nullweave',    prof:'outfitter',   item:'runners_vest',    rar:3, source:'drop',
+   cost:{carbon_weave:6, static_silk:5, phase_thread:2, masterweave_thread:1, gold_ore:3}},
+  /* Weaponsmith - vapen + transport */
+  {id:'r_ironcut',      prof:'weaponsmith', item:'runners_dagger',  rar:0, source:'known',
+   cost:{iron_ore:4, carbon_weave:1}},
+  {id:'r_crystalcut',   prof:'weaponsmith', item:'runners_dagger',  rar:2, source:'known',
+   cost:{iron_ore:5, crystal_quartz:3, forge_core:1}},
+  {id:'r_voidrunner',   prof:'weaponsmith', item:'transport_streetblade', rar:3, source:'drop',
+   cost:{iron_ore:8, carbon_weave:6, refined_voidsteel:2, forge_core:2, gold_ore:5}},
+  /* Jewelcrafter - ringar (delar Ring I/II), halsband */
+  {id:'r_copper_ring',  prof:'jewelcrafter',item:'ring_copper_band', rar:0, source:'known',
+   cost:{copper_ore:3, crystal_quartz:1}},
+  {id:'r_crystal_ring', prof:'jewelcrafter',item:'ring_crystal_ring',rar:2, source:'known',
+   cost:{crystal_quartz:4, gold_ore:2, resonance_dust:1}},
+  {id:'r_signal_relic', prof:'jewelcrafter',item:'neck_signal_tag',  rar:3, source:'drop',
+   cost:{gold_ore:5, crystal_quartz:6, ruby:2, resonance_dust:1}}
+];
+const RECIPE_BY = {}; RECIPES.forEach(r => RECIPE_BY[r.id] = r);
+const CRAFT_CAP = 0.5;          // craftat rullar nedre halvan av bandet (last)
+/* Ett recept ar KANT om det ar 'known' och yrket ar lart, ELLER om spelaren hittat
+   dess recipe-item (S.prof.recipes). */
+function recipeKnown(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return false;
+  if (r.source === 'known') return profLearned(r.prof);
+  return !!(S.prof && S.prof.recipes && S.prof.recipes[rid]);
+}
+/* Larda ett recept ur ett hittat recipe-item. */
+function learnRecipe(rid){
+  if (!RECIPE_BY[rid]) return false;
+  S.prof.recipes = S.prof.recipes || {};
+  S.prof.recipes[rid] = 1;
+  save();
+  return true;
+}
+/* Har spelaren allt material ett recept kraver? */
+function canAfford(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return false;
+  return Object.keys(r.cost).every(k => matCount(k) >= r.cost[k]);
+}
+/* Craftar: kraver lart yrke, kant recept, tillrackligt material och en ledig
+   vaskruta. Drar materialet, rullar pjasen med taket, lagger den i vaskan. */
+function craftRecipe(rid){
+  const r = RECIPE_BY[rid];
+  if (!r || !profLearned(r.prof) || !recipeKnown(rid) || !canAfford(rid)) return false;
+  if (invFirstFree() < 0) return false;              // full vaska: craftar inte bort i intet
+  Object.keys(r.cost).forEach(k => takeMaterial(k, r.cost[k]));
+  const g = rollItem(r.item, r.rar, CRAFT_CAP);
+  S.inv[invFirstFree()] = {gear: g};
+  grantProfXP(r.prof, 8 + r.rar * 4);                 /* craftning ger yrkes-XP */
+  S.stats = S.stats || {};
+  S.stats.crafted = (S.stats.crafted || 0) + 1;
+  renderInventory(); updateUI(true); save();
+  return g;
+}
 const PROF_MAX = 2;              // max larda samtidigt (last)
 const PROF_LEARN_COST = GOLD(10);
 /* Yrkes-XP-kurvan ar egen och plattare an spelarens - ett yrke ska kunna na
@@ -3200,7 +3327,7 @@ function itemArtFor(key, rarIdx){
 function gearArt(it){ return itemArtFor(it.t, it.r); }
 function gearName(it){ const D = ITEMS[it.t]; return D ? D.name : 'Unknown item'; }
 function rarCol(rarIdx){ return 'var(--rarity-' + GEAR_RAR[rarIdx].id.replace('mythical', 'mythic') + ')'; }
-function rollItem(key, rarIdx){
+function rollItem(key, rarIdx, capFrac){
   const D = ITEMS[key], R = GEAR_RAR[rarIdx];
   if (!D) return null;
   /* En väska rullar bara sitt pris. Inga egenskaper, ingen hälsa, ingen combat
@@ -3210,9 +3337,14 @@ function rollItem(key, rarIdx){
             g: Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]))};
   }
   const affs = [];
+  /* capFrac (0..1) skar av toppen av rullningen. Droppat gear har capFrac=1 och
+     rullar hela bandet; CRAFTAT skickar 0.5 och rullar darfor bara mellan golvet
+     och bandets MITT (spelarens lasta beslut). Golvet ar detsamma - det ar toppen
+     som ar avskuren, sa ett perfekt craftat gear ar exakt ett genomsnittligt dropp. */
+  const cap = (typeof capFrac === 'number') ? Math.max(0, Math.min(1, capFrac)) : 1;
   const rollOne = k => {
     const a = AFFIXES[k];
-    const v = (a.lo + Math.random() * (a.hi - a.lo)) * R.mult;
+    const v = (a.lo + Math.random() * (a.hi - a.lo) * cap) * R.mult;
     affs.push({k: k, v: Math.round(v * 100) / 100});
   };
   /* Smycke: forsta egenskapen ar GARANTERAT krit, resten far komma ur bade
@@ -3236,7 +3368,9 @@ function rollItem(key, rarIdx){
   /* Säljvärdet rullas i samma stund som pjäsen föds och ligger fast — annars skulle
      priset ändra sig varje gång du tittade på den, och det vore inte ett pris. */
   const g = Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]));
-  return {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: affs, hp: hp, g: g};
+  const out = {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: affs, hp: hp, g: g};
+  if (typeof capFrac === 'number' && capFrac < 1) out.craft = 1;   /* fott ur ett recept */
+  return out;
 }
 /* Combat Power: hälsan plus tio gånger summan av bonusarna. Ingen egen rullning —
    den SAMMANFATTAR pjäsen, så den kan aldrig säga emot det som står i den. */
@@ -3644,7 +3778,7 @@ let S = {
   frags: 0,
   gold: 0,
   /* Yrken: known ar {id: {xp}} for de hogst tva larda. Tomt fran start. */
-  prof: {known: {}, gather: {}},
+  prof: {known: {}, gather: {}, recipes: {}},
   inv: [],                      // {key, name, ico, qty, stack} — resurser/material/flaskor stackar, gear gör det inte
   exp: {found: [], runs: []},   // upptäckta expeditions-id + aktiva körningar (max 2)
   credits: 0,
@@ -3771,6 +3905,7 @@ function load(){
         const out = {uid: Math.max(1, Math.floor(+g.uid) || S.gearSeq++), t: t, s: ITEMS[t].slot, r: g.r | 0,
                      a: ITEMS[t].bag ? [] : a, hp: ITEMS[t].bag ? 0 : Math.round(+g.hp), g: gold};
         if (typeof g.src === 'string' && g.src.length < 80) out.src = g.src;
+        if (g.craft) out.craft = 1;
         return out;
       };
       /* MÅSTE stå EFTER readGear — den läses här. Deklarationen ligger längre ned
@@ -3869,7 +4004,12 @@ function load(){
             clean[id] = {xp: Math.max(0, Math.floor(+(row && row.xp)) || 0)};
           }
         }
-        S.prof = {known: clean, gather: {}};
+        /* Larda recept-id ur hittade recipe-items - bara sadana som finns.
+           d.prof kan SAKNAS helt (gammal fil) - da far recs vara tom. */
+        const recs = {};
+        if (d.prof && d.prof.recipes && typeof d.prof.recipes === 'object')
+          for (const rid of Object.keys(d.prof.recipes)) if (RECIPE_BY[rid]) recs[rid] = 1;
+        S.prof = {known: clean, gather: {}, recipes: recs};
       }
       if (d.pets && typeof d.pets === 'object'){
         /* Tomma rutor ar null och MASTE overleva laddningen - annars packas
@@ -8817,7 +8957,7 @@ function renderProfessions(){
         (known ? '<div class="pc-xpbar"><div class="pc-xpfill" style="width:' + Math.round(li.into / li.need * 100) + '%"></div></div>' +
           '<div class="pc-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</div>' +
           (pr.kind === 'crafting'
-            ? '<div class="prof-book">Recipe Book and crafting arrive in the next layer.</div>'
+            ? '<button class="pc-book" data-book="' + pr.id + '">📖 Recipe Book</button>'
             : gatherLoopHTML(pr.id)) : '') +
       '</div>' +
       '<div class="pc-right">' + right + '</div>' +
@@ -8826,6 +8966,7 @@ function renderProfessions(){
   grid.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', () => {
     if (learnProfession(b.dataset.learn)) spawnFloat({text: 'Learned ' + PROF_BY[b.dataset.learn].name + '!'});
   }));
+  grid.querySelectorAll('[data-book]').forEach(b => b.addEventListener('click', () => openRecipeBook(b.dataset.book)));
 }
 /* Den lilla arbetsytan i ett gathering-kort: en scen (gruva/vav/flora) med en
    framatrackande matare och det senaste fyndet. Uppdateras varje cykel utan att
@@ -8862,6 +9003,50 @@ function renderGatherLoops(){
                     : '<span class="gl-miss">Last: nothing</span>')
       : '<span class="gl-miss">Working…</span>';
   });
+}
+/* Receptboken for ETT yrke: dess kanda recept, med kostnad, om man har rad, och
+   en Craft-knapp. Okanda 'drop'-recept visas som last rad sa spelaren vet att de
+   finns att hitta. */
+let recipeProf = null;
+function openRecipeBook(profId){
+  recipeProf = profId;
+  $('recipe-title').textContent = PROF_BY[profId].name + ' — Recipe Book';
+  $('recipe-overlay').classList.add('open');
+  renderRecipeBook();
+}
+function closeRecipeBook(){ $('recipe-overlay').classList.remove('open'); }
+function renderRecipeBook(){
+  const list = $('recipe-list');
+  if (!list || !recipeProf) return;
+  const mine = RECIPES.filter(r => r.prof === recipeProf);
+  list.innerHTML = mine.map(r => {
+    const known = recipeKnown(r.id);
+    const D = ITEMS[r.item], R = GEAR_RAR[r.rar];
+    const cost = Object.keys(r.cost).map(k => {
+      const have = matCount(k), need = r.cost[k], enough = have >= need;
+      return '<span class="rc-mat' + (enough ? '' : ' short') + '">' + MATERIALS[k].ico + ' ' +
+        need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
+    }).join('');
+    if (!known){
+      return '<div class="recipe-row locked">' +
+        '<div class="rr-art" style="--rc:' + rarCol(r.rar) + '"></div>' +
+        '<div class="rr-body"><div class="rr-name">' + D.name + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
+          '<div class="rr-locked">🔒 Recipe drop — find it out in the world</div></div></div>';
+    }
+    const afford = canAfford(r.id);
+    return '<div class="recipe-row' + (afford ? '' : ' cant') + '">' +
+      '<div class="rr-art" style="--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')"></div>' +
+      '<div class="rr-body">' +
+        '<div class="rr-name">' + D.name + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
+        '<div class="rr-cost">' + cost + '</div>' +
+      '</div>' +
+      '<button class="rr-craft" data-craft="' + r.id + '"' + (afford ? '' : ' disabled') + '>Craft</button>' +
+    '</div>';
+  }).join('');
+  list.querySelectorAll('[data-craft]').forEach(b => b.addEventListener('click', () => {
+    const g = craftRecipe(b.dataset.craft);
+    if (g){ spawnFloat({text: 'Crafted ' + gearName(g) + '!'}); renderRecipeBook(); }
+  }));
 }
 function openProfessions(){ $('prof-overlay').classList.add('open'); renderProfessions(); }
 function closeProfessions(){ $('prof-overlay').classList.remove('open'); }
@@ -9022,6 +9207,7 @@ document.querySelectorAll('.qa-btn .lbl').forEach(l => {
     l.closest('.qa-btn').addEventListener('click', () => toggleWindow('prof-overlay', openProfessions, closeProfessions));
 });
 $('prof-close').addEventListener('click', closeProfessions);
+$('recipe-close').addEventListener('click', closeRecipeBook);
 $('pet-team-grid').addEventListener('click', openPetsModal);
 $('pets-close').addEventListener('click', () => $('pets-overlay').classList.remove('open'));
 $('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
@@ -9178,6 +9364,7 @@ function gearTipHTML(it){
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
     '<div class="gt-sep"></div>' +
     line('Sells for', fmtMoney(gearGold(it))) +
+    (it.craft ? '<div class="gt-craft">⚒️ Crafted</div>' : '') +
     hint;
 }
 /* Samma ruta som gear använder, men med staplarnas tre svar. Ingen påhittad
