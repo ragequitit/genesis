@@ -2641,7 +2641,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.93.0 — 64 RECEPT</div>
+            <div class="desc">GENESIS v0.94.0 — RECEPT-DROPPAR</div>
           </div>
         </div>
       </div>
@@ -2667,7 +2667,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.93.0 — 64 RECEPT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.94.0 — RECEPT-DROPPAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3140,6 +3140,41 @@ const FLASK_BOOST = {
   expspd:    {name:'Expedition Rush',  ico:'🧭', pct:[20,30,45,70],   mins:[20,30,45,90], what:'shorter expeditions'}
 };
 const CRAFT_CAP = 0.5;          // craftat rullar nedre halvan av bandet (last)
+/* ==================== RECEPT-DROPPAR (lager 7) ====================
+   Ett recept-FYND ar en stackbar sak i vaskan som larer sitt recept nar man
+   anvander den. Namnet visar vad den larer, sa spelaren vet vad hen hittat. */
+function recipeItemName(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return 'Unknown Recipe';
+  const nm = r.name || (ITEMS[r.item] ? ITEMS[r.item].name : r.item);
+  return 'Recipe: ' + nm;
+}
+function giveRecipeItem(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return false;
+  return addInvItem({key: 'recipe_' + rid, name: recipeItemName(rid), ico: '📜',
+                     qty: 1, stack: true, recipe: rid, rar: r.rar});
+}
+/* Anvand ett recept-fynd: lar receptet och forbrukar en ur stapeln. Kan man redan
+   receptet returneras 'known' och varan rors INTE - inget slosas. */
+function useRecipeItem(idx){
+  const row = S.inv[idx];
+  if (!row || !row.recipe) return false;
+  const rid = row.recipe;
+  if (recipeKnown(rid)) return 'known';
+  learnRecipe(rid);
+  row.qty -= 1;
+  if (row.qty <= 0) S.inv[idx] = null;
+  renderInventory(); save();
+  return true;
+}
+/* Alla 'drop'-recept spelaren ANNU inte kan, for ett givet region-tier. Rare (rar 2)
+   kan hittas hemma och uppat, epic (rar 3) forst langre ut - sa frontaren ger de
+   vassaste recepten. */
+function undiscoveredRecipesForTier(tier){
+  return RECIPES.filter(r => r.source === 'drop' && !recipeKnown(r.id) &&
+    (r.rar <= 2 || tier >= 2));
+}
 /* Ett recept ar KANT om det ar 'known' och yrket ar lart, ELLER om spelaren hittat
    dess recipe-item (S.prof.recipes). */
 function recipeKnown(rid){
@@ -4154,7 +4189,9 @@ function load(){
         if (typeof it.key === 'string' && typeof it.name === 'string')
           return {key: it.key, name: it.name, ico: it.ico || '📦', qty: Math.max(1, Math.floor(+it.qty) || 1), stack: !!it.stack,
                   mat: !!it.mat, bop: !!it.bop,
-                  flask: !!it.flask, boost: it.flask ? it.boost : undefined, rar: it.flask ? (it.rar | 0) : undefined};
+                  flask: !!it.flask, boost: it.flask ? it.boost : undefined,
+                  recipe: (typeof it.recipe === 'string' && RECIPE_BY[it.recipe]) ? it.recipe : undefined,
+                  rar: (it.flask || it.recipe) ? (it.rar | 0) : undefined};
         return null;
       });
       if (d.exp && typeof d.exp === 'object'){
@@ -4170,6 +4207,7 @@ function load(){
                    celler ur en färdig expedition vid omladdning. */
                 if (r.loot.gear){ const g = readGear(r.loot.gear); if (g){ if (typeof r.loot.gear.src === 'string' && r.loot.gear.src.length < 80) g.src = r.loot.gear.src; run.loot.gear = g; } }
                 if (r.loot.cell) run.loot.cell = true;
+                if (typeof r.loot.recipe === 'string' && RECIPE_BY[r.loot.recipe]) run.loot.recipe = r.loot.recipe;
               }
               return run;
             });
@@ -5757,7 +5795,8 @@ function addInvItem(def){
   if (free < 0) return false;                  // fullt är fullt
   S.inv[free] = {key: def.key, name: def.name, ico: def.ico || '📦', qty: qty, stack: !!def.stack,
                  mat: !!def.mat, bop: !!def.bop,
-                 flask: !!def.flask, boost: def.flask ? def.boost : undefined, rar: def.flask ? (def.rar | 0) : undefined};
+                 flask: !!def.flask, boost: def.flask ? def.boost : undefined,
+                 recipe: def.recipe || undefined, rar: (def.flask || def.recipe) ? (def.rar | 0) : undefined};
   renderInventory();
   return true;
 }
@@ -6403,6 +6442,16 @@ function rollExpeditionLoot(def){
     loot.gear = rollItem(pickItemKey(rar), rar);
     loot.gear.src = def.name + ' · ' + def.zone;
   }
+  /* Recept-drop: en liten chans att ett recept-fynd faller, lutat av Loot Luck
+     som gear och av regionens tier. Bara recept man annu inte kan och som passar
+     tiern - finns inget kvar att hitta har faller inget. */
+  const RR = REGIONS[def.region];
+  const rtier = RR ? (RR.tier | 0) : 0;
+  const rpool = undiscoveredRecipesForTier(rtier);
+  if (rpool.length){
+    const recChance = Math.min(0.30, 0.06 * (1 + (gearBonus('luck') + boostPct('luck')) / 100) * (1 + rtier * 0.15));
+    if (Math.random() < recChance) loot.recipe = rpool[Math.floor(Math.random() * rpool.length)].id;
+  }
   return loot;
 }
 
@@ -6437,6 +6486,11 @@ function showRewards(run){
       '<span class="rwg-txt"><b>' + gearName(g) + '</b><i>' + gearRarName(g) + '</i></span></div>';
   }
   if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
+  if (run.loot.recipe && !recipeKnown(run.loot.recipe)){
+    const rr = RECIPE_BY[run.loot.recipe];
+    found += '<div class="rw-gear" style="--rc:' + rarCol(rr.rar) + '"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">📜</span>' +
+      '<span class="rwg-txt"><b>' + recipeItemName(run.loot.recipe) + '</b><i>' + PROF_BY[rr.prof].name + ' recipe</i></span></div>';
+  }
   $('rw-found').innerHTML = found ? '<div class="section-label">Gear found</div>' + found : '';
   /* Hovra fyndet och se exakt vad det ger — utan att först behöva hämta och leta. */
   const rg = $('rw-found').querySelector('[data-rwgear]');
@@ -6478,6 +6532,17 @@ function confirmClaim(){
         subject: 'Warp Fuel Cell held for you',
         body: 'Your backpack was full when this came in from ' + (expZoneOf(run.id) || 'the field') + '.',
         items: [{key: 'fuelcell', name: 'Warp Fuel Cell', ico: '⛽', qty: 1}]
+      });
+    }
+  }
+  if (run.loot.recipe && !recipeKnown(run.loot.recipe)){
+    if (!giveRecipeItem(run.loot.recipe)){
+      const rid = run.loot.recipe;
+      addMail({
+        from: 'Field Archive', src: 'overflow',
+        subject: 'Recipe held for you',
+        body: 'Your backpack was full when this schematic came in from ' + (expZoneOf(run.id) || 'the field') + '.',
+        items: [{key: 'recipe_' + rid, name: recipeItemName(rid), ico: '📜', qty: 1}]
       });
     }
   }
@@ -9738,6 +9803,11 @@ function stackWinActions(win, key){
     h += '<button class="ia-equip" data-act="use"' + (full ? ' disabled style="opacity:.5"' : '') + '>' +
       (full ? 'Tank is full' : 'Use') + '<span>+' + FUEL_CELL_RESTORE + ' fuel</span></button>';
   }
+  if (row.recipe && RECIPE_BY[row.recipe]){
+    const already = recipeKnown(row.recipe);
+    h += '<button class="ia-equip" data-act="learn"' + (already ? ' disabled style="opacity:.5"' : '') + '>' +
+      (already ? 'Already known' : 'Learn recipe') + '<span>' + PROF_BY[RECIPE_BY[row.recipe].prof].name + '</span></button>';
+  }
   if (row.flask && FLASK_BOOST[row.boost]){
     const fb = FLASK_BOOST[row.boost], rar = Math.min(row.rar | 0, fb.pct.length - 1);
     const active = flaskLeft(row.boost) > 0;
@@ -9776,6 +9846,11 @@ function spawnStackWin(key, nearX, nearY){
     if (at < 0){ stackWinActions(win, key); return; }
     if (btn.dataset.act === 'use') useInvItem(at);
     else if (btn.dataset.act === 'drink'){ if (drinkFlask(at)) spawnFloat({text: 'Boost active!'}); }
+    else if (btn.dataset.act === 'learn'){
+      const res = useRecipeItem(at);
+      if (res === true) spawnFloat({text: 'Recipe learned!'});
+      else if (res === 'known') spawnFloat({text: 'Already known'});
+    }
     else if (btn.dataset.act === 'sell1') sellStack(at, false);
     /* Att sälja HELA stapeln är den enda handlingen här som inte går att ta
        tillbaka på ett klick — därför frågar den först, precis som gear gör. */
