@@ -1881,6 +1881,22 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .pc-known-tag{font-size:10px;font-weight:800;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase}
 .prof-intro{font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:12px}
 .prof-book{margin-top:8px;border:1px dashed var(--border-glow);border-radius:8px;padding:7px 10px;font-size:10px;color:var(--text-dim)}
+.gather-loop{margin-top:8px;display:flex;gap:10px;align-items:center;background:var(--bg-inset);
+  border:1px solid var(--border-soft);border-radius:9px;padding:8px 10px}
+.gl-scene{width:46px;height:46px;border-radius:8px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;border:1px solid var(--border-glow)}
+.gl-extractor{background:radial-gradient(circle at 50% 120%, #3a2f22, #14100a)}
+.gl-fabricator{background:radial-gradient(circle at 50% 120%, #223243, #0c1119)}
+.gl-bioharvester{background:radial-gradient(circle at 50% 120%, #1f3a24, #0a140c)}
+.gl-tool{font-size:22px;animation:gl-work 1.25s ease-in-out infinite}
+@keyframes gl-work{0%,100%{transform:translateY(-1px) rotate(-8deg)}50%{transform:translateY(2px) rotate(8deg)}}
+.gl-right{flex:1;min-width:0}
+.gl-verb{font-size:10px;letter-spacing:.04em;color:var(--text-dim);margin-bottom:4px}
+.gl-bar{height:6px;border-radius:3px;background:var(--bg-panel);overflow:hidden;border:1px solid var(--border-soft)}
+.gl-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--gold));transition:width .12s linear}
+.gl-last{font-size:9px;margin-top:4px;font-family:var(--font-mono)}
+.gl-hit{color:var(--cyan)}
+.gl-miss{color:var(--text-dim)}
 .pets-modal{width:420px;max-width:calc(100vw - 16px)}
 .pets-scroll{max-height:66vh;overflow-y:auto;overscroll-behavior:contain}
 /* Handlar- och regionkortet: flyttbart som de andra. SAMMA fälla som husdjuren —
@@ -2584,11 +2600,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-<<<<<<< HEAD
-            <div class="desc">GENESIS v0.89.0 — MATERIAL & YRKEN</div>
-=======
-            <div class="desc">GENESIS v0.84.0 — STÖRRE IKONER</div>
->>>>>>> e1fc175ed1f2879b95a013f6d7e659fd29151ce2
+            <div class="desc">GENESIS v0.90.0 — GATHERING</div>
           </div>
         </div>
       </div>
@@ -2614,11 +2626,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-<<<<<<< HEAD
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.89.0 — MATERIAL & YRKEN</span>
-=======
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.84.0 — STÖRRE IKONER</span>
->>>>>>> e1fc175ed1f2879b95a013f6d7e659fd29151ce2
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.90.0 — GATHERING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2756,6 +2764,90 @@ const MATERIALS = {
   catalyst_essence:{name:'Catalyst Essence',ico:'⚗️', tier:1, bop:true, prof:'chemist', comp:true}
 };
 function isMaterial(key){ return !!MATERIALS[key]; }
+
+/* ==================== GATHERING (professions, lager 3) ====================
+   Varje gathering-profession har en egen liten idle-loop: en cykel om nagra
+   sekunder, sedan en roll som ger ETT material eller ingenting. VAR spelaren star
+   i natverket avgor vad som droppar - inte som ett last, utan som en VIKT, precis
+   som gear-rariteten. Nara hemma (lag tier) mest core, ute i frontaren (hog tier)
+   battre chans pa rart. Grundmaterial kan hittas overallt.
+
+   DATADRIVET: GATHER_DEFS beskriver looptid och drop, TIER_WEIGHT beskriver hur
+   distansen lutar oddsen, och SERVER_MODS ar en TOM krok for framtida servrar -
+   nar servrar blir data racker det att fylla den, inget annat behover andras. */
+const GATHER_DEFS = {
+  extractor:    {verb:'Mining',    ico:'⛏️', cycle:5.0, nothing:0.30,
+                 core:['copper_ore','iron_ore','gold_ore','crystal_quartz'],
+                 rare:['voidsteel_ore','genesis_crystal'],
+                 gems:['diamond_shard','ruby','sapphire','amethyst']},
+  fabricator:   {verb:'Weaving',   ico:'🧵', cycle:5.0, nothing:0.30,
+                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk'],
+                 rare:['phase_thread','memory_weave']},
+  bioharvester: {verb:'Harvesting',ico:'🌿', cycle:5.0, nothing:0.30,
+                 core:['neon_bloom','circuit_root','static_cap','glass_moss'],
+                 rare:['null_orchid','genesis_spore']}
+};
+/* Chans pa RART material per region-tier (0 = hemma ... 4 = frontar). Core far
+   resten. En liten men verklig chans pa rart redan hemma; klart battre langt ut. */
+const GATHER_RARE_CHANCE = [0.02, 0.05, 0.09, 0.15, 0.24];
+/* Extractor snubblar ibland over en adelsten (utover det vanliga utfallet) -
+   det ar den chansen, aven den lutad av distansen. */
+const GATHER_GEM_CHANCE  = [0.04, 0.05, 0.07, 0.09, 0.12];
+/* Framtida servrar kan multiplicera vikten for vissa material har. Tom nu -
+   {serverId: {materialKey: mult}}. Gatheringen fragar den redan, sa dagen en
+   server laggs till behover bara tabellen fyllas. */
+const SERVER_MODS = {};
+function serverMatMult(key){
+  const srv = S.world && S.world.server;
+  return (srv && SERVER_MODS[srv] && SERVER_MODS[srv][key]) || 1;
+}
+function regionTier(){ const R = REGIONS[S.world.current]; return R ? (R.tier | 0) : 0; }
+/* En roll: returnerar en materialnyckel eller null (inget denna gang). */
+function gatherRoll(profId){
+  const def = GATHER_DEFS[profId];
+  if (!def) return null;
+  if (Math.random() < def.nothing) return null;
+  const tier = Math.min(regionTier(), GATHER_RARE_CHANCE.length - 1);
+  /* Extractors adelsten ligger vid sidan om kärnutfallet. */
+  if (def.gems && Math.random() < GATHER_GEM_CHANCE[tier])
+    return weightedMat(def.gems);
+  const pool = (Math.random() < GATHER_RARE_CHANCE[tier]) ? def.rare : def.core;
+  return weightedMat(pool);
+}
+/* Val inom en pool, med serverns vikt inrakad. */
+function weightedMat(keys){
+  const w = keys.map(k => serverMatMult(k));
+  return keys[rollRarity(w, Math.random())];
+}
+/* Slår igenom en cykel: kallas ur loopen med dt. Racknar upp tiden, och nar en
+   cykel ar full rullas ett utfall och nasta cykel borjar. Bara larda yrken med
+   oppen panel tickar - man ska se det som händer. */
+function tickGather(dt){
+  if (!S.prof || !S.prof.gather) return;
+  const panelOpen = $('prof-overlay') && $('prof-overlay').classList.contains('open');
+  if (!panelOpen) return;
+  let changed = false;
+  for (const id of Object.keys(GATHER_DEFS)){
+    if (!profLearned(id)) continue;
+    const g = S.prof.gather[id] || (S.prof.gather[id] = {t: 0, last: null});
+    g.t += dt;
+    const def = GATHER_DEFS[id];
+    while (g.t >= def.cycle){
+      g.t -= def.cycle;
+      const key = gatherRoll(id);
+      if (key){
+        giveMaterial(key, 1);
+        g.last = {key: key, at: Date.now()};
+        grantProfXP(id, 4);          /* gathering ger yrkes-XP */
+        spawnFloat({text: '+1 ' + MATERIALS[key].name});
+      } else {
+        g.last = {key: null, at: Date.now()};
+      }
+      changed = true;
+    }
+  }
+  if (changed && panelOpen) renderGatherLoops();
+}
 function matDef(key){ return MATERIALS[key] || null; }
 /* Ger spelaren material - en tunn wrapper over addInvItem sa allt material fods
    likadant: stackbart, med ratt namn, ikon och en 'mat'-flagga sa vaska och
@@ -3097,15 +3189,6 @@ function fmtMoney(c){
   if (m.s) out += '<span class="co-s">' + m.s + 's</span>';
   if (m.c || (!m.g && !m.s)) out += '<span class="co-c">' + m.c + 'c</span>';
   return '<span class="coins">' + out + '</span>';
-}
-/* Alla tre valorer, aven nollorna, pa en rad. Toppradens hovring vill visa hela
-   plangboken - fmtMoney doljer nollor, vilket ar ratt i en prislapp men fel har. */
-function fmtMoneyAll(c){
-  const m = splitMoney(c);
-  return '<span class="coins">' +
-    '<span class="co-g">' + fmtLong(m.g) + 'g</span>' +
-    '<span class="co-s">' + m.s + 's</span>' +
-    '<span class="co-c">' + m.c + 'c</span></span>';
 }
 function moneyText(c){
   const m = splitMoney(c);
@@ -3480,7 +3563,7 @@ let S = {
   frags: 0,
   gold: 0,
   /* Yrken: known ar {id: {xp}} for de hogst tva larda. Tomt fran start. */
-  prof: {known: {}},
+  prof: {known: {}, gather: {}},
   inv: [],                      // {key, name, ico, qty, stack} — resurser/material/flaskor stackar, gear gör det inte
   exp: {found: [], runs: []},   // upptäckta expeditions-id + aktiva körningar (max 2)
   credits: 0,
@@ -3705,7 +3788,7 @@ function load(){
             clean[id] = {xp: Math.max(0, Math.floor(+(row && row.xp)) || 0)};
           }
         }
-        S.prof = {known: clean};
+        S.prof = {known: clean, gather: {}};
       }
       if (d.pets && typeof d.pets === 'object'){
         /* Tomma rutor ar null och MASTE overleva laddningen - annars packas
@@ -6610,6 +6693,9 @@ function loopBody(now){
 
   // Handlarens klocka: bara när man faktiskt tittar på en handelsbod
   tickVendorClock();
+
+  // Gathering: de larda yrkenas idle-loop, bara med panelen oppen
+  tickGather(dt);
   tickSurveyClock();
   renderBoostBar();
 
@@ -8651,7 +8737,7 @@ function renderProfessions(){
           '<div class="pc-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</div>' +
           (pr.kind === 'crafting'
             ? '<div class="prof-book">Recipe Book and crafting arrive in the next layer.</div>'
-            : '<div class="prof-book">Idle gathering arrives in the next layer.</div>') : '') +
+            : gatherLoopHTML(pr.id)) : '') +
       '</div>' +
       '<div class="pc-right">' + right + '</div>' +
     '</div>';
@@ -8659,6 +8745,42 @@ function renderProfessions(){
   grid.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', () => {
     if (learnProfession(b.dataset.learn)) spawnFloat({text: 'Learned ' + PROF_BY[b.dataset.learn].name + '!'});
   }));
+}
+/* Den lilla arbetsytan i ett gathering-kort: en scen (gruva/vav/flora) med en
+   framatrackande matare och det senaste fyndet. Uppdateras varje cykel utan att
+   hela panelen ritas om, sa matarna rör sig mjukt. */
+function gatherLoopHTML(id){
+  const def = GATHER_DEFS[id];
+  const g = (S.prof.gather && S.prof.gather[id]) || {t: 0, last: null};
+  const pct = Math.max(0, Math.min(100, Math.round(g.t / def.cycle * 100)));
+  const tier = regionTier();
+  const here = REGIONS[S.world.current] ? REGIONS[S.world.current].name : '';
+  const last = g.last
+    ? (g.last.key ? '<span class="gl-hit">Last: ' + MATERIALS[g.last.key].ico + ' ' + MATERIALS[g.last.key].name + '</span>'
+                  : '<span class="gl-miss">Last: nothing</span>')
+    : '<span class="gl-miss">Working…</span>';
+  return '<div class="gather-loop" data-gather="' + id + '">' +
+    '<div class="gl-scene gl-' + id + '"><span class="gl-tool">' + def.ico + '</span></div>' +
+    '<div class="gl-right">' +
+      '<div class="gl-verb">' + def.verb + ' in ' + here + ' · Tier ' + tier + '</div>' +
+      '<div class="gl-bar"><div class="gl-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="gl-last">' + last + '</div>' +
+    '</div></div>';
+}
+/* Uppdatera BARA loopdelarna, inte hela panelen - annars nollstalls hover och
+   knappar mitt i en cykel. */
+function renderGatherLoops(){
+  document.querySelectorAll('.gather-loop').forEach(el => {
+    const id = el.dataset.gather, def = GATHER_DEFS[id];
+    const g = (S.prof.gather && S.prof.gather[id]) || {t: 0, last: null};
+    const fill = el.querySelector('.gl-fill');
+    if (fill) fill.style.width = Math.max(0, Math.min(100, Math.round(g.t / def.cycle * 100))) + '%';
+    const lastEl = el.querySelector('.gl-last');
+    if (lastEl) lastEl.innerHTML = g.last
+      ? (g.last.key ? '<span class="gl-hit">Last: ' + MATERIALS[g.last.key].ico + ' ' + MATERIALS[g.last.key].name + '</span>'
+                    : '<span class="gl-miss">Last: nothing</span>')
+      : '<span class="gl-miss">Working…</span>';
+  });
 }
 function openProfessions(){ $('prof-overlay').classList.add('open'); renderProfessions(); }
 function closeProfessions(){ $('prof-overlay').classList.remove('open'); }
@@ -9553,16 +9675,10 @@ $('bag-btn').addEventListener('click', () => {
   if (!pill) return;
   pill.style.cursor = 'help';
   pill.addEventListener('mouseenter', () => {
-<<<<<<< HEAD
     /* EXAKT vaskans funktion, inte en egen som liknar den. Nollor doljs dar och
        doljs darfor har - samma pengar ska se likadana ut var man an moter dem,
        och med en enda funktion KAN de inte glida isar. */
     showBagTip(pill, '<div class="tip-name">Money</div>' + fmtMoney(S.gold));
-=======
-    /* Alla tre valorerna PA EN RAD i sina egna farger, precis som i vaskan -
-       samma pengar ska se likadana ut var man an moter dem. */
-    showBagTip(pill, '<div class="tip-name">Money</div>' + fmtMoneyAll(S.gold));
->>>>>>> e1fc175ed1f2879b95a013f6d7e659fd29151ce2
   });
   pill.addEventListener('mouseleave', hideBagTip);
 })();
