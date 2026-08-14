@@ -1940,8 +1940,10 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 }
 .pet-sprite::after{
   content:'';position:absolute;inset:0;background-repeat:no-repeat;
-  background-image:url('assets/pets/pets_sheet.png');
-  background-size:var(--ps);background-position:var(--pp);
+  /* Artens egen bild, centrerad och inpassad - ikonerna ar redan kvadratiska och
+     centrerade, sa 'contain' racker och inget behover forskjutas. */
+  background-image:var(--pi);
+  background-size:contain;background-position:center;
 }
 /* Siluetten (v0.85.0): en enda farg plus en tunn kontur i fyra riktningar, sa
    formen gar att kanna igen i stallet for att se ut som en tom ruta. Konturen ar
@@ -2642,7 +2644,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.95.2 — RECEPTKORT</div>
+            <div class="desc">GENESIS v0.96.0 — VÄRLDENS HUSDJUR</div>
           </div>
         </div>
       </div>
@@ -2668,7 +2670,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.95.2 — RECEPTKORT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.96.0 — VÄRLDENS HUSDJUR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3560,18 +3562,15 @@ function gearBonus(key){
   return v;
 }
 
-/* ================= HUSDJUREN — arter, ark, sällsynthet ================= */
-/* Arket: assets/pets/pets_sheet.png (1068x701). Rutnätet är INTE jämnt — korten har
-   marginaler och ramar, och ikonerna sitter inte i cellmitten. Därför är varje ikons
-   mittpunkt UPPMÄTT med pixelanalys (ljusa pixlar > tröskel, namnremsa exkluderad),
-   och beskärningen är en kvadrat på 76 källpixlar runt den punkten — innanför kortets
-   ram och ovanför namntexten för alla fem. Nya arter kräver ny mätning, eller hellre:
-   egna bildfiler per art. */
-const PET_SHEET = {imgW: 1068, crop: 76};
+/* ================= HUSDJUREN — arter, bilder, sällsynthet ================= */
+/* EN BILD PER ART (v0.96.0). Forut lag alla husdjur i ETT ark och varje art
+   pekades ut med uppmatta mittkoordinater (cx/cy). Nu har varje art sin egen fil,
+   av precis samma skal som gear har det: ska en art ritas om byter man EN fil,
+   i stallet for att rita om ett ark med femtio bilder och rakna om koordinater.
+   Funktionsnamnet ar oforandrat, sa alla ritstallen fungerar som forut. */
+function petArt(sp){ return 'assets/pets/' + sp + '.png'; }
 function petSpriteVars(sp, px){
-  const p = PETS[sp], s = px / PET_SHEET.crop, half = PET_SHEET.crop / 2;
-  return '--ps:' + (PET_SHEET.imgW * s).toFixed(1) + 'px auto;' +
-         '--pp:' + (-(p.cx - half) * s).toFixed(1) + 'px ' + (-(p.cy - half) * s).toFixed(1) + 'px;' +
+  return '--pi:url(\'' + petArt(sp) + '\');' +
          'width:' + px + 'px;height:' + px + 'px;font-size:' + Math.round(px * 0.4) + 'px';
 }
 /* Fem arter i v1, alla hemma i Neon Hub. base = effekt i procent vid Common; sällsynthet
@@ -3585,13 +3584,81 @@ function petSpriteVars(sp, px){
    an en rad - darfor tal husdjuren mer variation an utrustningen nagonsin gor.
    OBS: det har ar medvetet TILLFALLIGT. Nar yrken, isarplockning och resten finns
    oppnar sig langt fler saker att haka formagor pa, och da gors listan om igen. */
+/* ---------- ARTERNA (v0.96.0: hela varlden befolkad) ----------
+   47 arter: TVA universella som gar att fa i VARJE region, och TRE egna per
+   region i alla femton. Varje cache drar darfor ur exakt fem arter - de tva
+   universella plus hemmaregionens tre.
+
+   FAMILJERNA KLUSTRAS EFTER AVSTAND (spelarens lasta beslut): Dust och Cache Luck
+   bor nara hemma, Machine Cost och Sell Value langst ut, och Fuel Regen, Boost
+   Strength och Boost Duration i mellanringarna. Vill man ha en viss formaga far
+   man resa efter den, och varje region far ett rykte.
+
+   De fem forsta arterna behaller sina familjer fran tidigare versioner, sa att
+   husdjur i befintliga sparfiler inte andrar beteende. */
 const PETS = {
-  byte:  {name: 'Byte',  cx: 482.5,  cy: 62.7,  fam: 'machinecost'},
-  patch: {name: 'Patch', cx: 374.0,  cy: 63.0,  fam: 'fuelregen'},
-  glint: {name: 'Glint', cx: 269.8,  cy: 68.0,  fam: 'cacheluck'},
-  zipp:  {name: 'Zipp',  cx: 56.7,   cy: 325.7, fam: 'boostpot'},
-  dot:   {name: 'Dot',   cx: 1007.2, cy: 186.3, fam: 'dust'}
+  /* --- UNIVERSELLA: finns i varje regions cache --- */
+  byte:       {name: 'Byte',       fam: 'machinecost', uni: true},
+  patch:      {name: 'Patch',      fam: 'fuelregen',   uni: true},
+
+  /* --- TIER 0 - NEON HUB (hemma): Dust och Cache Luck --- */
+  glint:      {name: 'Glint',      fam: 'cacheluck'},
+  zipp:       {name: 'Zipp',       fam: 'boostpot'},
+  dot:        {name: 'Dot',        fam: 'dust'},
+
+  /* --- TIER 1 - narmaste ringen: Dust och Cache Luck --- */
+  p1x:        {name: 'P1X',        fam: 'dust'},        /* Arcade-87 */
+  cubey:      {name: 'Cubey',      fam: 'cacheluck'},
+  bit:        {name: 'Bit',        fam: 'dust'},
+  hive:       {name: 'Hive',       fam: 'cacheluck'},   /* Block Vaults */
+  cryst:      {name: 'Cryst',      fam: 'dust'},
+  prism:      {name: 'Prism',      fam: 'cacheluck'},
+  aquo:       {name: 'Aquo',       fam: 'dust'},        /* Glass Ocean */
+  drip:       {name: 'Drip',       fam: 'cacheluck'},
+  scuba:      {name: 'Scuba',      fam: 'dust'},
+
+  /* --- TIER 2 - mellanringen: Fuel Regen, Boost Strength, Boost Duration --- */
+  stormi:     {name: 'Stormi',     fam: 'fuelregen'},   /* Voltrath */
+  pulse:      {name: 'Pulse',      fam: 'boostpot'},
+  vector:     {name: 'Vector',     fam: 'boostdur'},
+  ember:      {name: 'Ember',      fam: 'fuelregen'},   /* Forgefall */
+  lava:       {name: 'Lava',       fam: 'boostpot'},
+  geo:        {name: 'Geo',        fam: 'boostdur'},
+  nova:       {name: 'Nova',       fam: 'fuelregen'},   /* Nova Bazaar */
+  sync:       {name: 'Sync',       fam: 'boostdur'},
+  meowd:      {name: 'Meowd',      fam: 'boostpot'},
+  sprout:     {name: 'Sprout',     fam: 'fuelregen'},   /* Pixel Gardens */
+  bloom:      {name: 'Bloom',      fam: 'boostpot'},
+  root:       {name: 'Root',       fam: 'boostdur'},
+  wisp:       {name: 'Wisp',       fam: 'fuelregen'},   /* Sky Array */
+  orbit:      {name: 'Orbit',      fam: 'boostdur'},
+  aeris:      {name: 'Aeris',      fam: 'boostpot'},
+
+  /* --- TIER 3 - yttre ringen: Machine Cost och Sell Value --- */
+  crawl:      {name: 'Crawl',      fam: 'machinecost'}, /* The Undergrid */
+  moss:       {name: 'Moss',       fam: 'sellvalue'},
+  morrow:     {name: 'Morrow',     fam: 'machinecost'},
+  buzz:       {name: 'Buzz',       fam: 'machinecost'}, /* Rust Harbor */
+  watcher:    {name: 'Watcher',    fam: 'sellvalue'},
+  sway:       {name: 'Sway',       fam: 'machinecost'},
+  specter:    {name: 'Specter',    fam: 'sellvalue'},   /* The Static Wastes */
+  phase:      {name: 'Phase',      fam: 'machinecost'},
+  drift:      {name: 'Drift',      fam: 'sellvalue'},
+  frost:      {name: 'Frost',      fam: 'machinecost'}, /* Coldreach */
+  lume:       {name: 'Lume',       fam: 'sellvalue'},
+  nix:        {name: 'Nix',        fam: 'machinecost'},
+
+  /* --- TIER 4 - frontaren: Machine Cost och Sell Value --- */
+  shard:      {name: 'Shard',      fam: 'sellvalue'},   /* Crystal Relay */
+  triad:      {name: 'Triad',      fam: 'machinecost'},
+  halo:       {name: 'Halo',       fam: 'sellvalue'},
+  void:       {name: 'Void',       fam: 'machinecost'}, /* Nullgate */
+  kage:       {name: 'Kage',       fam: 'sellvalue'},
+  vexa:       {name: 'Vexa',       fam: 'machinecost'}
 };
+/* De tva universella arterna - de gar att fa overallt, sa spelaren alltid har
+   nagot att jaga aven i en region hen just kommit till. */
+const UNIVERSAL_PETS = Object.keys(PETS).filter(k => PETS[k].uni);
 /* De tva som annu ingen art bar - Sell Value och Boost Duration - ar byggda och
    inkopplade anda, sa att de arter som laggs till i de andra regionerna kan
    plockas rakt ur listan utan nytt arbete. */
@@ -3650,7 +3717,36 @@ function petAffixes(p){
   const fam = PETS[p.sp].fam, b = PET_BANDS[fam];
   return [{f: fam, v: Math.round((b.lo + b.hi) / 2 * RARITIES[p.rar].mult * 100) / 100}];
 }
-const REGION_PETS = { neonhub: ['byte', 'patch', 'glint', 'zipp', 'dot'] };
+/* Varje regions EGNA tre arter. De universella laggs pa i petsForRegion(), sa
+   listan har bara sager vad som ar unikt for platsen - da kan en art aldrig rakna
+   som bade egen och universell av misstag. */
+const REGION_OWN_PETS = {
+  neonhub:      ['glint', 'zipp', 'dot'],
+  arcade87:     ['p1x', 'cubey', 'bit'],
+  blockvaults:  ['hive', 'cryst', 'prism'],
+  glassocean:   ['aquo', 'drip', 'scuba'],
+  voltrath:     ['stormi', 'pulse', 'vector'],
+  forgefall:    ['ember', 'lava', 'geo'],
+  novabazaar:   ['nova', 'sync', 'meowd'],
+  pixelgardens: ['sprout', 'bloom', 'root'],
+  skyarray:     ['wisp', 'orbit', 'aeris'],
+  undergrid:    ['crawl', 'moss', 'morrow'],
+  rustharbor:   ['buzz', 'watcher', 'sway'],
+  staticwastes: ['specter', 'phase', 'drift'],
+  coldreach:    ['frost', 'lume', 'nix'],
+  crystalrelay: ['shard', 'triad', 'halo'],
+  nullgate:     ['void', 'kage', 'vexa']
+};
+/* Vad en regions cache kan ge: de tva universella plus regionens egna tre.
+   Fem arter, overallt - samma lofte i hela varlden. */
+function petsForRegion(rid){
+  const own = REGION_OWN_PETS[rid];
+  return own ? UNIVERSAL_PETS.concat(own) : null;
+}
+/* Bakatkompatibelt uppslag: koden lasar REGION_PETS pa flera stallen, och den
+   ska fortsatta ge hela listan for en region. */
+const REGION_PETS = {};
+Object.keys(REGION_OWN_PETS).forEach(rid => { REGION_PETS[rid] = petsForRegion(rid); });
 const RARITIES = [
   {id: 'common',    name: 'Common',    mult: 1},
   {id: 'uncommon',  name: 'Uncommon',  mult: 1.5},
@@ -3659,8 +3755,19 @@ const RARITIES = [
   {id: 'legendary', name: 'Legendary', mult: 6},
   {id: 'mythic',    name: 'Mythic',    mult: 10}
 ];
-/* Vikter per tusendel för tier 0 (hemma). Avståndet ska förskjuta dessa när fler regioner får arter. */
-const CACHE_WEIGHTS_T0 = [600, 250, 100, 40, 9, 1];
+/* Cachens sallsynthetsvikter PER TIER - samma form som gear redan anvander, sa
+   spelaren slipper lara sig ett andra system. Avstandet lutar oddsen, och lutningen
+   BRANTAR forbi maskinmuren: ring 3 och 4 ar ett tydligt steg, inte bara nasta
+   snaps uppat. Det ar dar resan ska borja betala sig (spelarens lasta beslut). */
+const CACHE_WEIGHTS = {
+  0: [600, 250, 100,  40,   9,  1],
+  1: [520, 270, 130,  60,  16,  4],
+  2: [430, 285, 165,  85,  27,  8],
+  3: [300, 275, 220, 140,  50, 15],   /* forbi maskinmuren - brant steg */
+  4: [200, 240, 250, 200,  80, 30]
+};
+/* Namnet finns kvar for bakatkompatibilitet: hemmaringens vikter. */
+const CACHE_WEIGHTS_T0 = CACHE_WEIGHTS[0];
 const CACHE_COST = 10;
 /* Cache Luck flyttar VIKT fran de tva lagsta stegen till de fyra oversta i stallet
    for att bara skala upp toppen. Skalar man bara upp toppen blir en mythic 10 %
@@ -3668,7 +3775,10 @@ const CACHE_COST = 10;
    vid olika sallsyntheter. Sa har betyder +10 % samma sak overallt: en tiondel av
    skrapet blir nagot battre. */
 function cacheWeights(){
-  const w = CACHE_WEIGHTS_T0.slice();
+  /* Vikterna kommer ur regionen man STAR i - en cache oppnad i frontaren ar en
+     annan cache an en oppnad hemma, aven om knappen ser likadan ut. */
+  const R = REGIONS[S.world.current];
+  const w = (CACHE_WEIGHTS[R ? R.tier : 0] || CACHE_WEIGHTS[0]).slice();
   const luck = petBonusPct('cacheluck') / 100;
   if (luck <= 0) return w;
   const moved = (w[0] + w[1]) * Math.min(0.9, luck);
