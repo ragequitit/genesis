@@ -229,9 +229,9 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-split > .char-layout{transform:translateX(4px)}
 .char-split > .transport-row{transform:translateX(4px)}
 #panel-character > .panel-title{padding-left:5px}
-.transport-row{display:flex;justify-content:center;margin-top:8px;flex:0 0 auto}
+.transport-row{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:8px;flex:0 0 auto}
 .transport-slot{
-  width:120px;height:46px;font-size:23px;
+  width:96px;height:52px;font-size:23px;
   display:flex;align-items:center;justify-content:center;
 }
 .cp-badge{
@@ -1335,7 +1335,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 
 /* Inställningsmodalen */
 .modal-overlay{
-  position:fixed;inset:0;z-index:100;
+  position:fixed;inset:0;z-index:400;
   background:rgba(3,4,10,.75);backdrop-filter:blur(3px);
   display:none;align-items:center;justify-content:center;padding:20px;
 }
@@ -2141,12 +2141,12 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
             <div class="equip-slot" data-slot="8" title="Ring I"><i class="slot-bg" style="background-image:url('assets/slots/slot_ring.png')"></i></div>
             <div class="equip-slot" data-slot="12" title="Ring II"><i class="slot-bg" style="background-image:url('assets/slots/slot_ring.png')"></i></div>
             <div class="equip-slot" data-slot="13" title="Relic"><i class="slot-bg" style="background-image:url('assets/slots/slot_ring.png')"></i></div>
-            <div class="equip-slot" data-slot="5" title="Weapon"><i class="slot-bg" style="background-image:url('assets/slots/slot_weapon.png')"></i></div>
-            <div class="equip-slot" data-slot="9" title="Off Hand"><i class="slot-bg" style="background-image:url('assets/slots/slot_offhand.png')"></i></div>
           </div>
         </div>
         <div class="transport-row">
+          <div class="equip-slot" data-slot="5" title="Weapon"><i class="slot-bg" style="background-image:url('assets/slots/slot_weapon.png')"></i></div>
           <div class="equip-slot transport-slot" data-slot="11" title="Transport — mounts, rides and stranger things"><i class="slot-bg" style="background-image:url('assets/slots/slot_transport.png')"></i></div>
+          <div class="equip-slot" data-slot="9" title="Off Hand"><i class="slot-bg" style="background-image:url('assets/slots/slot_offhand.png')"></i></div>
         </div>
         <div class="char-stats-cell">
         <div class="char-stats">
@@ -2641,7 +2641,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.94.0 — RECEPT-DROPPAR</div>
+            <div class="desc">GENESIS v0.95.0 — UI-FIXAR</div>
           </div>
         </div>
       </div>
@@ -2667,7 +2667,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.94.0 — RECEPT-DROPPAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.95.0 — UI-FIXAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -9214,8 +9214,23 @@ let recipeProf = null;
 function openRecipeBook(profId){
   recipeProf = profId;
   $('recipe-title').textContent = PROF_BY[profId].name + ' — Recipe Book';
-  $('recipe-overlay').classList.add('open');
+  const w = $('recipe-overlay');
+  w.classList.add('open');
+  bringToFront(w);                 /* over professionssidan, inte under den */
   renderRecipeBook();
+  /* Bredvid professionssidan (till hoger om den), sa bada syns. Faller den utanfor
+     skarmen laggs den till vanster om professionssidan i stallet. */
+  const prof = $('prof-overlay');
+  const pr = prof && prof.classList.contains('open') ? prof.getBoundingClientRect() : null;
+  if (pr){
+    let x = pr.right + 12, y = Math.max(8, pr.top);
+    if (x + 360 > window.innerWidth) x = Math.max(8, pr.left - 372);
+    w.style.left = x + 'px'; w.style.top = y + 'px';
+  } else {
+    const panel = document.getElementById('panel-character');
+    const r = panel ? panel.getBoundingClientRect() : {right: 40, top: 60};
+    w.style.left = (r.right + 12) + 'px'; w.style.top = Math.max(8, r.top) + 'px';
+  }
 }
 function closeRecipeBook(){ $('recipe-overlay').classList.remove('open'); }
 function renderRecipeBook(){
@@ -9259,8 +9274,36 @@ function renderRecipeBook(){
       spawnFloat({text: 'Crafted ' + nm + '!'}); renderRecipeBook();
     }
   }));
+  /* Hovra en receptrad och se det nastan-vanliga foremalskortet: Combat Power
+     "half", formagorna som antal, och saljvardet. Bara pa recept man KAN se
+     (kanda) - ett last drop-recept avslojar inget. */
+  list.querySelectorAll('.recipe-row:not(.locked)').forEach((row, i) => {
+    const r = mine.filter(rr => recipeKnown(rr.id))[i];
+    /* Radens recept-id ligger pa Craft-knappen; las det darifran sa vi slipper
+       en egen datamappning som kan glida isar. */
+    const cb = row.querySelector('[data-craft]');
+    const rid = cb ? cb.dataset.craft : null;
+    if (!rid) return;
+    row.addEventListener('mouseenter', e => showRecipeTip(rid, e.clientX, e.clientY));
+    row.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
+    row.addEventListener('mouseleave', hideGearTip);
+  });
 }
-function openProfessions(){ $('prof-overlay').classList.add('open'); renderProfessions(); }
+function openProfessions(){
+  const w = $('prof-overlay');
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open');
+  bringToFront(w);
+  renderProfessions();
+  if (!wasOpen){
+    /* Bredvid karaktarsbladet, precis som vaskan - sa bada syns samtidigt. */
+    const panel = document.getElementById('panel-character');
+    const r = panel ? panel.getBoundingClientRect() : {right: 40, top: 60};
+    let x = r.right + 12, y = Math.max(8, r.top);
+    if (x + 380 > window.innerWidth) x = Math.max(8, window.innerWidth - 380);
+    w.style.left = x + 'px'; w.style.top = y + 'px';
+  }
+}
 function closeProfessions(){ $('prof-overlay').classList.remove('open'); }
 function petWinHTML(p){
   const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
@@ -9420,6 +9463,10 @@ document.querySelectorAll('.qa-btn .lbl').forEach(l => {
 });
 $('prof-close').addEventListener('click', closeProfessions);
 $('recipe-close').addEventListener('click', closeRecipeBook);
+/* Bada sidorna ska ga att flytta precis som vaskan och varlden - det saknades,
+   sa de satt fast. Titelraden och emblemet ar draghandtag. */
+makeDraggable($('prof-overlay'), [$('prof-overlay').querySelector('.inv-titlebar'), $('prof-overlay').querySelector('.inv-emblem')]);
+makeDraggable($('recipe-overlay'), [$('recipe-overlay').querySelector('.inv-titlebar'), $('recipe-overlay').querySelector('.inv-emblem')]);
 $('pet-team-grid').addEventListener('click', openPetsModal);
 $('pets-close').addEventListener('click', () => $('pets-overlay').classList.remove('open'));
 $('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
@@ -9604,6 +9651,51 @@ function showPlainTip(html, x, y, above){
   gearTip.innerHTML = '<div class="gt-name" style="color:var(--text)">' + html + '</div>';
   gearTip.classList.add('on');
   moveGearTip(x, y, above);
+}
+/* Hovringskortet for ett RECEPT: nastan som gear-kortet, men pjasen finns inte an
+   sa vardena ar det man VET pa forhand. Combat Power star "half" - craftat rullar
+   nedre halvan av bandet. Formagorna visas som ANTAL ("+2 abilities") - man vet hur
+   manga, inte vilka. Och saljvardet, ungefarligt ur raritetens spann. */
+function recipeTipHTML(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return '';
+  const R = GEAR_RAR[r.rar];
+  const isFl = isFlask(r.item);
+  const dispName = r.name || (ITEMS[r.item] ? ITEMS[r.item].name : r.item);
+  const rc = rarCol(r.rar);
+  const line = (k, v) => '<div class="gt-stat"><span style="opacity:.75">' + k + '</span> ' + v + '</div>';
+  const name = '<div class="gt-name" style="color:' + rc + '">' + dispName + '</div>';
+  const goldMid = Math.round((R.gold[0] + R.gold[1]) / 2);
+  if (isFl){
+    /* En flaska ar en boost, inte en pjas - visa vad den ger. */
+    const fb = FLASK_BOOST[FLASKS[r.item].boost];
+    const rr = Math.min(r.rar, fb.pct.length - 1);
+    return name +
+      '<div class="gt-rar">' + R.name + ' · Consumable</div>' +
+      '<div class="gt-sep"></div>' +
+      '<div class="gt-aff">+' + fb.pct[rr] + '% ' + fb.what + '</div>' +
+      '<div class="gt-aff">' + fb.mins[rr] + ' min duration</div>' +
+      '<div class="gt-sep"></div>' +
+      '<div class="gt-hint">Crafted — rolls when you make it</div>';
+  }
+  const slotName = GEAR_SLOTS[ITEMS[r.item].slot] ? GEAR_SLOTS[ITEMS[r.item].slot].name : '';
+  return name +
+    '<div class="gt-rar">' + R.name + (slotName ? ' · ' + slotName : '') + '</div>' +
+    '<div class="gt-sep"></div>' +
+    /* Combat Power star "half" - inte en siffra, for den finns inte an. */
+    '<div class="gt-stat"><b class="cp">half</b> Combat Power</div>' +
+    '<div class="gt-sep"></div>' +
+    /* Man vet ANTALET formagor, inte vilka - sa vi visar rakningen. */
+    '<div class="gt-aff">+' + R.aff + (R.aff === 1 ? ' ability' : ' abilities') + '</div>' +
+    '<div class="gt-sep"></div>' +
+    line('Sells for', '~' + fmtMoney(goldMid)) +
+    '<div class="gt-craft">⚒️ Crafted — rolls the lower half</div>';
+}
+function showRecipeTip(rid, x, y){
+  gearTip.style.setProperty('--rc', rarCol(RECIPE_BY[rid].rar));
+  gearTip.innerHTML = recipeTipHTML(rid);
+  gearTip.classList.add('on');
+  moveGearTip(x, y);
 }
 function showGearTip(it, x, y, above){
   gearTip.style.setProperty('--rc', gearRarCol(it));
@@ -10037,7 +10129,9 @@ function showSlotPicker(slotIdx, anchor){
 
 /* ---------- FÖNSTERMOTORN ---------- */
 let zTop = 200;
-function bringToFront(el){ el.style.zIndex = ++zTop; }
+/* Dragna/fokuserade fonster stiger har, men taket ar 390 sa de aldrig gar over
+   de blockerande modalerna (400) som kraver ett beslut. */
+function bringToFront(el){ el.style.zIndex = Math.min(390, ++zTop); }
 function clampToViewport(el){
   const r = el.getBoundingClientRect();
   let x = Math.min(Math.max(r.left, 8 - r.width + 60), window.innerWidth - 60);
