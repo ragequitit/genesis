@@ -2082,6 +2082,37 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 </style>
 </head>
 <body>
+<!-- ============ INLOGGNINGSPORTEN ============
+     Spelet ar online. Utan konto finns ingen speldata alls, sa porten ligger
+     OVER allt och slapper igenom forst nar man ar inloggad OCH valt karaktar. -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-logo">GENESIS</div>
+
+    <div id="gate-auth" class="gate-step">
+      <div class="gate-tabs">
+        <button class="gate-tab on" id="gt-in">Sign in</button>
+        <button class="gate-tab" id="gt-up">Create account</button>
+      </div>
+      <input class="gate-input" id="gate-email" type="email" placeholder="Email" autocomplete="email">
+      <input class="gate-input" id="gate-pass" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="gate-go" id="gate-submit">Sign in</button>
+      <div class="gate-msg" id="gate-msg"></div>
+      <div class="gate-note">Your progress lives on the server, so you can play from any device.</div>
+    </div>
+
+    <div id="gate-chars" class="gate-step" style="display:none">
+      <div class="gate-sub">Choose a character</div>
+      <div class="gate-list" id="gate-charlist"></div>
+      <div class="gate-newrow" id="gate-newrow">
+        <input class="gate-input" id="gate-newname" placeholder="New character name" maxlength="16">
+        <button class="gate-go small" id="gate-create">Create</button>
+      </div>
+      <div class="gate-msg" id="gate-msg2"></div>
+      <button class="gate-link" id="gate-signout">Sign out</button>
+    </div>
+  </div>
+</div>
 <div class="app">
 
   <!-- ================= TOP BAR ================= -->
@@ -2652,7 +2683,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.96.2 — IKONFIX</div>
+            <div class="desc">GENESIS v0.97.5 — BUGGJAKT</div>
           </div>
         </div>
       </div>
@@ -2678,7 +2709,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.96.2 — IKONFIX</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.97.5 — BUGGJAKT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2761,6 +2792,643 @@ const UPGRADES = [
    ungefar en fordubbling av inkomsten, och med allt uppgraderat mer an sa.
    GOLVET pa 1 finns kvar for de forsta minuterna, innan man ager en enda maskin -
    da beter sig starten exakt som forut. */
+/* ==================== SERVERN (klientlager 1) ====================
+   Spelet ar ett ONLINE-spel: kontot ar sanningen, och servern avgor allt av
+   varde. Har bor bara FORBINDELSEN - inloggning, sessionen och ett satt att
+   anropa serverns funktioner. Sjalva spellogiken flyttas over lager for lager.
+
+   Sessionen sparas lokalt sa man forblir inloggad, men den ar bara en NYCKEL:
+   den bar ingen speldata och gar inte att redigera till nagon nytta. */
+const SRV = {
+  url:  'https://lbssixfkqoqvpapprpab.supabase.co',
+  key:  'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH',
+  token: null, refresh: null, user: null, expires: 0,
+  charId: null, charName: null,
+  online: false
+};
+const SRV_STORE = 'genesis.session';
+
+function srvSaveSession(){
+  try {
+    localStorage.setItem(SRV_STORE, JSON.stringify({
+      token: SRV.token, refresh: SRV.refresh, expires: SRV.expires,
+      user: SRV.user, charId: SRV.charId, charName: SRV.charName
+    }));
+  } catch (e){ /* privat lage: sessionen lever da bara i minnet */ }
+}
+function srvLoadSession(){
+  try {
+    const raw = localStorage.getItem(SRV_STORE);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (!d || !d.refresh) return false;
+    SRV.token = d.token || null; SRV.refresh = d.refresh;
+    SRV.expires = +d.expires || 0; SRV.user = d.user || null;
+    SRV.charId = d.charId || null; SRV.charName = d.charName || null;
+    return true;
+  } catch (e){ return false; }
+}
+function srvClearSession(){
+  SRV.token = SRV.refresh = SRV.user = SRV.charId = SRV.charName = null;
+  SRV.expires = 0; SRV.online = false;
+  try { localStorage.removeItem(SRV_STORE); } catch (e){}
+}
+
+/* Ett anrop till servern. Alla fel kommer tillbaka som ett Error med serverns
+   egen kod ('insufficient_gold', 'not_your_character'), sa granssnittet kan
+   saga nagot begripligt i stallet for "nagot gick fel". */
+async function srvCall(path, opts){
+  opts = opts || {};
+  const headers = Object.assign({
+    'apikey': SRV.key,
+    'Content-Type': 'application/json'
+  }, opts.headers || {});
+  if (SRV.token && !opts.noAuth) headers['Authorization'] = 'Bearer ' + SRV.token;
+
+  let res;
+  try {
+    res = await fetch(SRV.url + path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+  } catch (e){
+    SRV.online = false;
+    throw new Error('offline');
+  }
+
+  let data = null;
+  const text = await res.text();
+  if (text){ try { data = JSON.parse(text); } catch (e){ data = text; } }
+
+  if (!res.ok){
+    /* Serverns egna undantag kommer i 'message'; PostgREST lagger dem dar. */
+    const msg = (data && (data.message || data.error_description || data.error)) || ('http_' + res.status);
+    const err = new Error(String(msg).replace(/^.*?:\s*/, ''));
+    err.status = res.status; err.raw = data;
+    throw err;
+  }
+  SRV.online = true;
+  return data;
+}
+
+/* Sessionen fornyas nar den nastan gatt ut. Kallas fore varje anrop som kraver
+   inloggning, sa spelaren aldrig kastas ut mitt i nagot. */
+async function srvEnsureSession(){
+  if (!SRV.refresh) throw new Error('not_signed_in');
+  if (SRV.token && Date.now() < SRV.expires - 60000) return true;
+  const d = await srvCall('/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST', noAuth: true, body: {refresh_token: SRV.refresh}
+  });
+  SRV.token = d.access_token; SRV.refresh = d.refresh_token;
+  SRV.expires = Date.now() + (d.expires_in || 3600) * 1000;
+  SRV.user = d.user || SRV.user;
+  srvSaveSession();
+  return true;
+}
+
+async function srvSignUp(email, password){
+  const d = await srvCall('/auth/v1/signup', {
+    method: 'POST', noAuth: true, body: {email: email, password: password}
+  });
+  /* Kraver projektet e-postbekraftelse kommer ingen token tillbaka. */
+  if (d.access_token){
+    SRV.token = d.access_token; SRV.refresh = d.refresh_token;
+    SRV.expires = Date.now() + (d.expires_in || 3600) * 1000;
+    SRV.user = d.user; srvSaveSession();
+    return {signedIn: true};
+  }
+  return {signedIn: false, needsConfirm: true};
+}
+
+async function srvSignIn(email, password){
+  const d = await srvCall('/auth/v1/token?grant_type=password', {
+    method: 'POST', noAuth: true, body: {email: email, password: password}
+  });
+  SRV.token = d.access_token; SRV.refresh = d.refresh_token;
+  SRV.expires = Date.now() + (d.expires_in || 3600) * 1000;
+  SRV.user = d.user; srvSaveSession();
+  return true;
+}
+
+async function srvSignOut(){
+  try { await srvCall('/auth/v1/logout', {method: 'POST'}); } catch (e){}
+  srvClearSession();
+}
+
+/* Anropa en av serverns funktioner. Det ar SA spelet ber om saker: aldrig
+   "har ar mitt nya guld", alltid "jag oppnade en cache". */
+async function srvRpc(fn, args){
+  await srvEnsureSession();
+  return srvCall('/rest/v1/rpc/' + fn, {method: 'POST', body: args || {}});
+}
+/* Las ur en tabell. Radnivasakerheten ser till att man bara ser sitt eget. */
+async function srvSelect(table, query){
+  await srvEnsureSession();
+  return srvCall('/rest/v1/' + table + (query ? '?' + query : ''));
+}
+
+/* ==================== SYNKEN (klientlager 2) ====================
+   SERVERN AGER SANNINGEN. Men ett idle-spel maste kannas levande, och att
+   fraga servern sextio ganger i sekunden gar inte - varken for kanslan eller
+   for kostnaden.
+
+   Losningen ar den vanliga i onlinespel: klienten FORUTSAGER mellan synkarna
+   och servern RATTAR vid varje synk. Mellan tva synkar rullar siffran uppat
+   lokalt utifran samma produktion servern raknar med; nar svaret kommer
+   ersatts den med serverns tal. Stammer forutsagelsen syns ingen skillnad,
+   och gor den det sa vinner servern - alltid.
+
+   Det som INTE forutsags: allt som skapar foremal eller drar pengar. Dar
+   vantar klienten pa svaret, for ett foremal far aldrig visas innan det
+   verkligen finns. */
+const NET = {
+  on: false,            // ar vi i serverlage?
+  syncing: false,
+  lastSync: 0,
+  syncEvery: 20000,     // be servern om sanningen var tjugonde sekund
+  serverData: 0,        // senaste bekraftade tal fran servern
+  predictedAt: 0,       // nar forutsagelsen borjade rakna
+  dps: 0,               // serverns egen produktionssiffra
+  error: null,
+  pendingTaps: 0,       // hack som annu inte skickats
+  heldSecs: 0
+};
+
+/* Hamta hela karaktaren fran servern och lagg den i S. Detta ERSATTER den
+   lokala sparfilen som sanningskalla nar man ar inloggad. */
+async function netPull(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('characters', 'id=eq.' + SRV.charId + '&select=*');
+  const c = rows && rows[0];
+  if (!c) throw new Error('character_not_found');
+
+  S.data      = +c.data || 0;
+  S.gold      = +c.gold_copper || 0;
+  S.frags     = +c.fragments || 0;
+  S.xp        = +c.xp || 0;
+  S.fuel      = +c.fuel || 0;
+  if (c.region && REGIONS[c.region]) S.world.current = c.region;
+
+  /* Maskinerna: serverns antal, inte de lokalt sparade. */
+  const mach = await srvSelect('machines', 'character_id=eq.' + SRV.charId + '&select=machine_id,count');
+  BUILDINGS.forEach(b => S.own[b.id] = 0);
+  (mach || []).forEach(m => { if (S.own[m.machine_id] !== undefined) S.own[m.machine_id] = +m.count || 0; });
+
+  /* Uppgraderingarna likasa. */
+  const ups = await srvSelect('character_upgrades', 'character_id=eq.' + SRV.charId + '&select=upgrade_id,level');
+  (ups || []).forEach(u => { if (S.up[u.upgrade_id] !== undefined) S.up[u.upgrade_id] = +u.level || 0; });
+
+  NET.serverData  = S.data;
+  NET.predictedAt = Date.now();
+  NET.on = true;
+  return true;
+}
+
+/* En synk: servern rullar tiden framat och svarar med sanningen. */
+async function netSync(){
+  if (!NET.on || NET.syncing || !SRV.charId) return;
+  NET.syncing = true;
+  try {
+    /* Skicka in hack som samlats sedan sist. Servern avgor vad de var varda
+       och kapar antalet om det ar orimligt. */
+    if (NET.pendingTaps > 0){
+      const taps = NET.pendingTaps, held = NET.heldSecs;
+      NET.pendingTaps = 0; NET.heldSecs = 0;
+      const r = await srvRpc('tap', {p_character: SRV.charId, p_count: taps, p_held_secs: held});
+      if (r && r.data != null) NET.serverData = +r.data;
+    }
+    const row = await srvRpc('tick', {p_character: SRV.charId});
+    if (row){
+      NET.serverData = +row.data || 0;
+      S.gold  = +row.gold_copper || S.gold;
+      S.frags = +row.fragments   || S.frags;
+      S.fuel  = +row.fuel        || S.fuel;
+      S.xp    = +row.xp          || S.xp;
+    }
+    S.data = NET.serverData;
+    NET.predictedAt = Date.now();
+    NET.lastSync = Date.now();
+    NET.error = null;
+    /* Prestationerna provas har: det ar den enda plats dar allt annat redan
+       hunnit handa, och servern avgor sjalv om nagot faktiskt last upp. */
+    netCheckAchievements().catch(() => {});
+  } catch (e){
+    /* Tappad uppkoppling far inte krascha spelet. Vi visar det och fortsatter
+       forutsaga - nasta lyckade synk rattar allt anda. */
+    NET.error = e.message;
+  }
+  NET.syncing = false;
+}
+
+/* Forutsagelsen mellan synkarna. Aldrig sparad, aldrig skickad - bara visad. */
+function netPredictedData(){
+  if (!NET.on) return S.data;
+  const secs = (Date.now() - NET.predictedAt) / 1000;
+  return NET.serverData + totalDps() * Math.max(0, secs);
+}
+
+/* Ett hack. Visas direkt lokalt for kanslan, men rakans av servern vid nasta
+   synk - och det ar serverns tal som blir kvar. */
+function netTap(count, heldSecs){
+  if (!NET.on) return;
+  NET.pendingTaps += count || 1;
+  NET.heldSecs = Math.max(NET.heldSecs, heldSecs || 0);
+}
+
+/* Kop av maskin gar ALLTID till servern och vantar pa svaret - priset ar
+   serverns, och pengarna far inte dras lokalt pa gissning. */
+async function netBuyMachine(id){
+  if (!NET.on) return null;
+  const r = await srvRpc('buy_machine', {p_character: SRV.charId, p_machine: id});
+  if (r){
+    S.own[id] = +r.owned || S.own[id];
+    NET.serverData = +r.data || 0;
+    S.data = NET.serverData;
+    NET.predictedAt = Date.now();
+  }
+  return r;
+}
+async function netBuyUpgrade(id){
+  if (!NET.on) return null;
+  const r = await srvRpc('buy_upgrade', {p_character: SRV.charId, p_upgrade: id});
+  if (r){
+    S.up[id] = +r.level || S.up[id];
+    NET.serverData = +r.data || 0;
+    S.data = NET.serverData;
+    NET.predictedAt = Date.now();
+  }
+  return r;
+}
+
+/* ==================== FÖREMÅLEN FRÅN SERVERN (klientlager 3) ====================
+   Serverns foremal har egna id (uuid) och vet var de ligger: i vaskan, burna,
+   i valvet. Klienten har sitt eget format sedan tidigare, sa har oversatts det
+   ena till det andra. Serverns id foljer med som 'sid' - det ar DET som skickas
+   tillbaka nar spelaren vill gora nagot med pjasen.
+
+   EN VIKTIG SKILLNAD: servern bryr sig inte om VAR i vaskan en pjas ligger,
+   bara att den ar dar. Ordningen i ryggsacken ar alltsa fortfarande lokal, och
+   den foljer inte med mellan enheter. Det ar en medveten forenkling och star
+   noterat - inte nagot jag latsas ar lost. */
+
+/* Serverns rad -> klientens pjas. */
+function netGearFromRow(row){
+  const D = ITEMS[row.item_key];
+  return {
+    uid:  S.gearSeq++,                 /* lokalt loptal, for befintlig kod */
+    sid:  row.id,                      /* SERVERNS id - det som raknas */
+    t:    row.item_key,
+    s:    D ? D.slot : (row.slot_idx | 0),
+    r:    row.rarity | 0,
+    a:    Array.isArray(row.affixes) ? row.affixes : [],
+    hp:   row.hp | 0,
+    g:    +row.gold_value || 0,
+    craft: row.crafted ? 1 : undefined
+  };
+}
+
+/* Hamta vaska, utrustning och staplar. Ersatter det lokala innehallet helt. */
+async function netPullItems(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('items',
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx');
+
+  S.equip = {};
+  S.inv = new Array(invSlots()).fill(null);
+  let at = 0;
+  (rows || []).forEach(row => {
+    const g = netGearFromRow(row);
+    if (row.location === 'equipped'){
+      S.equip[row.slot_idx] = g;
+    } else if (row.location === 'bag'){
+      if (at < S.inv.length) S.inv[at++] = {gear: g};
+    }
+    /* Valv och post hamtas separat nar de lagren kopplas om. */
+  });
+
+  /* Staplarna: material, flaskor och recept. */
+  const stacks = await srvSelect('stacks',
+    'character_id=eq.' + SRV.charId + '&select=stack_key,kind,rarity,qty');
+  (stacks || []).forEach(st => {
+    if (at >= S.inv.length) return;
+    const mat = MATERIALS[st.stack_key];
+    const fl  = FLASKS[st.stack_key];
+    let name = st.stack_key, ico = '📦';
+    if (mat){ name = mat.name; ico = mat.ico; }
+    else if (fl){ name = fl.name; ico = fl.ico; }
+    else if (st.kind === 'recipe'){ name = recipeItemName(st.stack_key.replace(/^recipe_/, '')); ico = '📜'; }
+    S.inv[at++] = {
+      key: st.stack_key, name: name, ico: ico, qty: +st.qty || 1, stack: true,
+      mat: st.kind === 'material', bop: !!(mat && mat.bop),
+      flask: st.kind === 'flask', boost: fl ? fl.boost : undefined,
+      recipe: st.kind === 'recipe' ? st.stack_key.replace(/^recipe_/, '') : undefined,
+      rar: st.rarity == null ? undefined : (st.rarity | 0)
+    };
+  });
+  return true;
+}
+
+/* Handlingarna. Alla gar till servern och hamtar sedan om - servern kan ha
+   flyttat mer an vi tror (en utbytt pjas hamnar i vaskan, en full vaska
+   skickar till posten), och att gissa det lokalt vore att bygga en andra
+   sanning som kan glida isar. */
+async function netEquip(gear, slot){
+  if (!NET.on || !gear || !gear.sid) return null;
+  const r = await srvRpc('equip_item',
+    {p_character: SRV.charId, p_item: gear.sid, p_slot: (slot == null ? null : slot)});
+  await netPullItems();
+  renderEquip(); renderInventory(); updateUI(true);
+  return r;
+}
+async function netUnequip(gear){
+  if (!NET.on || !gear || !gear.sid) return null;
+  const r = await srvRpc('unequip_item', {p_character: SRV.charId, p_item: gear.sid});
+  await netPullItems();
+  renderEquip(); renderInventory(); updateUI(true);
+  return r;
+}
+async function netSell(gear){
+  if (!NET.on || !gear || !gear.sid) return null;
+  const r = await srvRpc('sell_item', {p_character: SRV.charId, p_item: gear.sid});
+  if (r && r.gold_total != null) S.gold = +r.gold_total;
+  await netPullItems();
+  renderEquip(); renderInventory(); updateUI(true);
+  return r;
+}
+async function netSalvage(gear){
+  if (!NET.on || !gear || !gear.sid) return null;
+  const r = await srvRpc('salvage_item', {p_character: SRV.charId, p_item: gear.sid});
+  await netPullItems();
+  renderEquip(); renderInventory(); updateUI(true);
+  return r;
+}
+async function netMoveVault(gear, toVault){
+  if (!NET.on || !gear || !gear.sid) return null;
+  const r = await srvRpc('move_to_vault',
+    {p_character: SRV.charId, p_item: gear.sid, p_to_vault: !!toVault});
+  await netPullItems();
+  renderInventory(); renderVault(); updateUI(true);
+  return r;
+}
+
+/* ============ HUSDJUR, YRKEN OCH RESANDE FRÅN SERVERN (klientlager 4) ============
+   Samma monster som foremalen: hamta serverns sanning, och lat varje handling
+   ga dit och hamta om. Ingenting av varde rullas eller raknas lokalt. */
+
+/* ---------- HUSDJUREN ---------- */
+function netPetFromRow(row){
+  return {
+    uid:  S.pets.seq++,
+    sid:  row.id,
+    sp:   row.species,
+    rar:  row.rarity | 0,
+    aff:  Array.isArray(row.affixes) ? row.affixes : [],
+    xp:   +row.xp || 0,
+    name: row.nickname || undefined
+  };
+}
+async function netPullPets(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('pets',
+    'character_id=eq.' + SRV.charId + '&select=id,species,rarity,affixes,xp,nickname,team_slot');
+  S.pets.owned = [];
+  S.pets.team  = [null, null, null];
+  (rows || []).forEach(row => {
+    const p = netPetFromRow(row);
+    S.pets.owned.push(p);
+    if (row.team_slot != null && row.team_slot >= 0 && row.team_slot < 3){
+      S.pets.team[row.team_slot] = p.uid;
+    }
+  });
+  return true;
+}
+async function netOpenCache(){
+  if (!NET.on) return null;
+  const r = await srvRpc('open_cache', {p_character: SRV.charId});
+  if (r && r.fragments != null) S.frags = +r.fragments;
+  await netPullPets();
+  renderPets(); renderPetPanel(); updateUI(true);
+  return r;
+}
+async function netSetTeam(pet, slot){
+  if (!NET.on || !pet || !pet.sid) return null;
+  const r = await srvRpc('set_team_slot',
+    {p_character: SRV.charId, p_pet: pet.sid, p_slot: (slot == null ? null : slot)});
+  await netPullPets();
+  renderPets(); renderPetPanel(); updateUI(true);
+  return r;
+}
+async function netRecyclePet(pet){
+  if (!NET.on || !pet || !pet.sid) return null;
+  const r = await srvRpc('recycle_pet', {p_character: SRV.charId, p_pet: pet.sid});
+  if (r && r.dust_total != null) S.pets.dust = +r.dust_total;
+  await netPullPets();
+  renderPets(); renderPetPanel(); updateUI(true);
+  return r;
+}
+async function netRenamePet(pet, name){
+  if (!NET.on || !pet || !pet.sid) return null;
+  const r = await srvRpc('rename_pet',
+    {p_character: SRV.charId, p_pet: pet.sid, p_name: name || null});
+  await netPullPets();
+  renderPets(); updateUI(true);
+  return r;
+}
+
+/* ---------- YRKENA ---------- */
+async function netPullProfessions(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('character_professions',
+    'character_id=eq.' + SRV.charId + '&select=prof,xp,gather_since');
+  S.prof = S.prof || {};
+  S.prof.known = {};
+  (rows || []).forEach(r => { S.prof.known[r.prof] = {xp: +r.xp || 0}; });
+
+  const recs = await srvSelect('character_recipes',
+    'character_id=eq.' + SRV.charId + '&select=recipe_id');
+  S.prof.recipes = {};
+  (recs || []).forEach(r => { S.prof.recipes[r.recipe_id] = 1; });
+  return true;
+}
+async function netLearnProfession(id){
+  if (!NET.on) return null;
+  const r = await srvRpc('learn_profession', {p_character: SRV.charId, p_prof: id});
+  if (r && r.gold != null) S.gold = +r.gold;
+  await netPullProfessions();
+  renderProfessions(); updateUI(true);
+  return r;
+}
+async function netGatherStart(prof){
+  if (!NET.on) return null;
+  return srvRpc('gather_start', {p_character: SRV.charId, p_prof: prof});
+}
+async function netGatherCollect(prof){
+  if (!NET.on) return null;
+  const r = await srvRpc('gather_collect', {p_character: SRV.charId, p_prof: prof});
+  await netPullItems();          /* materialet hamnade i staplarna */
+  await netPullProfessions();    /* och XP:n i yrket */
+  renderProfessions(); renderInventory(); updateUI(true);
+  return r;
+}
+async function netCraft(recipeId){
+  if (!NET.on) return null;
+  const r = await srvRpc('craft_recipe', {p_character: SRV.charId, p_recipe: recipeId});
+  await netPullItems();
+  await netPullProfessions();
+  renderRecipeBook(); renderInventory(); updateUI(true);
+  return r;
+}
+
+/* ---------- RESANDET ---------- */
+/* Serverns klocka avgor nar man ar framme. Klienten fragar - den bestammer
+   aldrig sjalv att resan ar over. */
+async function netTravel(regionId){
+  if (!NET.on) return null;
+  const r = await srvRpc('travel_to', {p_character: SRV.charId, p_region: regionId});
+  if (r && r.fuel_left != null) S.fuel = +r.fuel_left;
+  return r;
+}
+async function netArrive(){
+  if (!NET.on) return null;
+  const r = await srvRpc('arrive', {p_character: SRV.charId});
+  if (r && r.region && REGIONS[r.region]) S.world.current = r.region;
+  return r;
+}
+
+/* Allt pa en gang - anvands nar man gar in i spelet. */
+async function netPullAll(){
+  await netPull();
+  await netPullItems();
+  await netPullPets();
+  await netPullProfessions();
+  await netPullBoosts();
+  await netPullAchievements();
+}
+
+/* ============ SISTA SYSTEMEN (klientlager 5) ============
+   Handelsbodar, expeditioner, valv, post, flaskor och prestationer. Samma
+   monster som forut: servern har sanningen, klienten fragar. */
+
+/* ---------- HANDELSBODEN ---------- */
+/* Lagret rullas av SERVERN nar man tittar, sa klienten fragar bara. Priset
+   kommer darifran ocksa - klienten raknar aldrig ut vad nagot kostar. */
+async function netVendorLook(regionId){
+  if (!NET.on) return null;
+  return srvRpc('vendor_look', {p_character: SRV.charId, p_region: regionId});
+}
+async function netVendorBuy(regionId, slot){
+  if (!NET.on) return null;
+  const r = await srvRpc('vendor_buy',
+    {p_character: SRV.charId, p_region: regionId, p_slot: slot});
+  if (r && r.gold != null) S.gold = +r.gold;
+  await netPullItems();
+  renderInventory(); updateUI(true);
+  return r;
+}
+
+/* ---------- EXPEDITIONERNA ---------- */
+async function netPullRuns(){
+  if (!SRV.charId) return [];
+  return srvSelect('expedition_runs',
+    'character_id=eq.' + SRV.charId + '&claimed_at=is.null&select=exp_id,started_at,ends_at');
+}
+async function netStartExpedition(expId){
+  if (!NET.on) return null;
+  return srvRpc('start_expedition', {p_character: SRV.charId, p_exp: expId});
+}
+async function netClaimExpedition(expId){
+  if (!NET.on) return null;
+  const r = await srvRpc('claim_expedition', {p_character: SRV.charId, p_exp: expId});
+  if (r){
+    if (r.data != null) { NET.serverData = +r.data; S.data = NET.serverData; NET.predictedAt = Date.now(); }
+    if (r.gold != null) S.gold = +r.gold;
+  }
+  await netPullItems();
+  await netCheckAchievements();
+  updateUI(true);
+  return r;
+}
+
+/* ---------- VALVET ---------- */
+/* Valvet ar bara en annan plats pa samma foremal - servern haller redan
+   invarianten att en pjas finns pa exakt ETT stalle. */
+async function netPullVault(){
+  if (!SRV.charId) return [];
+  const rows = await srvSelect('items',
+    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx');
+  return (rows || []).map(netGearFromRow);
+}
+
+/* ---------- POSTEN ---------- */
+async function netPullMail(){
+  if (!SRV.charId) return [];
+  return srvSelect('mail',
+    'character_id=eq.' + SRV.charId + '&taken_at=is.null&select=id,sender,subject,body,at,read_at,items&order=at.desc');
+}
+async function netTakeMail(mailId){
+  if (!NET.on) return null;
+  const r = await srvRpc('take_mail', {p_character: SRV.charId, p_mail: mailId});
+  await netPullItems();
+  renderInventory(); updateUI(true);
+  return r;
+}
+
+/* ---------- FLASKOR ---------- */
+async function netPullBoosts(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('active_boosts',
+    'character_id=eq.' + SRV.charId + '&select=boost,until,pct');
+  S.flaskBoost = {};
+  (rows || []).forEach(b => {
+    const until = Date.parse(b.until);
+    if (until > Date.now()) S.flaskBoost[b.boost] = {until: until, pct: +b.pct || 0};
+  });
+  return true;
+}
+async function netDrinkFlask(key, rarity){
+  if (!NET.on) return null;
+  const r = await srvRpc('drink_flask',
+    {p_character: SRV.charId, p_flask: key, p_rarity: (rarity == null ? 0 : rarity)});
+  await netPullItems();
+  await netPullBoosts();
+  renderInventory(); updateUI(true);
+  return r;
+}
+async function netLearnRecipe(rid){
+  if (!NET.on) return null;
+  const r = await srvRpc('learn_recipe', {p_character: SRV.charId, p_recipe: rid});
+  await netPullItems();
+  await netPullProfessions();
+  renderInventory(); updateUI(true);
+  return r;
+}
+
+/* ---------- PRESTATIONERNA ---------- */
+/* Servern avgor vad som ar upplast och betalar ut. Klienten kan inte lasa upp
+   nagot sjalv - den far bara veta vad som hant. */
+async function netPullAchievements(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('character_achievements',
+    'character_id=eq.' + SRV.charId + '&select=ach_id,seen');
+  S.ach = S.ach || {done: {}, unseen: 0};
+  S.ach.done = {};
+  (rows || []).forEach(r => { S.ach.done[r.ach_id] = true; });
+  return true;
+}
+async function netCheckAchievements(){
+  if (!NET.on) return null;
+  const r = await srvRpc('check_achievements', {p_character: SRV.charId});
+  if (r && Array.isArray(r.unlocked) && r.unlocked.length){
+    await netPullAchievements();
+    await netPull();
+    r.unlocked.forEach(a => spawnFloat({text: '🏆 ' + a.name}));
+    S.ach.unseen = (S.ach.unseen || 0) + r.unlocked.length;
+    updateUI(true);
+  }
+  return r;
+}
+
 const TICK_SHARE = 0.12;        // sekunder av produktion per hack
 const TAP_POWER_PCT = 0.02;     // vad en niva i Tap Power ar vard
 function tapBase(){ return Math.max(1, totalDps() * TICK_SHARE); }
@@ -2995,6 +3663,7 @@ function salvagePreview(it){
 function salvageGear(idx){
   const row = S.inv[idx];
   if (!row || !row.gear || !canSalvage(row.gear)) return false;
+  if (NET.on){ netSalvage(row.gear).catch(e => spawnFloat({text: e.message})); return true; }
   const it = row.gear, pv = salvagePreview(it);
   pv.rows.forEach(r => giveMaterial(r.key, r.qty));
   if (pv.bonus){
@@ -3175,6 +3844,10 @@ function giveRecipeItem(rid){
 function useRecipeItem(idx){
   const row = S.inv[idx];
   if (!row || !row.recipe) return false;
+  if (NET.on){
+    netLearnRecipe(row.recipe).catch(e => spawnFloat({text: e.message}));
+    return true;
+  }
   const rid = row.recipe;
   if (recipeKnown(rid)) return 'known';
   learnRecipe(rid);
@@ -3215,6 +3888,12 @@ function canAfford(rid){
 /* Craftar: kraver lart yrke, kant recept, tillrackligt material och en ledig
    vaskruta. Drar materialet, rullar pjasen med taket, lagger den i vaskan. */
 function craftRecipe(rid){
+  if (NET.on){
+    netCraft(rid).then(res => {
+      if (res) spawnFloat({text: 'Crafted ' + (res.crafted || '')});
+    }).catch(e => spawnFloat({text: e.message}));
+    return true;
+  }
   const r = RECIPE_BY[rid];
   if (!r || !profLearned(r.prof) || !recipeKnown(rid) || !canAfford(rid)) return false;
   const flask = FLASKS[r.item];
@@ -3252,6 +3931,7 @@ function profLearned(id){ return !!(S.prof && S.prof.known && S.prof.known[id]);
 function profCount(){ return S.prof ? Object.keys(S.prof.known).length : 0; }
 function profLvl(id){ return S.prof && S.prof.known[id] ? profLevelInfo(S.prof.known[id].xp).lvl : 0; }
 function learnProfession(id){
+  if (NET.on){ netLearnProfession(id).catch(e => spawnFloat({text: e.message})); return true; }
   if (!PROF_BY[id]) return false;
   if (profLearned(id)) return false;
   if (profCount() >= PROF_MAX) return false;
@@ -4054,6 +4734,11 @@ let S = {
 BUILDINGS.forEach(b => S.own[b.id] = 0);
 
 function save(){
+  /* SERVERLAGE: servern ar sanningen, och den sparar sjalv vid varje handling.
+     Att aven skriva hela tillstandet lokalt skapar en ANDRA sanning - och den
+     skulle dyka upp igen vid utloggning som spoksaldon. Vi rakans bara tiden
+     for spar-indikatorn och later resten vara. */
+  if (NET.on){ S.savedAt = Date.now(); lastSaveShown = Date.now(); return; }
   S.savedAt = Date.now();
   S.moneyV = 2;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); lastSaveShown = Date.now(); }
@@ -4683,6 +5368,14 @@ function fitVaultAfterResize(reserve){
 /* Flytt mellan väskan och valvet. Båda hållen använder samma två steg: finns det
    plats, flytta; annars säg nej och rör ingenting. */
 function toVault(invIdx, at){
+  if (NET.on){
+    const row = S.inv[invIdx];
+    if (row && row.gear){
+      netMoveVault(row.gear, true).catch(e => spawnFloat({text: e.message}));
+      return true;
+    }
+    return false;
+  }
   const row = S.inv[invIdx];
   if (!row) return false;
   const dest = (typeof at === 'number' && at >= 0 && at < vaultSlots() && !S.vault.inv[at]) ? at : vaultFirstFree();
@@ -5313,6 +6006,35 @@ function xpPerBuilding(b){
 function buyBuilding(b){
   let n = (buyAmount === 'max') ? maxAffordable(b) : buyAmount;
   if (n < 1) return;
+
+  if (NET.on){
+    /* SERVERLAGE: priset ar serverns och pengarna dras dar. Vi drar INGET
+       lokalt pa forhand - blir kopet nekat ska inget ha hant.
+
+       TAK PA ANTALET ANROP: servern koper en maskin i taget, och maxAffordable
+       kan ge upp till tiotusen. Ett enda "kop max"-klick hade da blivit
+       tiotusen natverksanrop - langsamt for spelaren och dyrt for oss. Vi
+       kopar hogst femtio per klick och sager till om det blev kapat, sa
+       spelaren vet att det finns mer att hamta. */
+    const MAX_PER_CLICK = 50;
+    const want = Math.min(n, MAX_PER_CLICK);
+    (async () => {
+      let bought = 0;
+      for (let i = 0; i < want; i++){
+        try { await netBuyMachine(b.id); bought++; }
+        catch (e){
+          if (e.message !== 'insufficient_data') spawnFloat({text: e.message});
+          break;
+        }
+      }
+      if (bought === MAX_PER_CLICK && n > MAX_PER_CLICK){
+        spawnFloat({text: 'Bought ' + bought + ' — tap again for more'});
+      }
+      refreshShelf(); updateUI(true);
+    })();
+    return;
+  }
+
   const c = costOfN(b, n);
   if (S.data < c) return;
   S.data -= c;
@@ -5457,6 +6179,9 @@ function critMultNow(){
   return HOLD.critMult * (1 + gearBonus('critdmg') / 100);
 }
 function collectTick(){
+  /* I serverlage samlas hacken och skickas i klump vid synken. Den lokala
+     siffran ar en forutsagelse tills servern svarat. */
+  if (NET.on) netTap(1, typeof holdT === 'number' ? holdT : 0);
   const p = Math.min(1, holdT / HOLD.duration);
   const critChance = Math.min(1, HOLD.critBase + (HOLD.critMax - HOLD.critBase) * p + gearBonus('crit') / 100);
   const mult = 1 + (HOLD.incomeMaxMult - 1) * p;
@@ -5692,6 +6417,12 @@ function discoverZoneExpeditions(regionId, zone){
 }
 
 function startExpedition(id){
+  if (NET.on){
+    netStartExpedition(id)
+      .then(() => { renderExpPanel(); updateUI(true); })
+      .catch(e => spawnFloat({text: e.message}));
+    return;
+  }
   const def = expDefById(id);
   if (!def) return false;
   if (S.exp.runs.length >= EXP_SLOTS) return false;
@@ -6066,6 +6797,7 @@ function targetSlotFor(g, want){
 function equipGear(idx, want){
   const row = S.inv[idx];
   if (!row || !row.gear) return;
+  if (NET.on){ netEquip(row.gear, want).catch(e => spawnFloat({text: e.message})); return; }
   const it = row.gear, dest = targetSlotFor(it, want), old = S.equip[dest];
   S.equip[dest] = it;
   /* Den gamla pjäsen tar den nyas ruta — du får tillbaka den där du tog den ifrån,
@@ -6076,6 +6808,7 @@ function equipGear(idx, want){
 function unequipGear(slotIdx, toIdx){
   const it = S.equip[slotIdx];
   if (!it) return false;
+  if (NET.on){ netUnequip(it).catch(e => spawnFloat({text: e.message})); return true; }
   const at = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx])
     ? toIdx : invFirstFree();
   if (at < 0) return false;
@@ -6126,6 +6859,11 @@ function findStackIdx(key){
   return -1;
 }
 function sellGear(idx){
+  if (NET.on){
+    const row = S.inv[idx];
+    if (row && row.gear){ netSell(row.gear).catch(e => spawnFloat({text: e.message})); }
+    return;
+  }
   const row = S.inv[idx];
   if (!row || !row.gear) return;
   S.gold += gearGold(row.gear);
@@ -6636,6 +7374,12 @@ function expZoneOf(runId){
 }
 let pendingClaimId = null;
 function confirmClaim(){
+  if (NET.on && pendingClaimId){
+    netClaimExpedition(pendingClaimId)
+      .then(() => { renderExpPanel(); updateUI(true); })
+      .catch(e => spawnFloat({text: e.message}));
+    return;
+  }
   if (pendingClaimId == null) return;
   const i = S.exp.runs.findIndex(r => r.id === pendingClaimId && Date.now() >= r.endsAt && r.loot);
   pendingClaimId = null;
@@ -7176,7 +7920,14 @@ function loopBody(now){
 
   // Passiv produktion
   const dps = totalDps();
-  if (dps > 0){
+  if (NET.on){
+    /* SERVERLAGE: klienten raknar inte sin egen inkomst - den FORUTSAGER
+       serverns. Siffran pa skarmen rullar mjukt, men vid varje synk ersatts
+       den av serverns tal. Bokforingen sker aldrig har. */
+    S.data = netPredictedData();
+    if (dps > 0) machineCritRoll(dps, dt);
+    if (Date.now() - NET.lastSync > NET.syncEvery) netSync();
+  } else if (dps > 0){
     const g = dps * dt; S.data += g; S.totalData += g;
     machineCritRoll(dps, dt);
   }
@@ -7674,6 +8425,10 @@ function boostMinutes(key){
 function drinkFlask(idx){
   const row = S.inv[idx];
   if (!row || !row.flask || row.qty < 1) return false;
+  if (NET.on){
+    netDrinkFlask(row.key, row.rar).catch(e => spawnFloat({text: e.message}));
+    return true;
+  }
   const fb = FLASK_BOOST[row.boost];
   if (!fb) return false;
   const rar = Math.min(row.rar | 0, fb.pct.length - 1);
@@ -7780,6 +8535,14 @@ function findMail(id){ return S.mail.find(m => m.id === id) || null; }
 function takeMailItem(id, i){
   const m = findMail(id);
   if (!m || !m.items[i]) return false;
+  if (NET.on){
+    /* Servern tommer HELA brevet at gangen - den kanner inte till enskilda
+       rader i ett brev. Det ar en medveten forenkling: ett brev ar en
+       forsandelse, inte en hylla. */
+    netTakeMail(id).then(() => { renderMail(); updateUI(true); })
+      .catch(e => spawnFloat({text: e.message}));
+    return true;
+  }
   const it = m.items[i];
   const ok = it.gear
     ? (invFirstFree() >= 0 && (S.inv[invFirstFree()] = {gear: it.gear}, true))
@@ -8539,6 +9302,10 @@ function vendorEntry(regionId, i){
   return (s && !s.sold) ? s : null;
 }
 function buyVendorGear(regionId, i){
+  if (NET.on){
+    netVendorBuy(regionId, i).catch(e => spawnFloat({text: e.message}));
+    return;
+  }
   const stock = vendorEntry(regionId, i);
   if (!stock) return false;
   if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
@@ -8658,12 +9425,19 @@ const TEST_BAGS = [
   {key: 'bag_runners_pack'}      // +8
 ];
 function grabTestMoney(kind){
+  /* Sparrad online. Siffran hade anda nollstallts vid nasta hamtning fran
+     servern, men en knapp som ser ut att ge pengar och inte gor det ar
+     samre an ingen knapp alls. MASTE TAS BORT HELT FORE LANSERING. */
+  if (NET.on){ vendorNote = 'Not available online.'; updateUI(true); return false; }
   if (kind === 'gold'){ S.gold += GOLD(100); vendorNote = 'Grabbed 100 gold.'; }
   else { S.credits += 100; vendorNote = 'Grabbed 100 credits.'; }
   updateUI(true); save();
   return true;
 }
 function buyTestBag(regionId, i){
+  /* Samma sak: en lokalt skapad vaska existerar inte for servern och
+     forsvinner vid nasta hamtning. MASTE TAS BORT HELT FORE LANSERING. */
+  if (NET.on){ vendorNote = 'Not available online.'; updateUI(true); return false; }
   const tb = TEST_BAGS[i];
   if (!tb || regionId !== 'neonhub') return false;
   if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
@@ -8875,6 +9649,18 @@ function checkResearch(){
 }
 function startTravel(id){
   if (S.world.travel || id === S.world.current || !isKnown(id)) return;
+  if (NET.on){
+    /* Servern ager kartan, bransleavdraget och klockan. Vi visar en lokal
+       resestapel med SERVERNS sluttid, men det ar arrive() som avgor. */
+    netTravel(id).then(r => {
+      if (!r) return;
+      S.world.travel = {to: id, from: S.world.current,
+                        eta: Date.parse(r.arrives) || (Date.now() + (r.secs || 120) * 1000),
+                        fuel: r.fuel_paid || 0};
+      refreshTravelBar(); refreshWarp(); updateUI(true);
+    }).catch(e => spawnFloat({text: e.message}));
+    return;
+  }
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
   const cost = costToTravel(id);
   if (!t || S.fuel < cost) return;
@@ -8887,6 +9673,18 @@ function startTravel(id){
 }
 function arrive(){
   const tr = S.world.travel;
+  if (NET.on && !tr.zone){
+    /* Serverlage: klienten far INTE flytta sig sjalv. Vi fragar, och bara om
+       servern sager att vi ar framme gar resan i mal. Sager den nej star
+       stapeln kvar tills nasta forsok. */
+    netArrive().then(r => {
+      if (r && r.arrived){
+        S.world.travel = null;
+        refreshTravelBar(); refreshWarp(); renderWorld(); updateUI(true);
+      }
+    }).catch(() => {});
+    return;
+  }
   const id = tr.to, zone = tr.zone || null;
   S.world.travel = null;
   if (zone){
@@ -9211,6 +10009,19 @@ function openPetRecycle(){
   $('petrec-overlay').classList.add('open');
 }
 function doPetRecycle(){
+  if (NET.on){
+    /* Samma urval som lokalt, men servern gor jobbet. Burna husdjur fredas
+       har OCH pa servern - tva lager, samma regel. */
+    const list = petSelSummary().list.filter(p => !inTeam(p.uid));
+    (async () => {
+      for (const p of list){
+        try { await netRecyclePet(p); } catch (e){ spawnFloat({text: e.message}); break; }
+      }
+    })();
+    petSel.clear(); petSelMode = false;
+    $('petrec-overlay').classList.remove('open');
+    return;
+  }
   const sum = petSelSummary();
   sum.list.forEach(p => {
     const i = petIndexOf(p.uid);
@@ -9531,6 +10342,7 @@ function showReveal(pet){
     '<div class="rv-eff">' + petEffText(pet, '<br>') + '</div></div></div>';
 }
 function openCache(){
+  if (NET.on){ netOpenCache().catch(e => spawnFloat({text: e.message})); return; }
   const pool = REGION_PETS[S.world.current];
   if (!pool || S.frags < CACHE_COST) return;
   S.frags -= CACHE_COST;
@@ -10922,6 +11734,140 @@ $('reset-yes-2').addEventListener('click', () => {
   location.reload();
 });
 let resetInProgress = false;
+
+/* ==================== PORTENS LOGIK ====================
+   Ett litet tillstandsmaskineri: konto -> karaktar -> spel. Varje fel som
+   servern kastar visas med sitt EGNA sprak, inte som "nagot gick fel" -
+   spelaren ska veta om losenordet var fel eller namnet upptaget. */
+const GATE_ERRORS = {
+  'invalid_grant': 'Wrong email or password.',
+  'Invalid login credentials': 'Wrong email or password.',
+  'User already registered': 'That email already has an account.',
+  'name_taken': 'That name is taken. Try another.',
+  'name_length': 'Names are 3 to 16 characters.',
+  'name_characters': 'Letters, numbers, spaces, - and _ only.',
+  'character_limit_reached': 'You already have three characters.',
+  'account_banned': 'This account is suspended.',
+  'offline': 'No connection to the server.',
+  'not_signed_in': 'Please sign in again.'
+};
+function gateSay(el, msg, ok){
+  const box = $(el);
+  if (!box) return;
+  box.textContent = GATE_ERRORS[msg] || msg || '';
+  box.classList.toggle('ok', !!ok);
+}
+let gateMode = 'in';
+
+function gateShowAuth(){
+  $('gate-auth').style.display = '';
+  $('gate-chars').style.display = 'none';
+}
+async function gateShowChars(){
+  $('gate-auth').style.display = 'none';
+  $('gate-chars').style.display = '';
+  gateSay('gate-msg2', 'Loading…', true);
+  try {
+    const rows = await srvSelect('characters', 'select=id,name,xp,region&order=created_at');
+    const list = $('gate-charlist');
+    list.innerHTML = (rows || []).map(c =>
+      '<div class="gate-char" data-id="' + c.id + '" data-name="' + c.name + '">' +
+        '<b>' + c.name + '</b><span>' + (REGIONS[c.region] ? REGIONS[c.region].name : c.region) + '</span>' +
+      '</div>').join('') || '<div class="gate-note">No characters yet — make your first one.</div>';
+    list.querySelectorAll('[data-id]').forEach(el =>
+      el.addEventListener('click', () => gateEnter(el.dataset.id, el.dataset.name)));
+    $('gate-newrow').style.display = (rows || []).length >= 3 ? 'none' : '';
+    gateSay('gate-msg2', '');
+  } catch (e){
+    gateSay('gate-msg2', e.message);
+  }
+}
+async function gateEnter(id, name){
+  SRV.charId = id; SRV.charName = name;
+  srvSaveSession();
+  gateSay('gate-msg2', 'Loading your character…', true);
+  try {
+    await netPullAll();       /* serverns tillstand ersatter det lokala helt */
+    await netSync();          /* och tiden sedan sist raknas fram */
+    $('gate').classList.add('done');
+    updateUI(true); refreshShelf(); renderInventory();
+  } catch (e){
+    gateSay('gate-msg2', e.message);
+  }
+}
+
+$('gt-in').addEventListener('click', () => {
+  gateMode = 'in';
+  $('gt-in').classList.add('on'); $('gt-up').classList.remove('on');
+  $('gate-submit').textContent = 'Sign in'; gateSay('gate-msg', '');
+});
+$('gt-up').addEventListener('click', () => {
+  gateMode = 'up';
+  $('gt-up').classList.add('on'); $('gt-in').classList.remove('on');
+  $('gate-submit').textContent = 'Create account'; gateSay('gate-msg', '');
+});
+
+$('gate-submit').addEventListener('click', async () => {
+  const email = $('gate-email').value.trim(), pass = $('gate-pass').value;
+  if (!email || !pass){ gateSay('gate-msg', 'Enter an email and password.'); return; }
+  if (gateMode === 'up' && pass.length < 6){
+    gateSay('gate-msg', 'Password needs at least 6 characters.'); return;
+  }
+  $('gate-submit').disabled = true;
+  gateSay('gate-msg', gateMode === 'up' ? 'Creating…' : 'Signing in…', true);
+  try {
+    if (gateMode === 'up'){
+      const r = await srvSignUp(email, pass);
+      if (!r.signedIn){
+        gateSay('gate-msg', 'Check your email to confirm the account, then sign in.', true);
+        $('gate-submit').disabled = false; return;
+      }
+    } else {
+      await srvSignIn(email, pass);
+    }
+    await gateShowChars();
+  } catch (e){
+    gateSay('gate-msg', e.message);
+  }
+  $('gate-submit').disabled = false;
+});
+
+$('gate-create').addEventListener('click', async () => {
+  const name = $('gate-newname').value.trim();
+  if (!name){ gateSay('gate-msg2', 'Give the character a name.'); return; }
+  $('gate-create').disabled = true;
+  gateSay('gate-msg2', 'Creating…', true);
+  try {
+    const row = await srvRpc('create_character', {p_name: name});
+    gateEnter(row.id, row.name);
+  } catch (e){
+    gateSay('gate-msg2', e.message);
+  }
+  $('gate-create').disabled = false;
+});
+
+$('gate-signout').addEventListener('click', async () => {
+  await srvSignOut();
+  $('gate-charlist').innerHTML = '';
+  gateShowAuth();
+});
+
+/* Vid start: har vi en session sedan tidigare gar vi direkt vidare. */
+(async function gateBoot(){
+  if (!srvLoadSession()) { gateShowAuth(); return; }
+  try {
+    await srvEnsureSession();
+    if (SRV.charId){
+      await netPullAll(); await netSync();
+      $('gate').classList.add('done');
+      updateUI(true); refreshShelf(); renderInventory();
+      return;
+    }
+    await gateShowChars();
+  } catch (e){
+    srvClearSession(); gateShowAuth();
+  }
+})();
 
 load();
 applySoundPrefs();
