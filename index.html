@@ -3219,7 +3219,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v2.0.1 — YRKENAS KEDJA</div>
+            <div class="desc">GENESIS v2.1.0 — JAMVIKTEN</div>
           </div>
         </div>
       </div>
@@ -3245,7 +3245,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v2.0.1 — YRKENAS KEDJA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v2.1.0 — JAMVIKTEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3526,7 +3526,9 @@ const NET = {
   error: null,
   pendingTaps: 0,       // hack som annu inte skickats
   heldSecs: 0,
-  visibleSecs: 0        // tid med spelet framme som annu inte rapporterats
+  visibleSecs: 0,       // tid med spelet framme som annu inte rapporterats
+  awaySecs: 0,          // hur lange servern sag oss borta
+  synced: false         // har forsta synken efter inloggning skett?
 };
 
 /* Hamta hela karaktaren fran servern och lagg den i S. Detta ERSATTER den
@@ -3543,6 +3545,10 @@ async function netPull(){
   S.xp        = +c.xp || 0;
   S.fuel      = +c.fuel || 0;
   S.credits   = +c.credits || 0;
+  /* Tiden sedan servern sist raknade: den ENDA sanningen om hur lange man
+     varit borta. Den lokala sparfilens klocka ljog om man spelat pa en
+     annan enhet. */
+  NET.awaySecs = c.ticked_at ? Math.max(0, (Date.now() - new Date(c.ticked_at).getTime()) / 1000) : 0;
   if (c.region && REGIONS[c.region]) S.world.current = c.region;
 
   /* Maskinerna: serverns antal, inte de lokalt sparade. */
@@ -3577,8 +3583,19 @@ async function netSync(){
        talet mot den tid som verkligen gatt. Nollas INNAN anropet, sa en
        misslyckad synk inte rapporterar samma sekunder en gang till. */
     const seen = NET.visibleSecs; NET.visibleSecs = 0;
+    const before = NET.serverData;
+    const firstSync = !NET.synced;
     const row = await srvRpc('tick', {p_character: SRV.charId, p_visible_secs: seen});
     if (row){
+      /* Forsta synken efter inloggning: skillnaden ar exakt det maskinerna
+         tjanade medan man var borta - serverns tal, inte klientens gissning. */
+      if (firstSync && NET.awaySecs > 120){
+        const gained = (+row.data || 0) - before;
+        if (gained > 0){
+          showOffline({away: NET.awaySecs, capped: NET.awaySecs, gain: gained});
+        }
+      }
+      NET.synced = true;
       NET.serverData = +row.data || 0;
       S.gold  = +row.gold_copper || S.gold;
       S.frags = +row.fragments   || S.frags;
@@ -4331,6 +4348,9 @@ const MATERIALS = {
   genesis_spore: {name:'Genesis Spore', ico:'🟢', tier:1, bop:true,  prof:'bioharvester'},
   refined_bioessence:{name:'Refined Bioessence',ico:'🧪', tier:1, bop:false, prof:'bioharvester', refined:true},
   prism_sap:     {name:'Prism Sap',    ico:'🔶', tier:0, bop:false, prof:'bioharvester'},
+  /* Fabricatorn hade far fynd mot de andra tva - dessa jamnar ut det. */
+  signal_cord:   {name:'Signal Cord',   ico:'🪢', tier:0, bop:false, prof:'fabricator'},
+  filament_spool:{name:'Filament Spool',ico:'🧶', tier:0, bop:false, prof:'fabricator'},
   /* --- Skrot: det ENDA alla kan hitta, oavsett yrke (spelarens beslut).
          Kommer fran expeditioner och cacher, saljs till handlare eller pa
          auktionen, och forads av vilket samlaryrke som helst. --- */
@@ -4380,7 +4400,7 @@ const GATHER_DEFS = {
                  rare:['voidsteel_ore','genesis_crystal'],
                  gems:['diamond_shard','ruby','sapphire','amethyst']},
   fabricator:   {verb:'Weaving',   ico:'🧵', cycle:5.0, nothing:0.65,
-                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk'],
+                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk','signal_cord','filament_spool'],
                  rare:['phase_thread','memory_weave']},
   bioharvester: {verb:'Harvesting',ico:'🌿', cycle:5.0, nothing:0.65,
                  core:['neon_bloom','circuit_root','static_cap','glass_moss','prism_sap'],
@@ -4600,7 +4620,7 @@ const RECIPES = [
   {id:'ch_k1', prof:'chemist',      name:'Distil Catalyst',    item:'catalyst_essence',  rar:2, lvl:12, source:'known', cost:{refined_bioessence:1, neon_bloom:4}},
   /* ===================== OUTFITTER (16) ===================== */
   /* Common - billigt, bara core-fibrer */
-  {id:'of_c1', prof:'outfitter', name:"Courier's Gloves", item:'runners_gloves', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, carbon_weave:1}},
+  {id:'of_c1', prof:'outfitter', name:"Courier's Gloves", item:'runners_gloves', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, carbon_weave:1, signal_cord:2}},
   {id:'of_c2', prof:'outfitter', name:'Padded Workboots', item:'runners_boots',  rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, polymer_mesh:2}},
   {id:'of_c3', prof:'outfitter', name:'Utility Trousers', item:'runners_trousers',rar:0, lvl:1, source:'known', cost:{synthetic_fiber:4, static_silk:1}},
   {id:'of_c4', prof:'outfitter', name:'Field Vest',       item:'runners_vest',    rar:0, lvl:1, source:'known', cost:{synthetic_fiber:4, polymer_mesh:2}},
@@ -4609,7 +4629,7 @@ const RECIPES = [
   {id:'of_u1', prof:'outfitter', name:'Staticweave Gloves',   item:'runners_gloves',  rar:1, lvl:5, source:'known', cost:{static_silk:3, carbon_weave:2}},
   {id:'of_u2', prof:'outfitter', name:'Reinforced Trailboots',item:'runners_boots',   rar:1, lvl:5, source:'known', cost:{static_silk:3, polymer_mesh:3, iron_ore:1}},
   {id:'of_u3', prof:'outfitter', name:'Signalweave Trousers', item:'runners_trousers',rar:1, lvl:5, source:'known', cost:{static_silk:4, carbon_weave:3}},
-  {id:'of_u4', prof:'outfitter', name:'Carbon Courier Vest',  item:'runners_vest',    rar:1, lvl:5, source:'known', cost:{carbon_weave:5, polymer_mesh:2}},
+  {id:'of_u4', prof:'outfitter', name:'Carbon Courier Vest',  item:'runners_vest',    rar:1, lvl:5, source:'known', cost:{carbon_weave:5, polymer_mesh:2, filament_spool:3}},
   {id:'of_u5', prof:'outfitter', name:'Phasebound Belt',      item:'waist_signal_belt',rar:1, lvl:5, source:'known', cost:{static_silk:3, carbon_weave:2, gold_ore:1}},
   /* Rare - drar in Masterweave Thread (BoP) + dyrare tradeable */
   {id:'of_r1', prof:'outfitter', name:'Phasewalker Boots',    item:'runners_boots',   rar:2, lvl:12, source:'drop', cost:{carbon_weave:5, static_silk:4, refined_phaseweave:1, masterweave_thread:1}},
@@ -4625,7 +4645,7 @@ const RECIPES = [
   {id:'ws_c2', prof:'weaponsmith', name:'Coppervein Dagger',item:'runners_dagger',     rar:0, lvl:1, source:'known', cost:{copper_ore:4, iron_ore:1}},
   {id:'ws_c3', prof:'weaponsmith', name:'Field Guard',     item:'offhand_wooden_shield',rar:0, lvl:1, source:'known', cost:{iron_ore:3, polymer_mesh:2}},
   {id:'ws_c4', prof:'weaponsmith', name:'Signal Baton',    item:'runners_dagger',      rar:0, lvl:1, source:'known', cost:{iron_ore:3, copper_ore:2}},
-  {id:'ws_c5', prof:'weaponsmith', name:'Courier Board',   item:'transport_streetblade',rar:0, lvl:1, source:'known', cost:{iron_ore:4, carbon_weave:3, polymer_mesh:2}},
+  {id:'ws_c5', prof:'weaponsmith', name:'Courier Board',   item:'transport_streetblade',rar:0, lvl:1, source:'known', cost:{iron_ore:4, carbon_weave:3, polymer_mesh:2, signal_cord:2}},
   {id:'ws_u1', prof:'weaponsmith', name:'Coilblade',       item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:5, crystal_quartz:2}},
   {id:'ws_u2', prof:'weaponsmith', name:'Signal Guard',    item:'offhand_street_buckler',rar:1, lvl:5, source:'known', cost:{iron_ore:4, carbon_weave:3, prism_sap:2}},
   {id:'ws_u3', prof:'weaponsmith', name:'Longwave Rifle',  item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:5, gold_ore:2, carbon_weave:2}},
@@ -4641,7 +4661,7 @@ const RECIPES = [
   /* ===================== JEWELCRAFTER (16) ===================== */
   {id:'jc_c1', prof:'jewelcrafter', name:'Copper Signal Ring',item:'ring_copper_band', rar:0, lvl:1, source:'known', cost:{copper_ore:3, crystal_quartz:1}},
   {id:'jc_c2', prof:'jewelcrafter', name:'Iron Loop',        item:'ring_iron_ring',    rar:0, lvl:1, source:'known', cost:{iron_ore:3, crystal_quartz:1}},
-  {id:'jc_c3', prof:'jewelcrafter', name:'Quartz Pendant',   item:'neck_signal_tag',   rar:0, lvl:1, source:'known', cost:{crystal_quartz:3, copper_ore:1}},
+  {id:'jc_c3', prof:'jewelcrafter', name:'Quartz Pendant',   item:'neck_signal_tag',   rar:0, lvl:1, source:'known', cost:{crystal_quartz:3, copper_ore:1, filament_spool:2}},
   {id:'jc_c4', prof:'jewelcrafter', name:"Courier's Charm",  item:'neck_circuit_pendant',rar:0, lvl:1, source:'known', cost:{copper_ore:2, gold_ore:1}},
   {id:'jc_c5', prof:'jewelcrafter', name:'Cut Quartz',       item:'ring_signal_ring',  rar:0, lvl:1, source:'known', cost:{crystal_quartz:4}},
   {id:'jc_u1', prof:'jewelcrafter', name:'Gold Signal Ring', item:'ring_signal_ring',  rar:1, lvl:5, source:'known', cost:{gold_ore:3, crystal_quartz:2}},
@@ -4662,7 +4682,7 @@ const RECIPES = [
   {id:'ch_c1', prof:'chemist', name:'Data Flask',     item:'flask_data',    rar:0, lvl:1, source:'known', cost:{neon_bloom:2, crystal_quartz:1}, consumable:'idle'},
   {id:'ch_c2', prof:'chemist', name:'Focus Flask',    item:'flask_focus',   rar:0, lvl:1, source:'known', cost:{circuit_root:2, crystal_quartz:1}, consumable:'crit'},
   {id:'ch_c3', prof:'chemist', name:'Impact Flask',   item:'flask_impact',  rar:0, lvl:1, source:'known', cost:{static_cap:2, crystal_quartz:1}, consumable:'critdmg'},
-  {id:'ch_c4', prof:'chemist', name:'Trail Flask',    item:'flask_trail',   rar:0, lvl:1, source:'known', cost:{glass_moss:2, neon_bloom:1}, consumable:'travel'},
+  {id:'ch_c4', prof:'chemist', name:'Trail Flask',    item:'flask_trail',   rar:0, lvl:1, source:'known', cost:{glass_moss:2, neon_bloom:1, signal_cord:1}, consumable:'travel'},
   {id:'ch_c5', prof:'chemist', name:'Learning Flask', item:'flask_learning',rar:0, lvl:1, source:'known', cost:{neon_bloom:2, circuit_root:1}, consumable:'xp'},
   {id:'ch_u1', prof:'chemist', name:'Overclock Serum',  item:'flask_data',    rar:1, lvl:5, source:'known', cost:{neon_bloom:3, static_cap:2}, consumable:'idle'},
   {id:'ch_u2', prof:'chemist', name:'Precision Compound',item:'flask_focus',   rar:1, lvl:5, source:'known', cost:{circuit_root:3, crystal_quartz:2}, consumable:'crit'},
@@ -5944,6 +5964,12 @@ const OFFLINE_HOURS = [6, 12, 16, 20, 24];
 function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 6; }
 function offlineRate(){ return Math.min(1, 0.5 + 0.10 * S.up.offlinePct + gearBonus('offline') / 100); }
 function computeOffline(){
+  /* SERVERLAGE: klienten far INTE rakna ut detta sjalv. Den raknade pa den
+     LOKALA sparfilens maskiner och tid, vilket kunde visa biljoner for en
+     spelare som i verkligheten hade hundratusen - och servern hade dessutom
+     redan betalat ut den riktiga summan vid forsta synken. Ratt siffra ar
+     alltid den servern faktiskt gav. */
+  if (NET.on) return null;
   if (!S.savedAt) return null;
   const away = (Date.now() - S.savedAt) / 1000;
   if (away < 120) return null; // korta hopp räknas inte
@@ -9302,9 +9328,11 @@ function showOffline(o){
   $('offline-gain').textContent = '+' + fmt(o.gain) + ' Data';
   offlineOverlay.classList.add('open');
   const collect = () => {
-    S.data += o.gain; S.totalData += o.gain;
+    /* SERVERLAGE: pengarna ar REDAN utbetalda av serverns forsta tick - rutan
+       beratter bara vad som hande. Lade vi till dem har skulle summan dyka
+       upp dubbelt tills nasta synk rattade det. */
+    if (!NET.on){ S.data += o.gain; S.totalData += o.gain; save(); }
     offlineOverlay.classList.remove('open');
-    save();
   };
     $('offline-collect').onclick = collect;
   $('offline-close').onclick = collect;   // stängning skänker aldrig bort inkomsten
