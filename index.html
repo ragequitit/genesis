@@ -3219,7 +3219,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v1.2.0 — DROPPET</div>
+            <div class="desc">GENESIS v1.3.0 — RENT BORD</div>
           </div>
         </div>
       </div>
@@ -3245,7 +3245,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v1.2.0 — DROPPET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v1.3.0 — RENT BORD</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3640,6 +3640,14 @@ async function netBuyMilestone(machineId, step){
   return r;
 }
 /* Spaningen och de upptackta regionerna bor pa servern. */
+async function netPullMilestones(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('character_milestones',
+    'character_id=eq.' + SRV.charId + '&select=machine_id,step');
+  S.mil = {};                       /* serverns lista ERSATTER den lokala helt */
+  (rows || []).forEach(r => { S.mil[r.machine_id + ':' + r.step] = true; });
+  return true;
+}
 async function netPullRegions(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('character_regions',
@@ -3928,6 +3936,7 @@ async function netArrive(){
 /* Allt pa en gang - anvands nar man gar in i spelet. */
 async function netPullAll(){
   await netPull();
+  await netPullMilestones();
   await netPullRegions();
   await netPullItems();
   await netPullPets();
@@ -6502,6 +6511,9 @@ function achCount(){ return ACH.filter(a => achDone(a.id)).length; }
 /* Körs ofta men gör nästan aldrig något: villkoren är billiga jämförelser.
    Delar ut allt som är förtjänat, även flera på samma gång. */
 function checkAchievements(silent){
+  /* SERVERLAGE: servern avgor vad som ar upplast och betalar ut. Kordes detta
+     har lyste gamla prestationer upp fran den lokala filen. */
+  if (NET.on) return 0;
   let got = [];
   ACH.forEach(a => {
     if (achDone(a.id)) return;
@@ -6749,7 +6761,7 @@ function refreshShelf(){
                Klienten far inte rora nagot sjalv - det skrevs anda over. */
             try {
               await netBuyMilestone(it.b.id, it.st);
-              S.mil[it.key] = true;
+              await netPullMilestones();
             } catch (e){ spawnFloat({text: 'Could not buy that upgrade'}); return; }
           } else {
             S.data -= it.cost;
@@ -12841,14 +12853,12 @@ const AH_CATS = [
   ['boots',       'Boots',         '🥾'],
   ['necklaces',   'Necklaces',     '📿'],
   ['rings',       'Rings',         '💍'],
-  ['ring2',       'Ring 2',        '💍'],
   ['relics',      'Relics',        '🗿'],
   ['transports',  'Transports',    '🛹'],
   ['materials',   'Materials',     '💠'],
   ['gems',        'Gems',          '💎'],
   ['consumables', 'Consumables',   '🧪'],
   ['recipes',     'Recipes',       '📜'],
-  ['petitems',    'Pet Items',     '🐾'],
   ['misc',        'Miscellaneous', '📦']
 ];
 
