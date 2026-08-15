@@ -2141,6 +2141,14 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   display:grid;grid-template-columns:230px 1fr 290px;gap:14px;
   padding:10px 18px;min-height:0;
 }
+.exp-note{
+  margin:0 0 10px;padding:10px 13px;border-radius:9px;
+  border:1px solid var(--red);background:rgba(255,77,109,.10);
+  color:#ffb3c1;font-size:12px;line-height:1.55;
+}
+.iw-hint{padding:9px 2px 2px;text-align:center;color:var(--text-faint);font-size:11px;letter-spacing:.3px}
+.pm-note{padding:8px 11px;color:var(--text-dim);font-size:11px;line-height:1.6;max-width:230px}
+.item-art.pet-art{display:flex;align-items:center;justify-content:center}
 .ah-gate{grid-column:1 / -1;align-self:center;text-align:center;color:var(--text-dim);font-size:15px;line-height:1.9}
 .ah-side,.ah-sellp{
   background:#0b1024;border:1px solid var(--border-soft);border-radius:12px;
@@ -2921,6 +2929,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
           <div class="tab" data-pane="pane-exp-discovered">Discovered</div>
         </div>
         <div class="tab-pane" id="pane-exp-active">
+          <div class="exp-note" id="exp-note" style="display:none"></div>
           <div class="exp-slots" id="exp-active-list"></div>
         </div>
         <div class="tab-pane" id="pane-exp-discovered" style="display:none">
@@ -3219,7 +3228,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v2.1.0 — JAMVIKTEN</div>
+            <div class="desc">GENESIS v2.2.1 — HUSDJURSKORTET</div>
           </div>
         </div>
       </div>
@@ -3245,7 +3254,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v2.1.0 — JAMVIKTEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v2.2.1 — HUSDJURSKORTET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -7410,11 +7419,35 @@ function discoverZoneExpeditions(regionId, zone){
   return found;
 }
 
+/* Vad som gick fel, i ord - och VID expeditionen, inte som en siffra som
+   flyger upp fran noden i andra anden av skarmen. */
+const EXP_ERRORS = {
+  still_travelling:   'You are still in transit — wait until you arrive.',
+  wrong_region:       'You are not in that region.',
+  wrong_zone:         'You need to be in that zone to start this.',
+  level_too_low:      'Your level is too low for this expedition.',
+  already_running:    'That expedition is already out.',
+  no_free_slot:       'All expedition slots are busy.',
+  unknown_expedition: 'That expedition is not available.',
+  offline:            'No connection to the server.'
+};
+let expNote = '';
+function expSay(msg){
+  expNote = msg;
+  renderExpPanel();
+  clearTimeout(expSay._t);
+  expSay._t = setTimeout(() => { expNote = ''; renderExpPanel(); }, 5000);
+}
+function expErrText(e){
+  const m = String((e && e.message) || e);
+  for (const k in EXP_ERRORS) if (m.indexOf(k) >= 0) return EXP_ERRORS[k];
+  return 'Could not start that expedition.';
+}
 function startExpedition(id){
   if (NET.on){
     netStartExpedition(id)
-      .then(() => { renderExpPanel(); updateUI(true); })
-      .catch(e => spawnFloat({text: e.message}));
+      .then(() => { expNote = ''; renderExpPanel(); updateUI(true); })
+      .catch(e => expSay(expErrText(e)));
     return;
   }
   const def = expDefById(id);
@@ -8488,6 +8521,11 @@ function openTravelNow(regionId){
 function fmtMins(m){ return m >= 60 ? (m / 60) + 'h' : m + 'm'; }
 let expPaneSig = '';
 function renderExpPanel(){
+  const noteBox = $('exp-note');
+  if (noteBox){
+    noteBox.textContent = expNote || '';
+    noteBox.style.display = expNote ? '' : 'none';
+  }
   const act = $('exp-active-list');
   const tab = document.querySelector('#expedition-tabs .tab[data-pane="pane-exp-active"]');
   if (tab){
@@ -11176,8 +11214,8 @@ function petTipHTML(p){
     '<div class="gt-sep"></div>' +
     line('Recycles into', dustFor(p) + ' ✨') +
     '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
-      ? 'Tap for options'
-      : 'Click for options<br>Right-click to rename') + '</div>';
+      ? 'Tap to inspect \u00b7 long-press for options'
+      : 'Click to inspect \u00b7 right-click for options') + '</div>';
 }
 function showPetTip(p, x, y){
   gearTip.style.setProperty('--rc', rarCol(p.rar));
@@ -11499,7 +11537,7 @@ function petWinHTML(p){
   return '<div class="iw-head"><span class="iw-title" style="color:' + rarCol(p.rar) + '">' + petName(p) + '</span>' +
     '<button class="iw-x">\u2715</button></div>' +
     '<div class="item-top">' +
-      '<div class="item-art"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 64) + ';border:0;background:transparent"></div></div>' +
+      '<div class="item-art pet-art"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 96) + ';border:0;background:transparent"></div></div>' +
       '<div class="item-head">' +
         '<div class="gt-rar">' + RARITIES[p.rar].name + (p.n ? ' ' + PETS[p.sp].name : '') + (on ? ' \u00b7 Active' : '') + '</div>' +
         stat(max ? 'MAX' : li.lvl, max ? 'Level 10' : 'Level') +
@@ -11513,16 +11551,14 @@ function petWinHTML(p){
     '<div class="item-actions"></div>';
 }
 function petWinActions(win, uid){
+  /* Kortet visar VAD husdjuret ar. Knapparna bor i hogerklicksmenyn - forut
+     trangdes tre knappar langst ner och den fjarde fick inte ens plats. */
   const box = win.querySelector('.item-actions');
   const p = petByUid(uid);
   if (!p){ box.innerHTML = '<div class="gc-row">This pet is gone.</div>'; return; }
-  const on = inTeam(p.uid), max = petLvl(p) >= PET_MAX_LVL;
-  const spend = feedAmount(p);
-  box.innerHTML =
-    (on ? '' : '<button class="ia-equip" data-act="active">Set Active</button>') +
-    (max || !spend ? '' : '<button class="ia-cancel" data-act="feed">Feed dust<span>' + spend + ' ✨ → Lv ' +
-      petLevelInfo(Math.min(PET_XP_MAX, p.xp + spend * DUST_XP)).lvl + '</span></button>') +
-    (on ? '' : '<button class="ia-sell" data-act="rec">Recycle<span>' + dustFor(p) + ' ✨</span></button>');
+  box.innerHTML = '<div class="iw-hint">' + (matchMedia('(hover: none)').matches
+    ? 'Long-press the pet for options'
+    : 'Right-click the pet for options') + '</div>';
 }
 function spawnPetWin(uid, nearX, nearY){
   hideGearTip();
@@ -11706,6 +11742,9 @@ function openPetMenu(uid, x, y){
     '<div class="pm-head" style="color:' + rarCol(p.rar) + '">' + petName(p) + '</div>' +
     (on ? '<button class="pm-item" data-act="unset">Remove from slot</button>'
         : '<button class="pm-item" data-act="active">Set active</button>') +
+    (petLvl(p) >= PET_MAX_LVL || !feedAmount(p) ? ''
+      : '<button class="pm-item" data-act="feed">Feed dust \u00b7 ' + feedAmount(p) + ' ✨ \u2192 Lv ' +
+        petLevelInfo(Math.min(PET_XP_MAX, p.xp + feedAmount(p) * DUST_XP)).lvl + '</button>') +
     '<button class="pm-item" data-act="rename">Rename\u2026</button>' +
     (on ? '' : '<button class="pm-item danger" data-act="rec">Recycle for ' + dustFor(p) + ' ✨</button>');
   document.body.appendChild(m);
@@ -11719,7 +11758,19 @@ function openPetMenu(uid, x, y){
     const act = b.dataset.act;
     if (act === 'active'){ setTeamPet(uid); closePetMenu(); }
     else if (act === 'unset'){ clearTeamSlot(teamIndexOf(uid)); closePetMenu(); }
-    else if (act === 'rec'){ closePetMenu(); spawnPetWin(uid, x, y); }
+    else if (act === 'feed'){ feedPet(uid); closePetMenu(); }
+    else if (act === 'rec'){
+      /* Fragan stalls HAR, i menyn - inte i ett nytt fonster. */
+      const li = petLevelInfo(p.xp), lost = li.lvl > 1;
+      m.innerHTML = '<div class="pm-head" style="color:' + rarCol(p.rar) + '">Recycle ' + petName(p) + '?</div>' +
+        '<div class="pm-note">' + (li.lvl >= PET_MAX_LVL ? '\u26a0 MAX level. ' : (lost ? '\u26a0 ' : '')) +
+        'You get ' + dustFor(p) + ' ✨' +
+        (lost ? '. You lose Lv ' + li.lvl + ' \u2014 the dust does not pay it back.' : '. It is gone for good.') + '</div>' +
+        '<button class="pm-item danger" data-act="rec-yes">Yes, recycle</button>' +
+        '<button class="pm-item" data-act="rec-no">Keep it</button>';
+    }
+    else if (act === 'rec-yes'){ recyclePet(uid); closePetMenu(); }
+    else if (act === 'rec-no'){ closePetMenu(); }
     else if (act === 'rename'){
       /* Namnbytet sker I menyn - att oppna ett fonster till for ett textfalt vore
          ett steg for mycket for nagot sa litet. */
