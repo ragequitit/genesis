@@ -2079,6 +2079,260 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   background:var(--cyan);color:#04121c;font-size:8px;font-weight:900;
   line-height:11px;text-align:center;font-family:var(--font-mono);
 }
+
+/* ==================== AUKTIONSHUSET (v0.98.0) ====================
+   Layouten foljer spelarens bild: flikar uppe till vanster, titel i mitten,
+   kategorier till vanster, tabellen i mitten, SELL ITEM till hoger, en
+   bottenrad med Mina annonser / Historik / Saldo, och avgiftsraden underst. */
+#ah-overlay.open{
+  display:flex;align-items:center;justify-content:center;
+  inset:0;background:rgba(4,6,16,.72);backdrop-filter:blur(2px);
+}
+.ah-win{
+  width:min(1500px,95vw);height:min(920px,92vh);
+  display:grid;grid-template-rows:auto 1fr auto auto;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);border-radius:16px;
+  box-shadow:0 24px 80px rgba(0,0,0,.8);
+  padding:0 0 10px;overflow:hidden;
+}
+/* --- huvudet --- */
+.ah-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 18px 4px}
+.ah-tabs{display:flex;gap:2px;justify-self:start}
+.ah-tab{
+  min-width:150px;padding:12px 30px;border:1px solid var(--border-soft);
+  border-bottom:none;border-radius:10px 10px 0 0;
+  background:#10162e;color:var(--text-dim);
+  font-weight:700;letter-spacing:2px;font-size:13px;cursor:pointer;
+}
+.ah-tab.on{background:#0a0f22;color:var(--cyan);box-shadow:inset 0 -3px 0 var(--cyan)}
+.ah-title{display:flex;align-items:center;gap:12px;justify-self:center}
+.ah-gavel{width:52px;height:52px;display:inline-block;background-size:contain;background-position:center;background-repeat:no-repeat}
+.ah-title h1{font-size:26px;letter-spacing:4px;color:var(--text)}
+.ah-title p{color:var(--text-dim);font-size:12px;margin-top:2px}
+.ah-x{
+  justify-self:end;width:38px;height:38px;border-radius:50%;
+  border:1px solid var(--border-soft);background:#10162e;color:var(--text-dim);
+  font-size:15px;cursor:pointer;
+}
+.ah-x:hover{color:var(--text);border-color:var(--border-glow)}
+/* --- mittdelen: tre spalter --- */
+.ah-main{
+  display:grid;grid-template-columns:230px 1fr 290px;gap:14px;
+  padding:10px 18px;min-height:0;
+}
+.ah-gate{grid-column:1 / -1;align-self:center;text-align:center;color:var(--text-dim);font-size:15px;line-height:1.9}
+.ah-side,.ah-sellp{
+  background:#0b1024;border:1px solid var(--border-soft);border-radius:12px;
+  padding:12px;overflow-y:auto;min-height:0;
+}
+.ah-mid{display:flex;flex-direction:column;min-height:0;min-width:0}
+.ah-side-title,.ah-sellp-title{
+  font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text);margin:2px 2px 10px;
+}
+/* --- kategorierna --- */
+.ah-cat{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;margin-bottom:4px;
+  border:1px solid transparent;border-radius:9px;cursor:pointer;color:var(--text-dim);
+}
+.ah-cat:hover{border-color:var(--border-soft);color:var(--text)}
+.ah-cat.on{
+  border-color:var(--purple);color:var(--text);
+  background:linear-gradient(90deg,rgba(164,92,255,.22),rgba(164,92,255,.06));
+  box-shadow:0 0 12px rgba(164,92,255,.25);
+}
+.ah-cat-ico{width:20px;text-align:center;font-size:14px}
+.ah-cat-lbl{flex:1;font-size:12px;letter-spacing:1px;text-transform:uppercase}
+.ah-cat-n{font-family:var(--font-mono);font-size:11px;color:var(--text-faint)}
+.ah-cat.on .ah-cat-n{color:var(--text)}
+/* --- sok + filter --- */
+.ah-toolbar{display:flex;gap:10px;margin-bottom:10px;position:relative}
+.ah-searchbox{
+  flex:1;display:flex;align-items:center;gap:8px;padding:0 14px;
+  background:#0b1024;border:1px solid var(--border-soft);border-radius:10px;color:var(--text-faint);
+}
+.ah-searchbox input{
+  flex:1;background:none;border:none;outline:none;color:var(--text);
+  font:inherit;padding:11px 0;
+}
+.ah-filters{
+  padding:0 18px;border-radius:10px;border:1px solid var(--cyan-dim);
+  background:rgba(56,232,255,.08);color:var(--cyan);
+  font-weight:700;letter-spacing:1px;font-size:12px;cursor:pointer;
+}
+.ah-filters.set{background:rgba(56,232,255,.2)}
+.ah-filter-pop{
+  display:none;position:absolute;right:0;top:44px;z-index:5;min-width:170px;
+  background:var(--bg-panel-2);border:1px solid var(--border-glow);border-radius:10px;
+  padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.6);
+}
+.ah-filter-pop.open{display:block}
+.ah-f-row{padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--text-dim)}
+.ah-f-row:hover{background:#141a38}
+.ah-f-row.on{background:#141a38;outline:1px solid var(--border-glow)}
+/* --- tabellen --- */
+.ah-thead,.ah-row{
+  display:grid;align-items:center;gap:8px;
+  grid-template-columns:minmax(180px,1fr) 105px 120px 75px 125px 85px 72px;
+}
+.ah-thead{
+  padding:8px 12px;color:var(--text-faint);font-size:10px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--border-soft);
+}
+.ah-th{cursor:pointer}
+.ah-th:hover{color:var(--text-dim)}
+.ah-sort{opacity:.6}
+.ah-sort.on{color:var(--cyan);opacity:1}
+.ah-rows{flex:1;overflow-y:auto;min-height:0}
+.ah-row{padding:9px 12px;border-bottom:1px solid var(--border-soft)}
+.ah-row:hover{background:rgba(56,232,255,.03)}
+.ah-c-item{display:flex;align-items:center;gap:11px;min-width:0}
+.ah-art{
+  flex:none;width:44px;height:44px;border-radius:9px;
+  background-color:#141a38;border:1px solid var(--border-glow);
+  background-size:78%;background-position:center;background-repeat:no-repeat;
+}
+.ah-art.big{width:56px;height:56px}
+.ah-art-emoji{display:flex;align-items:center;justify-content:center;font-size:22px}
+.ah-art.big.ah-art-emoji{font-size:28px}
+.ah-nm{min-width:0;display:flex;flex-direction:column;gap:1px}
+.ah-nm b{font-size:13px;color:#bfe3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah-nm i{font-style:normal;font-size:11px;color:var(--text-dim)}
+.ah-nm em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:1px}
+.ah-c-rar{font-size:11px;font-weight:800;letter-spacing:1px}
+.ah-c-seller,.ah-c-qty{color:var(--text-dim);font-size:12px}
+.ah-c-price{font-family:var(--font-mono);font-size:13px;color:var(--text);display:flex;align-items:center;gap:5px}
+.ah-c-left{color:var(--text-dim);font-family:var(--font-mono);font-size:12px}
+.ah-c-fee{color:var(--text-faint);font-size:11px}
+.ah-coin{font-size:13px}
+.ah-buy{
+  padding:7px 16px;border-radius:8px;border:1px solid var(--cyan-dim);
+  background:rgba(56,232,255,.07);color:var(--cyan);
+  font-weight:800;letter-spacing:1px;font-size:11px;cursor:pointer;
+}
+.ah-buy:hover:not(:disabled){background:rgba(56,232,255,.18)}
+.ah-buy:disabled{opacity:.35;cursor:default}
+.ah-cancel{border-color:var(--red);color:var(--red);background:rgba(255,77,109,.07)}
+.ah-cancel:hover{background:rgba(255,77,109,.18)}
+.ah-status{font-size:10px;font-weight:800;letter-spacing:1px;color:var(--text-faint)}
+.ah-st-sold{color:var(--green)}
+.ah-empty{padding:44px 20px;text-align:center;color:var(--text-faint);line-height:1.9}
+.ah-pick-title{
+  padding:9px 12px;color:var(--text-dim);font-size:12px;letter-spacing:1px;
+  text-transform:uppercase;border-bottom:1px solid var(--border-soft);
+}
+.ah-prow{cursor:pointer;grid-template-columns:1fr 90px 80px}
+.ah-c-sel{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:1px;text-align:right}
+.ah-hrow{grid-template-columns:1fr 140px 130px}
+.ah-hbadge{
+  flex:none;padding:5px 9px;border-radius:7px;font-size:10px;font-weight:800;letter-spacing:1px;
+}
+.hb-buy{background:rgba(255,77,109,.12);color:var(--red)}
+.hb-sale{background:rgba(61,255,158,.12);color:var(--green)}
+/* --- sidorna --- */
+.ah-pages{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0 2px}
+.ah-pg{
+  min-width:32px;height:32px;border-radius:8px;border:1px solid var(--border-soft);
+  background:#0b1024;color:var(--text-dim);cursor:pointer;font-family:var(--font-mono);
+}
+.ah-pg:hover:not(:disabled){border-color:var(--border-glow);color:var(--text)}
+.ah-pg.on{border-color:var(--cyan);color:var(--cyan)}
+.ah-pg:disabled{opacity:.3;cursor:default}
+.ah-dots{color:var(--text-faint)}
+/* --- SELL ITEM-spalten --- */
+.ah-sel-empty{color:var(--text-faint);line-height:1.8;padding:14px 4px;font-size:12px}
+.ah-sel-card{
+  display:flex;align-items:center;gap:11px;padding:11px;
+  background:#10162e;border:1px solid var(--border-soft);border-radius:11px;margin-bottom:14px;
+}
+.ah-lbl{
+  font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text-dim);margin:12px 2px 6px;
+}
+.ah-qty{display:flex;align-items:stretch;gap:6px}
+.ah-qty button{
+  width:40px;height:38px;border-radius:9px;border:1px solid var(--border-soft);
+  background:#10162e;color:var(--text);font-size:17px;cursor:pointer;
+}
+.ah-qty button:hover{border-color:var(--border-glow)}
+.ah-qty span{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  background:#0b1024;border:1px solid var(--border-soft);border-radius:9px;
+  font-family:var(--font-mono);font-size:14px;
+}
+.ah-avail{color:var(--text-faint);font-size:11px;margin:6px 2px 0}
+.ah-pricebox{
+  display:flex;align-items:center;gap:8px;padding:0 12px;
+  background:#0b1024;border:1px solid var(--border-soft);border-radius:9px;
+}
+.ah-pricebox input{
+  flex:1;background:none;border:none;outline:none;color:var(--text);
+  font-family:var(--font-mono);font-size:15px;padding:11px 0;min-width:0;
+}
+.ah-pen{color:var(--text-faint);font-size:13px}
+.ah-feerow{
+  display:flex;justify-content:space-between;color:var(--text-dim);
+  font-size:11px;margin:8px 2px 0;font-family:var(--font-mono);
+}
+.ah-total{
+  display:flex;justify-content:space-between;align-items:center;margin-top:10px;
+  border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;
+}
+.ah-total span:first-child{
+  padding:11px 13px;background:rgba(56,232,255,.08);color:var(--cyan);
+  font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+}
+.ah-total span:last-child{
+  padding:11px 13px;font-family:var(--font-mono);font-size:14px;
+  display:flex;align-items:center;gap:6px;
+}
+.ah-dur{
+  width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--border-soft);
+  background:#0b1024;color:var(--text);font:inherit;cursor:pointer;
+}
+.ah-listbtn{
+  width:100%;margin-top:16px;padding:14px;border:none;border-radius:11px;cursor:pointer;
+  background:linear-gradient(90deg,#7b3fe4,var(--purple));color:#fff;
+  font-weight:800;letter-spacing:2px;font-size:13px;
+  box-shadow:0 6px 22px rgba(164,92,255,.35);
+}
+.ah-listbtn:hover{filter:brightness(1.12)}
+/* --- bottenraden + avgiftsraden --- */
+.ah-bottom{
+  display:grid;grid-template-columns:1fr 1.4fr 1fr;
+  border-top:1px solid var(--border-soft);margin:6px 18px 0;
+}
+.ah-b-sec{
+  display:flex;align-items:center;gap:12px;padding:13px 12px;cursor:pointer;
+  border-right:1px solid var(--border-soft);
+}
+.ah-b-sec:last-child{border-right:none;cursor:default;justify-content:flex-end}
+.ah-b-sec:hover .ah-b-lbl{color:var(--text)}
+.ah-b-lbl{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)}
+.ah-b-val{color:var(--text-dim);font-size:12px;font-family:var(--font-mono)}
+.ah-b-arr{margin-left:auto;color:var(--text-faint)}
+.ah-g{color:var(--gold)}
+.ah-s{color:#c7cbe0}
+.ah-c{color:#d29a6a}
+.ah-note{text-align:center;color:var(--text-faint);font-size:11px;padding:8px 0 2px}
+@media (max-width:1280px){
+  .ah-main{grid-template-columns:190px 1fr 250px}
+  .ah-thead,.ah-row{grid-template-columns:minmax(140px,1fr) 90px 100px 60px 110px 75px 66px}
+}
+@media (max-width:820px){
+  .ah-win{height:96vh;width:98vw}
+  .ah-main{grid-template-columns:1fr;grid-template-rows:auto 1fr auto;overflow-y:auto}
+  .ah-side{max-height:150px}
+  .ah-thead{display:none}
+  .ah-row{grid-template-columns:1fr 70px 70px;row-gap:4px}
+  .ah-c-rar,.ah-c-seller{display:none}
+  .ah-head{grid-template-columns:auto 1fr auto}
+  .ah-tab{min-width:90px;padding:10px 14px}
+  .ah-title h1{font-size:17px;letter-spacing:2px}
+  .ah-gavel{width:34px;height:34px}
+}
+
 </style>
 </head>
 <body>
@@ -2683,7 +2937,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v0.97.5 — BUGGJAKT</div>
+            <div class="desc">GENESIS v0.98.1 — AUKTIONSHUSET</div>
           </div>
         </div>
       </div>
@@ -2709,7 +2963,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.97.5 — BUGGJAKT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v0.98.1 — AUKTIONSHUSET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -2725,6 +2979,43 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
     </div>
   </footer>
 </div>
+
+
+  <!-- ==================== AUKTIONSHUSET (v0.98.0) ====================
+       Skalet ar fast; JS fyller mitten. Layouten foljer spelarens bild. -->
+  <div class="float-win" id="ah-overlay">
+    <div class="ah-win">
+      <div class="ah-head">
+        <div class="ah-tabs">
+          <button class="ah-tab on" id="ah-tab-buy">BUY</button>
+          <button class="ah-tab" id="ah-tab-sell">SELL</button>
+        </div>
+        <div class="ah-title">
+          <span class="qi qi-auction ah-gavel"></span>
+          <div><h1>AUCTION HOUSE</h1><p>Trade items with other players</p></div>
+        </div>
+        <button class="ah-x" id="ah-close">✕</button>
+      </div>
+      <div class="ah-main" id="ah-main"></div>
+      <div class="ah-bottom">
+        <div class="ah-b-sec" id="ah-my-btn">
+          <span class="ah-b-lbl">My Listings</span>
+          <span class="ah-b-val" id="ah-my-count">0 / 10 Active</span>
+          <span class="ah-b-arr">›</span>
+        </div>
+        <div class="ah-b-sec" id="ah-hist-btn">
+          <span class="ah-b-lbl">Sales History</span>
+          <span class="ah-b-val">View transactions</span>
+          <span class="ah-b-arr">›</span>
+        </div>
+        <div class="ah-b-sec ah-b-bal">
+          <span class="ah-b-lbl">My Balance</span>
+          <span class="ah-b-val" id="ah-balance"></span>
+        </div>
+      </div>
+      <div class="ah-note">All transactions are subject to a market fee — 5% (24h) · 10% (48h) · 15% (72h)</div>
+    </div>
+  </div>
 
 <script>
 /* ============================================================
@@ -11982,6 +12273,475 @@ document.querySelectorAll('.tabs').forEach(tabs => {
   });
 });
 })();
+
+/* ==================== AUKTIONSHUSET (v0.98.0) ====================
+   Marknaden ar HELT serverstyrd: klienten visar, fragar och ritar om.
+   Kopet ar en kapplopning mellan spelare och avgors av EN raduppdatering
+   pa servern - forloraren far 'listing_gone' och ingenting har hant.
+   Avgiftstrappan (spelarens beslut): 24h = 5 %, 48h = 10 %, 72h = 15 %,
+   dragen ur kopeskillingen NAR varan saljs. Osald annons kostar inget. */
+const AH = {
+  view: 'buy', cat: 'all', q: '', rarity: null, sort: 'time', page: 1,
+  counts: null, res: null, my: null,
+  sel: null, qty: 1, price: 0, hours: 24, busy: false
+};
+const AH_FEE = {24: 5, 48: 10, 72: 15};
+const AH_CATS = [
+  ['all',         'All Items',     '🌐'],
+  ['weapons',     'Weapons',       '⚔️'],
+  ['offhands',    'Off-Hands',     '🛡️'],
+  ['head',        'Head',          '🪖'],
+  ['chest',       'Chest',         '👕'],
+  ['hands',       'Hands',         '🧤'],
+  ['waist',       'Waist',         '🧷'],
+  ['legs',        'Legs',          '👖'],
+  ['boots',       'Boots',         '🥾'],
+  ['necklaces',   'Necklaces',     '📿'],
+  ['rings',       'Rings',         '💍'],
+  ['relics',      'Relics',        '🗿'],
+  ['transports',  'Transports',    '🛹'],
+  ['materials',   'Materials',     '💠'],
+  ['gems',        'Gems',          '💎'],
+  ['consumables', 'Consumables',   '🧪'],
+  ['recipes',     'Recipes',       '📜'],
+  ['misc',        'Miscellaneous', '📦']
+];
+
+/* ---------- serversamtalen ---------- */
+async function netAhSearch(){
+  return srvRpc('ah_search', {p_character: SRV.charId, p_cat: AH.cat,
+    p_q: AH.q || null, p_rarity: AH.rarity, p_sort: AH.sort, p_page: AH.page});
+}
+async function netAhCounts(){ return srvRpc('ah_counts', {p_character: SRV.charId}); }
+async function netAhMy(){ return srvRpc('ah_my', {p_character: SRV.charId}); }
+async function netAhHistory(){ return srvRpc('ah_history', {p_character: SRV.charId}); }
+async function netAhBuy(id){ return srvRpc('ah_buy', {p_character: SRV.charId, p_listing: id}); }
+async function netAhCancel(id){ return srvRpc('ah_cancel', {p_character: SRV.charId, p_listing: id}); }
+async function netAhList(){
+  const s = AH.sel;
+  return srvRpc('ah_list', {
+    p_character: SRV.charId,
+    p_item: s.kind === 'item' ? s.sid : null,
+    p_stack_key: s.kind === 'stack' ? s.key : null,
+    p_stack_rarity: s.kind === 'stack' && s.rar != null ? s.rar : null,
+    p_qty: AH.qty,
+    p_unit_price: AH.price * COPPER_PER_GOLD,
+    p_hours: AH.hours
+  });
+}
+
+/* ---------- sma hjalpare ---------- */
+function ahErrText(e){
+  const m = String(e && e.message || e);
+  const map = {
+    insufficient_gold: 'Not enough gold', listing_gone: 'Already sold or removed',
+    too_many_listings: 'Listing limit reached (10)', bind_on_pickup: 'Bind on Pickup — cannot be traded',
+    item_must_be_in_bag: 'Item must be in your backpack', not_enough_items: 'Not enough in stock',
+    bad_price: 'Enter a price of at least 1 gold', bad_duration: 'Pick a duration',
+    offline: 'No connection', not_signed_in: 'Sign in to trade'
+  };
+  for (const k in map) if (m.indexOf(k) >= 0) return map[k];
+  return 'The Auction House did not answer';
+}
+function ahLeftText(secs){
+  secs = Math.max(0, secs | 0);
+  const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60);
+  if (d > 0) return d + 'd ' + h + 'h';
+  if (h > 0) return h + 'h ' + (m < 10 ? '0' : '') + m + 'm';
+  return m + 'm';
+}
+function ahRarName(r){ return r == null ? '' : (GEAR_RAR[r] ? GEAR_RAR[r].name.toUpperCase() : ''); }
+function ahRarCol(r){ return r == null ? 'var(--text-dim)' : rarCol(Math.min(r, GEAR_RAR.length - 1)); }
+function ahCoin(gold){ return '<span class="ah-coin">🪙</span><b>' + fmtLong(gold) + '</b>'; }
+function ahIconHtml(row){
+  if (row.item_key && ITEMS[row.item_key]){
+    return '<span class="ah-art" style="background-image:url(\'' + itemArtFor(row.item_key, row.rarity || 0) + '\')"></span>';
+  }
+  let ico = '📦';
+  if (row.stack_kind === 'recipe') ico = '📜';
+  else if (row.stack_kind === 'flask'){ const f = FLASKS[row.stack_key]; ico = f ? f.ico : '🧪'; }
+  else if (row.stack_key){ const m = MATERIALS[row.stack_key]; ico = m ? m.ico : '📦'; }
+  return '<span class="ah-art ah-art-emoji">' + ico + '</span>';
+}
+function ahTypeOfSel(s){ return s.type || ''; }
+function ahBalanceHtml(){
+  const p = splitMoney(S.gold);
+  return '<b class="ah-g">' + fmtLong(p.g) + 'g</b> <b class="ah-s">' + p.s + 's</b> <b class="ah-c">' + p.c + 'c</b>';
+}
+
+/* ---------- oppna / stanga ---------- */
+function openAuction(){
+  const ov = $('ah-overlay');
+  ov.classList.add('open');
+  if (!SRV.charId){
+    $('ah-main').innerHTML = '<div class="ah-gate">The Auction House is a market between players.<br>Sign in to trade.</div>';
+    return;
+  }
+  ahRefreshAll();
+}
+function closeAuction(){ $('ah-overlay').classList.remove('open'); }
+
+async function ahRefreshAll(){
+  ahRenderShell();
+  ahRenderSellPanel();
+  try {
+    const c = await netAhCounts(); AH.counts = c;
+    const m = await netAhMy(); AH.my = m;
+    ahRenderCats(); ahRenderBottom();
+    await ahLoad();
+  } catch (e){ spawnFloat({text: ahErrText(e)}); }
+}
+async function ahLoad(){
+  if (AH.view === 'buy'){
+    try { AH.res = await netAhSearch(); } catch (e){ spawnFloat({text: ahErrText(e)}); return; }
+    ahRenderTable();
+  } else if (AH.view === 'sell'){
+    ahRenderPicker();
+  } else if (AH.view === 'mine'){
+    try { AH.my = await netAhMy(); } catch (e){ spawnFloat({text: ahErrText(e)}); return; }
+    ahRenderMine(); ahRenderBottom();
+  } else {
+    try { ahRenderHistory(await netAhHistory()); } catch (e){ spawnFloat({text: ahErrText(e)}); }
+  }
+}
+
+/* ---------- skalet: flikar, spalter ---------- */
+function ahRenderShell(){
+  $('ah-main').innerHTML =
+    '<aside class="ah-side"><div class="ah-side-title">Categories</div><div id="ah-cats"></div></aside>' +
+    '<section class="ah-mid" id="ah-mid"></section>' +
+    '<aside class="ah-sellp" id="ah-sellp"></aside>';
+  ahSyncTabs();
+}
+function ahSyncTabs(){
+  $('ah-tab-buy').classList.toggle('on', AH.view !== 'sell');
+  $('ah-tab-sell').classList.toggle('on', AH.view === 'sell');
+}
+function ahSetView(v){
+  AH.view = v; AH.page = 1; ahSyncTabs(); ahLoad();
+}
+
+/* ---------- kategorierna ---------- */
+function ahRenderCats(){
+  const box = $('ah-cats'); if (!box) return;
+  const by = (AH.counts && AH.counts.by) || {};
+  box.innerHTML = AH_CATS.map(c => {
+    const n = c[0] === 'all' ? (AH.counts ? AH.counts.all : 0) : (by[c[0]] || 0);
+    return '<div class="ah-cat' + (AH.cat === c[0] ? ' on' : '') + '" data-cat="' + c[0] + '">' +
+      '<span class="ah-cat-ico">' + c[2] + '</span><span class="ah-cat-lbl">' + c[1] + '</span>' +
+      '<span class="ah-cat-n">' + fmtLong(n) + '</span></div>';
+  }).join('');
+  box.querySelectorAll('.ah-cat').forEach(el => el.addEventListener('click', () => {
+    AH.cat = el.dataset.cat; AH.page = 1;
+    if (AH.view !== 'buy') AH.view = 'buy';
+    ahRenderCats(); ahSyncTabs(); ahLoad();
+  }));
+}
+
+/* ---------- KOP-vyn: sok, tabell, sidor ---------- */
+function ahSortArrow(key){
+  const on = AH.sort === key || AH.sort === key + '_desc';
+  const up = AH.sort === key;
+  return '<span class="ah-sort' + (on ? ' on' : '') + '">' + (on ? (up ? '↑' : '↓') : '⇅') + '</span>';
+}
+function ahRenderTable(){
+  const r = AH.res || {rows: [], total: 0, page: 1, pages: 1};
+  const mid = $('ah-mid'); if (!mid) return;
+  let h =
+    '<div class="ah-toolbar">' +
+      '<div class="ah-searchbox">🔍<input id="ah-q" placeholder="Search items..." value="' + AH.q.replace(/"/g, '&quot;') + '"></div>' +
+      '<button class="ah-filters" id="ah-filters">⚗ FILTERS</button>' +
+      '<div class="ah-filter-pop" id="ah-filter-pop"></div>' +
+    '</div>' +
+    '<div class="ah-thead"><span>Item</span>' +
+      '<span class="ah-th" data-s="rarity">Rarity ' + ahSortArrow('rarity') + '</span>' +
+      '<span class="ah-th" data-s="seller">Seller ' + ahSortArrow('seller') + '</span>' +
+      '<span>Quantity</span>' +
+      '<span class="ah-th" data-s="price">Price ' + ahSortArrow('price') + '</span>' +
+      '<span class="ah-th" data-s="time">Time Left ' + ahSortArrow('time') + '</span>' +
+      '<span></span></div>' +
+    '<div class="ah-rows">';
+  if (!r.rows.length){
+    h += '<div class="ah-empty">Nothing is listed here right now.<br>Be the first — switch to SELL and put something up.</div>';
+  } else {
+    h += r.rows.map(row =>
+      '<div class="ah-row">' +
+        '<span class="ah-c-item">' + ahIconHtml(row) +
+          '<span class="ah-nm"><b>' + row.name + '</b><i>' + row.type_line + '</i></span></span>' +
+        '<span class="ah-c-rar" style="color:' + ahRarCol(row.rarity) + '">' + ahRarName(row.rarity) + '</span>' +
+        '<span class="ah-c-seller">' + row.seller + '</span>' +
+        '<span class="ah-c-qty">' + row.quantity + '</span>' +
+        '<span class="ah-c-price">' + ahCoin(Math.floor(row.total_price / COPPER_PER_GOLD)) + '</span>' +
+        '<span class="ah-c-left">' + ahLeftText(row.ends_in) + '</span>' +
+        '<span class="ah-c-buy"><button class="ah-buy" data-id="' + row.id + '"' + (row.mine ? ' disabled title="Your own listing"' : '') + '>BUY</button></span>' +
+      '</div>').join('');
+  }
+  h += '</div><div class="ah-pages" id="ah-pages"></div>';
+  mid.innerHTML = h;
+
+  const q = $('ah-q');
+  let deb = null;
+  q.addEventListener('input', () => {
+    clearTimeout(deb);
+    deb = setTimeout(() => { AH.q = q.value.trim(); AH.page = 1; ahLoad(); }, 400);
+  });
+  q.addEventListener('keydown', e => { if (e.key === 'Enter'){ AH.q = q.value.trim(); AH.page = 1; ahLoad(); } });
+
+  $('ah-filters').addEventListener('click', ahToggleFilterPop);
+  mid.querySelectorAll('.ah-th').forEach(el => el.addEventListener('click', () => {
+    const k = el.dataset.s;
+    AH.sort = (AH.sort === k) ? k + '_desc' : k;
+    AH.page = 1; ahLoad();
+  }));
+  mid.querySelectorAll('.ah-buy').forEach(el => el.addEventListener('click', () => ahBuy(el.dataset.id, el)));
+  ahRenderPages(r);
+}
+function ahToggleFilterPop(){
+  const pop = $('ah-filter-pop');
+  if (pop.classList.contains('open')){ pop.classList.remove('open'); return; }
+  let h = '<div class="ah-f-row' + (AH.rarity == null ? ' on' : '') + '" data-r="">All rarities</div>';
+  GEAR_RAR.forEach((r, i) => {
+    h += '<div class="ah-f-row' + (AH.rarity === i ? ' on' : '') + '" data-r="' + i + '" style="color:' + rarCol(i) + '">' + r.name + '</div>';
+  });
+  pop.innerHTML = h; pop.classList.add('open');
+  pop.querySelectorAll('.ah-f-row').forEach(el => el.addEventListener('click', () => {
+    AH.rarity = el.dataset.r === '' ? null : +el.dataset.r;
+    pop.classList.remove('open');
+    $('ah-filters').classList.toggle('set', AH.rarity != null);
+    AH.page = 1; ahLoad();
+  }));
+}
+function ahRenderPages(r){
+  const box = $('ah-pages'); if (!box) return;
+  const P = r.pages || 1, cur = r.page || 1;
+  const want = [];
+  for (let i = 1; i <= P; i++)
+    if (i <= 5 || i === P || Math.abs(i - cur) <= 1) want.push(i);
+  let h = '<button class="ah-pg" data-p="' + (cur - 1) + '"' + (cur <= 1 ? ' disabled' : '') + '>‹</button>';
+  let last = 0;
+  want.forEach(i => {
+    if (i - last > 1) h += '<span class="ah-dots">…</span>';
+    h += '<button class="ah-pg' + (i === cur ? ' on' : '') + '" data-p="' + i + '">' + i + '</button>';
+    last = i;
+  });
+  h += '<button class="ah-pg" data-p="' + (cur + 1) + '"' + (cur >= P ? ' disabled' : '') + '>›</button>';
+  box.innerHTML = h;
+  box.querySelectorAll('.ah-pg').forEach(el => el.addEventListener('click', () => {
+    const p = +el.dataset.p; if (p >= 1 && p <= P && p !== cur){ AH.page = p; ahLoad(); }
+  }));
+}
+
+/* ---------- kopet ---------- */
+async function ahBuy(id, btn){
+  if (AH.busy) return; AH.busy = true;
+  if (btn) btn.disabled = true;
+  try {
+    const res = await netAhBuy(id);
+    spawnFloat({text: 'Bought: ' + (res.name || 'item')});
+    await netPull(); await netPullItems();
+    const c = await netAhCounts(); AH.counts = c;
+    ahRenderCats(); ahRenderBottom(); await ahLoad();
+    renderEquip(); renderInventory(); updateUI(true);
+  } catch (e){
+    spawnFloat({text: ahErrText(e)});
+    if (btn) btn.disabled = false;
+    await ahLoad();
+  }
+  AH.busy = false;
+}
+
+/* ---------- SALJ-vyn: valj vara ur vaskan ---------- */
+function ahRenderPicker(){
+  const mid = $('ah-mid'); if (!mid) return;
+  const rows = [];
+  S.inv.forEach(it => {
+    if (!it) return;
+    if (it.gear && it.gear.sid){
+      const g = it.gear, D = ITEMS[g.t];
+      rows.push({kind: 'item', sid: g.sid, name: gearName(g), rar: g.r,
+        type: D && GEAR_SLOTS[D.slot] ? GEAR_SLOTS[D.slot].name : 'Gear',
+        art: itemArtFor(g.t, g.r), avail: 1});
+    } else if (it.stack && !it.bop){
+      rows.push({kind: 'stack', key: it.key, rar: it.rar == null ? null : it.rar,
+        name: it.name, ico: it.ico, avail: it.qty,
+        type: it.flask ? 'Consumable' : (it.recipe ? 'Recipe' : 'Material')});
+    }
+  });
+  let h = '<div class="ah-pick-title">Your backpack — pick something to sell</div><div class="ah-rows ah-pick">';
+  if (!rows.length){
+    h += '<div class="ah-empty">Nothing tradeable in your backpack.<br>Bind on Pickup materials can never be sold.</div>';
+  } else {
+    h += rows.map((r, i) =>
+      '<div class="ah-row ah-prow" data-i="' + i + '">' +
+        '<span class="ah-c-item">' +
+          (r.kind === 'item'
+            ? '<span class="ah-art" style="background-image:url(\'' + r.art + '\')"></span>'
+            : '<span class="ah-art ah-art-emoji">' + r.ico + '</span>') +
+          '<span class="ah-nm"><b style="color:' + ahRarCol(r.rar) + '">' + r.name + '</b><i>' + r.type + '</i></span></span>' +
+        '<span class="ah-c-qty">' + (r.kind === 'stack' ? '×' + r.avail : '') + '</span>' +
+        '<span class="ah-c-sel">SELECT</span>' +
+      '</div>').join('');
+  }
+  h += '</div>';
+  mid.innerHTML = h;
+  const picks = rows;
+  mid.querySelectorAll('.ah-prow').forEach(el => el.addEventListener('click', () => {
+    AH.sel = picks[+el.dataset.i]; AH.qty = 1; AH.price = 0;
+    ahRenderSellPanel();
+  }));
+}
+
+/* ---------- hogerspalten: SELL ITEM ---------- */
+function ahRenderSellPanel(){
+  const p = $('ah-sellp'); if (!p) return;
+  const s = AH.sel;
+  let h = '<div class="ah-sellp-title">Sell Item</div>';
+  if (!s){
+    h += '<div class="ah-sel-empty">Pick something from your backpack under the SELL tab.</div>';
+    p.innerHTML = h; return;
+  }
+  const fee = AH_FEE[AH.hours];
+  const total = AH.qty * AH.price;
+  const feeGold = Math.ceil(total * fee / 100);
+  h +=
+    '<div class="ah-sel-card">' +
+      (s.kind === 'item'
+        ? '<span class="ah-art big" style="background-image:url(\'' + s.art + '\')"></span>'
+        : '<span class="ah-art big ah-art-emoji">' + s.ico + '</span>') +
+      '<span class="ah-nm"><b style="color:' + ahRarCol(s.rar) + '">' + s.name + '</b>' +
+      '<em style="color:' + ahRarCol(s.rar) + '">' + ahRarName(s.rar) + '</em><i>' + ahTypeOfSel(s) + '</i></span>' +
+    '</div>' +
+    '<div class="ah-lbl">Quantity</div>' +
+    '<div class="ah-qty"><button id="ah-qminus">−</button><span id="ah-qval">' + AH.qty + '</span><button id="ah-qplus">+</button></div>' +
+    '<div class="ah-avail">Available: ' + s.avail + '</div>' +
+    '<div class="ah-lbl">Unit Price</div>' +
+    '<div class="ah-pricebox"><span class="ah-coin">🪙</span><input id="ah-price" inputmode="numeric" value="' + (AH.price || '') + '" placeholder="0"><span class="ah-pen">✎</span></div>' +
+    '<div class="ah-feerow"><span>Market Fee (' + fee + '%)</span><span id="ah-feeval">' + fmtLong(feeGold) + '</span></div>' +
+    '<div class="ah-total"><span>Total Price</span><span id="ah-totalval">' + ahCoin(total) + '</span></div>' +
+    '<div class="ah-lbl">Duration</div>' +
+    '<select id="ah-dur" class="ah-dur">' +
+      '<option value="24"' + (AH.hours === 24 ? ' selected' : '') + '>24 HOURS — 5% fee</option>' +
+      '<option value="48"' + (AH.hours === 48 ? ' selected' : '') + '>48 HOURS — 10% fee</option>' +
+      '<option value="72"' + (AH.hours === 72 ? ' selected' : '') + '>72 HOURS — 15% fee</option>' +
+    '</select>' +
+    '<button class="ah-listbtn" id="ah-listbtn">LIST ITEM</button>';
+  p.innerHTML = h;
+
+  $('ah-qminus').addEventListener('click', () => { AH.qty = Math.max(1, AH.qty - 1); ahRenderSellPanel(); });
+  $('ah-qplus').addEventListener('click', () => { AH.qty = Math.min(s.avail, AH.qty + 1); ahRenderSellPanel(); });
+  const pr = $('ah-price');
+  pr.addEventListener('input', () => {
+    AH.price = Math.max(0, Math.floor(+pr.value.replace(/[^0-9]/g, '') || 0));
+    const t = AH.qty * AH.price;
+    $('ah-feeval').textContent = fmtLong(Math.ceil(t * AH_FEE[AH.hours] / 100));
+    $('ah-totalval').innerHTML = ahCoin(t);
+  });
+  $('ah-dur').addEventListener('change', e => { AH.hours = +e.target.value; ahRenderSellPanel(); });
+  $('ah-listbtn').addEventListener('click', ahDoList);
+}
+async function ahDoList(){
+  if (AH.busy || !AH.sel) return;
+  if (AH.price < 1){ spawnFloat({text: 'Enter a price of at least 1 gold'}); return; }
+  AH.busy = true;
+  try {
+    await netAhList();
+    spawnFloat({text: 'Listed: ' + AH.sel.name});
+    AH.sel = null; AH.qty = 1; AH.price = 0;
+    await netPullItems();
+    const c = await netAhCounts(); AH.counts = c;
+    const m = await netAhMy(); AH.my = m;
+    ahRenderCats(); ahRenderBottom(); ahRenderSellPanel(); await ahLoad();
+    renderEquip(); renderInventory(); updateUI(true);
+  } catch (e){ spawnFloat({text: ahErrText(e)}); }
+  AH.busy = false;
+}
+
+/* ---------- MINA ANNONSER + HISTORIKEN ---------- */
+function ahRenderMine(){
+  const mid = $('ah-mid'); if (!mid) return;
+  const m = AH.my || {rows: [], active: 0, cap: 10};
+  let h = '<div class="ah-pick-title">My Listings — ' + m.active + ' / ' + m.cap + ' active</div><div class="ah-rows">';
+  if (!m.rows.length){
+    h += '<div class="ah-empty">You have nothing listed.</div>';
+  } else {
+    h += m.rows.map(r =>
+      '<div class="ah-row">' +
+        '<span class="ah-c-item">' + ahIconHtml(r) +
+          '<span class="ah-nm"><b style="color:' + ahRarCol(r.rarity) + '">' + r.name + '</b><i>' +
+          (r.status === 'active' ? 'ends in ' + ahLeftText(r.ends_in) : r.status) + '</i></span></span>' +
+        '<span class="ah-c-qty">×' + r.quantity + '</span>' +
+        '<span class="ah-c-price">' + ahCoin(Math.floor(r.total_price / COPPER_PER_GOLD)) + '</span>' +
+        '<span class="ah-c-fee">fee ' + r.fee_pct + '%</span>' +
+        '<span class="ah-c-buy">' + (r.status === 'active'
+          ? '<button class="ah-buy ah-cancel" data-id="' + r.id + '">CANCEL</button>'
+          : '<span class="ah-status ah-st-' + r.status + '">' + r.status.toUpperCase() + '</span>') + '</span>' +
+      '</div>').join('');
+  }
+  h += '</div>';
+  mid.innerHTML = h;
+  mid.querySelectorAll('.ah-cancel').forEach(el => el.addEventListener('click', async () => {
+    if (AH.busy) return; AH.busy = true;
+    try {
+      await netAhCancel(el.dataset.id);
+      spawnFloat({text: 'Listing cancelled'});
+      await netPullItems();
+      const c = await netAhCounts(); AH.counts = c;
+      ahRenderCats(); await ahLoad(); renderEquip(); renderInventory(); updateUI(true);
+    } catch (e){ spawnFloat({text: ahErrText(e)}); }
+    AH.busy = false;
+  }));
+}
+function ahRenderHistory(data){
+  const mid = $('ah-mid'); if (!mid) return;
+  const rows = (data && data.rows) || [];
+  let h = '<div class="ah-pick-title">Sales History — your last trades</div><div class="ah-rows">';
+  if (!rows.length){
+    h += '<div class="ah-empty">No trades yet.</div>';
+  } else {
+    h += rows.map(r => {
+      const buy = r.reason === 'auction_buy';
+      const key = r.item_key || '';
+      const name = (ITEMS[key] && ITEMS[key].name) || (MATERIALS[key] && MATERIALS[key].name) ||
+                   (FLASKS[key] && FLASKS[key].name) ||
+                   (key.indexOf('recipe_') === 0 ? 'Recipe: ' + recipeItemName(key.slice(7)) : key);
+      const g = Math.floor(Math.abs(+r.gold_delta || 0) / COPPER_PER_GOLD);
+      const when = new Date(r.at);
+      return '<div class="ah-row ah-hrow">' +
+        '<span class="ah-c-item"><span class="ah-hbadge ' + (buy ? 'hb-buy' : 'hb-sale') + '">' + (buy ? 'BOUGHT' : 'SOLD') + '</span>' +
+          '<span class="ah-nm"><b>' + name + '</b><i>' + (r.qty || 1) + ' × ' +
+          fmtLong(Math.floor((+r.unit || 0) / COPPER_PER_GOLD)) + '🪙' +
+          (r.fee ? ' · fee ' + fmtLong(Math.ceil(+r.fee / COPPER_PER_GOLD)) + '🪙' : '') + '</i></span></span>' +
+        '<span class="ah-c-price" style="color:' + (buy ? 'var(--red)' : 'var(--green)') + '">' +
+          (buy ? '−' : '+') + fmtLong(g) + '🪙</span>' +
+        '<span class="ah-c-left">' + when.toLocaleDateString() + ' ' +
+          when.toLocaleTimeString().slice(0, 5) + '</span>' +
+      '</div>';
+    }).join('');
+  }
+  h += '</div>';
+  mid.innerHTML = h;
+}
+
+/* ---------- bottenraden ---------- */
+function ahRenderBottom(){
+  const m = AH.my || {active: 0, cap: 10};
+  $('ah-my-count').textContent = m.active + ' / ' + m.cap + ' Active';
+  $('ah-balance').innerHTML = ahBalanceHtml();
+}
+
+/* ---------- inkoppling ---------- */
+$('ah-close').addEventListener('click', closeAuction);
+$('ah-tab-buy').addEventListener('click', () => ahSetView('buy'));
+$('ah-tab-sell').addEventListener('click', () => ahSetView('sell'));
+$('ah-my-btn').addEventListener('click', () => ahSetView('mine'));
+$('ah-hist-btn').addEventListener('click', () => ahSetView('history'));
+document.querySelectorAll('.nav-btn .lbl, .qa-btn .lbl').forEach(l => {
+  if (l.textContent.trim() === 'Auction House'){
+    l.closest('.nav-btn, .qa-btn').addEventListener('click', () =>
+      toggleWindow('ah-overlay', openAuction, closeAuction));
+  }
+});
+
 </script>
 </body>
 </html>
