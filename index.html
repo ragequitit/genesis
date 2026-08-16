@@ -508,9 +508,18 @@ body.dragging *{cursor:grabbing !important}
 }
 .chip.active{border-color:var(--cyan);color:var(--cyan)}
 .machine-list{display:flex;flex-direction:column;gap:5px}
+#say-box{
+  position:fixed;left:50%;top:18px;transform:translate(-50%,-14px);
+  z-index:200;pointer-events:none;max-width:min(520px,86vw);text-align:center;
+  padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:700;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);box-shadow:0 14px 34px rgba(0,0,0,.6);
+  color:var(--text);opacity:0;transition:opacity .18s, transform .18s;
+}
+#say-box.on{opacity:1;transform:translate(-50%,0)}
 .machine-row{
   display:grid;
-  grid-template-columns:44px 40px minmax(0,1fr) auto 92px;
+  grid-template-columns:44px 40px minmax(0,1fr) 40px auto 92px;
   align-items:center;gap:10px;
   background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
   padding:11px 10px;cursor:pointer;transition:background .15s;
@@ -540,6 +549,7 @@ body.dragging *{cursor:grabbing !important}
 }
 .m-tip.on{display:block}
 .m-tip .mt-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.m-tip .mt-blurb{font-size:10px;color:var(--text-dim);line-height:1.4;margin:-2px 0 8px}
 .m-tip .mt-ico{font-size:18px}
 .m-tip .mt-name{font-size:12px;font-weight:900;letter-spacing:.04em}
 .m-tip .mt-mult{font-size:9px;color:var(--gold);font-family:var(--font-mono);margin-left:auto}
@@ -2960,7 +2970,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
       <!-- MACHINES / UPGRADES / PREMIUM (flikram) -->
       <section class="panel" id="panel-production">
         <div class="tabs three" id="production-tabs">
-          <div class="tab active" data-pane="pane-machines">Machines</div>
+          <div class="tab active" data-pane="pane-machines">Production</div>
           <div class="tab" data-pane="pane-upgrades">Upgrades</div>
           <div class="tab" data-pane="pane-premium">Premium</div>
         </div>
@@ -2995,12 +3005,15 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 
       <!-- EXPEDITIONS -->
       <section class="panel" id="panel-expeditions">
+        <!-- Meddelandet sitter OVANFOR flikarna. Det lag inne i Active, sa den
+             som tryckte Start i Discovered fick svaret renderat i en dold ruta -
+             knappen sag ut att inte gora nagonting alls. -->
+        <div class="exp-note" id="exp-note" style="display:none"></div>
         <div class="tabs" id="expedition-tabs">
           <div class="tab active" data-pane="pane-exp-active">Active <span class="sub" style="text-transform:none">0/2</span></div>
           <div class="tab" data-pane="pane-exp-discovered">Discovered</div>
         </div>
         <div class="tab-pane" id="pane-exp-active">
-          <div class="exp-note" id="exp-note" style="display:none"></div>
           <div class="exp-slots" id="exp-active-list"></div>
         </div>
         <div class="tab-pane" id="pane-exp-discovered" style="display:none">
@@ -3325,7 +3338,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v3.6.0 — TRAPPAN</div>
+            <div class="desc">GENESIS v3.8.0 — SANNINGEN</div>
           </div>
         </div>
       </div>
@@ -3351,7 +3364,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.6.0 — TRAPPAN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.8.0 — SANNINGEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3424,6 +3437,15 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 'use strict';
 
 /* ---------- BALANS ---------- */
+/* Vad en grind heter pa vanlig svenska... eller engelska, i spelets sprak. Anvands
+   i hovringsrutan sa att man ser VAD ett kop oppnar innan man gor det. */
+const UNLOCK_WORDS = {
+  professions: 'Professions',
+  expeditions: 'Expeditions',
+  auction:     'The Auction House',
+  outer:       'The outer regions (ring 3+)',
+  reboot:      'The reboot'
+};
 const BUILDINGS = [
   {id:'scrap',   name:'Data Scrapyard', boon:'scrap', blurb:"Sifts the wreck for scrap and junk.",      ico:'🤖', cost:15,     prod:0.1},
   {id:'bees',    name:'Fragment Collector', boon:'frag', blurb:"Picks fragments out of the noise.",      ico:'🐝', cost:100,    prod:1},
@@ -3505,6 +3527,14 @@ function srvLoadSession(){
     SRV.expires = +d.expires || 0; SRV.user = d.user || null;
     SRV.charId = d.charId || null; SRV.charName = d.charName || null;
     return true;
+  } catch (e){ return false; }
+}
+function srvHasStoredSession(){
+  try {
+    const raw = localStorage.getItem(SRV_STORE);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    return !!(d && d.refresh);
   } catch (e){ return false; }
 }
 function srvClearSession(){
@@ -3663,8 +3693,11 @@ async function netPull(){
   BUILDINGS.forEach(b => S.own[b.id] = 0);
   (mach || []).forEach(m => { if (S.own[m.machine_id] !== undefined) S.own[m.machine_id] = +m.count || 0; });
 
-  /* Uppgraderingarna likasa. */
+  /* Uppgraderingarna likasa - och de NOLLAS forst. Utan det blev serverns rader
+     bara inlagda ovanpa det som redan stod dar, sa en gammal karaktars kop
+     levde vidare hos en ny. */
   const ups = await srvSelect('character_upgrades', 'character_id=eq.' + SRV.charId + '&select=upgrade_id,level');
+  Object.keys(S.up).forEach(k => { S.up[k] = 0; });
   (ups || []).forEach(u => { if (S.up[u.upgrade_id] !== undefined) S.up[u.upgrade_id] = +u.level || 0; });
 
   NET.serverData  = S.data;
@@ -3713,6 +3746,14 @@ async function netSync(){
     NET.predictedAt = Date.now();
     NET.lastSync = Date.now();
     NET.error = null;
+    /* Skrotet och skrapet ramlar in i vaskan pa SERVERN vid varje tick. Utan
+       den har hamtningen syntes de inte forran nagot annat rakade hamta hem
+       staplarna - man kunde idla i tjugo minuter och tro att droppen var trasig.
+       En gang i minuten racker; droppen ar langsam. */
+    if (Date.now() - (NET.lastStackPull || 0) > 60000){
+      NET.lastStackPull = Date.now();
+      netPullItems().then(() => { renderInventory && renderInventory(); }).catch(() => {});
+    }
     /* Prestationerna provas har: det ar den enda plats dar allt annat redan
        hunnit handa, och servern avgor sjalv om nagot faktiskt last upp. */
     netCheckAchievements().catch(() => {});
@@ -7155,8 +7196,17 @@ function machineTipHTML(b){
   const nx = nextMilestone(b);
   const row = (k, v, col) => '<div class="mt-row"><span class="mt-k">' + k + '</span><span class="mt-v"' +
     (col ? ' style="color:' + col + '"' : '') + '>' + v + '</span></div>';
+  const ab = HELPER_ABILITIES[b.boon];
+  const gate = b.unlocks ? UNLOCK_WORDS[b.unlocks] : null;
   return '<div class="mt-head"><span class="mt-ico">' + b.ico + '</span><span class="mt-name">' + b.name + '</span>' +
       (mm > 1 ? '<span class="mt-mult">×' + mm + ' milestone</span>' : '') + '</div>' +
+    (b.blurb ? '<div class="mt-blurb">' + b.blurb + '</div>' : '') +
+    /* Vad man far UTOVER Data. Det stod ingenstans i rutan forut, sa de tio
+       byggnadernas hela poang - att var och en ger nagot eget och att fyra av
+       dem oppnar ett system - syntes bara for den som redan visste det. */
+    (gate ? row('Owning one unlocks', gate, 'var(--gold)') : '') +
+    (ab ? row('Helper post', ab.name) : '') +
+    (owned < 1 && (gate || ab) ? '<div class="mt-sep"></div>' : '') +
     row('Owned', fmt(owned)) +
     row('Each produces', '+' + fmt(per) + '/s', 'var(--cyan)') +
     row('These produce', '+' + fmt(mine) + '/s', 'var(--cyan)') +
@@ -9143,7 +9193,28 @@ const FLOAT_MAX = 10;
 let floatStep = 0;
 const floatsLive = [];
 
+/* En MENING ar inte en siffra. Tal (+120, CRIT, materialfynd) hor hemma flygande
+   ut fran noden - det ar dar de tjanas. Men svar pa nagot man klickat pa langt
+   darifran ("bygg en Expedition Beacon forst", ett serverfel) sköts ocksa ut ur
+   noden, i andra anden av skarmen fran handen som klickade. De far en egen ruta
+   som lagger sig hogst upp i mitten och forsvinner av sig sjalv. */
+function say(text){
+  if (!text) return;
+  let box = document.getElementById('say-box');
+  if (!box){
+    box = document.createElement('div');
+    box.id = 'say-box';
+    document.body.appendChild(box);
+  }
+  box.textContent = text;
+  box.classList.add('on');
+  clearTimeout(say._t);
+  say._t = setTimeout(() => box.classList.remove('on'), 3200);
+}
 function spawnFloat(opts){
+  /* Ett tal borjar med + eller ar en crit; allt annat ar ett meddelande. */
+  const t = String(opts && opts.text || '');
+  if (!opts.crit && !opts.idle && t && t[0] !== '+'){ say(t); return; }
   const crit = !!opts.crit, idle = !!opts.idle;
   const angle = FLOAT_ANGLES[floatStep % FLOAT_ANGLES.length] + (Math.random() * FLOAT_WOBBLE * 2 - FLOAT_WOBBLE);
   floatStep += crit ? 5 : 1;
@@ -13554,9 +13625,17 @@ async function gateFromLink(link){
   }
 })();
 
-load();
+/* Ar man inloggad ar SERVERN enda sanningen, och den lokala sparfilen lases
+   inte alls. Den las forut ALLTID, aven nar man loggade in som en ny karaktar,
+   och det som servern inte skriver over stod da kvar fran forra karaktaren:
+   karnuppgraderingar, premium, regionsrykte, buren utrustning och staplar - och
+   en "welcome back"-ruta raknad pa den gamla filens maskiner. Filen skrivs
+   fortfarande, men bara som en spegel; nasta start hamtar allt fran servern. */
+const SERVER_MODE = srvHasStoredSession();
+if (!SERVER_MODE) load();
+else { try { localStorage.removeItem(SAVE_KEY); } catch (e){} }
 applySoundPrefs();
-const offlinePending = computeOffline();
+const offlinePending = SERVER_MODE ? null : computeOffline();
 applyLayout();
 buildPremiumOffline();
 /* Väskan får alltid exakt lika många rutor som spelet säger — gamla sparfiler
