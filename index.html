@@ -3010,14 +3010,16 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
              knappen sag ut att inte gora nagonting alls. -->
         <div class="exp-note" id="exp-note" style="display:none"></div>
         <div class="tabs" id="expedition-tabs">
-          <div class="tab active" data-pane="pane-exp-active">Active <span class="sub" style="text-transform:none">0/2</span></div>
-          <div class="tab" data-pane="pane-exp-discovered">Discovered</div>
+          <!-- Discovered star forst: man ar oftare pa jakt efter nasta uppdrag
+               an inne och tittar pa dem som redan loper. -->
+          <div class="tab active" data-pane="pane-exp-discovered">Discovered</div>
+          <div class="tab" data-pane="pane-exp-active">Active <span class="sub" style="text-transform:none">0/2</span></div>
         </div>
-        <div class="tab-pane" id="pane-exp-active">
-          <div class="exp-slots" id="exp-active-list"></div>
-        </div>
-        <div class="tab-pane" id="pane-exp-discovered" style="display:none">
+        <div class="tab-pane" id="pane-exp-discovered">
           <div class="exp-found-list" id="exp-found-list"></div>
+        </div>
+        <div class="tab-pane" id="pane-exp-active" style="display:none">
+          <div class="exp-slots" id="exp-active-list"></div>
         </div>
       </section>
 
@@ -3356,7 +3358,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v3.8.1 — DORREN</div>
+            <div class="desc">GENESIS v3.9.0 — HANDGREPPEN</div>
           </div>
         </div>
       </div>
@@ -3382,7 +3384,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.8.1 — DORREN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.9.0 — HANDGREPPEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3466,11 +3468,11 @@ const UNLOCK_WORDS = {
 };
 const BUILDINGS = [
   {id:'scrap',   name:'Data Scrapyard', boon:'scrap', blurb:"Sifts the wreck for scrap and junk.",      ico:'🤖', cost:15,     prod:0.1},
-  {id:'bees',    name:'Fragment Collector', boon:'frag', blurb:"Picks fragments out of the noise.",      ico:'🐝', cost:100,    prod:1},
+  {id:'bees',    name:'Fragment Collector', boon:'frag', blurb:"Picks fragments out of the noise, and charts the first routes out of the region.", unlocks:'expeditions', ico:'🐝', cost:100,    prod:1},
   {id:'harv',    name:'Profession Grounds', boon:'profxp', blurb:"Ground to work a trade on. Your professions learn faster.", unlocks:'professions',ico:'🚜', cost:1100,   prod:8},
-  {id:'drone',   name:'Companion Trainer', boon:'petxp', blurb:"Your seated helpers learn while you are away.",     ico:'🛸', cost:12000,  prod:47},
-  {id:'magnet',  name:'Expedition Beacon', boon:'expspd', blurb:"Calls your runners home faster.", unlocks:'expeditions',   ico:'🧲', cost:130000, prod:260},
-  {id:'miner',   name:'Trade Post', boon:'sellvalue', blurb:"Everything you sell is worth more.", unlocks:'auction',      ico:'⛏️', cost:1.4e6,  prod:1400},
+  {id:'drone',   name:'Companion Trainer', boon:'petxp', blurb:"Your seated helpers learn while you are away — and its network reaches the auction floor.", unlocks:'auction', ico:'🛸', cost:12000,  prod:47},
+  {id:'magnet',  name:'Expedition Beacon', boon:'expspd', blurb:"Calls your runners home faster.",   ico:'🧲', cost:130000, prod:260},
+  {id:'miner',   name:'Trade Post', boon:'sellvalue', blurb:"Everything you sell is worth more.",      ico:'⛏️', cost:1.4e6,  prod:1400},
   {id:'coil',    name:'Fuel Reclaimer', boon:'fuel', blurb:"Bleeds spent charge back into the tank.",     ico:'⚡', cost:2.0e7,  prod:7800},
   {id:'beam',    name:'Cache Foundry', boon:'cacheluck', blurb:"Tilts what waits inside a cache.",   ico:'🛰️', cost:3.3e8,  prod:44000},
   {id:'rift',    name:'Gear Forge', boon:'gearrar', blurb:"What drops out there comes back finer.", unlocks:'outer',      ico:'🌀', cost:5.1e9,  prod:260000},
@@ -4212,6 +4214,11 @@ function netPetFromRow(row){
     sid:  row.id,
     sp:   row.species,
     rar:  row.rarity | 0,
+    /* Formagan MASTE ligga i 'a'. Den lag i 'aff', som ingenting laser: darfor
+       foll petAffixes tillbaka pa den gamla artens familj, som inte finns
+       langre, och kastade ett fel mitt i hovringsrutan. Foljden var att man
+       varken kunde hovra eller hogerklicka pa ett enda husdjur. */
+    a:    Array.isArray(row.affixes) ? row.affixes : [],
     aff:  Array.isArray(row.affixes) ? row.affixes : [],
     xp:   +row.xp || 0,
     name: row.nickname || undefined
@@ -5380,6 +5387,17 @@ function fmtMoney(c){
   if (m.c || (!m.g && !m.s)) out += '<span class="co-c">' + m.c + 'c</span>';
   return '<span class="coins">' + out + '</span>';
 }
+/* ALLA tre valorerna, aven nollorna. Pa de tva stallen som visar hur mycket man
+   AGER ska "1s 13c" inte kunna misslasas som ett guldbelopp - "0g 1s 13c" sager
+   direkt att kassan ar tom. Overallt annars (prislappar, saljvarden) star bara
+   de valorer som betyder nagot. */
+function fmtMoneyFull(c){
+  const m = splitMoney(c);
+  return '<span class="coins">' +
+    '<span class="co-g">' + fmtLong(m.g) + 'g</span>' +
+    '<span class="co-s">' + m.s + 's</span>' +
+    '<span class="co-c">' + m.c + 'c</span></span>';
+}
 function moneyText(c){
   const m = splitMoney(c);
   const p = [];
@@ -5568,7 +5586,12 @@ function rollPetAffixes(sp, rar){
    samma husdjur andrat sig varje gang spelet startade. */
 function petAffixes(p){
   if (Array.isArray(p.a) && p.a.length) return p.a;
-  const fam = PETS[p.sp].fam, b = PET_BANDS[fam];
+  if (Array.isArray(p.aff) && p.aff.length) return p.aff;
+  /* Sista utvagen: arten sa forut vilken familj djuret hade. Arterna sager
+     ingenting langre, sa har finns inget att rakna fram - och ett saknat band
+     fick hela hovringsrutan att sluta fungera. Tomt ar ratt svar. */
+  const fam = PETS[p.sp] && PETS[p.sp].fam, b = fam && PET_BANDS[fam];
+  if (!b) return [];
   return [{f: fam, v: Math.round((b.lo + b.hi) / 2 * RARITIES[p.rar].mult * 100) / 100}];
 }
 /* Varje regions EGNA tre arter. De universella laggs pa i petsForRegion(), sa
@@ -8557,7 +8580,7 @@ function renderInventory(){
   const cap = $('inv-cap');
   if (cap) cap.textContent = invUsed() + ' / ' + invSlots();
   const goldEl = $('inv-gold');
-  if (goldEl) goldEl.innerHTML = fmtMoney(S.gold);
+  if (goldEl) goldEl.innerHTML = fmtMoneyFull(S.gold);
   const grid = $('inv-grid');
   if (!grid) return;
   /* Huvudrutnätet ritar grunden plus de väskor som är inbakade, i den form
@@ -10004,6 +10027,9 @@ function markMailRead(id){
   renderMailBadge(); save();
   return true;
 }
+/* Skrotets saljpris - samma tal som servern har i sin prislista. Det ar INGEN
+   skrapsak: det ar ett material, och det ligger darfor utanfor JUNK. */
+const SCRAP_SELL = 2000;
 /* Skrapets saljpris - samma tal som servern har. Flavor visas i hovertexten. */
 const JUNK = {
   junk_soda:     {copper: 2,  flavor:'Someone drank the good part.'},
@@ -10144,11 +10170,21 @@ function openBundle(idx){
    igen dem på nyckeln och bygger definitionen i farten. */
 function itemDef(row){
   if (row && isBundleKey(row.key)) return bundleDef(bundleRegionOf(row.key));
+  /* Skrotet ar spelets mest anvanda material och sags anda av ingen prislista i
+     klienten: kortet hade varken saljvarde eller text ("No details known"),
+     eftersom det varken star i JUNK eller i ITEM_DEFS. Priset ar samma tal som
+     servern har - 2000 koppar, alltsa 20 silver. */
+  if (row && row.key === 'salvaged_scrap'){
+    return {key: 'salvaged_scrap', name: MATERIALS.salvaged_scrap.name,
+            ico: MATERIALS.salvaged_scrap.ico, sell: SCRAP_SELL, kind: 'Material',
+            desc: 'Salvage worth working. Every gathering trade turns three of these into its own basic material — ore, fibre or moss — and nearly everything built in this world starts there.'};
+  }
   /* Skrapet har sitt eget pris. Utan detta hittar salj-knapparna inget varde
      pa en skraphog och hela stapelrutan faller. */
   if (row && row.key && JUNK[row.key]){
     return {key: row.key, name: MATERIALS[row.key].name, ico: MATERIALS[row.key].ico,
-            sell: JUNK[row.key].copper, junk: true};
+            sell: JUNK[row.key].copper, junk: true, kind: 'Junk',
+            desc: JUNK[row.key].flavor};
   }
   return (row && row.key && ITEM_DEFS[row.key]) || null;
 }
@@ -12589,7 +12625,9 @@ function spawnStackWin(key, nearX, nearY){
       if (res === true) spawnFloat({text: 'Recipe learned!'});
       else if (res === 'known') spawnFloat({text: 'Already known'});
     }
-    else if (btn.dataset.act === 'sell1') sellStack(at, false);
+    /* Sald en: kortet stangs. Man plockade upp det for att gora EN sak, och da
+       ska det inte bli liggande kvar over vaskan efterat. */
+    else if (btn.dataset.act === 'sell1'){ sellStack(at, false); win.remove(); return; }
     /* Att sälja HELA stapeln är den enda handlingen här som inte går att ta
        tillbaka på ett klick — därför frågar den först, precis som gear gör. */
     else if (btn.dataset.act === 'sellall'){
@@ -12937,7 +12975,7 @@ $('bag-btn').addEventListener('click', () => {
     /* EXAKT vaskans funktion, inte en egen som liknar den. Nollor doljs dar och
        doljs darfor har - samma pengar ska se likadana ut var man an moter dem,
        och med en enda funktion KAN de inte glida isar. */
-    showBagTip(pill, '<div class="tip-name">Money</div>' + fmtMoney(S.gold));
+    showBagTip(pill, '<div class="tip-name">Money</div>' + fmtMoneyFull(S.gold));
   });
   pill.addEventListener('mouseleave', hideBagTip);
 })();
