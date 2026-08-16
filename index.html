@@ -3358,7 +3358,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v3.9.0 — HANDGREPPEN</div>
+            <div class="desc">GENESIS v3.9.1 — RUMMEN</div>
           </div>
         </div>
       </div>
@@ -3384,7 +3384,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.9.0 — HANDGREPPEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.9.1 — RUMMEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3459,6 +3459,21 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 /* ---------- BALANS ---------- */
 /* Vad en grind heter pa vanlig svenska... eller engelska, i spelets sprak. Anvands
    i hovringsrutan sa att man ser VAD ett kop oppnar innan man gor det. */
+/* Vad en hjalpare pa den har posten faktiskt gor, i ord. Rutan sa forut bara
+   "Helper post: Trailblazer" - ett namn ur en lista spelaren aldrig sett, som
+   inte pa nagot satt sa vad det gav. */
+const BOON_PLAIN = {
+  scrap:     'finds you more scrap',
+  frag:      'finds you more fragments',
+  profxp:    'makes your professions learn faster',
+  petxp:     'trains your other helpers faster',
+  expspd:    'brings expeditions home faster',
+  sellvalue: 'raises what everything you sell is worth',
+  fuel:      'refills your fuel faster',
+  cacheluck: 'tilts cache odds your way',
+  gearrar:   'makes dropped gear roll rarer',
+  tokens:    'earns you extra Tokens on a reboot'
+};
 const UNLOCK_WORDS = {
   professions: 'Professions',
   expeditions: 'Expeditions',
@@ -3468,11 +3483,17 @@ const UNLOCK_WORDS = {
 };
 const BUILDINGS = [
   {id:'scrap',   name:'Data Scrapyard', boon:'scrap', blurb:"Sifts the wreck for scrap and junk.",      ico:'🤖', cost:15,     prod:0.1},
-  {id:'bees',    name:'Fragment Collector', boon:'frag', blurb:"Picks fragments out of the noise, and charts the first routes out of the region.", unlocks:'expeditions', ico:'🐝', cost:100,    prod:1},
+  /* Grindarna flyttade tidigare (v3.9.0), och da folde HELA produktionen med -
+     bade namnet och det den ger. En dorr utan sitt rum vore obegripligt: det ar
+     fyrbaken som skickar ut folk, alltsa ar det fyrbaken som oppnar
+     expeditionerna, och handelsposten som oppnar auktionen. De tva som stod dar
+     forut bytte plats med dem. Maskinernas inre id ligger kvar orort - de sitter
+     ihop med serverns rader och sager inget for spelaren. */
+  {id:'bees',    name:'Expedition Beacon', boon:'expspd', blurb:"Charts the first routes out of the region, and calls your runners home faster.", unlocks:'expeditions', ico:'🧲', cost:100,    prod:1},
   {id:'harv',    name:'Profession Grounds', boon:'profxp', blurb:"Ground to work a trade on. Your professions learn faster.", unlocks:'professions',ico:'🚜', cost:1100,   prod:8},
-  {id:'drone',   name:'Companion Trainer', boon:'petxp', blurb:"Your seated helpers learn while you are away — and its network reaches the auction floor.", unlocks:'auction', ico:'🛸', cost:12000,  prod:47},
-  {id:'magnet',  name:'Expedition Beacon', boon:'expspd', blurb:"Calls your runners home faster.",   ico:'🧲', cost:130000, prod:260},
-  {id:'miner',   name:'Trade Post', boon:'sellvalue', blurb:"Everything you sell is worth more.",      ico:'⛏️', cost:1.4e6,  prod:1400},
+  {id:'drone',   name:'Trade Post', boon:'sellvalue', blurb:"Opens the auction floor, and everything you sell is worth more.", unlocks:'auction', ico:'⛏️', cost:12000,  prod:47},
+  {id:'magnet',  name:'Fragment Collector', boon:'frag', blurb:"Picks fragments out of the noise.",   ico:'🐝', cost:130000, prod:260},
+  {id:'miner',   name:'Companion Trainer', boon:'petxp', blurb:"Your seated helpers learn while you are away.",      ico:'🛸', cost:1.4e6,  prod:1400},
   {id:'coil',    name:'Fuel Reclaimer', boon:'fuel', blurb:"Bleeds spent charge back into the tank.",     ico:'⚡', cost:2.0e7,  prod:7800},
   {id:'beam',    name:'Cache Foundry', boon:'cacheluck', blurb:"Tilts what waits inside a cache.",   ico:'🛰️', cost:3.3e8,  prod:44000},
   {id:'rift',    name:'Gear Forge', boon:'gearrar', blurb:"What drops out there comes back finer.", unlocks:'outer',      ico:'🌀', cost:5.1e9,  prod:260000},
@@ -7246,7 +7267,7 @@ function machineTipHTML(b){
        byggnadernas hela poang - att var och en ger nagot eget och att fyra av
        dem oppnar ett system - syntes bara for den som redan visste det. */
     (gate ? row('Owning one unlocks', gate, 'var(--gold)') : '') +
-    (ab ? row('Helper post', ab.name) : '') +
+    (ab ? row('A helper here', BOON_PLAIN[b.boon] || ab.name) : '') +
     (owned < 1 && (gate || ab) ? '<div class="mt-sep"></div>' : '') +
     row('Owned', fmt(owned)) +
     row('Each produces', '+' + fmt(per) + '/s', 'var(--cyan)') +
