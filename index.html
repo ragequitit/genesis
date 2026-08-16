@@ -2562,6 +2562,29 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .gate-char:hover{border-color:var(--cyan);background:rgba(56,232,255,.06)}
 .gate-char b{font-size:14px}
 .gate-char span{color:var(--text-faint);font-size:11px}
+/* Raderingen: en liten knapp langst ut pa raden, och sedan en kedja som inte
+   gar att snubbla igenom. */
+.gc-main{display:flex;flex-direction:column;gap:2px;flex:1;cursor:pointer}
+.gc-del{
+  background:none;border:1px solid var(--border-soft);color:var(--text-faint);
+  border-radius:8px;padding:5px 9px;font:inherit;font-size:11px;cursor:pointer;flex:none;
+}
+.gc-del:hover{border-color:var(--red);color:var(--red)}
+.gc-danger{
+  border:1px solid var(--red);border-radius:10px;padding:12px 13px;background:rgba(255,90,90,.06);
+  display:flex;flex-direction:column;gap:9px;
+}
+.gc-danger .gcd-head{font-size:13px;font-weight:900;color:#ffc9c9}
+.gc-danger .gcd-body{font-size:11.5px;color:var(--text-dim);line-height:1.45}
+.gc-danger .gcd-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gc-danger label{font-size:11.5px;color:var(--text-dim);display:flex;gap:7px;align-items:center;cursor:pointer}
+.gcd-go{
+  background:linear-gradient(180deg,#5c1414,#380c0c);border:1px solid var(--red);color:#ffd7d7;
+  border-radius:8px;padding:8px 13px;font:inherit;font-size:12px;font-weight:900;cursor:pointer;
+}
+.gcd-go:disabled{opacity:.4;cursor:default}
+.gcd-no{background:none;border:1px solid var(--border-soft);color:var(--text-dim);
+  border-radius:8px;padding:8px 13px;font:inherit;font-size:12px;cursor:pointer}
 .gate-newrow{display:flex;gap:8px;align-items:flex-start}
 .gate-newrow .gate-input{margin-bottom:0}
 .gate-link{
@@ -3358,7 +3381,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.0.0 — OPPNA DORRAR</div>
+            <div class="desc">GENESIS v4.0.1 — TIO PLATSER</div>
           </div>
         </div>
       </div>
@@ -3384,7 +3407,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.0.0 — OPPNA DORRAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.0.1 — TIO PLATSER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3817,6 +3840,11 @@ function netTap(count, heldSecs){
   if (!NET.on) return;
   NET.pendingTaps += count || 1;
   NET.heldSecs = Math.max(NET.heldSecs, heldSecs || 0);
+  /* Skicka in dem strax efter att man slutat trycka, i stallet for att vanta ut
+     hela tjugosekunderssynken. Da hinner servern veta om pengarna innan man
+     racker att klicka pa en kopknapp. */
+  clearTimeout(netTap._t);
+  netTap._t = setTimeout(() => { if (NET.pendingTaps > 0) netSync(); }, 1200);
 }
 
 /* Kop av maskin gar ALLTID till servern och vantar pa svaret - priset ar
@@ -7313,11 +7341,16 @@ function buyBuilding(b){
     const MAX_PER_CLICK = 50;
     const want = Math.min(n, MAX_PER_CLICK);
     (async () => {
+      /* Hacken ligger i kö tills nasta synk, men siffran pa skarmen raknar redan
+         med dem. Utan den har inskickningen sag man sig ha rad, tryckte, och
+         ingenting hande - servern visste inte om pengarna an. */
+      if (NET.pendingTaps > 0) await netSync();
       let bought = 0;
       for (let i = 0; i < want; i++){
         try { await netBuyMachine(b.id); bought++; }
         catch (e){
-          if (e.message !== 'insufficient_data') spawnFloat({text: e.message});
+          spawnFloat({text: e.message === 'insufficient_data'
+            ? 'Not enough Data yet' : e.message});
           break;
         }
       }
@@ -13542,6 +13575,7 @@ function gateShowAuth(){
   $('gate-auth').style.display = '';
   $('gate-chars').style.display = 'none';
 }
+const CHAR_MAX = 10;
 async function gateShowChars(){
   $('gate-auth').style.display = 'none';
   $('gate-chars').style.display = '';
@@ -13551,16 +13585,82 @@ async function gateShowChars(){
     const list = $('gate-charlist');
     list.innerHTML = (rows || []).map(c =>
       '<div class="gate-char" data-id="' + c.id + '" data-name="' + c.name + '">' +
-        '<b>' + c.name + '</b><span>' + (REGIONS[c.region] ? REGIONS[c.region].name : c.region) + '</span>' +
+        '<div class="gc-main" data-enter="1"><b>' + c.name + '</b>' +
+        '<span>' + (REGIONS[c.region] ? REGIONS[c.region].name : c.region) + '</span></div>' +
+        '<button class="gc-del" data-del="1">Delete</button>' +
       '</div>').join('') || '<div class="gate-note">No characters yet — make your first one.</div>';
-    list.querySelectorAll('[data-id]').forEach(el =>
-      el.addEventListener('click', () => gateEnter(el.dataset.id, el.dataset.name)));
-    $('gate-newrow').style.display = (rows || []).length >= 3 ? 'none' : '';
+    list.querySelectorAll('.gate-char').forEach(el => {
+      el.querySelector('.gc-main').addEventListener('click',
+        () => gateEnter(el.dataset.id, el.dataset.name));
+      const db = el.querySelector('.gc-del');
+      if (db) db.addEventListener('click', e => {
+        e.stopPropagation();
+        gateAskDelete(el, el.dataset.id, el.dataset.name);
+      });
+    });
+    $('gate-newrow').style.display = (rows || []).length >= CHAR_MAX ? 'none' : '';
     if (!gateKeepMsg) gateSay('gate-msg2', '');
     gateKeepMsg = false;
   } catch (e){
     gateSay('gate-msg2', e.message);
   }
+}
+/* RADERINGSKEDJAN. Fyra steg, med flit: fraga, varning, ett medvetet kryss, och
+   till sist namnet skrivet for hand. En karaktar ar manga timmar - den ska inte
+   kunna forsvinna genom att nagon rakar trycka tva ganger. Servern kraver ocksa
+   namnet, sa ingen kan gena forbi rutorna. */
+function gateAskDelete(row, id, name){
+  const box = document.createElement('div');
+  box.className = 'gc-danger';
+  box.innerHTML = '<div class="gcd-head">Delete ' + name + '?</div>' +
+    '<div class="gcd-row"><button class="gcd-go" data-step="yes">Yes</button>' +
+    '<button class="gcd-no" data-step="no">Cancel</button></div>';
+  row.replaceWith(box);
+  box.addEventListener('click', async e => {
+    const b = e.target.closest('[data-step]');
+    if (!b) return;
+    const step = b.dataset.step;
+    if (step === 'no'){ gateShowChars(); return; }
+    if (step === 'yes'){
+      box.innerHTML = '<div class="gcd-head">There is no way back</div>' +
+        '<div class="gcd-body">' + name + ' goes for good: every machine, every piece of gear, ' +
+          'every companion, the gold, the materials and the regions they charted. ' +
+          'Nothing here can be restored afterwards, by you or by us.</div>' +
+        '<label><input type="checkbox" id="gcd-sure"> I understand this cannot be undone</label>' +
+        '<div class="gcd-row"><button class="gcd-go" data-step="final" disabled>Continue</button>' +
+        '<button class="gcd-no" data-step="no">Keep the character</button></div>';
+      const cb = box.querySelector('#gcd-sure');
+      cb.addEventListener('change', () => {
+        box.querySelector('[data-step="final"]').disabled = !cb.checked;
+      });
+      return;
+    }
+    if (step === 'final'){
+      box.innerHTML = '<div class="gcd-head">Type the name to delete</div>' +
+        '<div class="gcd-body">Write <b>' + name + '</b> exactly, then press DELETE.</div>' +
+        '<input class="gate-input" id="gcd-name" placeholder="' + name + '" maxlength="16">' +
+        '<div class="gcd-row"><button class="gcd-go" data-step="do">DELETE</button>' +
+        '<button class="gcd-no" data-step="no">Cancel</button></div>' +
+        '<div class="gate-msg" id="gcd-msg"></div>';
+      return;
+    }
+    if (step === 'do'){
+      const typed = (box.querySelector('#gcd-name').value || '').trim();
+      const msg = box.querySelector('#gcd-msg');
+      if (typed.toLowerCase() !== name.toLowerCase()){
+        msg.textContent = 'That is not the name.'; return;
+      }
+      b.disabled = true; msg.textContent = 'Deleting…';
+      try {
+        await srvRpc('delete_character', {p_character: id, p_name: typed});
+        if (SRV.charId === id){ SRV.charId = null; SRV.charName = null; srvSaveSession(); }
+        await gateShowChars();
+      } catch (err){
+        msg.textContent = 'Could not delete that character.';
+        b.disabled = false;
+      }
+    }
+  });
 }
 async function gateEnter(id, name){
   SRV.charId = id; SRV.charName = name;
