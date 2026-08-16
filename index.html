@@ -3284,6 +3284,24 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
       </div>
 
       <div id="settings-main">
+        <!-- Utloggningen fanns bara INNE i inloggningsluckan, och luckan stangs
+             nar man kommit in. Var man val i spelet fanns det alltsa ingen vag
+             tillbaka till karaktarslistan alls - man fick tomma webblasarens
+             lagring for hand. De har tva raderna ar den vagen. -->
+        <div class="settings-row">
+          <div>
+            <div>Switch Character</div>
+            <div class="desc">Back to the character list. You stay signed in, and nothing on the server is touched.</div>
+          </div>
+          <button class="btn-neutral" id="char-switch">Switch</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div>Sign Out</div>
+            <div class="desc">Signs out of the account on this device. Your characters wait on the server.</div>
+          </div>
+          <button class="btn-neutral" id="char-signout">Sign out</button>
+        </div>
         <div class="settings-row">
           <div>
             <div>Reset Game</div>
@@ -3338,7 +3356,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v3.8.0 — SANNINGEN</div>
+            <div class="desc">GENESIS v3.8.1 — DORREN</div>
           </div>
         </div>
       </div>
@@ -3364,7 +3382,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.8.0 — SANNINGEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v3.8.1 — DORREN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -13377,6 +13395,32 @@ $('footer-settings').addEventListener('click', openSettings);
 $('settings-close').addEventListener('click', closeSettings);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeSettings(); });
 $('reset-step0').addEventListener('click', () => resetShow(1));
+/* Byt karaktar: slapp karaktaren men behall inloggningen, glom den lokala
+   spegeln och ladda om. Servern ror vi inte - karaktaren star kvar precis som
+   den var. Nollningsflaggan hindrar att spegeln skrivs tillbaka pa vagen ut. */
+$('char-switch').addEventListener('click', () => {
+  resetInProgress = true;
+  try { localStorage.removeItem(SAVE_KEY); } catch (e){}
+  /* Bara karaktaren slapps. Vi skriver om den sparade sessionen pa plats i
+     stallet for att spara om den ur minnet - da kan inloggningsnyckeln aldrig
+     ga forlorad pa vagen. */
+  try {
+    const raw = localStorage.getItem(SRV_STORE);
+    if (raw){
+      const d = JSON.parse(raw);
+      d.charId = null; d.charName = null;
+      localStorage.setItem(SRV_STORE, JSON.stringify(d));
+    }
+  } catch (e){}
+  SRV.charId = null; SRV.charName = null;
+  location.reload();
+});
+$('char-signout').addEventListener('click', async () => {
+  resetInProgress = true;
+  try { localStorage.removeItem(SAVE_KEY); } catch (e){}
+  try { await srvSignOut(); } catch (e){ srvClearSession(); }
+  location.reload();
+});
 $('reset-cancel-1').addEventListener('click', () => resetShow('main'));
 $('reset-yes-1').addEventListener('click', () => resetShow(2));
 $('reset-cancel-2').addEventListener('click', () => resetShow('main'));
