@@ -517,6 +517,136 @@ body.dragging *{cursor:grabbing !important}
   color:var(--text);opacity:0;transition:opacity .18s, transform .18s;
 }
 #say-box.on{opacity:1;transform:translate(-50%,0)}
+/* ==================== YRKESRUTAN (v4.3.0) ====================
+   Byggd efter spelarens skisser: tre scener i samma fonster.
+   1) tomt lage - tva stora platser att lara sig ett yrke i
+   2) valet - alla sju yrken som kort
+   3) hanteringen - dina larda yrken med niva, XP och arbete
+   Varje yrke har sin egen farg och sitt eget sken, hela vagen igenom. */
+.pf-wrap{padding:18px 20px 22px;display:flex;flex-direction:column;gap:16px;
+  max-width:1060px;margin:0 auto;width:100%}
+.pf-head{text-align:center;display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.pf-h1{font-size:26px;font-weight:900;letter-spacing:1.6px;color:#eaf6ff;
+  text-shadow:0 0 18px rgba(56,232,255,.35)}
+.pf-sub{font-size:12.5px;color:var(--text-dim)}
+.pf-slots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.pf-slots{grid-template-columns:1fr}}
+
+/* --- tom plats --- */
+.pf-empty{
+  border:1.5px solid var(--cyan);border-radius:14px;min-height:200px;
+  background:linear-gradient(180deg,rgba(56,232,255,.05),rgba(10,16,36,.6));
+  box-shadow:0 0 22px rgba(56,232,255,.13), inset 0 0 30px rgba(56,232,255,.05);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:13px;padding:22px;cursor:pointer;transition:box-shadow .16s, transform .16s;
+}
+.pf-empty:hover{box-shadow:0 0 34px rgba(56,232,255,.28);transform:translateY(-2px)}
+.pf-plus{font-size:44px;line-height:1;color:var(--cyan);font-weight:300;
+  text-shadow:0 0 20px rgba(56,232,255,.6)}
+.pf-empty b{font-size:13px;letter-spacing:1.4px;color:var(--cyan);font-weight:900}
+.pf-empty i{font-style:normal;font-size:11.5px;color:var(--text-dim);text-align:center;line-height:1.5}
+.pf-price{
+  margin-top:4px;border:1px solid var(--gold-dim);border-radius:9px;padding:9px 20px;
+  display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:14px;
+  color:var(--gold);background:rgba(255,199,89,.06);font-weight:800;
+}
+
+/* --- yrkeskort --- */
+.pf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pf-grid.four{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.pf-grid,.pf-grid.four{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.pf-grid,.pf-grid.four{grid-template-columns:1fr}}
+.pf-card{
+  --pc:var(--cyan);
+  border:1.5px solid color-mix(in srgb, var(--pc) 55%, transparent);
+  border-radius:13px;padding:15px 14px 14px;display:flex;flex-direction:column;
+  gap:9px;align-items:center;text-align:center;
+  background:linear-gradient(180deg,rgba(10,16,36,.85),rgba(6,10,24,.95));
+  box-shadow:0 0 18px color-mix(in srgb, var(--pc) 16%, transparent),
+             inset 0 1px 0 rgba(255,255,255,.04);
+  transition:transform .16s, box-shadow .16s;
+}
+.pf-card.pick{cursor:pointer}
+.pf-card.pick:hover{transform:translateY(-3px);
+  box-shadow:0 0 30px color-mix(in srgb, var(--pc) 34%, transparent)}
+.pf-ico{width:62px;height:62px;background-size:contain;background-repeat:no-repeat;
+  background-position:center;filter:drop-shadow(0 0 12px color-mix(in srgb, var(--pc) 55%, transparent));
+  display:flex;align-items:center;justify-content:center;font-size:38px}
+.pf-nm{font-size:15px;font-weight:900;letter-spacing:1.1px;color:#f2f8ff}
+.pf-kind{font-size:9.5px;font-weight:900;letter-spacing:1.6px;color:var(--pc)}
+.pf-blurb{font-size:11px;color:var(--text-dim);line-height:1.5;min-height:32px}
+.pf-lbl{font-size:8.5px;letter-spacing:1.5px;color:var(--text-faint);font-weight:800;
+  width:100%;display:flex;align-items:center;gap:8px}
+.pf-lbl:before,.pf-lbl:after{content:'';flex:1;height:1px;background:var(--border-soft)}
+.pf-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.pf-tag{font-size:10px;padding:4px 9px;border-radius:7px;color:var(--text);
+  background:rgba(255,255,255,.045);border:1px solid var(--border-soft);
+  display:inline-flex;align-items:center;gap:5px}
+.pf-buy{
+  margin-top:auto;width:100%;border:1px solid var(--gold-dim);border-radius:9px;
+  padding:9px 0;font:inherit;font-family:var(--font-mono);font-size:13px;font-weight:800;
+  color:var(--gold);background:rgba(255,199,89,.07);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.pf-buy:hover:not(:disabled){background:rgba(255,199,89,.16);box-shadow:0 0 16px rgba(255,199,89,.22)}
+.pf-buy:disabled{opacity:.35;cursor:default}
+
+/* --- lart yrke --- */
+.pf-own{
+  --pc:var(--cyan);
+  border:1.5px solid color-mix(in srgb, var(--pc) 65%, transparent);
+  border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;
+  background:linear-gradient(180deg,rgba(10,16,36,.9),rgba(6,10,24,.96));
+  box-shadow:0 0 24px color-mix(in srgb, var(--pc) 18%, transparent);
+}
+.pf-own-top{display:flex;gap:14px;align-items:flex-start}
+.pf-own-ico{width:78px;height:78px;flex:none;background-size:contain;
+  background-repeat:no-repeat;background-position:center;
+  filter:drop-shadow(0 0 16px color-mix(in srgb, var(--pc) 60%, transparent));
+  display:flex;align-items:center;justify-content:center;font-size:46px}
+.pf-own-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;text-align:left}
+.pf-own-name{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pf-own-name b{font-size:17px;font-weight:900;letter-spacing:1.1px;color:#f2f8ff}
+.pf-badge{font-size:9px;font-weight:900;letter-spacing:1.2px;padding:3px 9px;border-radius:6px;
+  color:var(--green);border:1px solid var(--green);background:rgba(74,222,128,.1)}
+.pf-xprow{display:flex;align-items:center;gap:10px;font-size:10.5px;font-family:var(--font-mono)}
+.pf-xprow b{color:var(--pc);letter-spacing:1.2px;font-size:10.5px}
+.pf-xpbar{flex:1;height:7px;border-radius:99px;background:var(--bg-inset);
+  border:1px solid var(--border-soft);overflow:hidden}
+.pf-xpfill{height:100%;border-radius:99px;
+  background:linear-gradient(90deg,color-mix(in srgb, var(--pc) 60%, #000), var(--pc));
+  box-shadow:0 0 10px color-mix(in srgb, var(--pc) 60%, transparent)}
+.pf-xptext{color:var(--text-dim);white-space:nowrap}
+.pf-act{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.pf-btn{
+  border-radius:9px;padding:11px 0;font:inherit;font-size:12px;font-weight:900;
+  letter-spacing:1.1px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid var(--border-soft);background:rgba(255,255,255,.04);color:var(--text);
+}
+.pf-btn:hover{background:rgba(255,255,255,.09)}
+.pf-btn.wide{grid-column:1 / -1;border-color:color-mix(in srgb, var(--pc) 55%, transparent);
+  color:var(--pc);background:color-mix(in srgb, var(--pc) 9%, transparent)}
+.pf-btn.wide:hover{background:color-mix(in srgb, var(--pc) 18%, transparent)}
+.pf-btn.danger{border-color:var(--red);color:#ff9b9b;background:rgba(255,90,90,.08)}
+.pf-btn.danger:hover{background:rgba(255,90,90,.18)}
+.pf-btn.view{border-color:var(--cyan-dim);color:var(--cyan);background:rgba(56,232,255,.07)}
+.pf-btn.view:hover{background:rgba(56,232,255,.15)}
+.pf-note{
+  display:flex;align-items:center;justify-content:center;gap:9px;text-align:center;
+  border:1px solid var(--border-soft);border-radius:11px;padding:12px 16px;
+  background:rgba(56,232,255,.04);font-size:11.5px;color:var(--text-dim);line-height:1.5;
+}
+.pf-note .pf-i{width:19px;height:19px;flex:none;border-radius:50%;border:1px solid var(--cyan-dim);
+  color:var(--cyan);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.pf-back{align-self:flex-start;background:none;border:none;color:var(--text-dim);
+  font:inherit;font-size:12px;cursor:pointer;padding:2px 0}
+.pf-back:hover{color:var(--cyan)}
+.pf-detail{border-top:1px solid var(--border-soft);padding-top:11px;display:flex;
+  flex-direction:column;gap:9px;text-align:left}
+.pf-drow{display:flex;justify-content:space-between;gap:12px;font-size:11.5px}
+.pf-drow span:first-child{color:var(--text-faint)}
+.pf-drow span:last-child{color:var(--text);font-family:var(--font-mono)}
+
 .machine-row{
   display:grid;
   grid-template-columns:44px 40px minmax(0,1fr) 40px auto 92px;
@@ -3213,8 +3343,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <button class="inv-x" id="prof-close">✕</button>
       </div>
       <div class="pets-scroll">
-        <div class="prof-intro" id="prof-intro"></div>
-        <div class="prof-grid" id="prof-grid"></div>
+        <div class="pf-wrap" id="prof-grid"></div>
       </div>
     </div>
   </div>
@@ -3386,7 +3515,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.2.2 — ETT STALLE</div>
+            <div class="desc">GENESIS v4.3.0 — YRKESRUTAN</div>
           </div>
         </div>
       </div>
@@ -3412,7 +3541,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.2.2 — ETT STALLE</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.0 — YRKESRUTAN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -11809,56 +11938,161 @@ function showPetTip(p, x, y){
   moveGearTip(x, y);
 }
 /* ---------- PROFESSIONS-PANELEN (lager 2) ---------- */
+/* Yrkets farg. Samma i kortet, i skenet, i XP-mataren och i knapparna, sa att
+   ett yrke kanns igen pa avstand utan att man laser namnet. */
+const PROF_COLOR = {
+  outfitter:   '#ffc759', weaponsmith: '#b98cff', jewelcrafter: '#38e8ff',
+  chemist:     '#4ade80', extractor:   '#ff9d4d', fabricator:   '#5aa9ff',
+  bioharvester:'#6ee7a8'
+};
+/* Vilken scen rutan star pa: null = dina yrken, 'pick' = valet. */
+let profScene = null;
+function profTags(pr){
+  return (pr.kind === 'crafting'
+    ? pr.slots.map(x => '<span class="pf-tag">' + x + '</span>')
+    : pr.mats.map(k => '<span class="pf-tag">' + MATERIALS[k].ico + ' ' + MATERIALS[k].name + '</span>')
+  ).join('');
+}
+function profCardHTML(pr, canBuy){
+  return '<div class="pf-card pick" data-learn="' + pr.id + '" style="--pc:' + PROF_COLOR[pr.id] + '">' +
+    /* Emojin ligger UNDER bilden: saknas PNG:en syns den, finns den tacker den.
+       En ikon far aldrig bli en tom ruta. */
+    '<div class="pf-ico" style="background-image:url(\'' + profArt(pr.id) + '\')">' + pr.ico + '</div>' +
+    '<div class="pf-nm">' + pr.name + '</div>' +
+    '<div class="pf-kind">' + pr.kind.toUpperCase() + '</div>' +
+    '<div class="pf-blurb">' + pr.blurb + '</div>' +
+    '<div class="pf-lbl">' + (pr.kind === 'crafting' ? 'CRAFTS / EQUIPS' : 'GATHERS') + '</div>' +
+    '<div class="pf-tags">' + profTags(pr) + '</div>' +
+    '<button class="pf-buy" data-learn="' + pr.id + '"' + (canBuy ? '' : ' disabled') + '>' +
+      '<span class="co-g">\u25c9</span> ' + moneyText(profLearnCost()) + '</button>' +
+  '</div>';
+}
+function profOwnedHTML(pr){
+  const li = profLevelInfo(S.prof.known[pr.id].xp);
+  const open = profDetailOpen === pr.id;
+  return '<div class="pf-own" style="--pc:' + PROF_COLOR[pr.id] + '">' +
+    '<div class="pf-own-top">' +
+      '<div class="pf-own-ico" style="background-image:url(\'' + profArt(pr.id) + '\')">' + pr.ico + '</div>' +
+      '<div class="pf-own-txt">' +
+        '<div class="pf-own-name"><b>' + pr.name + '</b>' +
+          '<span class="pf-badge">LEARNED</span></div>' +
+        '<div class="pf-kind">' + pr.kind.toUpperCase() + '</div>' +
+        '<div class="pf-blurb">' + pr.blurb + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="pf-xprow"><b>LEVEL ' + li.lvl + '</b>' +
+      '<span class="pf-xpbar"><span class="pf-xpfill" style="width:' +
+        Math.round(li.into / li.need * 100) + '%"></span></span>' +
+      '<span class="pf-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</span></div>' +
+    '<div class="pf-lbl">' + (pr.kind === 'crafting' ? 'CRAFTS & EQUIPS' : 'GATHERS') + '</div>' +
+    '<div class="pf-tags">' + profTags(pr) + '</div>' +
+    (pr.kind === 'crafting'
+      ? '<button class="pf-btn wide" data-book="' + pr.id + '">\ud83d\udcd6 RECIPE BOOK</button>'
+      : gatherLoopHTML(pr.id)) +
+    (open ? profDetailHTML(pr, li) : '') +
+    '<div class="pf-act">' +
+      '<button class="pf-btn danger" data-forget="' + pr.id + '">\u267b UNLEARN</button>' +
+      '<button class="pf-btn view" data-view="' + pr.id + '">' +
+        (open ? 'HIDE DETAILS' : 'VIEW PROFESSION') + '</button>' +
+    '</div>' +
+  '</div>';
+}
+/* VIEW PROFESSION visar bara sadant som redan finns bokfort - inget nytt system,
+   inga nya tal. Det ar en uppslagning, inte en mekanik. */
+function profDetailHTML(pr, li){
+  const rows = [];
+  rows.push(['Kind', pr.kind === 'crafting' ? 'Crafting' : 'Gathering']);
+  rows.push(['Level', li.lvl + ' of 99']);
+  rows.push(['To next level', Math.max(0, Math.ceil(li.need - li.into)) + ' XP']);
+  if (pr.kind === 'crafting'){
+    /* S.prof.recipes ar ett UPPSLAG, inte en lista. */
+    const known = Object.keys(S.prof.recipes || {}).filter(r => (RECIPE_BY[r] || {}).prof === pr.id).length;
+    const total = RECIPES.filter(r => r.prof === pr.id).length;
+    rows.push(['Recipes known', known + ' of ' + total]);
+    if (pr.comp && MATERIALS[pr.comp]) rows.push(['Signature component', MATERIALS[pr.comp].name]);
+  } else {
+    const def = GATHER_DEFS[pr.id];
+    rows.push(['Work shift', gatherShiftSecs() + ' seconds']);
+    rows.push(['Rolls every', def.cycle + ' seconds']);
+    rows.push(['Region tier here', regionTier()]);
+  }
+  return '<div class="pf-detail">' + rows.map(r =>
+    '<div class="pf-drow"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>').join('') + '</div>';
+}
+let profDetailOpen = null;
+
 function renderProfessions(){
-  const grid = $('prof-grid'), cnt = $('prof-count'), intro = $('prof-intro');
-  if (!grid) return;
+  const wrap = $('prof-grid'), cnt = $('prof-count');
+  if (!wrap) return;
   const n = profCount();
   if (cnt) cnt.textContent = n + ' / ' + PROF_MAX;
-  if (intro) intro.textContent = n >= PROF_MAX
-    ? 'You have learned your two professions. That pairing is your trade — gather with one, craft with the other, and lean on the Auction House for the rest.'
-    : 'Learn up to two professions. The next costs ' + moneyText(profLearnCost()) + ', and every profession you learn after that costs five times more. Choose a pair that works together — you can never cover everything alone, and that is the point.';
-  const full = n >= PROF_MAX;
-  grid.innerHTML = PROFESSIONS.map(pr => {
-    const known = profLearned(pr.id);
-    const li = known ? profLevelInfo(S.prof.known[pr.id].xp) : null;
-    const tags = pr.kind === 'crafting'
-      ? pr.slots.map(x => '<span class="pc-tag">' + x + '</span>').join('')
-      : pr.mats.map(k => '<span class="pc-tag">' + MATERIALS[k].name + '</span>').join('');
-    let right;
-    if (known){
-      /* Att glomma ar det enda sattet att byta yrke. Knappen ar diskret med
-         flit: det ar ingen handling man ska gora av misstag. */
-      right = '<span class="pc-known-tag">Learned</span>' +
-              '<button class="pc-forget" data-forget="' + pr.id + '" title="Forget this profession">Forget</button>';
-    } else {
-      const can = !full && S.gold >= profLearnCost();
-      right = '<button class="pc-learn" data-learn="' + pr.id + '"' + (can ? '' : ' disabled') + '>Learn · ' + moneyText(profLearnCost()) + '</button>';
+  const cost = profLearnCost();
+  const canBuy = S.gold >= cost && n < PROF_MAX;
+  let h = '';
+
+  if (profScene === 'pick'){
+    /* SCEN 2: valet. Alla sju, fyra crafting overst och tre gathering under. */
+    h += '<button class="pf-back">\u2190 Back</button>';
+    h += '<div class="pf-head"><div class="pf-h1">CHOOSE YOUR PROFESSION</div>' +
+         '<div class="pf-sub">Select a profession to learn.</div></div>';
+    h += '<div class="pf-grid">' +
+      PROFESSIONS.filter(p => p.kind === 'crafting' && !profLearned(p.id))
+        .map(p => profCardHTML(p, canBuy)).join('') + '</div>';
+    h += '<div class="pf-grid four">' +
+      PROFESSIONS.filter(p => p.kind === 'gathering' && !profLearned(p.id))
+        .map(p => profCardHTML(p, canBuy)).join('') + '</div>';
+  } else {
+    /* SCEN 1 och 3: dina platser. Tomma platser bjuder in, larda visar arbetet. */
+    h += '<div class="pf-head"><div class="pf-h1">YOUR PROFESSIONS</div>' +
+         '<div class="pf-sub">' + (n === 0
+           ? 'This is where you learn your professions.'
+           : 'Manage your learned professions.') + '</div></div>';
+    let cards = '';
+    PROFESSIONS.filter(p => profLearned(p.id)).forEach(p => { cards += profOwnedHTML(p); });
+    for (let i = n; i < PROF_MAX; i++){
+      cards += '<div class="pf-empty" data-pick="1">' +
+        '<div class="pf-plus">+</div>' +
+        '<b>LEARN A PROFESSION</b>' +
+        (n === 0 ? '' : '<i>Choose a profession<br>to start your journey.</i>') +
+        '<div class="pf-price"><span class="co-g">\u25c9</span> ' + moneyText(cost) + '</div>' +
+      '</div>';
     }
-    return '<div class="prof-card ' + (known ? 'known' : (full ? 'locked' : '')) + '">' +
-      '<div class="pc-emoji" style="background-image:url(\'' + profArt(pr.id) + '\')"></div>' +
-      '<div class="pc-body">' +
-        '<div class="pc-top"><span class="pc-name">' + pr.name + '</span>' +
-          '<span class="pc-kind">' + pr.kind + '</span>' +
-          (known ? '<span class="pc-lvl">Lv ' + li.lvl + '</span>' : '') + '</div>' +
-        '<div class="pc-blurb">' + pr.blurb + '</div>' +
-        '<div class="pc-tags">' + tags + '</div>' +
-        (known ? '<div class="pc-xpbar"><div class="pc-xpfill" style="width:' + Math.round(li.into / li.need * 100) + '%"></div></div>' +
-          '<div class="pc-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</div>' +
-          (pr.kind === 'crafting'
-            ? '<button class="pc-book" data-book="' + pr.id + '">📖 Recipe Book</button>'
-            : gatherLoopHTML(pr.id)) : '') +
-      '</div>' +
-      '<div class="pc-right">' + right + '</div>' +
-    '</div>';
-  }).join('');
-  grid.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', () => {
-    if (learnProfession(b.dataset.learn)) spawnFloat({text: 'Learned ' + PROF_BY[b.dataset.learn].name + '!'});
-  grid.querySelectorAll('[data-forget]').forEach(b => b.addEventListener('click', () => {
+    h += '<div class="pf-slots">' + cards + '</div>';
+  }
+
+  h += '<div class="pf-note"><span class="pf-i">i</span><span>' +
+    (n >= PROF_MAX
+      ? 'Learn up to ' + PROF_MAX + ' professions. Unlearn a profession to learn a new one.'
+      : 'Learn up to ' + PROF_MAX + ' professions. The next costs ' + moneyText(cost) +
+        ', and every profession after that costs five times more.') +
+    '</span></div>';
+
+  wrap.innerHTML = h;
+
+  wrap.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+    profScene = 'pick'; renderProfessions();
+  }));
+  const back = wrap.querySelector('.pf-back');
+  if (back) back.addEventListener('click', () => { profScene = null; renderProfessions(); });
+  wrap.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    if (b.disabled) return;
+    if (learnProfession(b.dataset.learn)){
+      say('Learned ' + PROF_BY[b.dataset.learn].name + '!');
+      profScene = null; renderProfessions();
+    }
+  }));
+  /* De har tva satt FORUT inuti learn-knappens callback, sa knapparna kopplades
+     inte forran man rakat lara sig ett yrke. En felplacerad klammer. */
+  wrap.querySelectorAll('[data-forget]').forEach(b => b.addEventListener('click', () => {
     unlearnProfession(b.dataset.forget);
   }));
+  wrap.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+    profDetailOpen = (profDetailOpen === b.dataset.view) ? null : b.dataset.view;
+    renderProfessions();
   }));
-  grid.querySelectorAll('[data-book]').forEach(b => b.addEventListener('click', () => openRecipeBook(b.dataset.book)));
-  renderGatherLoops();   /* kopplar pa knappen och satter klockan direkt */
+  wrap.querySelectorAll('[data-book]').forEach(b => b.addEventListener('click', () => openRecipeBook(b.dataset.book)));
+  renderGatherLoops();
 }
 /* Den lilla arbetsytan i ett gathering-kort: en scen (gruva/vav/flora) med en
    framatrackande matare och det senaste fyndet. Uppdateras varje cykel utan att
@@ -12110,6 +12344,8 @@ function openProfessions(){
   const wasOpen = w.classList.contains('open');
   w.classList.add('open');
   bringToFront(w);
+  /* Rutan oppnas ALLTID pa dina yrken, aldrig mitt i ett val man lamnat. */
+  if (!wasOpen){ profScene = null; profDetailOpen = null; }
   renderProfessions();
   if (!wasOpen){
     /* Bredvid karaktarsbladet, precis som vaskan - sa bada syns samtidigt. */
