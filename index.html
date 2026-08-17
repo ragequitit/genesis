@@ -549,6 +549,9 @@ body.dragging *{cursor:grabbing !important}
 }
 .m-tip.on{display:block}
 .m-tip .mt-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.gt-req{margin-left:7px;padding:1px 6px;border-radius:5px;font-size:9.5px;font-weight:800;
+  background:rgba(56,232,255,.10);border:1px solid var(--cyan-dim);color:var(--cyan)}
+.gt-req.cant{background:rgba(255,90,90,.12);border-color:var(--red);color:#ff9b9b}
 .m-tip .mt-blurb{font-size:10px;color:var(--text-dim);line-height:1.4;margin:-2px 0 8px}
 .m-tip .mt-ico{font-size:18px}
 .m-tip .mt-name{font-size:12px;font-weight:900;letter-spacing:.04em}
@@ -2841,7 +2844,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="char-stats-cell">
         <div class="char-stats">
           <div class="cs-title">Stats</div>
-          <div class="cs-cp"><span>Combat Power</span><b id="cs-cp">0</b></div>
+          <div class="cs-cp"><span>Power</span><b id="cs-power">0</b></div>
+          <div class="cs-cp"><span>Damage</span><b id="cs-damage">0</b></div>
+          <div class="cs-cp"><span>Hit</span><b id="cs-hit">0</b></div>
           <div class="cs-rows" id="cs-rows"></div>
         </div>
         </div>
@@ -3381,7 +3386,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.0.1 — TIO PLATSER</div>
+            <div class="desc">GENESIS v4.2.2 — ETT STALLE</div>
           </div>
         </div>
       </div>
@@ -3407,7 +3412,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.0.1 — TIO PLATSER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.2.2 — ETT STALLE</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4146,6 +4151,9 @@ function netGearFromRow(row){
     r:    row.rarity | 0,
     a:    Array.isArray(row.affixes) ? row.affixes : [],
     hp:   row.hp | 0,
+    pw:   row.power | 0,       /* Power - rullas inte, raknas ur sallsynthet och niva */
+    dm:   row.damage | 0,      /* Damage - bara vapen och andra handen */
+    lv:   row.item_level | 0,  /* nivan pjasen foll pa. Vaxer aldrig efterat */
     g:    +row.gold_value || 0,
     craft: row.crafted ? 1 : undefined
   };
@@ -4155,7 +4163,7 @@ function netGearFromRow(row){
 async function netPullItems(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx');
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level');
 
   S.equip = {};
   const bagRows = [], vaultRows = [];
@@ -4431,7 +4439,12 @@ async function netPullRuns(){
 }
 async function netStartExpedition(expId){
   if (!NET.on) return null;
-  return srvRpc('start_expedition', {p_character: SRV.charId, p_exp: expId});
+  const r = await srvRpc('start_expedition', {p_character: SRV.charId, p_exp: expId});
+  /* Korningen finns nu PA SERVERN - men klienten visste inget om den forran
+     nasta gang nagot rakade hamta hem listan. Foljden: Active stod tom medan
+     servern sa "den ar redan ute". Hamta hem korningarna direkt. */
+  await netPullRunsInto();
+  return r;
 }
 async function netClaimExpedition(expId){
   if (!NET.on) return null;
@@ -4467,7 +4480,7 @@ async function netClaimExpedition(expId){
 async function netPullVault(){
   if (!SRV.charId) return [];
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx');
+    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level');
   return (rows || []).map(netGearFromRow);
 }
 
@@ -5393,11 +5406,19 @@ function rollItem(key, rarIdx, capFrac){
   /* Säljvärdet rullas i samma stund som pjäsen föds och ligger fast — annars skulle
      priset ändra sig varje gång du tittade på den, och det vore inte ett pris. */
   const g = Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]));
-  const out = {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: affs, hp: hp, g: g};
+  /* Samma trappa som servern: nivan kommer fran DIG i det ogonblick pjasen
+     faller, och vaxer aldrig efterat. Last vid 50 - paragon far aldrig vaxa
+     utrustning. Damage bara pa vapen och andra handen. */
+  const lv = Math.min(50, Math.max(1, levelInfo().lvl));
+  const lm = 1 + 0.10 * (lv - 1);
+  const pw = Math.round(5 * R.mult * lm);
+  const dm = (D.slot === 5 || D.slot === 9) ? Math.round(12 * R.mult * lm) : 0;
+  const out = {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: affs,
+               hp: Math.round(hp * lm), pw: pw, dm: dm, lv: lv, g: Math.round(g * lm / 5.9)};
   if (typeof capFrac === 'number' && capFrac < 1) out.craft = 1;   /* fott ur ett recept */
   return out;
 }
-/* Combat Power: hälsan plus tio gånger summan av bonusarna. Ingen egen rullning —
+/* HISTORIK: här räknades Combat Power ut — hälsan plus tio gånger summan av bonusarna. Ingen egen rullning —
    den SAMMANFATTAR pjäsen, så den kan aldrig säga emot det som står i den. */
 function splitMoney(c){
   c = Math.max(0, Math.floor(c));
@@ -5450,19 +5471,34 @@ function moneyText(c){
   return p.join(' ');
 }
 function gearGold(it){
-  const r = GEAR_RAR[it.r];
-  const base = (it.g >= r.gold[0] && it.g <= r.gold[1]) ? it.g : Math.round((r.gold[0] + r.gold[1]) / 2);
+  /* Pjasens EGET varde galler, alltid. Forut foll den har tillbaka pa bandets
+     mitt sa fort talet lag utanfor sallsynthetens band - och sedan pjaserna
+     borjade skalas med niva ligger VARJE pjas under niva 50 utanfor bandet.
+     Foljden var att kortet lovade elva guld for nagot handlaren gav tva for. */
+  const base = +it.g || 0;
   /* Sell Value laggs pa HAR, dar bade prislappen i vaskan och den verkliga
      forsaljningen laser den - inte vid forsaljningen ensam, for da hade pjasen
      visat ett pris och gett ett annat. */
   return Math.round(base * (1 + helperBonus('sellvalue') / 100));
 }
-function gearCP(it){
-  return Math.round(it.hp + 10 * it.a.reduce((s, x) => s + x.v, 0));
-}
+/* Combat Power ar borttagen (v4.1.0). Den raknade in HP i sig sjalv - anvands den
+   som anfallsvarde slar en tank hardast - och den var EN siffra, sa alla kunde
+   sortera pa den i auktionshuset, kopa hogst och vinna utan att tanka.
+   I stallet tre tal som var och en betyder nagot:
+     HEALTH  - hur mycket du tal, fran utrustningen
+     POWER   - hur hart du slar, fran utrustningen
+     DAMAGE  - vapnets egen skada, bara vapen och andra handen
+   Ett slag ar Damage x Power / 100. Ett fantastiskt vapen utan utrustning ger
+   lite, perfekt utrustning utan vapen ger nastan ingenting - man maste bry sig
+   om bada, och det finns ingen enda kolumn att sortera pa. */
+/* Bara for att sortera en lista sa att det finaste hamnar overst. Aldrig visat -
+   en sammanfattning som doljer sina delar ar samre an delarna. */
+function gearScore(it){ return (it.hp || 0) + (it.pw || 0) * 3 + (it.dm || 0) * 3; }
 function equippedList(){ return GEAR_SLOTS.map((_, i) => S.equip[i] || null); }
-function totalCP(){ return equippedList().reduce((s, it) => s + (it ? gearCP(it) : 0), 0); }
 function totalHP(){ return BASE_HP + equippedList().reduce((s, it) => s + (it ? it.hp : 0), 0); }
+function totalPower(){ return equippedList().reduce((s, it) => s + (it ? (it.pw || 0) : 0), 0); }
+function totalDamage(){ return equippedList().reduce((s, it) => s + (it ? (it.dm || 0) : 0), 0); }
+function totalHit(){ return Math.floor(totalDamage() * totalPower() / 100); }
 function gearBonus(key){
   let v = 0;
   equippedList().forEach(it => { if (it) it.a.forEach(x => { if (x.k === key) v += x.v; }); });
@@ -6321,30 +6357,59 @@ function fmt(n){
   return (n >= 100 ? n.toFixed(0) : n.toFixed(2)) + SUFF[t];
 }
 /* ---------- XP ----------
-   Kumulativ kurva: att gå från nivå L till L+1 kostar round(100 * L^1.5) XP.
-   Källor: 1 XP per collect-tick, 2 XP per köpt byggnad, 20 XP per uppgradering
-   och milstolpe, 0.1 XP/s passivt medan sidan är synlig (aktiv närvaro).
-   Framtida källor (bokförda, ej byggda): uppdrag, kapslar. */
-function xpToNext(level){ return Math.round(100 * Math.pow(level, 1.5)); }
+   Kallor, alla pa samma ringtrappa (1,8 per ring) sedan v4.2.0:
+     hack 0,20 x ring · narvaro 0,06/s x ring · expedition 48 x ring x min^0,55
+     maskinkop 2 x 2^rang · uppgradering 20 x nivan · milstolpe som ett
+     maskinkop x steget/10 · spaning 20 och 50 x ring · forsta besoket 100 x ring
+   Se xp-and-paragon.md for harledningen och de uppmatta timtalen. */
+/* NIVAKURVAN (v4.2.0). En enda exponentiell formel i stallet for 100 x niva^1,5.
+   Den gamla gick FORTARE ju hogre man kom, darfor att expeditionernas XP vaxte
+   850 ganger mellan hemma och ytterkanten medan kurvan bara var polynomisk:
+   uppmatt tog niva 11-20 elva timmar och niva 41-50 fyrtio minuter.
+   Nu: 375 275 XP till niva 50, ungefar 36 timmars aktivt spel, och tiden per
+   tioniva-band STIGER hela vagen. Exakt samma tal som servern raknar. */
+const LEVEL_CAP = 50;
+function xpToNext(level){ return Math.round(607 * Math.pow(1.0845, Math.max(1, level) - 1)); }
+function xpToCap(){
+  let t = 0;
+  for (let l = 1; l < LEVEL_CAP; l++) t += xpToNext(l);
+  return t;
+}
+/* PARAGON: efter 50 fortsatter nivaerna oandligt. Forsta steget kostar som
+   niva 15-16, sedan 3 % mer per steg, och varje steg ger 10 Tokens - inte
+   kraft. Ger paragon kraft maste all PvE balanseras mot paragon 800 i stallet
+   for mot niva 50, och det ar felet Diablo 3 gjorde. */
+function paragonCost(n){ return Math.round(1890 * Math.pow(1.03, Math.max(1, n) - 1)); }
 function levelInfo(){
   let lvl = 1, rem = S.xp;
-  while (rem >= xpToNext(lvl) && lvl < 999){ rem -= xpToNext(lvl); lvl++; }
-  return {lvl, into: rem, need: xpToNext(lvl)};
+  while (lvl < LEVEL_CAP && rem >= xpToNext(lvl)){ rem -= xpToNext(lvl); lvl++; }
+  if (lvl < LEVEL_CAP) return {lvl, into: rem, need: xpToNext(lvl), para: 0};
+  let para = 0;
+  while (para < 100000 && rem >= paragonCost(para + 1)){ rem -= paragonCost(para + 1); para++; }
+  return {lvl: LEVEL_CAP, into: rem, need: paragonCost(para + 1), para: para};
 }
-let lastLevel = 1;
+/* Vad vi SENAST sag - inte "1", for da fyrade uppstigningen av vid varje start
+   for den som redan har nivaer. Paragon raknas med: annars slutade all
+   aterkoppling vid femtio, precis dar den langsta delen av spelet borjar. */
+let lastLevel = 1, lastPara = 0;
 let lastAchCheck = 0;
 let lastTipCheck = 0;
 let lastMailPrune = 0;
 let expGate = 0;
 /* Delar ut erfarenhet och märker av nivåhöjning. Inget annat — allt löpande
    gränssnitt hör hemma i uppdateringsrutinen, inte här. */
+/* Ringtrappan: samma faktor som servern, 1,8 per ring. */
+function ringMult(regionId){
+  const R = REGIONS[regionId || S.world.current];
+  return Math.pow(1.8, R ? (R.tier | 0) : 0);
+}
 function grantXP(n){
   const gained = n * (1 + (gearBonus('xp') + flaskPct('xp')) / 100);
   S.xp += gained;
   grantPetXP(gained);
   const li = levelInfo();
-  if (li.lvl > lastLevel){
-    lastLevel = li.lvl;
+  if (li.lvl > lastLevel || li.para > lastPara){
+    lastLevel = li.lvl; lastPara = li.para || 0;
     levelUpFx(li.lvl);
   }
 }
@@ -6951,6 +7016,11 @@ function quickEquipFromVault(i){
   const g = row.gear;
   if (ITEMS[g.t] && ITEMS[g.t].bag) return false; // väskfacken bor i väskfönstret
   if (S.equip[g.s]) return false;
+  /* Samma nivakrav som overallt annars - annars vore valvet en genvag forbi det. */
+  if (g.lv && g.lv > levelInfo().lvl){
+    say('Requires level ' + g.lv + ' — you are ' + levelInfo().lvl + '.');
+    return false;
+  }
   if (NET.on){
     /* SERVERLAGE: tva steg pa servern - ut ur valvet, sedan pa kroppen.
        Forut satte klienten pjasen pa sig sjalv och servern visste ingenting. */
@@ -7410,7 +7480,7 @@ function buildCoreUpgrades(){
       }
       S.data -= c;
       S.up[u.id] = lvl + 1;
-      grantXP(20);
+      grantXP(20 * (lvl + 1));   /* skalar med nivan man just kopte */
       updateUI(true);
     });
   });
@@ -7464,7 +7534,11 @@ function refreshShelf(){
           } else {
             S.data -= it.cost;
             S.mil[it.key] = true;
-            grantXP(20);
+            /* Samma trappa som ett maskinkop, gangt steget delat pa tio - en
+               milstolpe pa 400 agda Genesis Core ar en annan sak an den forsta
+               tian pa skrotgarden. Taket sa att en enda handling aldrig ger en
+               hel niva. */
+            grantXP(Math.min(20000, 2 * Math.pow(2, BUILDINGS.findIndex(b => b.id === it.b.id)) * (it.st / 10)));
           }
           refreshShelf();
           updateUI(true);
@@ -7544,7 +7618,7 @@ function collectTick(){
   /* I serverlage ar S.data inte det som visas - darfor laggs hacket ocksa i
      forutsagelsen, annars sag man siffran fran servern sta stilla. */
   if (NET.on) NET.tapCredit = (NET.tapCredit || 0) + gain;
-  grantXP(1);
+  grantXP(0.20 * ringMult());
   if (!crit) Sound.play('tap', {holding: true});
   if (crit || performance.now() - floatGate > 180){
     floatGate = performance.now();
@@ -7559,183 +7633,186 @@ function collectTick(){
    - Att KLIVA IN i en zon upptäcker dess expeditioner -> Discovered-katalogen.
    - Max 2 samtidiga (slots). Belöningen låses vid start (kontrakt, serverklart).
    - Data = grundgolv + andel av din produktion över tiden. Fragments är zonfynd.
-   - XP skalar med ring längre ut (hemringen = små tal). Alla siffror justerbara. */
+   - XP star INTE har. Varje uppdrag bar forut en egen XP-siffra, satt for hand;
+     sedan v4.2.0 raknas den fram ur langd och ring i expXpReward, och samma
+     formel ligger pa servern. Talen togs bort helt (v4.2.2) sa att ingen om ett
+     halvar andrar en siffra som inte gor nagot. Ett stalle, en sanning. */
 const EXPEDITIONS = {
   neonhub: {
     'Firstlight':  [
-      {id:'nh_fl_sweep',  name:'First Sweep',           mins:2,  lvl:1, base:60,    xp:20},
-      {id:'nh_fl_echo',   name:'Echoes of the Landing', mins:20, lvl:4, base:900,   xp:120}
+      {id:'nh_fl_sweep',  name:'First Sweep',           mins:2,  lvl:1, base:60},
+      {id:'nh_fl_echo',   name:'Echoes of the Landing', mins:20, lvl:4, base:900}
     ],
     'Kaito Row':   [
-      {id:'nh_kr_trail',  name:"Builder's Trail",       mins:8,  lvl:2, base:320,   xp:55}
+      {id:'nh_kr_trail',  name:"Builder's Trail",       mins:8,  lvl:2, base:320}
     ],
     'The Fuse':    [
-      {id:'nh_tf_wire',   name:'Live Wire Run',         mins:5,  lvl:2, base:200,   xp:45},
-      {id:'nh_tf_black',  name:'Blackout Salvage',      mins:45, lvl:7, base:3200,  xp:320}
+      {id:'nh_tf_wire',   name:'Live Wire Run',         mins:5,  lvl:2, base:200},
+      {id:'nh_tf_black',  name:'Blackout Salvage',      mins:45, lvl:7, base:3200}
     ],
     'Skyrail':     [
-      {id:'nh_sr_drift',  name:'Rail Drift',            mins:10, lvl:3, base:450,   xp:70}
+      {id:'nh_sr_drift',  name:'Rail Drift',            mins:10, lvl:3, base:450}
     ],
     'Palegate':    [
-      {id:'nh_pg_rounds', name:"Gatekeeper's Rounds",   mins:15, lvl:4, base:700,   xp:100}
+      {id:'nh_pg_rounds', name:"Gatekeeper's Rounds",   mins:15, lvl:4, base:700}
     ],
     'Brightfall':  [
-      {id:'nh_bf_harv',   name:'Lightfall Harvest',     mins:8,  lvl:3, base:340,   xp:60},
-      {id:'nh_bf_glow',   name:'The Long Glow',         mins:60, lvl:9, base:6500,  xp:500}
+      {id:'nh_bf_harv',   name:'Lightfall Harvest',     mins:8,  lvl:3, base:340},
+      {id:'nh_bf_glow',   name:'The Long Glow',         mins:60, lvl:9, base:6500}
     ]
   },
   /* Grannringen: samma nivåband (1-10) men något högre XP per minut —
      spelarens princip: längre ut = mer XP. */
   arcade87: {
     'Tilt': [
-      {id:'a87_tl_free',  name:'Free Play Raid',        mins:6,  lvl:2, base:260,   xp:60},
-      {id:'a87_tl_high',  name:'Highscore Heist',       mins:30, lvl:6, base:2200,  xp:260}
+      {id:'a87_tl_free',  name:'Free Play Raid',        mins:6,  lvl:2, base:260},
+      {id:'a87_tl_high',  name:'Highscore Heist',       mins:30, lvl:6, base:2200}
     ],
     'The Midway': [
-      {id:'a87_mw_lights',name:'Midway Lights',         mins:10, lvl:3, base:520,   xp:95}
+      {id:'a87_mw_lights',name:'Midway Lights',         mins:10, lvl:3, base:520}
     ],
     'Glitchmore': [
-      {id:'a87_gm_patch', name:'Patch the Unpatchable', mins:25, lvl:5, base:1500,  xp:210}
+      {id:'a87_gm_patch', name:'Patch the Unpatchable', mins:25, lvl:5, base:1500}
     ],
     'Coinfall': [
-      {id:'a87_cf_rain',  name:'Coin Rain Recovery',    mins:8,  lvl:3, base:430,   xp:80}
+      {id:'a87_cf_rain',  name:'Coin Rain Recovery',    mins:8,  lvl:3, base:430}
     ],
     'Pixelgeist': [
-      {id:'a87_pg_ghost', name:'Ghost in the Cabinet',  mins:45, lvl:8, base:4200,  xp:430}
+      {id:'a87_pg_ghost', name:'Ghost in the Cabinet',  mins:45, lvl:8, base:4200}
     ]
   },
   glassocean: {
     'The Shallows': [
-      {id:'go_sh_wade',   name:'Wade the Shallows',     mins:5,  lvl:2, base:240,   xp:55}
+      {id:'go_sh_wade',   name:'Wade the Shallows',     mins:5,  lvl:2, base:240}
     ],
     'Mirrordeep': [
-      {id:'go_md_dive',   name:'Mirror Dive',           mins:15, lvl:4, base:950,   xp:140},
-      {id:'go_md_orig',   name:'Hunt the Original',     mins:60, lvl:9, base:7800,  xp:620}
+      {id:'go_md_dive',   name:'Mirror Dive',           mins:15, lvl:4, base:950},
+      {id:'go_md_orig',   name:'Hunt the Original',     mins:60, lvl:9, base:7800}
     ],
     'Shalebreak': [
-      {id:'go_sb_crack',  name:'Crack the Shale',       mins:12, lvl:3, base:640,   xp:105}
+      {id:'go_sb_crack',  name:'Crack the Shale',       mins:12, lvl:3, base:640}
     ],
     'Tidelock': [
-      {id:'go_tl_gate',   name:'Open the Tidegate',     mins:20, lvl:5, base:1300,  xp:180}
+      {id:'go_tl_gate',   name:'Open the Tidegate',     mins:20, lvl:5, base:1300}
     ],
     'Glasswake': [
-      {id:'go_gw_wake',   name:'Ride the Glasswake',    mins:35, lvl:7, base:2900,  xp:330}
+      {id:'go_gw_wake',   name:'Ride the Glasswake',    mins:35, lvl:7, base:2900}
     ]
   },
   blockvaults: {
     'The Ledgers': [
-      {id:'bv_lg_audit',  name:'The Great Audit',       mins:10, lvl:3, base:560,   xp:90}
+      {id:'bv_lg_audit',  name:'The Great Audit',       mins:10, lvl:3, base:560}
     ],
     'Goldgrave': [
-      {id:'bv_gg_dig',    name:'Goldgrave Dig',         mins:18, lvl:4, base:1150,  xp:160}
+      {id:'bv_gg_dig',    name:'Goldgrave Dig',         mins:18, lvl:4, base:1150}
     ],
     'Brasslock': [
-      {id:'bv_bl_pick',   name:'Pick the Brasslock',    mins:8,  lvl:3, base:420,   xp:78}
+      {id:'bv_bl_pick',   name:'Pick the Brasslock',    mins:8,  lvl:3, base:420}
     ],
     'Deephold': [
-      {id:'bv_dh_vault',  name:'Deephold Descent',      mins:40, lvl:7, base:3600,  xp:380}
+      {id:'bv_dh_vault',  name:'Deephold Descent',      mins:40, lvl:7, base:3600}
     ],
     'Undervault': [
-      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:10, base:12000, xp:900},
-      {id:'bv_uv_count',  name:'Vault Inventory',       mins:12, lvl:5,  base:600,   xp:90}
+      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:10, base:12000},
+      {id:'bv_uv_count',  name:'Vault Inventory',       mins:12, lvl:5,  base:600}
     ]
   },
   voltrath: {
     'Coppervein': [
-      {id:'vt_cv_surge', name:'Grid Surge',        mins:5,  lvl:12, base:2700,  xp:270},
-      {id:'vt_cv_tap',   name:'Copper Tap',        mins:12, lvl:13, base:7000,  xp:700}
+      {id:'vt_cv_surge', name:'Grid Surge',        mins:5,  lvl:12, base:2700},
+      {id:'vt_cv_tap',   name:'Copper Tap',        mins:12, lvl:13, base:7000}
     ],
-    'Dustwatt':   [ {id:'vt_dw_sift',  name:'Dustwatt Sifting',  mins:8,  lvl:12, base:4300,  xp:430} ],
-    'Hollowline': [ {id:'vt_hl_brown', name:'The Brownout',      mins:30, lvl:15, base:20000, xp:2000} ],
-    'Wattmire':   [ {id:'vt_wm_dive',  name:'Wattmire Dive',     mins:15, lvl:14, base:9500,  xp:950} ]
+    'Dustwatt':   [ {id:'vt_dw_sift',  name:'Dustwatt Sifting',  mins:8,  lvl:12, base:4300} ],
+    'Hollowline': [ {id:'vt_hl_brown', name:'The Brownout',      mins:30, lvl:15, base:20000} ],
+    'Wattmire':   [ {id:'vt_wm_dive',  name:'Wattmire Dive',     mins:15, lvl:14, base:9500} ]
   },
   forgefall: {
     'Slagmoor':   [
-      {id:'ff_sm_run',   name:'Slag Run',          mins:8,  lvl:13, base:4700,  xp:470},
-      {id:'ff_sm_cool',  name:'Cooling Watch',     mins:25, lvl:15, base:17000, xp:1700}
+      {id:'ff_sm_run',   name:'Slag Run',          mins:8,  lvl:13, base:4700},
+      {id:'ff_sm_cool',  name:'Cooling Watch',     mins:25, lvl:15, base:17000}
     ],
-    'The Crucible':[ {id:'ff_cr_shift', name:'The Last Shift',   mins:20, lvl:15, base:13500, xp:1350} ],
-    'Ashfall':    [ {id:'ff_af_ember', name:'Ember Harvest',     mins:45, lvl:16, base:32000, xp:3200} ],
-    'Cinderholm': [ {id:'ff_ch_walk',  name:'Cinder Walk',       mins:6,  lvl:12, base:3200,  xp:320} ]
+    'The Crucible':[ {id:'ff_cr_shift', name:'The Last Shift',   mins:20, lvl:15, base:13500} ],
+    'Ashfall':    [ {id:'ff_af_ember', name:'Ember Harvest',     mins:45, lvl:16, base:32000} ],
+    'Cinderholm': [ {id:'ff_ch_walk',  name:'Cinder Walk',       mins:6,  lvl:12, base:3200} ]
   },
   novabazaar: {
     'Silkrow':    [
-      {id:'nb_sr_cut',   name:"Courier's Cut",     mins:5,  lvl:12, base:2700,  xp:270},
-      {id:'nb_sr_silk',  name:'Silk Ledger',       mins:18, lvl:14, base:11000, xp:1100}
+      {id:'nb_sr_cut',   name:"Courier's Cut",     mins:5,  lvl:12, base:2700},
+      {id:'nb_sr_silk',  name:'Silk Ledger',       mins:18, lvl:14, base:11000}
     ],
-    'Gavelhall':  [ {id:'nb_gh_snipe', name:'Auction Sniping',   mins:12, lvl:14, base:7500,  xp:750} ],
-    'Lanternside':[ {id:'nb_ls_route', name:'Lantern Route',     mins:25, lvl:15, base:17000, xp:1700} ],
-    'Coinreach':  [ {id:'nb_cr_count', name:'The Long Count',    mins:40, lvl:16, base:29000, xp:2900} ]
+    'Gavelhall':  [ {id:'nb_gh_snipe', name:'Auction Sniping',   mins:12, lvl:14, base:7500} ],
+    'Lanternside':[ {id:'nb_ls_route', name:'Lantern Route',     mins:25, lvl:15, base:17000} ],
+    'Coinreach':  [ {id:'nb_cr_count', name:'The Long Count',    mins:40, lvl:16, base:29000} ]
   },
   pixelgardens: {
     'Bloomvale':  [
-      {id:'pg_bv_pollen', name:'Pollen Run',       mins:6,  lvl:12, base:3200,  xp:320},
-      {id:'pg_bv_night',  name:'Night Bloom',      mins:35, lvl:16, base:25000, xp:2500}
+      {id:'pg_bv_pollen', name:'Pollen Run',       mins:6,  lvl:12, base:3200},
+      {id:'pg_bv_night',  name:'Night Bloom',      mins:35, lvl:16, base:25000}
     ],
-    'Thornmesh':  [ {id:'pg_tm_patrol', name:'Thorn Patrol',     mins:18, lvl:14, base:11000, xp:1100} ],
-    'Rootworks':  [ {id:'pg_rw_access', name:'Root Access',      mins:40, lvl:16, base:29000, xp:2900} ],
-    'Mosslight':  [ {id:'pg_ml_glow',   name:'Moss Glow Survey', mins:10, lvl:13, base:5800,  xp:580} ]
+    'Thornmesh':  [ {id:'pg_tm_patrol', name:'Thorn Patrol',     mins:18, lvl:14, base:11000} ],
+    'Rootworks':  [ {id:'pg_rw_access', name:'Root Access',      mins:40, lvl:16, base:29000} ],
+    'Mosslight':  [ {id:'pg_ml_glow',   name:'Moss Glow Survey', mins:10, lvl:13, base:5800} ]
   },
   skyarray: {
     'Spirecrest': [
-      {id:'sa_sc_climb', name:'Dish Climb',        mins:7,  lvl:13, base:4100,  xp:410},
-      {id:'sa_sc_storm', name:'Storm Anchoring',   mins:30, lvl:16, base:22000, xp:2200}
+      {id:'sa_sc_climb', name:'Dish Climb',        mins:7,  lvl:13, base:4100},
+      {id:'sa_sc_storm', name:'Storm Anchoring',   mins:30, lvl:16, base:22000}
     ],
-    'Cloudrack':  [ {id:'sa_cr_sweep', name:'Cloudrack Sweep',   mins:35, lvl:16, base:25000, xp:2500} ],
-    'Uplink':     [ {id:'sa_ul_hand',  name:'Handshake Protocol',mins:12, lvl:14, base:7500,  xp:750} ],
-    'Echomast':   [ {id:'sa_em_chase', name:'Echo Chase',        mins:20, lvl:15, base:13500, xp:1350} ]
+    'Cloudrack':  [ {id:'sa_cr_sweep', name:'Cloudrack Sweep',   mins:35, lvl:16, base:25000} ],
+    'Uplink':     [ {id:'sa_ul_hand',  name:'Handshake Protocol',mins:12, lvl:14, base:7500} ],
+    'Echomast':   [ {id:'sa_em_chase', name:'Echo Chase',        mins:20, lvl:15, base:13500} ]
   },
   undergrid: {
     'Darkloop':   [
-      {id:'ug_dl_rail',  name:'Third Rail',        mins:10, lvl:18, base:32000,  xp:3200},
-      {id:'ug_dl_map',   name:'Mapping the Loop',  mins:25, lvl:20, base:90000,  xp:9000}
+      {id:'ug_dl_rail',  name:'Third Rail',        mins:10, lvl:18, base:32000},
+      {id:'ug_dl_map',   name:'Mapping the Loop',  mins:25, lvl:20, base:90000}
     ],
-    'Wyrmwire':   [ {id:'ug_ww_desc',  name:'Wyrmwire Descent',  mins:30, lvl:20, base:110000, xp:11000} ],
-    'Substation Nine':[ {id:'ug_s9_down', name:'Substation Nine', mins:60, lvl:22, base:240000, xp:24000} ],
-    'Blackmain':  [ {id:'ug_bm_walk',  name:'Blackmain Crossing',mins:15, lvl:19, base:51000,  xp:5100} ]
+    'Wyrmwire':   [ {id:'ug_ww_desc',  name:'Wyrmwire Descent',  mins:30, lvl:20, base:110000} ],
+    'Substation Nine':[ {id:'ug_s9_down', name:'Substation Nine', mins:60, lvl:22, base:240000} ],
+    'Blackmain':  [ {id:'ug_bm_walk',  name:'Blackmain Crossing',mins:15, lvl:19, base:51000} ]
   },
   rustharbor: {
     'Drydock':    [
-      {id:'rh_dd_strip', name:'Hull Stripping',    mins:12, lvl:18, base:39000,  xp:3900},
-      {id:'rh_dd_crane', name:'Crane Duty',        mins:35, lvl:21, base:130000, xp:13000}
+      {id:'rh_dd_strip', name:'Hull Stripping',    mins:12, lvl:18, base:39000},
+      {id:'rh_dd_crane', name:'Crane Duty',        mins:35, lvl:21, base:130000}
     ],
-    'Anchorfall': [ {id:'rh_af_dive',  name:'Anchor Dive',       mins:25, lvl:20, base:90000,  xp:9000} ],
-    'Breakwall':  [ {id:'rh_bw_tide',  name:'Tide Ledger',       mins:8,  lvl:17, base:24000,  xp:2400} ],
-    'Keelrest':   [ {id:'rh_kr_ghost', name:'Ghost Freighter',   mins:90, lvl:22, base:360000, xp:36000} ]
+    'Anchorfall': [ {id:'rh_af_dive',  name:'Anchor Dive',       mins:25, lvl:20, base:90000} ],
+    'Breakwall':  [ {id:'rh_bw_tide',  name:'Tide Ledger',       mins:8,  lvl:17, base:24000} ],
+    'Keelrest':   [ {id:'rh_kr_ghost', name:'Ghost Freighter',   mins:90, lvl:22, base:360000} ]
   },
   staticwastes: {
     'Deadband':   [
-      {id:'sw_db_air',   name:'Dead Air',          mins:15, lvl:19, base:51000,  xp:5100},
-      {id:'sw_db_mark',  name:'Marking the Band',  mins:40, lvl:21, base:150000, xp:15000}
+      {id:'sw_db_air',   name:'Dead Air',          mins:15, lvl:19, base:51000},
+      {id:'sw_db_mark',  name:'Marking the Band',  mins:40, lvl:21, base:150000}
     ],
-    'The Hiss':   [ {id:'sw_th_walk',  name:'The Hiss',          mins:35, lvl:21, base:130000, xp:13000} ],
-    'Whitefield': [ {id:'sw_wf_ghost', name:'Signal Ghosts',     mins:60, lvl:22, base:240000, xp:24000} ],
-    'Hushfall':   [ {id:'sw_hf_quiet', name:'Quiet Cartography', mins:10, lvl:18, base:32000,  xp:3200} ]
+    'The Hiss':   [ {id:'sw_th_walk',  name:'The Hiss',          mins:35, lvl:21, base:130000} ],
+    'Whitefield': [ {id:'sw_wf_ghost', name:'Signal Ghosts',     mins:60, lvl:22, base:240000} ],
+    'Hushfall':   [ {id:'sw_hf_quiet', name:'Quiet Cartography', mins:10, lvl:18, base:32000} ]
   },
   coldreach: {
     'Glacierbank':[
-      {id:'cd_gb_sprk',  name:'Sprinkle Storm',    mins:8,  lvl:18, base:26000,  xp:2600},
-      {id:'cd_gb_cone',  name:'The Cone Convoy',   mins:30, lvl:20, base:110000, xp:11000}
+      {id:'cd_gb_sprk',  name:'Sprinkle Storm',    mins:8,  lvl:18, base:26000},
+      {id:'cd_gb_cone',  name:'The Cone Convoy',   mins:30, lvl:20, base:110000}
     ],
-    'Permafrost': [ {id:'cd_pf_scoop', name:'The Big Scoop',     mins:20, lvl:20, base:72000,  xp:7200} ],
-    'Whiteout':   [ {id:'cd_wo_freeze',name:'Brain Freeze',      mins:45, lvl:21, base:170000, xp:17000} ],
-    'Winterstill':[ {id:'cd_ws_still', name:'Stillness Survey',  mins:12, lvl:19, base:41000,  xp:4100} ]
+    'Permafrost': [ {id:'cd_pf_scoop', name:'The Big Scoop',     mins:20, lvl:20, base:72000} ],
+    'Whiteout':   [ {id:'cd_wo_freeze',name:'Brain Freeze',      mins:45, lvl:21, base:170000} ],
+    'Winterstill':[ {id:'cd_ws_still', name:'Stillness Survey',  mins:12, lvl:19, base:41000} ]
   },
   crystalrelay: {
     'Prismfall':  [
-      {id:'cy_pf_cal',   name:'Prism Calibration', mins:20, lvl:24, base:1600000, xp:120000},
-      {id:'cy_pf_shard', name:'Shard Gathering',   mins:45, lvl:26, base:3900000, xp:290000}
+      {id:'cy_pf_cal',   name:'Prism Calibration', mins:20, lvl:24, base:1600000},
+      {id:'cy_pf_shard', name:'Shard Gathering',   mins:45, lvl:26, base:3900000}
     ],
-    'Longwave':   [ {id:'cy_lw_vigil', name:'Longwave Vigil',    mins:60, lvl:26, base:5300000, xp:400000} ],
-    'The Lattice':[ {id:'cy_lt_walk',  name:'Lattice Walk',      mins:90, lvl:27, base:8200000, xp:620000} ]
+    'Longwave':   [ {id:'cy_lw_vigil', name:'Longwave Vigil',    mins:60, lvl:26, base:5300000} ],
+    'The Lattice':[ {id:'cy_lt_walk',  name:'Lattice Walk',      mins:90, lvl:27, base:8200000} ]
   },
   nullgate: {
     'Threshold':  [
-      {id:'ng_th_watch', name:'Threshold Watch',   mins:30, lvl:27, base:2700000, xp:200000},
-      {id:'ng_th_key',   name:'The Unmade Key',    mins:75, lvl:29, base:7400000, xp:560000}
+      {id:'ng_th_watch', name:'Threshold Watch',   mins:30, lvl:27, base:2700000},
+      {id:'ng_th_key',   name:'The Unmade Key',    mins:75, lvl:29, base:7400000}
     ],
-    'Lastlight':  [ {id:'ng_ll_run',   name:'Lastlight Run',     mins:60, lvl:28, base:5700000, xp:430000} ],
-    'The Hollow': [ {id:'ng_hw_in',    name:'The Hollow',        mins:120, lvl:30, base:12200000, xp:920000} ]
+    'Lastlight':  [ {id:'ng_ll_run',   name:'Lastlight Run',     mins:60, lvl:28, base:5700000} ],
+    'The Hollow': [ {id:'ng_hw_in',    name:'The Hollow',        mins:120, lvl:30, base:12200000} ]
   }
 };
 const EXP_SLOTS_BASE = 2;
@@ -7800,7 +7877,7 @@ function expErrText(e){
 function startExpedition(id){
   if (NET.on){
     netStartExpedition(id)
-      .then(() => { expNote = ''; renderExpPanel(); updateUI(true); })
+      .then(() => { expNote = ''; renderExpPanel(); refreshRegionUI(); updateUI(true); })
       .catch(e => expSay(expErrText(e)));
     return;
   }
@@ -7821,7 +7898,9 @@ function startExpedition(id){
     total: expRunSeconds(def),
     endsAt: Date.now() + expRunSeconds(def) * 1000,
     data: expDataReward(def),
-    xp: def.xp
+    /* Samma form som guldet: tid och ring, avtagande per minut. Forut lag talet
+       i uppdragets egen rad och vaxte 850 ganger mellan hemma och ytterkanten. */
+    xp: expXpReward(def)
   });
   renderExpPanel();
   save();
@@ -8050,7 +8129,7 @@ function addInvItem(def){
 function invSort(){
   const items = S.inv.filter(Boolean);
   const gear = items.filter(x => x.gear).sort((a, b) =>
-    (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearCP(b.gear) - gearCP(a.gear)));
+    (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearScore(b.gear) - gearScore(a.gear)));
   const rest = items.filter(x => !x.gear).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const out = gear.concat(rest);
   for (let i = 0; i < invSlots(); i++) S.inv[i] = out[i] || null;
@@ -8073,7 +8152,7 @@ function applyVaultTone(){
 function vaultSort(){
   const items = S.vault.inv.filter(Boolean);
   const gear = items.filter(x => x.gear).sort((a, b) =>
-    (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearCP(b.gear) - gearCP(a.gear)));
+    (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearScore(b.gear) - gearScore(a.gear)));
   const rest = items.filter(x => !x.gear).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const out = gear.concat(rest);
   for (let i = 0; i < vaultSlots(); i++) S.vault.inv[i] = out[i] || null;
@@ -8159,9 +8238,12 @@ function charStatRows(){
   return r;
 }
 function renderCharStats(){
-  const el1 = $('cs-cp'), el2 = $('cs-rows');
-  if (!el1) return;
-  el1.textContent = fmt(totalCP());
+  const el2 = $('cs-rows');
+  const pw = $('cs-power'), dm = $('cs-damage'), ht = $('cs-hit');
+  if (!el2 || !pw) return;
+  pw.textContent = fmt(totalPower());
+  dm.textContent = fmt(totalDamage());
+  ht.textContent = fmt(totalHit());
   const rows = charStatRows();
   el2.innerHTML = rows.length
     ? rows.map(r => '<div class="cs-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>').join('')
@@ -8191,7 +8273,19 @@ function targetSlotFor(g, want){
 function equipGear(idx, want){
   const row = S.inv[idx];
   if (!row || !row.gear) return;
-  if (NET.on){ netEquip(row.gear, want).catch(e => spawnFloat({text: e.message})); return; }
+  /* Nivakravet: en pjas rullas pa den niva agaren hade nar den foll, och kan
+     bara baras av den som natt dit. Kollas har OCKSA, sa man far ett begripligt
+     besked i stallet for serverns felkod. */
+  if (row.gear && row.gear.lv && row.gear.lv > levelInfo().lvl){
+    say('Requires level ' + row.gear.lv + ' — you are ' + levelInfo().lvl + '.');
+    return;
+  }
+  if (NET.on){
+    netEquip(row.gear, want).catch(e => say(e.message === 'level_too_low_for_item'
+      ? 'Requires level ' + (row.gear.lv || '?') + ' — you are ' + levelInfo().lvl + '.'
+      : e.message));
+    return;
+  }
   const it = row.gear, dest = targetSlotFor(it, want), old = S.equip[dest];
   S.equip[dest] = it;
   /* Den gamla pjäsen tar den nyas ruta — du får tillbaka den där du tog den ifrån,
@@ -8671,6 +8765,11 @@ function expGoldRange(def){
    minst ett, plus Fragment Find pa utrustningen och Fragment Nose hos hjalparen.
    Det ar exakt vad servern betalar. Forut rakande klienten ur nivan, sa en lang
    kortur pa lag niva lovade 1-2 och betalade 24. */
+function expXpReward(def){
+  const R = REGIONS[def.region];
+  return Math.round(48 * Math.pow(1.8, R ? Math.min(4, R.tier | 0) : 0)
+                       * Math.pow(Math.max(1, def.mins || 1), 0.55));
+}
 function expFragBase(def){ return Math.max(1, Math.floor((def.mins || 1) / 5)); }
 function expFragBonus(){ return (gearBonus('frag') + helperBonus('frag')) / 100; }
 function expFragRange(def){
@@ -8962,7 +9061,11 @@ function renderExpPanel(){
       const here = rk === 0 && !S.world.travel;
       let action = '';
       let status = '';
-      if (running) status = '<span class="ef-status running">Running</span>';
+      /* Ar uppdraget ute star det i KNAPPEN, dar Start annars star. Forut stod
+         ordet i statusfaltet langst till vanster OCH knappen forsvann helt, sa
+         platsen man tittar pa blev tom - och trycker man da igen far man ett
+         felmeddelande i stallet for ett besked. */
+      if (running) action = '<button class="zx-btn running ef-travel" disabled>Running</button>';
       else if (S.world.travel && rk === 0) status = '<span class="ef-status away">In transit…</span>';
       else if (here){
         if (lvl < def.lvl) action = '<button class="zx-btn cant ef-travel" disabled>Lv ' + def.lvl + '</button>';
@@ -9396,7 +9499,7 @@ function loopBody(now){
          synk, och nivan foll tillbaka. */
       NET.visibleSecs += dt;
     } else {
-      xpAcc += 0.1 * dt;
+      xpAcc += 0.06 * dt * ringMult();
       if (xpAcc >= 1){ const w = Math.floor(xpAcc); xpAcc -= w; grantXP(w); }
     }
   }
@@ -9483,8 +9586,12 @@ function updateUI(force){
   el.repBonus.textContent = '+' + (rank * 2) + '%';
 
   const li = levelInfo();
-  el.lvlBadge.textContent = li.lvl;
-  el.lvlText.textContent = 'Runner Level ' + li.lvl;
+  /* Vid taket fortsatter paragon. Den star som "50+12" - ett tal man kan lasa
+     utan forklaring, och det syns att grundnivan tagit slut. */
+  el.lvlBadge.textContent = li.para ? (li.lvl + '+' + li.para) : li.lvl;
+  el.lvlText.textContent = li.para
+    ? 'Runner Level ' + li.lvl + ' · Paragon ' + li.para
+    : 'Runner Level ' + li.lvl;
   el.xpFill.style.width = Math.min(100, (li.into / li.need) * 100) + '%';
   el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
 
@@ -10803,7 +10910,10 @@ const VENDOR_MARKUP = [GOLD(8), GOLD(12), GOLD(20), GOLD(32), GOLD(40), GOLD(55)
    Följden är mätt och ärlig: rabatten ger full effekt på common och uncommon,
    nyps av på rare vid många stjärnor, och på epic och uppåt skulle tio guld i
    påslag inte räcka till alls (golvet tar över). Vendorn säljer inget sådant idag. */
-function vendorFloor(rarIdx){ return GEAR_RAR[rarIdx].gold[1] + GOLD(1); }
+/* Nivatrappan, samma som serverns: pjasen rullas pa din niva, sa priset maste
+   folja med. Annars ar handlaren en falla for den som just borjat. */
+function gearLevelMult(){ return (1 + 0.10 * (Math.min(50, levelInfo().lvl) - 1)) / 5.9; }
+function vendorFloor(rarIdx){ return Math.round((GEAR_RAR[rarIdx].gold[1] + GOLD(1)) * gearLevelMult()); }
 function vendorGearPrice(rarIdx, regionId, entry){
   /* Servern satter priset nar man ar inloggad - klientens uträkning ar bara
      till for offline-laget och far aldrig visa ett annat tal an det man betalar. */
@@ -10812,7 +10922,7 @@ function vendorGearPrice(rarIdx, regionId, entry){
   /* Golvet behövs inte längre med de uträknade påslagen — det står kvar som
      säkerhetsspärr, eftersom band och påslag justeras om under balansarbetet och
      ett räknefel där aldrig ska kunna öppna en pengamaskin. */
-  const base = Math.max(Math.round((b[0] + b[1]) / 2) + VENDOR_MARKUP[rarIdx], floor);
+  const base = Math.max(Math.round(((b[0] + b[1]) / 2 + VENDOR_MARKUP[rarIdx]) * gearLevelMult()), floor);
   const stars = regionId ? repRank(regionId) : 0;
   return Math.max(floor, Math.round(base * (1 - 0.03 * stars)));
 }
@@ -10909,7 +11019,7 @@ function buyVendorGear(regionId, i){
   S.stats.bought = (S.stats.bought || 0) + 1;
   S.inv[free] = {gear: it};
   S.gold -= price;
-  vendorNote = 'Bought ' + gearName(it) + ' — ' + gearCP(it) + ' CP. It is in your backpack.';
+  vendorNote = 'Bought ' + gearName(it) + '. It is in your backpack.';
   renderInventory(); updateUI(true); save();
   return true;
 }
@@ -11174,7 +11284,7 @@ function startResearch(id){
     return;
   }
   S.research = {region: id, eta: Date.now() + researchTime(id) * 1000};
-  grantXP(20);
+  grantXP(20 * ringMult(id));
   save();
   openRegion(id);
 }
@@ -11258,7 +11368,7 @@ function checkResearch(){
   const id = S.research.region;
   S.research = null;
   if (!isKnown(id)) S.world.known.push(id);
-  grantXP(50);
+  grantXP(50 * ringMult(id));
   renderMap(); refreshTravelBar();
   /* Står man och tittar på signalen när den blir färdig ska kortet bytas ut på
      plats — annars står "Unknown Region" kvar tills man stänger och öppnar. */
@@ -11314,7 +11424,7 @@ function arrive(){
     S.world.current = id;
     S.world.zone = null;
     if (!S.world.visited.includes(id)) S.world.visited.push(id);
-    if (!NET.on) grantXP(100);   /* i serverlage ger framkomsten XP pa servern */
+    if (!NET.on) grantXP(100 * ringMult());   /* i serverlage ger framkomsten XP pa servern */
   }
   viewedRegion = id;
   if (mapMode === 'region') setMapMode('region'); else renderMap();
@@ -11980,7 +12090,7 @@ function renderRecipeBook(){
       spawnFloat({text: 'Crafted ' + nm + '!'}); renderRecipeBook();
     }
   }));
-  /* Hovra en receptrad och se det nastan-vanliga foremalskortet: Combat Power
+  /* Hovra en receptrad och se det nastan-vanliga foremalskortet: talen
      "half", formagorna som antal, och saljvardet. Bara pa recept man KAN se
      (kanda) - ett last drop-recept avslojar inget. */
   list.querySelectorAll('.recipe-row:not(.locked)').forEach((row, i) => {
@@ -12333,12 +12443,19 @@ function gearTipHTML(it){
     return ' <b class="' + (n > 0 ? 'up' : 'dn') + '">' + (n > 0 ? '+' : '−') + fmt(Math.abs(n)) + '</b>';
   };
   return name +
-    '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
-    /* Tre avgränsade block: plats · kraft och hälsa · förmågor · priset. Strecken
+    /* Nivan star bredvid platsen: bade saljare och kopare pa auktionen maste
+       kunna se vad de har framfor sig. Pjasen rullades pa den nivan och vaxer
+       aldrig efterat. */
+    '<div class="gt-rar">' + GEAR_SLOTS[it.s].name +
+      (it.lv ? '<span class="' + (it.lv > levelInfo().lvl ? 'gt-req cant' : 'gt-req') + '">'
+             + 'Level ' + it.lv + '</span>' : '') + '</div>' +
+    /* Tre avgränsade block: plats · talen · förmågor · priset. Strecken
        gör att ögat hittar rätt grupp utan att läsa. */
     '<div class="gt-sep"></div>' +
-    stat(fmt(gearCP(it)), 'Combat Power', 'cp', delta(gearCP(it) - (cur ? gearCP(cur) : 0))) +
     stat(fmt(it.hp), 'Health', 'hp', delta(it.hp - (cur ? cur.hp : 0))) +
+    stat(fmt(it.pw || 0), 'Power', 'cp', delta((it.pw || 0) - (cur ? (cur.pw || 0) : 0))) +
+    ((it.dm || (cur && cur.dm)) ? stat(fmt(it.dm || 0), 'Damage', 'cp',
+        delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
     '<div class="gt-sep"></div>' +
     (it.s === 11 ? '<div class="gt-aff">−' + MOUNT_SPEED[it.r] + '% Travel Time</div>' : '') +
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
@@ -12374,7 +12491,7 @@ function showPlainTip(html, x, y, above){
   moveGearTip(x, y, above);
 }
 /* Hovringskortet for ett RECEPT: nastan som gear-kortet, men pjasen finns inte an
-   sa vardena ar det man VET pa forhand. Combat Power star "half" - craftat rullar
+   sa vardena ar det man VET pa forhand. Talen star "half" - craftat rullar
    nedre halvan av bandet. Formagorna visas som ANTAL ("+2 abilities") - man vet hur
    manga, inte vilka. Och saljvardet, ungefarligt ur raritetens spann. */
 function recipeTipHTML(rid){
@@ -12405,8 +12522,8 @@ function recipeTipHTML(rid){
     '<div class="gt-rar">' + (slotName || 'Item') + '</div>' +
     '<div class="gt-sep"></div>' +
     /* INGA siffror pa stat-raderna - foremalet ar inte rullat, sa vi lovar bara att
-       det GER Combat Power och Health, aldrig hur mycket. Bocken sager "detta far du". */
-    '<div class="gt-stat"><b class="rc-yes">✓</b> Combat Power</div>' +
+       det GER Health och Power, aldrig hur mycket. Bocken sager "detta far du". */
+    '<div class="gt-stat"><b class="rc-yes">✓</b> Health, Power</div>' +
     '<div class="gt-stat"><b class="rc-yes">✓</b> Health</div>' +
     '<div class="gt-sep"></div>' +
     /* Man vet ANTALET formagor, inte vilka - antal, ingen procent. */
@@ -12494,9 +12611,13 @@ function itemWinHTML(it, worn){
   return head +
     '<div class="item-top">' + art +
       '<div class="item-head">' +
-        '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
-        stat(fmt(gearCP(it)), 'Combat Power', delta(gearCP(it) - (cur ? gearCP(cur) : 0))) +
+        '<div class="gt-rar">' + GEAR_SLOTS[it.s].name +
+          (it.lv ? '<span class="' + (it.lv > levelInfo().lvl ? 'gt-req cant' : 'gt-req') + '">'
+                 + 'Level ' + it.lv + '</span>' : '') + '</div>' +
         stat(fmt(it.hp), 'Health', delta(it.hp - (cur ? cur.hp : 0))) +
+        stat(fmt(it.pw || 0), 'Power', delta((it.pw || 0) - (cur ? (cur.pw || 0) : 0))) +
+        ((it.dm || (cur && cur.dm)) ? stat(fmt(it.dm || 0), 'Damage',
+            delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
         '<div class="iw-affs">' +
           (it.s === 11 ? '<div class="af">−' + MOUNT_SPEED[it.r] + '% Travel Time</div>' : '') +
           it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
@@ -12833,7 +12954,7 @@ function showSlotPicker(slotIdx, anchor){
     (fits.length
       ? fits.map(f => '<div class="sp-item" data-i="' + f.i + '" style="--rc:' + gearRarCol(f.g) + '">' +
           '<span class="sp-art" style="background-image:url(\'' + gearArt(f.g) + '\')"></span>' +
-          '<span class="sp-nm">' + gearName(f.g) + ' · ' + gearCP(f.g) + ' CP</span></div>').join('')
+          '<span class="sp-nm">' + gearName(f.g) + '</span></div>').join('')
       : '<div class="sp-none">Nothing in your backpack fits this slot.</div>');
   document.body.appendChild(pick);
   const r = anchor.getBoundingClientRect();
@@ -13669,6 +13790,9 @@ async function gateEnter(id, name){
   try {
     await netPullAll();       /* serverns tillstand ersatter det lokala helt */
     await netSync();          /* och tiden sedan sist raknas fram */
+    /* Vad karaktaren REDAN har ar inte nya nivaer. Utan detta small
+       uppstigningen av direkt vid inloggning for var och en som har nagra. */
+    lastLevel = levelInfo().lvl; lastPara = levelInfo().para || 0;
     $('gate').classList.add('done');
     updateUI(true); refreshShelf(); renderInventory();
   } catch (e){
@@ -13832,7 +13956,7 @@ buildPremiumOffline();
 /* Väskan får alltid exakt lika många rutor som spelet säger — gamla sparfiler
    fylls ut med tomma, och en för lång lista kapas. */
 invNormalize();
-lastLevel = levelInfo().lvl;
+lastLevel = levelInfo().lvl; lastPara = levelInfo().para || 0;
 renderPetPanel();
 renderEquip();
 setMapMode('region');
@@ -14134,8 +14258,18 @@ function ahRenderTable(){
   } else {
     h += r.rows.map(row =>
       '<div class="ah-row">' +
+        /* Nivan star pa raden. Sedan nivakravet infordes ar det det viktigaste
+           talet i hela listan: kan du inte bara pjasen ar priset likgiltigt.
+           Rott nar den ar over din niva - men kopet ar inte stoppat, man far
+           spara en pjas till man vuxit i den. */
         '<span class="ah-c-item">' + ahIconHtml(row) +
-          '<span class="ah-nm"><b>' + row.name + '</b><i>' + row.type_line + '</i></span></span>' +
+          '<span class="ah-nm"><b>' + row.name +
+            (row.lvl ? '<span class="' + (row.lvl > levelInfo().lvl ? 'gt-req cant' : 'gt-req') +
+                       '">Level ' + row.lvl + '</span>' : '') +
+          '</b><i>' + row.type_line +
+            (row.item_key ? ' · ' + (row.hp || 0) + ' HP · ' + (row.power || 0) + ' Power' +
+                            ((row.damage || 0) > 0 ? ' · ' + row.damage + ' Damage' : '') : '') +
+          '</i></span></span>' +
         '<span class="ah-c-rar" style="color:' + ahRarCol(row.rarity) + '">' + ahRarName(row.rarity) + '</span>' +
         '<span class="ah-c-seller">' + row.seller + '</span>' +
         '<span class="ah-c-qty">' + row.quantity + '</span>' +
