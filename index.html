@@ -3570,7 +3570,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.5.0 — FIXLISTAN, TRETTON AV FJORTON</div>
+            <div class="desc">GENESIS v4.5.1 — BESKEDET VID HOVRINGEN</div>
           </div>
         </div>
       </div>
@@ -3596,7 +3596,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.5.0 — FIXLISTAN, TRETTON AV FJORTON</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.5.1 — BESKEDET VID HOVRINGEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -7679,6 +7679,10 @@ function buildRows(){
       rate: row.querySelector('.m-rate'),
       cost: row.querySelector('.m-cost')
     };
+    /* Beskedet kommer nu vid HOVRING, inte av ett klick. */
+    rowRefs[b.id].helper.addEventListener('mouseenter', () => showHelperTip(b, rowRefs[b.id].helper));
+    rowRefs[b.id].helper.addEventListener('mousemove', e => { if (tipHelper) placeMachineTipAt(e.clientX, e.clientY); });
+    rowRefs[b.id].helper.addEventListener('mouseleave', hideHelperTip);
     rowRefs[b.id].helper.addEventListener('click', e => {
       e.stopPropagation();
       /* SHIFT+KLICK PA PLATSEN TAR UT HJALPAREN. Forut fanns shift-klick bara i
@@ -7759,7 +7763,59 @@ function placeMachineTipAt(x, y){
   machineTip.style.top = top + 'px';
 }
 function hideMachineTip(){ tipBuilding = null; machineTip.classList.remove('on'); }
-function refreshMachineTip(){ if (tipBuilding) machineTip.innerHTML = machineTipHTML(tipBuilding); }
+function refreshMachineTip(){
+  if (tipBuilding) machineTip.innerHTML = machineTipHTML(tipBuilding);
+  else if (tipHelper) machineTip.innerHTML = helperTipBoxHTML(tipHelper);
+}
+
+/* ---------- HJALPARPLATSENS RUTA ----------
+   Beskedet stod forut i valjaren som oppnades av ett KLICK: man fick trycka for
+   att fa veta att man inte kunde trycka. Samma besked hor hemma i hovringen -
+   klicket ska vara till for att GORA nagot. */
+let tipHelper = null;
+function helperTipBoxHTML(b){
+  const owned = S.own[b.id] || 0;
+  const ab = HELPER_ABILITIES[b.boon];
+  const cur = seatedPet(b.id);
+  const allowed = helperRarityAllowed(b.id);
+  const nextTier = HELPER_TIERS.findIndex(t => owned < t);
+  let h = '<div class="mt-head"><span class="mt-name">' + b.name + ' \u2014 ' + ab.name + '</span></div>';
+  if (owned < 1){
+    h += '<div class="mt-boon">Build one ' + b.name + ' before anyone can work here.</div>';
+    return h;
+  }
+  if (cur){
+    const a = helperAbilityOf(cur);
+    h += '<div class="mt-boon">' + petName(cur) + ' is working here' +
+         (a ? ' \u2014 ' + HELPER_ABILITIES[a.f].text(a.v) : '') + '.</div>';
+  } else {
+    h += '<div class="mt-boon">A helper here ' + (BOON_PLAIN[b.boon] || ab.name) + '.</div>';
+  }
+  if (nextTier >= 0){
+    h += '<div class="mt-boon">Own ' + HELPER_TIERS[nextTier] + ' to seat ' +
+      GEAR_RAR[nextTier].name + ' \u2014 you have ' + owned + '.</div>';
+  }
+  const fits = petsOwned().filter(p => {
+    const a = petAffixes(p)[0];
+    return a && a.f === b.boon && p.rar <= allowed;
+  });
+  if (!fits.length){
+    const anyRight = petsOwned().some(p => (petAffixes(p)[0] || {}).f === b.boon);
+    h += '<div class="mt-boon">' + (anyRight
+      ? 'You have a ' + ab.name + ' helper, but this slot only takes up to ' +
+        GEAR_RAR[Math.max(0, allowed)].name + ' \u2014 build more.'
+      : 'No ' + ab.name + ' helper yet. Open caches until one turns up.') + '</div>';
+  }
+  return h;
+}
+function showHelperTip(b, elm){
+  tipBuilding = null; tipHelper = b;
+  machineTip.innerHTML = helperTipBoxHTML(b);
+  machineTip.classList.add('on');
+  const r = elm.getBoundingClientRect();
+  placeMachineTipAt(r.left + r.width / 2, r.top);
+}
+function hideHelperTip(){ tipHelper = null; machineTip.classList.remove('on'); }
 
 function xpPerBuilding(b){
   // Billigaste byggnaden ger 2 XP, sen dubblas det per rang: 2,4,8,...,1024
@@ -15545,19 +15601,19 @@ function openHelperPicker(bid, x, y){
   const m = document.createElement('div');
   m.className = 'pet-menu helper-menu';
   const ab = HELPER_ABILITIES[b.boon];
-  let h = '<div class="pm-head">' + b.name + ' — ' + ab.name + '</div>';
-  const nextTier = HELPER_TIERS.findIndex(t => owned < t);
-  if (nextTier >= 0){
-    h += '<div class="pm-note">Own ' + HELPER_TIERS[nextTier] + ' to seat ' +
-      GEAR_RAR[nextTier].name + ' — you have ' + owned + '.</div>';
+  /* VALJAREN ar bara till for att VALJA. Forklaringarna - hur manga byggnader
+     en sallsynthet kraver, och att man saknar ratt hjalpare - star i hovringen
+     over rutan i stallet. Finns ingenting att valja oppnas ingen tom ruta: da
+     visas samma besked, sa knappen aldrig tiger. */
+  if (!list.length && !cur){
+    showHelperTip(b, document.querySelector('[data-helper="' + bid + '"]') || document.body);
+    setTimeout(hideHelperTip, 4000);
+    return;
   }
+  let h = '<div class="pm-head">' + b.name + ' — ' + ab.name + '</div>';
   if (cur) h += '<button class="pm-item danger" data-seat="">Remove ' + petName(cur) + '</button>';
   if (!list.length){
-    const anyRight = petsOwned().some(p => (petAffixes(p)[0] || {}).f === b.boon);
-    h += '<div class="pm-note">' + (anyRight
-      ? 'You have a ' + ab.name + ' helper, but this slot only takes up to ' +
-        GEAR_RAR[Math.max(0, allowed)].name + ' — build more.'
-      : 'No ' + ab.name + ' helper yet. Open caches until one turns up.') + '</div>';
+    h += '<div class="pm-note">Nobody else fits this slot right now.</div>';
   } else {
     list.slice(0, 12).forEach(p => {
       const a = helperAbilityOf(p);
