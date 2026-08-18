@@ -3560,7 +3560,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.3.5 — SKIFT</div>
+            <div class="desc">GENESIS v4.3.6 — DIREKT</div>
           </div>
         </div>
       </div>
@@ -3586,7 +3586,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.5 — SKIFT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.6 — DIREKT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4028,6 +4028,22 @@ function netTap(count, heldSecs){
 
 /* Kop av maskin gar ALLTID till servern och vantar pa svaret - priset ar
    serverns, och pengarna far inte dras lokalt pa gissning. */
+/* Serverns svar bar med sig den NYA XP-summan. Utan det stod niva och matare
+   stilla tills nasta synk - upp till tjugo sekunder efter att man kopt nagot,
+   och da hoppade de till av sig sjalva. Servern agar talet; klienten far det
+   direkt i svaret i stallet for att gissa. */
+function netTakeXp(r){
+  if (r && r.xp != null){
+    S.xp = +r.xp;
+    const li = levelInfo();
+    if (li.lvl > lastLevel || li.para > lastPara){
+      lastLevel = li.lvl; lastPara = li.para || 0;
+      levelUpFx(li.lvl);
+    }
+    updateUI(true);
+  }
+  return r;
+}
 async function netBuyMachine(id){
   if (!NET.on) return null;
   const r = await srvRpc('buy_machine', {p_character: SRV.charId, p_machine: id});
@@ -4036,6 +4052,7 @@ async function netBuyMachine(id){
     NET.serverData = +r.data || 0;
     S.data = NET.serverData;
     NET.predictedAt = Date.now();
+    netTakeXp(r);
   }
   return r;
 }
@@ -4048,6 +4065,7 @@ async function netBuyMilestone(machineId, step){
     NET.serverData = +r.data || 0;
     S.data = NET.serverData;
     NET.predictedAt = Date.now();
+    netTakeXp(r);
   }
   return r;
 }
@@ -4299,6 +4317,7 @@ async function netBuyUpgrade(id){
     NET.serverData = +r.data || 0;
     S.data = NET.serverData;
     NET.predictedAt = Date.now();
+    netTakeXp(r);
   }
   return r;
 }
