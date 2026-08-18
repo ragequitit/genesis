@@ -2623,12 +2623,14 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   background:#10162e;color:var(--text);font-size:17px;cursor:pointer;
 }
 .ah-qty button:hover{border-color:var(--border-glow)}
-.ah-qty span{
-  flex:1;display:flex;align-items:center;justify-content:center;
+.ah-qty span,.ah-qty input{
+  flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
   background:#0b1024;border:1px solid var(--border-soft);border-radius:9px;
-  font-family:var(--font-mono);font-size:14px;
+  font-family:var(--font-mono);font-size:14px;color:var(--text);min-width:0;
 }
+.ah-qty input:focus{outline:none;border-color:var(--cyan)}
 .ah-avail{color:var(--text-faint);font-size:11px;margin:6px 2px 0}
+.ah-unit{display:block;font-style:normal;font-size:9.5px;color:var(--text-faint);font-family:var(--font-mono)}
 .ah-pricebox{
   display:flex;align-items:center;gap:8px;padding:0 12px;
   background:#0b1024;border:1px solid var(--border-soft);border-radius:9px;
@@ -3650,7 +3652,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.8.0 — OMSTARTSTRADET</div>
+            <div class="desc">GENESIS v4.8.1 — EGNA ANNONSER</div>
           </div>
         </div>
       </div>
@@ -3676,7 +3678,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.8.0 — OMSTARTSTRADET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.8.1 — EGNA ANNONSER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3702,6 +3704,9 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="ah-tabs">
           <button class="ah-tab on" id="ah-tab-buy">BUY</button>
           <button class="ah-tab" id="ah-tab-sell">SELL</button>
+          <!-- Egna annonser var gomda bakom en knapp langst ner. De ar en av tre
+               saker man gor har och forjanar en flik. -->
+          <button class="ah-tab" id="ah-tab-mine">ACTIVE</button>
         </div>
         <div class="ah-title">
           <span class="qi qi-auction ah-gavel"></span>
@@ -15195,8 +15200,9 @@ function ahRenderShell(){
   ahSyncTabs();
 }
 function ahSyncTabs(){
-  $('ah-tab-buy').classList.toggle('on', AH.view !== 'sell');
+  $('ah-tab-buy').classList.toggle('on', AH.view === 'buy');
   $('ah-tab-sell').classList.toggle('on', AH.view === 'sell');
+  $('ah-tab-mine').classList.toggle('on', AH.view === 'mine');
 }
 function ahSetView(v){
   AH.view = v; AH.page = 1; ahSyncTabs(); ahLoad();
@@ -15403,7 +15409,11 @@ function ahRenderSellPanel(){
       '<em style="color:' + ahRarCol(s.rar) + '">' + ahRarName(s.rar) + '</em><i>' + ahTypeOfSel(s) + '</i></span>' +
     '</div>' +
     '<div class="ah-lbl">Quantity</div>' +
-    '<div class="ah-qty"><button id="ah-qminus">−</button><span id="ah-qval">' + AH.qty + '</span><button id="ah-qplus">+</button></div>' +
+    /* Antalet skrivs in direkt. Plus och minus finns kvar for den som hellre
+       trycker, men att knappa sig till 121 stycken ar ingen mekanik. */
+    '<div class="ah-qty"><button id="ah-qminus">−</button>' +
+      '<input id="ah-qval" inputmode="numeric" value="' + AH.qty + '">' +
+      '<button id="ah-qplus">+</button></div>' +
     '<div class="ah-avail">Available: ' + s.avail + '</div>' +
     '<div class="ah-lbl">Unit Price</div>' +
     '<div class="ah-pricebox"><span class="ah-coin">🪙</span><input id="ah-price" inputmode="numeric" value="' + (AH.price || '') + '" placeholder="0"><span class="ah-pen">✎</span></div>' +
@@ -15420,6 +15430,19 @@ function ahRenderSellPanel(){
 
   $('ah-qminus').addEventListener('click', () => { AH.qty = Math.max(1, AH.qty - 1); ahRenderSellPanel(); });
   $('ah-qplus').addEventListener('click', () => { AH.qty = Math.min(s.avail, AH.qty + 1); ahRenderSellPanel(); });
+  const qv = $('ah-qval');
+  /* Talet rattas MEDAN man skriver bara uppat mot taket - annars kan man inte
+     radera en siffra for att skriva en ny. Tomt falt betyder ett. */
+  qv.addEventListener('input', () => {
+    const raw = qv.value.replace(/[^0-9]/g, '');
+    let n = Math.min(s.avail, Math.max(0, +raw || 0));
+    if (String(n) !== raw) qv.value = raw === '' ? '' : String(n);
+    AH.qty = Math.max(1, n);
+    const t = AH.qty * AH.price;
+    $('ah-feeval').textContent = fmtLong(Math.ceil(t * ahFeePct(AH.hours) / 100));
+    $('ah-totalval').innerHTML = ahCoin(t);
+  });
+  qv.addEventListener('blur', () => { qv.value = AH.qty; });
   const pr = $('ah-price');
   pr.addEventListener('input', () => {
     AH.price = Math.max(0, Math.floor(+pr.value.replace(/[^0-9]/g, '') || 0));
@@ -15461,7 +15484,9 @@ function ahRenderMine(){
           '<span class="ah-nm"><b style="color:' + ahRarCol(r.rarity) + '">' + r.name + '</b><i>' +
           (r.status === 'active' ? 'ends in ' + ahLeftText(r.ends_in) : r.status) + '</i></span></span>' +
         '<span class="ah-c-qty">×' + r.quantity + '</span>' +
-        '<span class="ah-c-price">' + ahCoin(Math.floor(r.total_price / COPPER_PER_GOLD)) + '</span>' +
+        '<span class="ah-c-price">' + ahCoin(Math.floor(r.total_price / COPPER_PER_GOLD)) +
+          '<i class="ah-unit">' + fmtLong(Math.floor(r.unit_price / COPPER_PER_GOLD)) + ' each</i></span>' +
+        '<span class="ah-c-left">' + (r.status === 'active' ? ahLeftText(r.ends_in) : '\u2014') + '</span>' +
         '<span class="ah-c-fee">fee ' + r.fee_pct + '%</span>' +
         '<span class="ah-c-buy">' + (r.status === 'active'
           ? '<button class="ah-buy ah-cancel" data-id="' + r.id + '">CANCEL</button>'
@@ -15471,14 +15496,29 @@ function ahRenderMine(){
   h += '</div>';
   mid.innerHTML = h;
   mid.querySelectorAll('.ah-cancel').forEach(el => el.addEventListener('click', async () => {
-    if (AH.busy) return; AH.busy = true;
+    if (AH.busy) return;
+    const row = (AH.my.rows || []).find(x => String(x.id) === String(el.dataset.id)) || {};
+    /* Att dra tillbaka en annons ar inte gratis i uppmarksamhet: den ar borta ur
+       listan och varan kommer med POSTEN, inte rakt ner i vaskan. Sag det innan,
+       inte efterat. */
+    const ok = await askConfirm({
+      ico: '\u2696', color: 'var(--cyan)',
+      title: 'Pull this listing?',
+      body: 'The listing ends now and <b>' + (row.name || 'your goods') +
+            '</b> comes back to your <b>mailbox</b>, not straight to your bag. ' +
+            'Anyone about to buy it loses their chance.',
+      yes: 'PULL IT', no: 'LEAVE IT UP'
+    });
+    if (!ok) return;
+    AH.busy = true;
     try {
       await netAhCancel(el.dataset.id);
-      spawnFloat({text: 'Listing cancelled'});
+      say('Listing pulled — your goods are waiting in the mailbox.');
       await netPullItems();
+      await netPullMailbox(); renderMailBadge();
       const c = await netAhCounts(); AH.counts = c;
       ahRenderCats(); await ahLoad(); renderEquip(); renderInventory(); updateUI(true);
-    } catch (e){ spawnFloat({text: ahErrText(e)}); }
+    } catch (e){ say(ahErrText(e)); }
     AH.busy = false;
   }));
 }
@@ -15523,6 +15563,7 @@ function ahRenderBottom(){
 $('ah-close').addEventListener('click', closeAuction);
 $('ah-tab-buy').addEventListener('click', () => ahSetView('buy'));
 $('ah-tab-sell').addEventListener('click', () => ahSetView('sell'));
+$('ah-tab-mine').addEventListener('click', () => ahSetView('mine'));
 $('ah-my-btn').addEventListener('click', () => ahSetView('mine'));
 $('ah-hist-btn').addEventListener('click', () => ahSetView('history'));
 document.querySelectorAll('.nav-btn .lbl, .qa-btn .lbl').forEach(l => {
