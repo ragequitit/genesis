@@ -3705,7 +3705,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.13.0 — SERVERN VET VAR DU AR</div>
+            <div class="desc">GENESIS v4.13.1 — RATT PJAS, TOM PLATS</div>
           </div>
         </div>
       </div>
@@ -3731,7 +3731,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.13.0 — SERVERN VET VAR DU AR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.13.1 — RATT PJAS, TOM PLATS</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4041,6 +4041,8 @@ const SRV_ERRORS = {
   perk_locked:              'Buy a level in the row above first.',
   slot_locked:              'That bag slot is still locked.',
   not_a_bag:                'That is not a bag.',
+  no_such_run:              'That expedition is already claimed.',
+  expedition_not_finished:  'That expedition is still out.',
   tank_already_full:        'The tank is already full.',
   not_usable:               'That cannot be used.',
   unknown_flask:            'That cannot be used.',
@@ -4982,9 +4984,14 @@ async function netClaimExpedition(expId){
     if (r.gold != null) S.gold = +r.gold;
   }
   await netPullItems();
+  /* KORNINGARNA OCKSA: servern har strukit den hamtade, och utan den har raden
+     lag expeditionen kvar pa skarmen med sin Claim-knapp - en knapp som bara
+     kunde saga nej. */
+  await netPullRunsInto();
   /* Receptfynd bokfors av servern - hamta hem dem sa receptboken vet. */
   if (r && r.recipe) await netPullProfessions();
   await netCheckAchievements();
+  renderExpPanel();
   updateUI(true);
   /* Sag VAD man fick. Forut kom utrustning, cell och recept helt tyst - och
      fore idag kom de inte alls. */
@@ -9796,18 +9803,37 @@ function claimExpedition(id){
         }, true);
         renderExpPanel(); updateUI(true);
       })
-      .catch(e => { expClaiming = false; say(srvErrText(e, 'Could not claim that expedition.')); });
+      .catch(e => {
+        expClaiming = false;
+        say(srvErrText(e, 'Could not claim that expedition.'));
+        /* Sager servern nej har klienten fel bild. Hamta hem den riktiga i
+           stallet for att lata en dod knapp sta kvar. */
+        netPullRunsInto().then(() => { renderExpPanel(); updateUI(true); }).catch(() => {});
+      });
     return;
   }
   if (!run.loot){ run.loot = rollExpeditionLoot(expDefById(run.id)); save(); }
   showRewards(run, false);
 }
 let expClaiming = false;
-/* Serverns fyndrad ar {item, rarity, id} - det racker for att rita kortet. */
+/* Serverns fyndrad ar bara {item, rarity, id}. Den DUGER INTE att visa: en pjas
+   utan sina tal star som noll Health, noll Power och "Sells for 0c", och
+   jamforelsen mot det man bar blir rott rakt igenom. Den riktiga pjasen finns
+   redan hemma efter hamtningen - vi slar upp den pa serverns id. */
+function gearBySid(sid){
+  if (!sid) return null;
+  for (const row of S.inv) if (row && row.gear && row.gear.sid === sid) return row.gear;
+  for (const k in S.equip) if (S.equip[k] && S.equip[k].sid === sid) return S.equip[k];
+  const v = (S.vault && S.vault.inv) || [];
+  for (const row of v) if (row && row.gear && row.gear.sid === sid) return row.gear;
+  return null;
+}
 function netGearFromClaim(g){
-  const D = ITEMS[g.item];
-  if (!D) return null;
-  return {t: g.item, r: +g.rarity || 0, sid: g.id, a: [], hp: 0, uid: 0, s: D.slot};
+  const real = gearBySid(g.id);
+  if (real) return real;
+  /* Hittas den inte (full vaska, postad i stallet) visas ingen pjas alls -
+     hellre tyst an en rad med nollor. */
+  return null;
 }
 
 /* Belöningspopupen — spelarens mockup: fyra piedestalkort + sammanfattning + hämtknapp */
