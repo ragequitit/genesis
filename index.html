@@ -3652,7 +3652,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.8.1 — EGNA ANNONSER</div>
+            <div class="desc">GENESIS v4.9.0 — AVGIFTEN BETALAS I FORVAG</div>
           </div>
         </div>
       </div>
@@ -3678,7 +3678,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.8.1 — EGNA ANNONSER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.9.0 — AVGIFTEN BETALAS I FORVAG</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -15119,7 +15119,8 @@ async function netAhList(){
 function ahErrText(e){
   const m = String(e && e.message || e);
   const map = {
-    insufficient_gold: 'Not enough gold', listing_gone: 'Already sold or removed',
+    insufficient_gold: 'Not enough gold for the market fee', listing_gone: 'Already sold or removed',
+    backpack_full: 'Your backpack is full',
     too_many_listings: 'Listing limit reached (10)',
     bind_on_pickup: 'Bind on Pickup — sell it to a vendor, not to a player',
     item_must_be_in_bag: 'Item must be in your backpack', not_enough_items: 'Not enough in stock',
@@ -15399,7 +15400,9 @@ function ahRenderSellPanel(){
   }
   const fee = ahFeePct(AH.hours);
   const total = AH.qty * AH.price;
-  const feeGold = Math.ceil(total * fee / 100);
+  /* Avgiften rakans i KOPPAR, precis som servern gor det. Rundades den av till
+     hela guld har sa sa rutan 1 guld medan kassan drog ett halvt. */
+  const feeCu = Math.ceil(total * COPPER_PER_GOLD * fee / 100);
   h +=
     '<div class="ah-sel-card">' +
       (s.kind === 'item'
@@ -15417,15 +15420,22 @@ function ahRenderSellPanel(){
     '<div class="ah-avail">Available: ' + s.avail + '</div>' +
     '<div class="ah-lbl">Unit Price</div>' +
     '<div class="ah-pricebox"><span class="ah-coin">🪙</span><input id="ah-price" inputmode="numeric" value="' + (AH.price || '') + '" placeholder="0"><span class="ah-pen">✎</span></div>' +
-    '<div class="ah-feerow"><span>Market Fee (' + fee + '%)</span><span id="ah-feeval">' + fmtLong(feeGold) + '</span></div>' +
-    '<div class="ah-total"><span>Total Price</span><span id="ah-totalval">' + ahCoin(total) + '</span></div>' +
+    /* Avgiften betalas NAR annonsen laggs upp, inte nar nagot saljs. Da maste
+       den sta som en kostnad har, inte som ett avdrag langre fram. */
+    '<div class="ah-feerow"><span>Market fee (' + fee + '%) — paid now</span>' +
+      '<span id="ah-feeval">' + moneyText(feeCu) + '</span></div>' +
+    '<div class="ah-total"><span>You ask</span><span id="ah-totalval">' + ahCoin(total) + '</span></div>' +
     '<div class="ah-lbl">Duration</div>' +
     '<select id="ah-dur" class="ah-dur">' +
       '<option value="24"' + (AH.hours === 24 ? ' selected' : '') + '>24 HOURS — 5% fee</option>' +
       '<option value="48"' + (AH.hours === 48 ? ' selected' : '') + '>48 HOURS — 10% fee</option>' +
       '<option value="72"' + (AH.hours === 72 ? ' selected' : '') + '>72 HOURS — 15% fee</option>' +
     '</select>' +
-    '<button class="ah-listbtn" id="ah-listbtn">LIST ITEM</button>';
+    '<button class="ah-listbtn" id="ah-listbtn"' +
+      (S.gold < feeCu ? ' disabled' : '') + '>' +
+      (feeCu > 0 ? 'LIST ITEM — PAY ' + moneyText(feeCu) : 'LIST ITEM') + '</button>' +
+    (S.gold < feeCu
+      ? '<div class="ah-avail" style="color:#ff9b9b">Not enough gold for the fee.</div>' : '');
   p.innerHTML = h;
 
   $('ah-qminus').addEventListener('click', () => { AH.qty = Math.max(1, AH.qty - 1); ahRenderSellPanel(); });
@@ -15439,7 +15449,7 @@ function ahRenderSellPanel(){
     if (String(n) !== raw) qv.value = raw === '' ? '' : String(n);
     AH.qty = Math.max(1, n);
     const t = AH.qty * AH.price;
-    $('ah-feeval').textContent = fmtLong(Math.ceil(t * ahFeePct(AH.hours) / 100));
+    $('ah-feeval').textContent = moneyText(Math.ceil(t * COPPER_PER_GOLD * ahFeePct(AH.hours) / 100));
     $('ah-totalval').innerHTML = ahCoin(t);
   });
   qv.addEventListener('blur', () => { qv.value = AH.qty; });
@@ -15447,8 +15457,15 @@ function ahRenderSellPanel(){
   pr.addEventListener('input', () => {
     AH.price = Math.max(0, Math.floor(+pr.value.replace(/[^0-9]/g, '') || 0));
     const t = AH.qty * AH.price;
-    $('ah-feeval').textContent = fmtLong(Math.ceil(t * ahFeePct(AH.hours) / 100));
+    $('ah-feeval').textContent = moneyText(Math.ceil(t * COPPER_PER_GOLD * ahFeePct(AH.hours) / 100));
     $('ah-totalval').innerHTML = ahCoin(t);
+    /* Knappen maste ocksa folja med: skriver man in ett pris man inte har rad
+       att annonsera for ska den slockna direkt, inte vid nasta omritning. */
+    const btn = $('ah-listbtn'), cu = Math.ceil(t * COPPER_PER_GOLD * ahFeePct(AH.hours) / 100);
+    if (btn){
+      btn.disabled = S.gold < cu;
+      btn.textContent = cu > 0 ? 'LIST ITEM — PAY ' + moneyText(cu) : 'LIST ITEM';
+    }
   });
   $('ah-dur').addEventListener('change', e => { AH.hours = +e.target.value; ahRenderSellPanel(); });
   $('ah-listbtn').addEventListener('click', ahDoList);
@@ -15458,8 +15475,9 @@ async function ahDoList(){
   if (AH.price < 1){ spawnFloat({text: 'Enter a price of at least 1 gold'}); return; }
   AH.busy = true;
   try {
-    await netAhList();
-    spawnFloat({text: 'Listed: ' + AH.sel.name});
+    const r = await netAhList();
+    say('Listed: ' + AH.sel.name +
+        (r && r.fee_paid ? ' — fee ' + fmtLong(Math.ceil(r.fee_paid / COPPER_PER_GOLD)) + '🪙 paid' : ''));
     AH.sel = null; AH.qty = 1; AH.price = 0;
     await netPullItems();
     const c = await netAhCounts(); AH.counts = c;
@@ -15505,8 +15523,8 @@ function ahRenderMine(){
       ico: '\u2696', color: 'var(--cyan)',
       title: 'Pull this listing?',
       body: 'The listing ends now and <b>' + (row.name || 'your goods') +
-            '</b> comes back to your <b>mailbox</b>, not straight to your bag. ' +
-            'Anyone about to buy it loses their chance.',
+            '</b> comes back to your <b>mailbox</b>, not straight to your bag.<br><br>' +
+            'The market fee you paid to list it is <b>gone</b> — it is not refunded.',
       yes: 'PULL IT', no: 'LEAVE IT UP'
     });
     if (!ok) return;
