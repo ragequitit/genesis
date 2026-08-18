@@ -3560,7 +3560,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.3.6 — DIREKT</div>
+            <div class="desc">GENESIS v4.3.8 — SKRAPET GRATT</div>
           </div>
         </div>
       </div>
@@ -3586,7 +3586,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.6 — DIREKT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.8 — SKRAPET GRATT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4531,7 +4531,25 @@ async function netPullProfessions(){
     'character_id=eq.' + SRV.charId + '&select=prof,xp,gather_since');
   S.prof = S.prof || {};
   S.prof.known = {};
-  (rows || []).forEach(r => { S.prof.known[r.prof] = {xp: +r.xp || 0}; });
+  S.prof.shift = S.prof.shift || {};
+  (rows || []).forEach(r => {
+    S.prof.known[r.prof] = {xp: +r.xp || 0};
+    /* PAGAENDE ARBETSPASS. Servern minns nar det borjade; klienten gjorde det
+       inte, sa efter en omladdning stod det "Start working" pa nagot som redan
+       var igang - och trycket avvisades tyst av servern. */
+    if (r.gather_since){
+      const started = new Date(r.gather_since).getTime();
+      const ends = started + gatherShiftSecs() * 1000;
+      const sh = gatherShift(r.prof);
+      sh.started = started; sh.lastRoll = started;
+      sh.ends = ends;
+      sh.ready = Date.now() >= ends;      /* klart att hamta hem */
+      sh.rolled = 0; sh.nextDrip = Date.now() + GATHER_DRIP * 1000;
+    } else {
+      const sh = gatherShift(r.prof);
+      sh.ends = 0; sh.ready = false;
+    }
+  });
   /* Hur manga yrken man lart sig avgor vad nasta kostar - servern raknar. */
   const me = await srvSelect('characters',
     'id=eq.' + SRV.charId + '&select=prof_learns');
@@ -4813,7 +4831,7 @@ const MATERIALS = {
   junk_soda:     {name:'Empty Boost Soda',   ico:'🥤', tier:0, bop:false, prof:'junk'},
   junk_cap:      {name:'Bottle Cap',         ico:'🔘', tier:0, bop:false, prof:'junk'},
   junk_coupon:   {name:'Old Food Coupon',    ico:'🎫', tier:0, bop:false, prof:'junk'},
-  junk_noodle:   {name:'Destroyed Noodle Cup',ico:'🍜',tier:0, bop:false, prof:'junk'},
+  junk_noodle:   {name:'Empty Noodle Cup',ico:'🍜',tier:0, bop:false, prof:'junk'},
   junk_battery:  {name:'Dead Battery',       ico:'🔋', tier:0, bop:false, prof:'junk'},
   junk_manual:   {name:'Waterlogged Manual', ico:'📕', tier:0, bop:false, prof:'junk'},
   junk_antenna:  {name:'Bent Antenna',       ico:'📡', tier:0, bop:false, prof:'junk'},
@@ -12253,12 +12271,29 @@ function gatherPlaceCatch(el, btn){
   btn.style.left = (4 + Math.random() * maxX) + 'px';
   btn.style.top  = (4 + Math.random() * maxY) + 'px';
 }
+const GATHER_ERRORS = {
+  already_working:        'That shift is already running.',
+  shift_ready_to_collect: 'That shift is finished — collect it first.',
+  profession_not_learned: 'You have not learned that profession.'
+};
 async function gatherBegin(id){
   const sh = gatherShift(id);
-  if (sh.ends > Date.now() || sh.ready) return;
+  /* Tystnad ar det varsta svaret en knapp kan ge. Ar passet igang eller fardigt
+     ska det STA det, inte hanga tyst. */
+  if (sh.ready){ say('That shift is finished — collect it first.'); return; }
+  if (sh.ends > Date.now()){ say('That shift is already running.'); return; }
   if (NET.on){
     try { await netGatherStart(id); }
-    catch (e){ spawnFloat({text: 'Could not start working'}); return; }
+    catch (e){
+      const msg = GATHER_ERRORS[e.message] || 'Could not start working';
+      say(msg);
+      /* Sager servern att ett pass redan loper eller ar fardigt har klienten
+         fel bild av verkligheten. Hamta hem den riktiga. */
+      if (e.message === 'already_working' || e.message === 'shift_ready_to_collect'){
+        try { await netPullProfessions(); renderProfessions(); } catch (e2){}
+      }
+      return;
+    }
   }
   sh.ends = Date.now() + gatherShiftSecs() * 1000;
   sh.started = Date.now(); sh.lastRoll = Date.now();
@@ -12888,8 +12923,14 @@ function stackTipHTML(row){
   const d = itemDef(row);
   const touch = matchMedia('(hover: none)').matches;
   const line = (k, v) => '<div class="gt-stat"><span style="opacity:.75">' + k + '</span> ' + v + '</div>';
-  return '<div class="gt-name">' + row.name + '</div>' +
-    '<div class="gt-rar">' + (d ? d.kind : 'Item') + ' · Stack of ' + row.qty + '</div>' +
+  /* Antalet star redan pa brickan i rutan - att skriva "Stack of 41" ovanpa det
+     ar samma tal en gang till. Och skrap skrivs GRATT: fargen sager vad det ar
+     innan man laser ordet. */
+  const junk = !!(d && d.junk);
+  return '<div class="gt-name"' + (junk ? ' style="color:var(--text-faint)"' : '') + '>' +
+      row.name + '</div>' +
+    '<div class="gt-rar"' + (junk ? ' style="color:var(--text-faint)"' : '') + '>' +
+      (d ? (d.kind || 'Item').toUpperCase() : 'ITEM') + '</div>' +
     '<div class="gt-sep"></div>' +
     (d ? '<div class="gt-desc">' + d.desc + '</div>' : '<div class="gt-desc">No details known for this item yet.</div>') +
     (d ? line('Sells for', fmtMoney(d.sell) + (row.qty > 1 ? ' <span style="color:var(--text-faint)">each</span>' : '')) : '') +
