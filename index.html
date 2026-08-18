@@ -2576,7 +2576,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
 .rr-btns .rr-craft{flex:1 1 0;min-width:74px}
 .rr-craft.all{opacity:1;font-size:11px;padding:8px}
 /* PROFILSIDAN. */
-#profile-overlay.open{display:flex;align-items:flex-start;justify-content:center;inset:0}
+#profile-overlay.open,#friends-overlay.open{display:flex;align-items:flex-start;justify-content:center;inset:0}
 .profile-modal{position:absolute;top:8vh;width:min(460px,94vw);max-height:82vh;display:flex;
   flex-direction:column;background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   border:1px solid var(--border-glow);border-radius:14px;overflow:hidden;
@@ -3479,7 +3479,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <div class="qa-btn"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
-          <div class="qa-btn"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span></div>
+          <div class="qa-btn" id="qa-friends"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span><span class="notif" id="friend-badge" style="display:none">0</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-guild"></span></span><span class="lbl">Guild</span></div>
           <div class="qa-btn" id="qa-reboot"><span class="ico"><span class="qi qi-reboot"></span></span><span class="lbl">Reboot</span></div>
           <!-- En ledig plats kvar: en tom ruta ar arligare an att stracka ut nio
@@ -3616,6 +3616,28 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </div>
       <div class="inv-grid" id="inv-grid"></div>
       <div class="inv-money"><span class="inv-coin">🪙</span><b id="inv-gold">0</b></div>
+    </div>
+  </div>
+
+  <!-- ================= VANNERNA =================
+       Egen ruta, natt fran snabbaccessen. Siffran i hornet raknar obesvarade
+       forfragningar, precis som posten raknar ohamtade brev. -->
+  <div class="float-win" id="friends-overlay">
+    <div class="modal profile-modal">
+      <div class="inv-titlebar">
+        <span class="inv-title">Friends</span>
+        <button class="inv-x" id="friends-close">✕</button>
+      </div>
+      <div class="profile-body">
+        <div class="section-label">Find a player</div>
+        <div class="pf-edit" style="display:flex">
+          <input class="gate-input" id="fr-find-input" maxlength="16" placeholder="ChrisWhippit">
+          <button class="btn-neutral" id="fr-find-btn">Look up</button>
+        </div>
+        <div class="pf-found" id="fr-found"></div>
+        <div class="section-label">Your friends</div>
+        <div id="fr-social"><div class="desc">Loading…</div></div>
+      </div>
     </div>
   </div>
 
@@ -3893,7 +3915,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.25.0 — VANNER</div>
+            <div class="desc">GENESIS v4.25.1 — VANNERNA I SNABBACCESSEN</div>
           </div>
         </div>
       </div>
@@ -3904,7 +3926,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.25.0 — VANNER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.25.1 — VANNERNA I SNABBACCESSEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5165,6 +5187,9 @@ async function netPullAll(){
   await netPullAchievements();
   await netPullStats();
   try { await netMyProfile(); } catch (e){}
+  /* Vanlistan hamtas med allt annat, sa siffran pa knappen stammer fran forsta
+     stund - inte forst nar man rakar oppna rutan. */
+  try { await netFriendList(); renderFriendBadge(); } catch (e){}
   /* Hamtade vi hem allt ritar vi ocksa om allt. Det ar den enda regel som
      haller: den som hamtar behover inte veta vilka rutor som pavarkas. */
   redrawAll();
@@ -10964,6 +10989,7 @@ function redrawAll(){
   call(renderProfessions);
   call(renderMail);
   call(renderMailBadge);
+  call(renderFriendBadge);
   call(renderBoostBar);
   call(renderExpPanel);
   call(renderCharStats);
@@ -15447,11 +15473,6 @@ $('profile-overlay').addEventListener('click', e => {
 });
 function openProfile(){
   renderProfile();
-  if (NET.on){
-    netFriendList().then(renderSocial).catch(() => {
-      const box = $('pf-social'); if (box) box.innerHTML = '<div class="desc">Could not load friends.</div>';
-    });
-  } else renderSocial();
   $('profile-overlay').classList.add('open');
   bringToFront($('profile-overlay'));
 }
@@ -15495,16 +15516,10 @@ function renderProfile(){
        helst rada fram listan over alla spelare bokstav for bokstav. Det som
        visas ar namnet, om personen ar online och vilken karaktar hen spelar.
        Aldrig guld, vaska eller position. */
-    '<div class="section-label">Find a player</div>' +
-    '<div class="pf-edit" style="display:flex">' +
-      '<input class="gate-input" id="pf-find-input" maxlength="16" placeholder="ChrisWhippit"' +
-        (NET.on ? '' : ' disabled') + '>' +
-      '<button class="btn-neutral" id="pf-find-btn"' + (NET.on ? '' : ' disabled') + '>Look up</button>' +
-    '</div>' +
-    '<div class="pf-found" id="pf-found"></div>' +
-    '<div class="section-label">Friends</div>' +
-    '<div id="pf-social"><div class="desc">Loading…</div></div>' +
+    /* Uppslagningen och vannerna bor i sin EGEN ruta nu, natt fran
+       snabbaccessen - profilsidan handlar om dig, inte om andra. */
     '<div class="section-label">Switch</div>' +
+    '<button class="btn-neutral wide" id="pf-friends">Open friends</button>' +
     '<button class="btn-neutral wide" id="pf-settings">Open settings</button>';
 
   const b1 = $('pf-handle-btn');
@@ -15525,9 +15540,10 @@ function renderProfile(){
   if (sbtn) sbtn.addEventListener('click', () => {
     $('profile-overlay').classList.remove('open'); openSettings();
   });
-  const fbtn = $('pf-find-btn'), finp = $('pf-find-input');
-  if (fbtn) fbtn.addEventListener('click', () => findPlayer(finp.value.trim()));
-  if (finp) finp.addEventListener('keydown', e => { if (e.key === 'Enter') findPlayer(finp.value.trim()); });
+  const ofb = $('pf-friends');
+  if (ofb) ofb.addEventListener('click', () => {
+    $('profile-overlay').classList.remove('open'); openFriends();
+  });
 }
 /* ==================== VANNER ====================
    Relationen ligger pa PROFILENS ID hos servern - handlen ar bara etiketten man
@@ -15545,7 +15561,7 @@ async function socialDo(fn, args, done){
   try {
     await srvRpc(fn, args);
     await netFriendList();
-    renderSocial();
+    renderSocial(); renderFriendBadge();
     if (done) say(done);
   } catch (e){ say(socialErrText(e)); }
 }
@@ -15574,7 +15590,7 @@ function socialLine(f, buttons){
     buttons + '</div>';
 }
 function renderSocial(){
-  const box = $('pf-social'); if (!box) return;
+  const box = $('fr-social'); if (!box) return;
   if (!NET.on){ box.innerHTML = '<div class="desc">Sign in to use friends.</div>'; return; }
   const b = (label, act, h, cls) =>
     '<button class="btn-neutral tiny ' + (cls || '') + '" data-social="' + act + '" data-h="' + h + '">' + label + '</button>';
@@ -15606,6 +15622,34 @@ function renderSocial(){
     if (act === 'unblock') socialDo('unblock_player', {p_handle: h2}, h2 + ' is unblocked.');
   }));
 }
+/* Vannernas ruta, natt fran snabbaccessen. */
+function openFriends(){
+  $('friends-overlay').classList.add('open');
+  bringToFront($('friends-overlay'));
+  renderSocial();
+  if (NET.on) netFriendList().then(() => { renderSocial(); renderFriendBadge(); })
+    .catch(() => { const b = $('fr-social'); if (b) b.innerHTML = '<div class="desc">Could not load friends.</div>'; });
+}
+/* Siffran i hornet raknar OBESVARADE forfragningar - samma sprak som posten
+   anvander for ohamtade brev: det som vantar pa dig, inte det som finns. */
+function renderFriendBadge(){
+  const b = $('friend-badge'); if (!b) return;
+  const n = (SOCIAL && SOCIAL.incoming) ? SOCIAL.incoming.length : 0;
+  b.textContent = n;
+  b.style.display = n ? '' : 'none';
+}
+$('qa-friends').addEventListener('click', openFriends);
+$('friends-close').addEventListener('pointerdown', e => {
+  e.stopPropagation(); e.preventDefault();
+  $('friends-overlay').classList.remove('open');
+});
+$('friends-overlay').addEventListener('click', e => {
+  if (e.target === $('friends-overlay')) $('friends-overlay').classList.remove('open');
+});
+$('fr-find-btn').addEventListener('click', () => findPlayer($('fr-find-input').value.trim()));
+$('fr-find-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') findPlayer($('fr-find-input').value.trim());
+});
 const FIND_ERRORS = {
   player_not_found:  'No player with that handle.',
   handle_characters: 'Handles are letters, numbers and _ , 3 to 16 characters.',
@@ -15617,7 +15661,7 @@ function findErrText(e){
   return srvErrText(e, 'Could not look that up.');
 }
 async function findPlayer(h){
-  const box = $('pf-found'); if (!box) return;
+  const box = $('fr-found'); if (!box) return;
   if (!h){ box.innerHTML = ''; return; }
   box.innerHTML = '<div class="desc">Looking…</div>';
   try {
