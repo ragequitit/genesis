@@ -3702,7 +3702,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.12.1 — VASKAN FAR PLATS I FACKET</div>
+            <div class="desc">GENESIS v4.12.2 — SVEPET EFTER BYGGET</div>
           </div>
         </div>
       </div>
@@ -3728,7 +3728,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.12.1 — VASKAN FAR PLATS I FACKET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.12.2 — SVEPET EFTER BYGGET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4035,6 +4035,9 @@ const SRV_ERRORS = {
   level_too_low_for_item:   'Your level is too low to wear that.',
   pet_not_found:            'That companion is gone.',
   helper_is_working:        'Take it out of its production first.',
+  perk_locked:              'Buy a level in the row above first.',
+  slot_locked:              'That bag slot is still locked.',
+  not_a_bag:                'That is not a bag.',
   tank_already_full:        'The tank is already full.',
   not_usable:               'That cannot be used.',
   unknown_flask:            'That cannot be used.',
@@ -8832,7 +8835,13 @@ function invFirstFree(row){
   return -1;
 }
 function invNormalize(){
-  S.inv.length = invSlots();
+  /* Listan far ALDRIG kapas over nagot som ligger i den. Forut sattes langden
+     rakt till antalet rutor, och krympte vaskan (en uttagen vaska, ett bytt
+     yrke) fol det som lag i slutet - och slutet ar samlarvaskan - tyst bort.
+     Nu kapas den bara ner till sista upptagna rutan. */
+  let last = -1;
+  for (let i = 0; i < S.inv.length; i++) if (S.inv[i]) last = i;
+  S.inv.length = Math.max(invSlots(), last + 1);
   for (let i = 0; i < S.inv.length; i++) if (S.inv[i] === undefined) S.inv[i] = null;
 }
 function addInvItem(def){
@@ -8905,17 +8914,22 @@ async function sellPickedNow(){
   });
   if (!ok) return;
   setSellMode(false);
+  let got = 0, broke = false;
   for (const r of rows){
     if (NET.on){
-      try { await netSellStack(r.row.key, r.row.qty, r.row.rar); }
-      catch (e){ say(srvErrText(e, 'Could not sell that.')); break; }
+      try { await netSellStack(r.row.key, r.row.qty, r.row.rar); got += r.value; }
+      catch (e){ say(srvErrText(e, 'Could not sell that.')); broke = true; break; }
     } else {
       S.gold += r.value;
       S.inv[r.idx] = null;
+      got += r.value;
     }
   }
   if (!NET.on){ renderInventory(); updateUI(true); save(); }
-  say('Sold for ' + moneyText(total) + '.');
+  /* Sag vad som VERKLIGEN sallde. Brast det halvvags ar summan en annan an den
+     man bekraftade, och da far den inte skrivas ut som om allt gick vagen. */
+  if (!broke) say('Sold for ' + moneyText(total) + '.');
+  else if (got > 0) say('Sold part of it — ' + moneyText(got) + '.');
 }
 function invSort(){
   /* Tva hyllor sorteras var for sig: samlarvaskan ar inte en del av
@@ -13051,7 +13065,7 @@ async function gatherDrip(id){
   try {
     if (NET.on){
       const r = await netGatherCollect(id, false);
-      gatherShowGot(id, r && r.materials);
+      gatherShowGot(id, r && r.materials, r && r.bag_full);
     } else {
       /* Lokalt: rulla de cykler som hunnit passera sedan sist. */
       const now = Date.now();
@@ -13076,7 +13090,13 @@ async function gatherDrip(id){
   sh.dripping = false;
   renderGatherLoops();
 }
-function gatherShowGot(id, mats){
+function gatherShowGot(id, mats, full){
+  /* Servern slutar lagga i nar samlarvaskan ar full. Utan den har raden slutade
+     materialet bara komma, och ingen sa varfor. */
+  if (full) say('Your gathering bag is full — sell or use something to make room.');
+  return gatherShowGotInner(id, mats);
+}
+function gatherShowGotInner(id, mats){
   const keys = Object.keys(mats || {});
   if (!keys.length) return;
   let n = 0; keys.forEach(k => n += mats[k]);
@@ -13096,7 +13116,7 @@ async function gatherFinish(id){
     try {
       const r = await netGatherCollect(id, true);
       sh.ready = false; sh.ends = 0;
-      gatherShowGot(id, r && r.materials);
+      gatherShowGot(id, r && r.materials, r && r.bag_full);
     } catch (e){
       say(GATHER_ERRORS[String(e && e.message || e)] || 'Could not collect — the shift is still waiting.');
       renderGatherLoops();
