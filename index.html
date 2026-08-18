@@ -2230,10 +2230,16 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
    hogre an ett annat bara for att det ar farligt - fargen racker. */
 .pet-menu.pm-dark{background:#0b0d14;border:1px solid rgba(255,255,255,.18);
   box-shadow:0 18px 44px rgba(0,0,0,.8)}
-.pet-menu.pm-dark .pm-head{color:#fff;font-size:12px;letter-spacing:1.4px;font-weight:900}
-.pet-menu.pm-dark .pm-item{color:#fff;font-size:13px;font-weight:600;letter-spacing:.2px}
+.pet-menu.pm-dark .pm-head{color:#fff;font-size:9.5px;letter-spacing:1.3px;font-weight:900;padding:3px 8px 4px}
+/* Tre punkter mindre och tightare - menyn ska lasa som en meny, inte som en
+   affisch. */
+.pet-menu.pm-dark{padding:5px;gap:0}
+.pet-menu.pm-dark .pm-item{color:#fff;font-size:10px;font-weight:600;letter-spacing:.2px;
+  padding:5px 8px}
+.pet-menu.pm-dark .pm-item.off{color:rgba(255,255,255,.34);cursor:pointer}
+.pet-menu.pm-dark .pm-item.off:hover{background:rgba(255,255,255,.05)}
 .pet-menu.pm-dark .pm-item.danger{color:#ff9b9b}
-.pet-menu.pm-dark .pm-note{color:rgba(255,255,255,.55);font-size:11.5px}
+.pet-menu.pm-dark .pm-note{color:rgba(255,255,255,.55);font-size:10px;padding:2px 8px 5px;line-height:1.45}
 .pet-menu .pm-item.pm-pet{display:flex;align-items:center;gap:9px}
 .pet-menu .pm-item[disabled]{opacity:.4;cursor:default}
 .pm-head{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:4px 8px 5px;color:var(--text-dim)}
@@ -3226,7 +3232,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="qa-grid">
           <div class="qa-btn" id="qa-inventory"><span class="ico"><span class="qi qi-inventory"></span></span><span class="lbl">Inventory</span></div>
           <div class="qa-btn" id="qa-vault"><span class="ico"><span class="qi qi-vault"></span></span><span class="lbl">Vault</span></div>
-          <div class="qa-btn" id="qa-pets"><span class="ico"><span class="qi qi-pets"></span></span><span class="lbl">Pets</span></div>
+          <div class="qa-btn" id="qa-pets"><span class="ico"><span class="qi qi-pets"></span></span><span class="lbl">Helpers</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
           <div class="qa-btn"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
@@ -3554,7 +3560,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.3.4 — TILL ARBETET</div>
+            <div class="desc">GENESIS v4.3.5 — SKIFT</div>
           </div>
         </div>
       </div>
@@ -3580,7 +3586,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.4 — TILL ARBETET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.5 — SKIFT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -12649,16 +12655,25 @@ $('pet-grid').addEventListener('click', e => {
     renderPets();
     return;
   }
-  /* Ett vansterklick SATTER HUSDJURET I ARBETE, i den produktion dess formaga
-     hor till - det finns aldrig mer an en. Sitter det redan plockas det ut.
-     Forut oppnade klicket ett kort, och tio klick gav tio kort ovanpa varandra.
-     Kortet nas nu genom hogerklicksmenyn i stallet. */
-  const home = petSeatCheck(p);
-  const sits = home.b && seatedPet(home.b.id) && seatedPet(home.b.id).uid === uid;
-  if (sits){ seatHelper(home.b.id, null); say(petName(p) + ' is back in your companions.'); return; }
-  if (home.why){ say(home.why); return; }
-  seatHelper(home.b.id, uid);
-  say(petName(p) + ' is working in ' + home.b.name + '.');
+  /* SHIFT+klick satter husdjuret i arbete, i den produktion dess formaga hor
+     till - det finns aldrig mer an en. Sitter det redan plockas det ut.
+     Vanligt klick visar kortet, och bara ETT kort i taget. */
+  if (e.shiftKey){
+    const home = petSeatCheck(p);
+    const sits = home.b && seatedPet(home.b.id) && seatedPet(home.b.id).uid === uid;
+    if (sits){ seatHelper(home.b.id, null); say(petName(p) + ' is back in your helpers.'); return; }
+    if (home.why){ say(home.why); return; }
+    seatHelper(home.b.id, uid);
+    say(petName(p) + ' is working in ' + home.b.name + '.');
+    return;
+  }
+  spawnPetWin(uid, e.clientX, e.clientY);
+});
+/* Husdjurskortet ar en snabbtitt, inte ett fonster man moblerar med: ett klick
+   nagon annanstans stanger det. */
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('.item-win') || e.target.closest('[data-petuid]')) return;
+  document.querySelectorAll('.item-win[data-petwin]').forEach(w => w.remove());
 });
 /* Hovringen anvander FOREMALENS kort, inte ett eget. Ett husdjur och en pjas ar
    samma sorts sak for spelaren - nagot man ager, jamfor och valjer - och da ska de
@@ -12708,14 +12723,14 @@ function openPetMenu(uid, x, y){
   m.className = 'pet-menu ctx pm-dark';
   const seat = petSeatCheck(p);
   const seated = seat.b && seatedPet(seat.b.id) && seatedPet(seat.b.id).uid === p.uid;
+  /* Det gratonade valet behover ingen forklaringsrad under sig. Att det ar grat
+     sager att det inte gar; VARFOR ar en fraga man staller genom att trycka. */
   m.innerHTML =
     '<div class="pm-head">' + petName(p) + '</div>' +
     (seated
       ? '<button class="pm-item" data-act="unseat">Take out of ' + seat.b.name + '</button>'
-      : '<button class="pm-item" data-act="seat"' + (seat.why ? ' disabled' : '') + '>' +
+      : '<button class="pm-item' + (seat.why ? ' off' : '') + '" data-act="seat">' +
         (seat.b ? 'Put to work in ' + seat.b.name : 'Put to work') + '</button>') +
-    (seat.why ? '<div class="pm-note">' + seat.why + '</div>' : '') +
-    '<button class="pm-item" data-act="card">View card</button>' +
     '<button class="pm-item" data-act="rename">Rename</button>' +
     (seated ? '' : '<button class="pm-item danger" data-act="rec">Recycle</button>');
   document.body.appendChild(m);
@@ -12729,13 +12744,12 @@ function openPetMenu(uid, x, y){
     const act = b.dataset.act;
     if (act === 'seat'){
       const chk = petSeatCheck(p);
-      if (chk.why){ say(chk.why); return; }
+      if (chk.why){ say(chk.why); closePetMenu(); return; }
       seatHelper(chk.b.id, p.uid);
       say(petName(p) + ' is working in ' + chk.b.name + '.');
       closePetMenu();
     }
     else if (act === 'unseat'){ seatHelper(seat.b.id, null); closePetMenu(); }
-    else if (act === 'card'){ const mx = x, my = y; closePetMenu(); spawnPetWin(uid, mx, my); }
     else if (act === 'rec'){
       /* Fragan stalls HAR, i menyn - och FORST nu star det hur mycket den ger.
          Sjalva valet ska inte skrika en siffra at en. */
