@@ -2226,6 +2226,15 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   display:flex;flex-direction:column;gap:2px;
 }
 .pet-menu.ctx{position:fixed;top:auto;left:auto;z-index:460}
+/* Svart kort, vit text, samma storlek pa varje val. Ett val ska inte skrika
+   hogre an ett annat bara for att det ar farligt - fargen racker. */
+.pet-menu.pm-dark{background:#0b0d14;border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 18px 44px rgba(0,0,0,.8)}
+.pet-menu.pm-dark .pm-head{color:#fff;font-size:12px;letter-spacing:1.4px;font-weight:900}
+.pet-menu.pm-dark .pm-item{color:#fff;font-size:13px;font-weight:600;letter-spacing:.2px}
+.pet-menu.pm-dark .pm-item.danger{color:#ff9b9b}
+.pet-menu.pm-dark .pm-note{color:rgba(255,255,255,.55);font-size:11.5px}
+.pet-menu .pm-item.pm-pet{display:flex;align-items:center;gap:9px}
 .pet-menu .pm-item[disabled]{opacity:.4;cursor:default}
 .pm-head{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:4px 8px 5px;color:var(--text-dim)}
 .pm-item{
@@ -2372,6 +2381,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   display:flex;align-items:center;justify-content:center;position:relative;
   border:1px dashed var(--border-soft);background:#0b1024;flex:none;
 }
+.m-helper.drop-ok{border-color:var(--green)!important;
+  box-shadow:0 0 16px rgba(74,222,128,.55)!important;transform:scale(1.08)}
+body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
 .m-helper.locked{opacity:.25;cursor:default;border-style:solid}
 .m-helper.empty:hover{border-color:var(--cyan)}
 .m-helper.filled{border:1px solid var(--rc);border-style:solid;background:#10162e}
@@ -3542,7 +3554,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.3.2 — STAPELMENYN</div>
+            <div class="desc">GENESIS v4.3.4 — TILL ARBETET</div>
           </div>
         </div>
       </div>
@@ -3568,7 +3580,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.2 — STAPELMENYN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.4 — TILL ARBETET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4432,6 +4444,10 @@ function netPetFromRow(row){
     a:    Array.isArray(row.affixes) ? row.affixes : [],
     aff:  Array.isArray(row.affixes) ? row.affixes : [],
     xp:   +row.xp || 0,
+    /* Smeknamnet MASTE ligga i 'n' - det ar det faltet petName laser. Det lag i
+       'name', som ingenting laser, sa ett namnbyte sparades pa servern och
+       forsvann i samma andetag. Samma sorts fel som formagan hade. */
+    n:    row.nickname || undefined,
     name: row.nickname || undefined
   };
 }
@@ -11875,7 +11891,7 @@ function renderPets(){
     const on = inTeam(p.uid);
     const sel = petSel.has(p.uid);
     cells += '<div class="pet-cell filled' + (on ? ' active' : '') +
-      (sel ? ' sel' : '') + '" data-pet="' + i + '" data-petuid="' + p.uid + '"' +
+      (sel ? ' sel' : '') + '" data-pet="' + i + '" data-petuid="' + p.uid + '" draggable="true"' +
       ' style="--rc:' + rarCol(p.rar) + '">' +
       '<div class="pet-sprite" style="' + petSpriteVars(p.sp, 42) + ';border:0;background:transparent">' + PETS[p.sp].name[0] + '</div>' +
       '<span class="pc-lvl' + (max ? ' max' : '') + '">' + (max ? 'MAX' : li.lvl) + '</span>' +
@@ -12479,8 +12495,13 @@ function spawnPetWin(uid, nearX, nearY){
   hideGearTip();
   const p = petByUid(uid);
   if (!p) return;
+  /* Ett kort per husdjur. Ar det redan uppe stangs det i stallet - annars
+     kunde tio klick ge tio identiska kort ovanpa varandra. */
+  const open = document.querySelector('.item-win[data-petwin="' + uid + '"]');
+  if (open){ open.remove(); return; }
   const win = document.createElement('div');
   win.className = 'item-win';
+  win.dataset.petwin = uid;
   win.style.setProperty('--rc', rarCol(p.rar));
   win.innerHTML = petWinHTML(p);
   petWinActions(win, uid);
@@ -12628,7 +12649,16 @@ $('pet-grid').addEventListener('click', e => {
     renderPets();
     return;
   }
-  spawnPetWin(uid, e.clientX, e.clientY);
+  /* Ett vansterklick SATTER HUSDJURET I ARBETE, i den produktion dess formaga
+     hor till - det finns aldrig mer an en. Sitter det redan plockas det ut.
+     Forut oppnade klicket ett kort, och tio klick gav tio kort ovanpa varandra.
+     Kortet nas nu genom hogerklicksmenyn i stallet. */
+  const home = petSeatCheck(p);
+  const sits = home.b && seatedPet(home.b.id) && seatedPet(home.b.id).uid === uid;
+  if (sits){ seatHelper(home.b.id, null); say(petName(p) + ' is back in your companions.'); return; }
+  if (home.why){ say(home.why); return; }
+  seatHelper(home.b.id, uid);
+  say(petName(p) + ' is working in ' + home.b.name + '.');
 });
 /* Hovringen anvander FOREMALENS kort, inte ett eget. Ett husdjur och en pjas ar
    samma sorts sak for spelaren - nagot man ager, jamfor och valjer - och da ska de
@@ -12650,21 +12680,44 @@ $('pet-grid').addEventListener('mouseout', e => {
    svavande over nagot den inte langre hor ihop med. */
 let petMenuEl = null;
 function closePetMenu(){ if (petMenuEl){ petMenuEl.remove(); petMenuEl = null; } }
+/* Vilken produktion husdjuret hor hemma i. Varje husdjur har EN formaga, och
+   varje produktion tar EN formaga - alltsa finns det aldrig mer an ett stalle
+   att satta det pa. Da ska spelet gora det at en, inte lata en leta. */
+function petHomeMachine(p){
+  const a = petAffixes(p)[0];
+  if (!a) return null;
+  return BUILDINGS.find(b => b.boon === a.f) || null;
+}
+function petSeatCheck(p){
+  const b = petHomeMachine(p);
+  if (!b) return {b: null, why: 'This companion has no ability to work with.'};
+  const owned = S.own[b.id] || 0;
+  if (owned < 1) return {b: b, why: 'Build a ' + b.name + ' first.'};
+  const allowed = helperRarityAllowed(b.id);
+  if (p.rar > allowed){
+    const need = HELPER_TIERS[p.rar];
+    return {b: b, why: 'Needs ' + need + ' × ' + b.name + ' \u2014 you have ' + owned + '.'};
+  }
+  return {b: b, why: null};
+}
 function openPetMenu(uid, x, y){
-  closePetMenu();
+  closePetMenu(); closeStackMenu();
   const p = petByUid(uid);
   if (!p) return;
-  const on = inTeam(p.uid);
   const m = document.createElement('div');
-  m.className = 'pet-menu ctx';
+  m.className = 'pet-menu ctx pm-dark';
+  const seat = petSeatCheck(p);
+  const seated = seat.b && seatedPet(seat.b.id) && seatedPet(seat.b.id).uid === p.uid;
   m.innerHTML =
-    '<div class="pm-head" style="color:' + rarCol(p.rar) + '">' + petName(p) + '</div>' +
-    '<div class="pm-note">Seat helpers on the node panel, beside the production they work.</div>' +
-    (petLvl(p) >= PET_MAX_LVL || !feedAmount(p) ? ''
-      : '<button class="pm-item" data-act="feed">Feed dust \u00b7 ' + feedAmount(p) + ' ✨ \u2192 Lv ' +
-        petLevelInfo(Math.min(PET_XP_MAX, p.xp + feedAmount(p) * DUST_XP)).lvl + '</button>') +
-    '<button class="pm-item" data-act="rename">Rename\u2026</button>' +
-    (on ? '' : '<button class="pm-item danger" data-act="rec">Recycle for ' + dustFor(p) + ' ✨</button>');
+    '<div class="pm-head">' + petName(p) + '</div>' +
+    (seated
+      ? '<button class="pm-item" data-act="unseat">Take out of ' + seat.b.name + '</button>'
+      : '<button class="pm-item" data-act="seat"' + (seat.why ? ' disabled' : '') + '>' +
+        (seat.b ? 'Put to work in ' + seat.b.name : 'Put to work') + '</button>') +
+    (seat.why ? '<div class="pm-note">' + seat.why + '</div>' : '') +
+    '<button class="pm-item" data-act="card">View card</button>' +
+    '<button class="pm-item" data-act="rename">Rename</button>' +
+    (seated ? '' : '<button class="pm-item danger" data-act="rec">Recycle</button>');
   document.body.appendChild(m);
   const w = m.offsetWidth, h = m.offsetHeight;
   m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
@@ -12672,24 +12725,31 @@ function openPetMenu(uid, x, y){
   petMenuEl = m;
   m.addEventListener('click', e => {
     const b = e.target.closest('[data-act]');
-    if (!b) return;
+    if (!b || b.disabled) return;
     const act = b.dataset.act;
-    if (act === 'feed'){ feedPet(uid); closePetMenu(); }
+    if (act === 'seat'){
+      const chk = petSeatCheck(p);
+      if (chk.why){ say(chk.why); return; }
+      seatHelper(chk.b.id, p.uid);
+      say(petName(p) + ' is working in ' + chk.b.name + '.');
+      closePetMenu();
+    }
+    else if (act === 'unseat'){ seatHelper(seat.b.id, null); closePetMenu(); }
+    else if (act === 'card'){ const mx = x, my = y; closePetMenu(); spawnPetWin(uid, mx, my); }
     else if (act === 'rec'){
-      /* Fragan stalls HAR, i menyn - inte i ett nytt fonster. */
+      /* Fragan stalls HAR, i menyn - och FORST nu star det hur mycket den ger.
+         Sjalva valet ska inte skrika en siffra at en. */
       const li = petLevelInfo(p.xp), lost = li.lvl > 1;
-      m.innerHTML = '<div class="pm-head" style="color:' + rarCol(p.rar) + '">Recycle ' + petName(p) + '?</div>' +
-        '<div class="pm-note">' + (li.lvl >= PET_MAX_LVL ? '\u26a0 MAX level. ' : (lost ? '\u26a0 ' : '')) +
-        'You get ' + dustFor(p) + ' ✨' +
-        (lost ? '. You lose Lv ' + li.lvl + ' \u2014 the dust does not pay it back.' : '. It is gone for good.') + '</div>' +
+      m.innerHTML = '<div class="pm-head">Recycle ' + petName(p) + '?</div>' +
+        '<div class="pm-note">You get ' + dustFor(p) + ' \u2728 dust' +
+        (lost ? ', and you lose Lv ' + li.lvl + ' \u2014 the dust does not pay it back.'
+              : '. It is gone for good.') + '</div>' +
         '<button class="pm-item danger" data-act="rec-yes">Yes, recycle</button>' +
         '<button class="pm-item" data-act="rec-no">Keep it</button>';
     }
     else if (act === 'rec-yes'){ recyclePet(uid); closePetMenu(); }
     else if (act === 'rec-no'){ closePetMenu(); }
     else if (act === 'rename'){
-      /* Namnbytet sker I menyn - att oppna ett fonster till for ett textfalt vore
-         ett steg for mycket for nagot sa litet. */
       m.innerHTML = '<div class="pm-head">Rename</div>' +
         '<input class="pm-input" id="pet-rename" maxlength="' + PET_NAME_MAX + '" value="' +
           petName(p).replace(/"/g, '&quot;') + '">' +
@@ -15143,6 +15203,8 @@ function renderHelperSlots(){
     if (p){
       const a = helperAbilityOf(p);
       ref.helper.className = 'm-helper filled';
+      ref.helper.setAttribute('draggable', 'true');
+      ref.helper.dataset.helper = b.id;
       ref.helper.style.setProperty('--rc', rarCol(p.rar));
       ref.helper.innerHTML = '<span class="pet-sprite" style="' + petSpriteVars(p.sp, 26) +
         ';border:0;background:transparent"></span>' +
@@ -15150,11 +15212,77 @@ function renderHelperSlots(){
       ref.helper.title = petName(p) + (a ? ' — ' + HELPER_ABILITIES[a.f].text(a.v) : '');
     } else {
       ref.helper.className = 'm-helper empty';
+      ref.helper.removeAttribute('draggable');
+      ref.helper.dataset.helper = b.id;
       ref.helper.innerHTML = '<span class="mh-plus">+</span>';
       ref.helper.title = 'Seat a helper — ' + (HELPER_ABILITIES[b.boon] || {}).name;
     }
   });
 }
+/* ---------- DRA OCH SLAPP EN HJALPARE ----------
+   Fran listan till en produktion, och fran produktionen tillbaka. Samma regler
+   som klicket: ratt formaga, ratt sallsynthet, en plats per husdjur. Det ar
+   bara ett annat satt att sага samma sak. */
+let dragPetUid = null;
+document.addEventListener('dragstart', e => {
+  const cell = e.target.closest && e.target.closest('[data-petuid]');
+  const slot = e.target.closest && e.target.closest('.m-helper.filled');
+  if (cell){ dragPetUid = +cell.dataset.petuid; }
+  else if (slot){
+    const cur = seatedPet(slot.dataset.helper);
+    dragPetUid = cur ? cur.uid : null;
+  } else return;
+  if (e.dataTransfer){ e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragPetUid)); }
+  document.body.classList.add('dragging-pet');
+});
+document.addEventListener('dragend', () => {
+  dragPetUid = null;
+  document.body.classList.remove('dragging-pet');
+  document.querySelectorAll('.m-helper.drop-ok').forEach(el => el.classList.remove('drop-ok'));
+});
+document.addEventListener('dragover', e => {
+  const slot = e.target.closest && e.target.closest('.m-helper');
+  const grid = e.target.closest && e.target.closest('#pet-grid');
+  if (!dragPetUid) return;
+  if (slot){
+    const p = petByUid(dragPetUid), chk = p ? petSeatCheck(p) : null;
+    if (chk && chk.b && chk.b.id === slot.dataset.helper && !chk.why){
+      e.preventDefault(); slot.classList.add('drop-ok');
+    }
+  } else if (grid){ e.preventDefault(); }
+});
+document.addEventListener('dragleave', e => {
+  const slot = e.target.closest && e.target.closest('.m-helper');
+  if (slot) slot.classList.remove('drop-ok');
+});
+document.addEventListener('drop', e => {
+  if (!dragPetUid) return;
+  const slot = e.target.closest && e.target.closest('.m-helper');
+  const grid = e.target.closest && e.target.closest('#pet-grid');
+  const p = petByUid(dragPetUid);
+  if (slot && p){
+    e.preventDefault();
+    const chk = petSeatCheck(p);
+    if (chk.why){ say(chk.why); }
+    else if (chk.b.id === slot.dataset.helper){
+      seatHelper(chk.b.id, p.uid);
+      say(petName(p) + ' is working in ' + chk.b.name + '.');
+    } else {
+      say(petName(p) + ' belongs in ' + chk.b.name + '.');
+    }
+  } else if (grid && p){
+    /* Slapp i listan = ta ut ur arbetet. */
+    e.preventDefault();
+    const chk = petSeatCheck(p);
+    if (chk.b && seatedPet(chk.b.id) && seatedPet(chk.b.id).uid === p.uid){
+      seatHelper(chk.b.id, null);
+      say(petName(p) + ' is back in your companions.');
+    }
+  }
+  dragPetUid = null;
+  document.querySelectorAll('.m-helper.drop-ok').forEach(el => el.classList.remove('drop-ok'));
+});
+
 /* Valjaren: bara husdjur vars sallsynthet ryms i platsen, och som inte redan
    sitter nagon annanstans. */
 let helperPickerEl = null;
@@ -15196,7 +15324,11 @@ function openHelperPicker(bid, x, y){
   } else {
     list.slice(0, 12).forEach(p => {
       const a = helperAbilityOf(p);
-      h += '<button class="pm-item" data-seat="' + p.uid + '">' +
+      /* Med bild, inte bara namn - man kanner igen sitt husdjur pa utseendet
+         langt innan man laser vad det heter. */
+      h += '<button class="pm-item pm-pet" data-seat="' + p.uid + '">' +
+        '<span class="pet-sprite" style="' + petSpriteVars(p.sp, 24) +
+          ';border:0;background:transparent"></span>' +
         '<span style="color:' + rarCol(p.rar) + '">' + petName(p) + '</span>' +
         (a ? ' <small>' + HELPER_ABILITIES[a.f].text(a.v) + '</small>' : '') + '</button>';
     });
