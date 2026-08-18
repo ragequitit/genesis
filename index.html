@@ -1931,6 +1931,11 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
    väskan utbruten till eget fönster är facket släckt. */
 .inv-bagslot.lit{border-color:var(--rc,var(--cyan));box-shadow:0 0 0 1px var(--rc,var(--cyan)) inset, 0 0 14px -2px var(--rc,var(--cyan))}
 .inv-bagslot.detached{opacity:.45}
+/* Samlarvaskan ar inte ett fack man fyller - den ar en vaska i sig. Gron
+   kant sa den inte laser som ett tomt vaskfack. */
+.inv-bagslot.gbag{border-color:rgba(74,222,128,.55);color:#7ef0a8;cursor:pointer}
+.bagwin-emblem.gbag-emblem{display:flex;align-items:center;justify-content:center;font-size:20px}
+.inv-bagslot.gbag.lit{box-shadow:0 0 12px rgba(74,222,128,.35)}
 /* Rutorna en hovrad väska äger. Fyllda rutor lyser varmare — det är DE som måste
    tömmas innan man byter till en mindre väska. */
 .inv-slot.bag-owned{
@@ -2397,11 +2402,18 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   display:flex;align-items:center;justify-content:center;position:relative;
   border:1px dashed var(--border-soft);background:#0b1024;flex:none;
 }
+/* Hela rutan ar knappen. Innehallet - plustecknet och husdjursbilden - far
+   aldrig ata upp ett klick som var menat for rutan. */
+.m-helper > *{pointer-events:none}
+/* Tom plats: streckad ram i takets farg, och den lyser upp vid hovring. */
+.m-helper.empty{border-color:var(--rc, var(--border-soft));opacity:.85}
+.m-helper.empty:hover{opacity:1;box-shadow:0 0 12px color-mix(in srgb, var(--rc, var(--cyan)) 45%, transparent)}
+.m-helper.empty .mh-plus{color:var(--rc, var(--text-faint));opacity:.75}
 .m-helper.drop-ok{border-color:var(--green)!important;
   box-shadow:0 0 16px rgba(74,222,128,.55)!important;transform:scale(1.08)}
 body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
 .m-helper.locked{opacity:.25;cursor:default;border-style:solid}
-.m-helper.empty:hover{border-color:var(--cyan)}
+
 .m-helper.filled{border:1px solid var(--rc);border-style:solid;background:#10162e}
 .mh-plus{color:var(--text-faint);font-size:17px}
 .mh-val{
@@ -3367,6 +3379,8 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
           <div class="inv-bagslot" data-bag="2">👜</div>
           <div class="inv-bagslot" data-bag="3">👜</div>
           <div class="inv-bagslot" data-bag="4">👜</div>
+          <!-- SAMLARVASKAN: oppen fran start, gar inte att stoppa en vaska i. -->
+          <div class="inv-bagslot gbag" data-gbag="1">🌿</div>
         </div>
       </div>
       <div class="inv-grid" id="inv-grid"></div>
@@ -3570,7 +3584,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.5.1 — BESKEDET VID HOVRINGEN</div>
+            <div class="desc">GENESIS v4.7.0 — RAMEN SAGER TAKET</div>
           </div>
         </div>
       </div>
@@ -3596,7 +3610,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.5.1 — BESKEDET VID HOVRINGEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.7.0 — RAMEN SAGER TAKET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4449,8 +4463,15 @@ async function netPullItems(){
      Nu vaxer listan i stallet, och overskottet syns tydligt. */
   const stackRows = await srvSelect('stacks',
     'character_id=eq.' + SRV.charId + '&select=stack_key,kind,rarity,qty');
-  const need = bagRows.length + ((stackRows || []).length);
-  S.inv = new Array(Math.max(invSlots(), need)).fill(null);
+  /* Tva hyllor: allt utom samlat material packas fran borjan, det samlade
+     packas i samlarvaskan langst bak. Storleken raknas UT ur det som faktiskt
+     kom hem, sa ingenting kan bli hemlost. */
+  const gathRows = (stackRows || []).filter(st => isGatherKey(st.stack_key) && !gbagIsOut(st.stack_key));
+  const mainRows = (stackRows || []).filter(st => !isGatherKey(st.stack_key) || gbagIsOut(st.stack_key));
+  const needMain = bagRows.length + mainRows.length;
+  const gStart = Math.max(gbagStart(), needMain);
+  const gLen = Math.max(gbagKinds() + GATHER_SPARE, gathRows.length);
+  S.inv = new Array(gStart + gLen).fill(null);
   let at = 0;
   bagRows.forEach(g => { S.inv[at++] = {gear: g}; });
 
@@ -4460,22 +4481,26 @@ async function netPullItems(){
   S.vault.inv = new Array(Math.max(vslots, vaultRows.length)).fill(null);
   vaultRows.forEach((g, k) => { S.vault.inv[k] = {gear: g}; });
 
-  /* Staplarna: material, flaskor och recept. */
-  (stackRows || []).forEach(st => {
+  /* Staplarna: material, flaskor och recept. Samlat material sist, i sin egen
+     vaska - dess forsta ruta ar gStart. */
+  let gat = gStart;
+  const putStack = (st, gathered) => {
     const mat = MATERIALS[st.stack_key];
     const fl  = FLASKS[st.stack_key];
     let name = st.stack_key, ico = '📦';
     if (mat){ name = mat.name; ico = mat.ico; }
     else if (fl){ name = fl.name; ico = fl.ico; }
     else if (st.kind === 'recipe'){ name = recipeItemName(st.stack_key.replace(/^recipe_/, '')); ico = '📜'; }
-    S.inv[at++] = {
+    S.inv[gathered ? gat++ : at++] = {
       key: st.stack_key, name: name, ico: ico, qty: +st.qty || 1, stack: true,
       mat: st.kind === 'material', bop: !!(mat && mat.bop),
       flask: st.kind === 'flask', boost: fl ? fl.boost : undefined,
       recipe: st.kind === 'recipe' ? st.stack_key.replace(/^recipe_/, '') : undefined,
       rar: st.rarity == null ? undefined : (st.rarity | 0)
     };
-  });
+  };
+  mainRows.forEach(st => putStack(st, false));
+  gathRows.forEach(st => putStack(st, true));
   return true;
 }
 
@@ -7791,21 +7816,10 @@ function helperTipBoxHTML(b){
   } else {
     h += '<div class="mt-boon">A helper here ' + (BOON_PLAIN[b.boon] || ab.name) + '.</div>';
   }
-  if (nextTier >= 0){
-    h += '<div class="mt-boon">Own ' + HELPER_TIERS[nextTier] + ' to seat ' +
-      GEAR_RAR[nextTier].name + ' \u2014 you have ' + owned + '.</div>';
-  }
-  const fits = petsOwned().filter(p => {
-    const a = petAffixes(p)[0];
-    return a && a.f === b.boon && p.rar <= allowed;
-  });
-  if (!fits.length){
-    const anyRight = petsOwned().some(p => (petAffixes(p)[0] || {}).f === b.boon);
-    h += '<div class="mt-boon">' + (anyRight
-      ? 'You have a ' + ab.name + ' helper, but this slot only takes up to ' +
-        GEAR_RAR[Math.max(0, allowed)].name + ' \u2014 build more.'
-      : 'No ' + ab.name + ' helper yet. Open caches until one turns up.') + '</div>';
-  }
+  /* Taket star inte langre i ord - RAMEN sager det, i sallsynthetens farg.
+     Och att man saknar ratt hjalpare hor hemma som svar pa ett KLICK, inte som
+     en rad i en upplysning man inte bad om. */
+  if (!cur) h += '<div class="mt-boon">Click to seat a helper.</div>';
   return h;
 }
 function showHelperTip(b, elm){
@@ -8427,7 +8441,61 @@ function bagSlotsFrom(){
   }
   return n;
 }
-function invSlots(){ return INV_BASE_SLOTS + bagSlotsFrom(); }
+/* ==================== SAMLARVASKAN ====================
+   En egen vaska langst till hoger, oppen fran start och omojlig att stoppa en
+   vaska i. Bara det som SAMLAS med ett gatheringyrke hamnar dar - malm, fiber,
+   blommor, adelstenar och de sallsynta fynden. Skrap, skrot, flaskor, recept
+   och allt som TILLVERKAS ligger kvar i huvudvaskan.
+
+   STORLEKEN AR RAKNAD, INTE INSKRIVEN (spelarens krav). Ett inskrivet tal hade
+   svammat over den dag ett yrke far fler material, och ingen hade kommit ihag
+   varfor. Regeln:
+     platser = antalet sorter dina larda samlaryrken kan hitta
+             + 4 tomma till godo
+             + aldrig farre an det som redan ligger dar
+   Sista raden finns for att vaskan inte ska krympa under sitt innehall nar man
+   byter yrke - det som ligger dar ska aldrig kunna tvingas ut. */
+const GATHER_SPARE = 4;
+function gatherKeysOf(profId){
+  const d = GATHER_DEFS[profId];
+  if (!d) return [];
+  return [].concat(d.core || [], d.rare || [], d.gems || []);
+}
+/* Alla nycklar som over huvud taget samlas - avgor VAR en sak hamnar. */
+const GATHER_ALL_KEYS = (() => {
+  const set = {};
+  Object.keys(GATHER_DEFS).forEach(id => gatherKeysOf(id).forEach(k => { set[k] = true; }));
+  return set;
+})();
+function isGatherKey(k){ return !!GATHER_ALL_KEYS[k]; }
+function isGatherRow(row){ return !!(row && row.stack && !row.gear && isGatherKey(row.key)); }
+/* Sorterna dina LARDA samlaryrken kan hitta. */
+function gbagKinds(){
+  const set = {};
+  Object.keys(GATHER_DEFS).forEach(id => {
+    if (profLearned(id)) gatherKeysOf(id).forEach(k => { set[k] = true; });
+  });
+  return Object.keys(set).length;
+}
+function gbagStart(){ return INV_BASE_SLOTS + bagSlotsFrom(); }
+function gbagUsed(){
+  let n = 0;
+  const st = gbagStart();
+  for (let i = st; i < S.inv.length; i++) if (S.inv[i]) n++;
+  return n;
+}
+function gbagSlots(){
+  return Math.max(gbagKinds() + GATHER_SPARE, gbagUsed());
+}
+function invSlots(){ return gbagStart() + gbagSlots(); }
+/* Var far en sak ligga? Samlat material hor hemma i samlarvaskan och ingen
+   annanstans; allt ovrigt hor hemma utanfor den. Tva olika hyllor, aldrig
+   blandade - det ar hela poangen med den extra vaskan. */
+function invRangeFor(row){
+  const st = gbagStart();
+  if (row && row.key === '__main__') return {from: 0, to: st};
+  return (isGatherRow(row) && !gbagIsOut(row.key)) ? {from: st, to: invSlots()} : {from: 0, to: st};
+}
 /* Att ta ur en väska krymper ryggsäcken. Saker som skulle hamna utanför flyttas
    ned i lediga rutor först — och finns det inte plats nekas hela bytet, hellre än
    att något tyst försvinner. */
@@ -8522,8 +8590,9 @@ function fitAfterResize(reserve){
    rutor är null. Det är vad som gör att du själv kan bestämma var saker ligger —
    en packad lista skulle alltid trycka ihop sig igen. */
 function invUsed(){ let n = 0; for (let i = 0; i < S.inv.length; i++) if (S.inv[i]) n++; return n; }
-function invFirstFree(){
-  for (let i = 0; i < invSlots(); i++) if (!S.inv[i]) return i;
+function invFirstFree(row){
+  const r = invRangeFor(row || null);
+  for (let i = r.from; i < r.to; i++) if (!S.inv[i]) return i;
   return -1;
 }
 function invNormalize(){
@@ -8540,7 +8609,7 @@ function addInvItem(def){
                                  (!it.flask || it.rar === def.rar));
     if (row){ row.qty += qty; renderInventory(); return true; }
   }
-  const free = invFirstFree();
+  const free = invFirstFree({stack: !!def.stack, key: def.key});
   if (free < 0) return false;                  // fullt är fullt
   S.inv[free] = {key: def.key, name: def.name, ico: def.ico || '📦', qty: qty, stack: !!def.stack,
                  mat: !!def.mat, bop: !!def.bop,
@@ -8554,12 +8623,17 @@ function addInvItem(def){
    staplar i bokstavsordning. Packar ihop mot början; resten blir tomma rutor.
    Det är en HJÄLP, inte en tvångströja: efteråt kan allt flyttas fritt igen. */
 function invSort(){
-  const items = S.inv.filter(Boolean);
-  const gear = items.filter(x => x.gear).sort((a, b) =>
+  /* Tva hyllor sorteras var for sig: samlarvaskan ar inte en del av
+     huvudvaskan, och en sortering far aldrig flytta nagot mellan dem. */
+  const st = gbagStart(), all = S.inv.filter(Boolean);
+  const main = all.filter(x => !isGatherRow(x));
+  const gath = all.filter(isGatherRow).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const gear = main.filter(x => x.gear).sort((a, b) =>
     (a.gear.s - b.gear.s) || (b.gear.r - a.gear.r) || (gearScore(b.gear) - gearScore(a.gear)));
-  const rest = items.filter(x => !x.gear).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const rest = main.filter(x => !x.gear).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const out = gear.concat(rest);
-  for (let i = 0; i < invSlots(); i++) S.inv[i] = out[i] || null;
+  for (let i = 0; i < st; i++) S.inv[i] = out[i] || null;
+  for (let i = st; i < invSlots(); i++) S.inv[i] = gath[i - st] || null;
   renderInventory(); save();
 }
 /* Valvets sortering: samma ordning som väskans, men mot valvets egen lista. */
@@ -8585,10 +8659,73 @@ function vaultSort(){
   for (let i = 0; i < vaultSlots(); i++) S.vault.inv[i] = out[i] || null;
   renderVault(); save();
 }
+/* SAMLARVASKANS DORRVAKT.
+   Ut ur den far allt ga - vill man ha sin malm i huvudvaskan ar det ens eget
+   val. IN i den slapps bara samlat material. Nekas det sags det rakt ut; ett
+   drag som bara studsar tillbaka utan ord ar samma tystnad som en dod knapp. */
+function inGatherBag(i){ return i >= gbagStart() && i < invSlots(); }
+function gbagAccepts(row){ return !row || isGatherRow(row); }
+function gbagRefuse(){
+  say('The gathering bag only takes what your gathering professions dig up.');
+  return false;
+}
+/* Flyttar man en samlad sak till huvudvaskan for hand ska den STANNA dar, aven
+   efter en omladdning - annars flyttar nasta hamtning fran servern tillbaka den
+   och handen man gjorde kandes som en bugg. Undantagen bor pa nyckeln. */
+/* Undantagen sparas for sig. I serverlage skriver save() med flit ingenting
+   lokalt - servern ar sanningen - men VAR en stapel ligger ar inte speldata,
+   det ar mobleringen i ens egen vaska, och den ska overleva en omladdning. */
+const GBAG_OUT_KEY = 'genesis.gbagout';
+function gbagOutSet(key, out){
+  S.gbagOut = S.gbagOut || {};
+  if (out) S.gbagOut[key] = true; else delete S.gbagOut[key];
+  try { localStorage.setItem(GBAG_OUT_KEY, JSON.stringify(S.gbagOut)); } catch (e){}
+}
+function gbagOutLoad(){
+  try {
+    const raw = localStorage.getItem(GBAG_OUT_KEY);
+    const d = raw ? JSON.parse(raw) : null;
+    S.gbagOut = (d && typeof d === 'object') ? d : {};
+  } catch (e){ S.gbagOut = {}; }
+}
+gbagOutLoad();
+function gbagIsOut(key){ return !!(S.gbagOut && S.gbagOut[key]); }
 function invSwap(a, b){
   if (a === b || a < 0 || b < 0 || a >= invSlots() || b >= invSlots()) return false;
+  const ra = S.inv[a], rb = S.inv[b];
+  /* Bada riktningarna provas: ett byte flyttar tva saker. */
+  if (inGatherBag(b) && !gbagAccepts(ra)) return gbagRefuse();
+  if (inGatherBag(a) && !gbagAccepts(rb)) return gbagRefuse();
+  if (ra && isGatherRow(ra)) gbagOutSet(ra.key, !inGatherBag(b));
+  if (rb && isGatherRow(rb)) gbagOutSet(rb.key, !inGatherBag(a));
   const t = S.inv[a]; S.inv[a] = S.inv[b]; S.inv[b] = t;
   renderInventory(); save();
+  return true;
+}
+/* SHIFT+KLICK pa en stapel skickar den mellan de tva vaskorna. Star den i
+   samlarvaskan gar den till huvudvaskan; star den i huvudvaskan gar den
+   tillbaka - men bara om den hor hemma dar. */
+function gbagShiftMove(idx){
+  const row = S.inv[idx];
+  if (!row || row.gear) return false;
+  if (inGatherBag(idx)){
+    const free = invFirstFree({stack: true, key: '__main__'});
+    if (free < 0){ say('No room in the backpack.'); return true; }
+    gbagOutSet(row.key, true);
+    S.inv[free] = row; S.inv[idx] = null;
+    renderInventory(); save();
+    say(row.name + ' moved to your backpack.');
+    return true;
+  }
+  if (!isGatherRow(row)) return gbagRefuse();
+  const st = gbagStart();
+  let free = -1;
+  for (let i = st; i < invSlots(); i++) if (!S.inv[i]){ free = i; break; }
+  if (free < 0){ say('The gathering bag is full.'); return true; }
+  gbagOutSet(row.key, false);
+  S.inv[free] = row; S.inv[idx] = null;
+  renderInventory(); save();
+  say(row.name + ' moved to your gathering bag.');
   return true;
 }
 /* ---------- UTRUSTNINGEN: ritning, jämförelse, av och på ---------- */
@@ -8807,6 +8944,10 @@ function sellGear(idx){
 
 function renderBagSlots(){
   /* Ingen webbläsartooltip här heller — hovringsrutan säger samma sak, snyggare. */
+  document.querySelectorAll('[data-gbag]').forEach(el => {
+    el.classList.toggle('detached', bagIsOpen('g'));
+    el.classList.toggle('lit', !bagIsOpen('g'));
+  });
   document.querySelectorAll('[data-bag]').forEach(el => {
     const i = +el.dataset.bag;
     el.removeAttribute('title');
@@ -9077,6 +9218,7 @@ function bagSegments(){
       at += ITEMS[b.t].bag;
     }
   }
+  segs.push({name: 'Gathering bag', start: at, len: gbagSlots(), socket: 'g'});
   return segs;
 }
 /* pos är valfri {col,row} och vävs in i SAMMA style-attribut som raritetsfärgen —
@@ -9114,7 +9256,9 @@ function renderMiniBags(){
     win.className = 'bagwin';
     win.dataset.socket = seg.socket;
     win.innerHTML =
-      '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(bagIn(seg.socket)) + '\')"></i></div>' +
+      (seg.socket === 'g'
+        ? '<div class="bagwin-emblem gbag-emblem">🌿</div>'
+        : '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(bagIn(seg.socket)) + '\')"></i></div>') +
       '<div class="bagwin-head"><span>' + seg.name + '</span>' +
       '<button class="bagwin-x" data-closebag="' + seg.socket + '">✕</button></div>' +
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
@@ -9134,6 +9278,8 @@ function renderMiniBags(){
 }
 /* Bryt ut en väska ur huvudrutnätet, eller baka in den igen. */
 function setBagOpen(socket, open){
+  /* Samlarvaskan har ingen vaska i sig - den ar sig sjalv, och vaxlar anda. */
+  if (socket === 'g'){ S.bagOpen = S.bagOpen || {}; S.bagOpen.g = !!open; renderInventory(); save(); return true; }
   if (!bagIn(socket) || !bagUnlocked(socket)) return false;
   S.bagOpen[socket] = !!open;
   renderInventory();
@@ -13557,7 +13703,14 @@ function hookInvCells(root){
   /* Shift på en STAPEL: med valvet öppet flyttas den dit; annars händer inget —
      staplar går inte att bära, och ett shift-klick får aldrig råka FÖRBRUKA. */
   if (!row.gear){
-    if (e.shiftKey){ if (vaultIsOpen()) toVault(idx); hideGearTip(); return; }
+    if (e.shiftKey){
+      hideGearTip();
+      /* Valvet forst om det ar oppet - da betyder shift lagra undan, som forut.
+         Annars skickar shift stapeln mellan ryggsack och samlarvaska. */
+      if (vaultIsOpen()){ toVault(idx); return; }
+      gbagShiftMove(idx);
+      return;
+    }
     if (isTouchInput()){ openStackMenu(row.key, e.clientX, e.clientY); return; }
     useInvItem(idx);
     return;
@@ -14232,6 +14385,21 @@ const MACHINE_SCROLL_STEP = 88;
     if (next !== before) e.preventDefault();
   }, {passive: false});
 })();
+/* SAMLARVASKANS FACK. Den gar inte att fylla med en vaska - den ar en vaska.
+   Ett klick vaxlar mellan inbakad i rutnatet och utbruten till eget fonster,
+   precis som de andra. Hovringen sager vad den ar och hur full den ar. */
+document.querySelectorAll('[data-gbag]').forEach(el => {
+  el.addEventListener('click', () => {
+    S.bagOpen = S.bagOpen || {};
+    S.bagOpen.g = !S.bagOpen.g;
+    renderInventory(); save();
+  });
+  el.addEventListener('mouseenter', () => showBagTip(el,
+    '<b>Gathering bag</b><br>Everything your gathering professions dig up lands here — ' +
+    'ore, fibre, blooms, gems and the rare finds.<br>' +
+    gbagUsed() + ' / ' + gbagSlots() + ' slots used.'));
+  el.addEventListener('mouseleave', hideBagTip);
+});
 document.querySelectorAll('[data-bag]').forEach(el => {
   const i = +el.dataset.bag;
   hookDragSource(el, () => {
@@ -15504,9 +15672,16 @@ function renderHelperSlots(){
         (a ? '<span class="mh-val">+' + a.v + '%</span>' : '');
       ref.helper.title = petName(p) + (a ? ' — ' + HELPER_ABILITIES[a.f].text(a.v) : '');
     } else {
+      /* RAMEN SAGER TAKET. En tom plats ar streckad i fargen for den finaste
+         sallsynthet som far sitta dar just nu - 1 byggnad common, 5 uncommon,
+         15 rare, 30 epic, 60 legendary, 100 mythic. Da kan man lasa av taket pa
+         en blick i stallet for att hovra. En UPPTAGEN plats ar heldragen i
+         hjalparens egen farg: streckat = vad som FAR sattas har, heldraget =
+         vem som SITTER har. De kan aldrig krocka. */
       ref.helper.className = 'm-helper empty';
       ref.helper.removeAttribute('draggable');
       ref.helper.dataset.helper = b.id;
+      ref.helper.style.setProperty('--rc', rarCol(Math.max(0, helperRarityAllowed(b.id))));
       ref.helper.innerHTML = '<span class="mh-plus">+</span>';
       ref.helper.title = 'Seat a helper — ' + (HELPER_ABILITIES[b.boon] || {}).name;
     }
@@ -15601,13 +15776,16 @@ function openHelperPicker(bid, x, y){
   const m = document.createElement('div');
   m.className = 'pet-menu helper-menu';
   const ab = HELPER_ABILITIES[b.boon];
-  /* VALJAREN ar bara till for att VALJA. Forklaringarna - hur manga byggnader
-     en sallsynthet kraver, och att man saknar ratt hjalpare - star i hovringen
-     over rutan i stallet. Finns ingenting att valja oppnas ingen tom ruta: da
-     visas samma besked, sa knappen aldrig tiger. */
+  /* VALJAREN ar bara till for att VALJA. Finns ingen att valja oppnas ingen tom
+     ruta - da kommer svaret i meddelanderutan hogst upp pa skarmen i stallet.
+     Det ar med flit en HELT ANNAN ruta an hovringens: hovringen ar en upplysning
+     man inte bad om, klicksvaret ar ett svar pa nagot man gjorde, och de tva far
+     aldrig ga att forvaxla. */
   if (!list.length && !cur){
-    showHelperTip(b, document.querySelector('[data-helper="' + bid + '"]') || document.body);
-    setTimeout(hideHelperTip, 4000);
+    const anyRight = petsOwned().some(p => (petAffixes(p)[0] || {}).f === b.boon);
+    say(anyRight
+      ? 'Your ' + ab.name + ' helper is too rare for this slot — build more ' + b.name + '.'
+      : 'No ' + ab.name + ' helper found yet.');
     return;
   }
   let h = '<div class="pm-head">' + b.name + ' — ' + ab.name + '</div>';
