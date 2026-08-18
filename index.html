@@ -2598,6 +2598,10 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   border:1px solid var(--border-soft);background:#0e1330}
 .pf-card .pf-dot{width:9px;height:9px;border-radius:50%;background:var(--text-faint);flex:none}
 .pf-card.on .pf-dot{background:var(--green);box-shadow:0 0 10px rgba(52,211,153,.7)}
+.pf-card{margin-bottom:6px}
+.pf-sub{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-faint);margin:10px 0 5px}
+.btn-neutral.tiny{padding:5px 9px;font-size:10.5px;border-radius:7px}
+.btn-neutral.tiny.danger{border-color:var(--red);color:#ff9b9b}
 /* Knapparna ska KANNAS nedtryckta: de sjunker en aning och tappar sin skugga.
    Utan det ar ett tryck som inte hann fram omojligt att skilja fran ett som
    aldrig registrerades. */
@@ -3889,7 +3893,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.24.0 — SLA UPP EN SPELARE</div>
+            <div class="desc">GENESIS v4.25.0 — VANNER</div>
           </div>
         </div>
       </div>
@@ -3900,7 +3904,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.24.0 — SLA UPP EN SPELARE</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.25.0 — VANNER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -15443,6 +15447,11 @@ $('profile-overlay').addEventListener('click', e => {
 });
 function openProfile(){
   renderProfile();
+  if (NET.on){
+    netFriendList().then(renderSocial).catch(() => {
+      const box = $('pf-social'); if (box) box.innerHTML = '<div class="desc">Could not load friends.</div>';
+    });
+  } else renderSocial();
   $('profile-overlay').classList.add('open');
   bringToFront($('profile-overlay'));
 }
@@ -15493,6 +15502,8 @@ function renderProfile(){
       '<button class="btn-neutral" id="pf-find-btn"' + (NET.on ? '' : ' disabled') + '>Look up</button>' +
     '</div>' +
     '<div class="pf-found" id="pf-found"></div>' +
+    '<div class="section-label">Friends</div>' +
+    '<div id="pf-social"><div class="desc">Loading…</div></div>' +
     '<div class="section-label">Switch</div>' +
     '<button class="btn-neutral wide" id="pf-settings">Open settings</button>';
 
@@ -15517,6 +15528,83 @@ function renderProfile(){
   const fbtn = $('pf-find-btn'), finp = $('pf-find-input');
   if (fbtn) fbtn.addEventListener('click', () => findPlayer(finp.value.trim()));
   if (finp) finp.addEventListener('keydown', e => { if (e.key === 'Enter') findPlayer(finp.value.trim()); });
+}
+/* ==================== VANNER ====================
+   Relationen ligger pa PROFILENS ID hos servern - handlen ar bara etiketten man
+   soker pa, sa ett namnbyte aldrig kan slita sonder nagons lista.
+   EN VAN SER ATT DU AR ONLINE OCH VILKEN KARAKTAR DU SPELAR - aldrig var du
+   star. Att vara vanner betyder inte att man aldrig vill motas i PvP, och da
+   vore en position pa kartan fusk. */
+let SOCIAL = {friends: [], incoming: [], outgoing: [], blocked: []};
+async function netFriendList(){
+  if (!NET.on) return null;
+  SOCIAL = await srvRpc('friend_list', {});
+  return SOCIAL;
+}
+async function socialDo(fn, args, done){
+  try {
+    await srvRpc(fn, args);
+    await netFriendList();
+    renderSocial();
+    if (done) say(done);
+  } catch (e){ say(socialErrText(e)); }
+}
+const SOCIAL_ERRORS = {
+  player_not_found: 'No player with that handle.',
+  already_friends:  'You are already friends.',
+  no_such_request:  'That request is gone.',
+  that_is_you:      'That is you.',
+  blocked:          'Not possible — one of you has blocked the other.',
+  not_authenticated:'Sign in first.'
+};
+function socialErrText(e){
+  const m = String((e && e.message) || e || '');
+  for (const k in SOCIAL_ERRORS) if (m.indexOf(k) >= 0) return SOCIAL_ERRORS[k];
+  return srvErrText(e, 'Could not do that.');
+}
+function socialLine(f, buttons){
+  const seen = f.online ? 'online'
+    : (f.last_seen_secs == null ? '' : 'last seen ' + fmtDur(f.last_seen_secs) + ' ago');
+  return '<div class="pf-card' + (f.online ? ' on' : '') + '">' +
+    '<div class="pf-dot"></div>' +
+    '<div style="flex:1"><div class="pf-handle-name">@' + f.handle + '</div>' +
+      '<div class="desc">' + seen +
+        (f.playing ? (seen ? ' \u00b7 ' : '') + 'playing <b>' + f.playing + '</b>' +
+          (f.level ? ' (level ' + f.level + ')' : '') : '') + '</div></div>' +
+    buttons + '</div>';
+}
+function renderSocial(){
+  const box = $('pf-social'); if (!box) return;
+  if (!NET.on){ box.innerHTML = '<div class="desc">Sign in to use friends.</div>'; return; }
+  const b = (label, act, h, cls) =>
+    '<button class="btn-neutral tiny ' + (cls || '') + '" data-social="' + act + '" data-h="' + h + '">' + label + '</button>';
+  let h = '';
+  if (SOCIAL.incoming && SOCIAL.incoming.length){
+    h += '<div class="pf-sub">Wants to be your friend</div>' +
+      SOCIAL.incoming.map(x => socialLine({handle: x.handle},
+        b('Accept', 'accept', x.handle) + b('Decline', 'decline', x.handle))).join('');
+  }
+  h += (SOCIAL.friends && SOCIAL.friends.length)
+    ? SOCIAL.friends.map(f => socialLine(f,
+        b('Remove', 'remove', f.handle) + b('Block', 'block', f.handle, 'danger'))).join('')
+    : '<div class="desc">No friends yet. Look someone up above and send a request.</div>';
+  if (SOCIAL.outgoing && SOCIAL.outgoing.length){
+    h += '<div class="pf-sub">Waiting for an answer</div>' +
+      SOCIAL.outgoing.map(x => socialLine({handle: x.handle}, b('Cancel', 'remove', x.handle))).join('');
+  }
+  if (SOCIAL.blocked && SOCIAL.blocked.length){
+    h += '<div class="pf-sub">Blocked</div>' +
+      SOCIAL.blocked.map(x => socialLine({handle: x.handle}, b('Unblock', 'unblock', x.handle))).join('');
+  }
+  box.innerHTML = h;
+  box.querySelectorAll('[data-social]').forEach(btn => btn.addEventListener('click', () => {
+    const h2 = btn.dataset.h, act = btn.dataset.social;
+    if (act === 'accept')  socialDo('friend_respond', {p_handle: h2, p_accept: true},  h2 + ' is now your friend.');
+    if (act === 'decline') socialDo('friend_respond', {p_handle: h2, p_accept: false}, 'Request declined.');
+    if (act === 'remove')  socialDo('friend_remove',  {p_handle: h2}, 'Removed.');
+    if (act === 'block')   socialDo('block_player',   {p_handle: h2}, h2 + ' is blocked.');
+    if (act === 'unblock') socialDo('unblock_player', {p_handle: h2}, h2 + ' is unblocked.');
+  }));
 }
 const FIND_ERRORS = {
   player_not_found:  'No player with that handle.',
@@ -15547,7 +15635,16 @@ async function findPlayer(h){
           (r.playing ? ' \u00b7 playing <b>' + r.playing + '</b>' +
             (r.level ? ' (level ' + r.level + ')' : '') : ' \u00b7 no characters yet') +
         '</div></div>' +
+        (r.is_me ? '' :
+          '<button class="btn-neutral tiny" data-addfriend="' + r.handle + '">Add friend</button>' +
+          '<button class="btn-neutral tiny danger" data-blockplayer="' + r.handle + '">Block</button>') +
       '</div>';
+    const add = box.querySelector('[data-addfriend]');
+    if (add) add.addEventListener('click', () =>
+      socialDo('friend_request', {p_handle: add.dataset.addfriend}, 'Request sent.'));
+    const blk = box.querySelector('[data-blockplayer]');
+    if (blk) blk.addEventListener('click', () =>
+      socialDo('block_player', {p_handle: blk.dataset.blockplayer}, 'Blocked.'));
   } catch (e){
     box.innerHTML = '<div class="desc" style="color:#ff9b9b">' + findErrText(e) + '</div>';
   }
