@@ -2564,9 +2564,32 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   border:1px solid #050810;box-shadow:0 0 6px rgba(0,0,0,.8);
 }
 /* Vem vaxer och vem star stilla. */
-.mh-grow{position:absolute;top:-4px;left:-2px;font-size:8px;color:var(--green);
-  text-shadow:0 1px 3px #000}
 .pc-idle{position:absolute;top:2px;left:3px;font-size:8px;color:var(--text-faint);opacity:.75}
+/* Yrkeskortet ar en pelare: allt vaxer, knapparna star i botten. */
+.pf-own{display:flex;flex-direction:column}
+.pf-grow{flex:1 1 auto;min-height:8px}
+.pf-act{margin-top:auto;display:grid;gap:8px}
+/* Craft och All ar lika stora. */
+.rr-btns .rr-craft{flex:1 1 0;min-width:74px}
+.rr-craft.all{opacity:1;font-size:11px;padding:8px}
+/* Knapparna ska KANNAS nedtryckta: de sjunker en aning och tappar sin skugga.
+   Utan det ar ett tryck som inte hann fram omojligt att skilja fran ett som
+   aldrig registrerades. */
+button, .zx-btn, .nav-btn, .gate-go{transition:transform .06s ease, box-shadow .06s ease, filter .06s ease}
+button:active:not(:disabled), .zx-btn:active:not(:disabled),
+.nav-btn:active, .gate-go:active:not(:disabled){
+  transform:translateY(2px) scale(.985);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.45);
+  filter:brightness(.94);
+}
+/* Hjalparens XP-matare. */
+.pxp{margin:8px 0 6px}
+.pxp-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-size:11px;color:var(--text-dim);margin-bottom:4px}
+.pxp-top b{color:var(--text);font-size:12px}
+.pxp-bar{height:6px;border-radius:99px;background:#0b1024;border:1px solid var(--border-soft);overflow:hidden}
+.pxp-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan))}
+.pxp-note{font-size:10px;color:var(--text-faint);margin-top:4px}
 .helper-menu{max-width:270px}
 .helper-menu small{color:var(--text-dim)}
 .exp-note{
@@ -3829,7 +3852,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.20.0 — CRAFTBAREN OCH SEX RATTELSER</div>
+            <div class="desc">GENESIS v4.22.0 — BODEN OCH STARTKNAPPEN</div>
           </div>
         </div>
       </div>
@@ -3840,7 +3863,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.20.0 — CRAFTBAREN OCH SEX RATTELSER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.22.0 — BODEN OCH STARTKNAPPEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4153,6 +4176,10 @@ const SRV_ERRORS = {
   slot_locked:              'That bag slot is still locked.',
   not_a_bag:                'That is not a bag.',
   no_such_run:              'That expedition is already claimed.',
+  already_sold:             'That one is already sold.',
+  nothing_in_slot:          'The shelf is empty there.',
+  not_at_this_vendor:       'You have to be standing at this vendor to trade.',
+  still_travelling:         'You are still travelling.',
   expedition_not_finished:  'That expedition is still out.',
   tank_already_full:        'The tank is already full.',
   not_usable:               'That cannot be used.',
@@ -4912,19 +4939,43 @@ function netPetFromRow(row){
     name: row.nickname || undefined
   };
 }
+/* VAR i rutnatet en hjalpare ligger ar mobleringen i ens egen ruta, inte
+   speldata - servern har ingen asikt om det. Men den maste anda overleva en
+   omladdning, annars kanns varje flytt som en bugg. Ordningen sparas darfor
+   lokalt, pa serverns id. */
+const PET_ORDER_KEY = 'genesis.petorder';
+function petOrderLoad(){
+  try { const d = JSON.parse(localStorage.getItem(PET_ORDER_KEY) || '{}');
+        return (d && typeof d === 'object') ? d : {}; } catch (e){ return {}; }
+}
+function petOrderSave(){
+  const map = {};
+  S.pets.owned.forEach((p, i) => { if (p && p.sid) map[p.sid] = i; });
+  try { localStorage.setItem(PET_ORDER_KEY, JSON.stringify(map)); } catch (e){}
+}
 async function netPullPets(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('pets',
     'character_id=eq.' + SRV.charId + '&select=id,species,rarity,affixes,xp,nickname,team_slot');
+  const order = petOrderLoad();
   S.pets.owned = [];
   S.pets.team  = [null, null, null];
+  const rest = [];
   (rows || []).forEach(row => {
     const p = netPetFromRow(row);
-    S.pets.owned.push(p);
+    const at = order[row.id];
+    if (Number.isInteger(at) && at >= 0 && at < 200 && !S.pets.owned[at]) S.pets.owned[at] = p;
+    else rest.push(p);
     if (row.team_slot != null && row.team_slot >= 0 && row.team_slot < 3){
       S.pets.team[row.team_slot] = p.uid;
     }
   });
+  /* Nya hjalpare, och sadana vars plats var upptagen, laggs i forsta ledig. */
+  rest.forEach(p => {
+    let i = 0; while (S.pets.owned[i]) i++;
+    S.pets.owned[i] = p;
+  });
+  for (let i = 0; i < S.pets.owned.length; i++) if (!S.pets.owned[i]) S.pets.owned[i] = null;
   return true;
 }
 async function netOpenCache(){
@@ -5095,6 +5146,11 @@ async function netVendorBuy(regionId, slot){
     {p_character: SRV.charId, p_region: regionId, p_slot: slot});
   if (r && r.gold != null) S.gold = +r.gold;
   await netPullItems();
+  /* LAGRET OCKSA. Utan den har raden lag den kopta pjasen kvar i boden tills man
+     laddade om - och trycker man pa den igen sager servern helt riktigt nej,
+     vilket sag ut som en bugg fast det var skarmen som halkat efter. */
+  await netVendorLookInto(regionId);
+  redrawZone();
   renderInventory(); updateUI(true);
   return r;
 }
@@ -6642,7 +6698,8 @@ function movePet(from, to){
   const a = S.pets.owned[from] || null, b = S.pets.owned[to] || null;
   if (!a) return false;
   S.pets.owned[to] = a; S.pets.owned[from] = b;
-  save(); renderPets();
+  petOrderSave();
+  save(); renderPets(); renderPetPanel();
   return true;
 }
 /* Sorteringslagena. Rariteten forst som standard, precis som vaskan sorterar. */
@@ -8808,10 +8865,18 @@ function expErrText(e){
 }
 function startExpedition(id){
   if (NET.on){
+    /* SVARET AR JA TILLS SERVERN SAGER NEJ. Forut lamnade den har vagen
+       ingenting tillbaka, sa knappen tolkade det som ett misslyckande och ritade
+       om zonrutan mitt under anropet - expeditionen startade, men skarmen sag
+       likadan ut och man tryckte igen. */
     netStartExpedition(id)
       .then(() => { expNote = ''; renderExpPanel(); refreshRegionUI(); updateUI(true); })
-      .catch(e => expSay(expErrText(e)));
-    return;
+      .catch(e => {
+        expSay(expErrText(e));
+        say(expErrText(e));
+        renderExpPanel();
+      });
+    return true;
   }
   const def = expDefById(id);
   if (!def) return false;
@@ -12378,7 +12443,7 @@ function buildTrader(regionId){
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
-    btn('Buy — ' + moneyText(price), ' id="trader-buy"', canPay) +
+    btn('Buy — ' + fmtMoney(price), ' id="trader-buy"', canPay) +
     '</div></div>';
   /* Flaskorna: samma sorts rad som cellen, en per boost. De stackar och köps med
      guld, så de är en guldsänka som inte kräver att man reser någonstans särskilt. */
@@ -12397,7 +12462,7 @@ function buildTrader(regionId){
       '<div class="tr-sub">+' + B.pct + '% ' + B.what + ' · ' + boostMinutes(BOOST_KEY_BY_ITEM[key]) + ' min · stackable</div></div></div>' +
       /* Knappen förblir LEVANDE på distans, precis som bodens övriga: trycker man
          säger boden ifrån i klartext i stället för att sitta grå och tyst. */
-      '<div class="tr-buy">' + btn('Buy — ' + moneyText(p), ' data-buyboost="' + key + '"', S.gold >= p) + '</div></div>';
+      '<div class="tr-buy">' + btn('Buy — ' + fmtMoney(p), ' data-buyboost="' + key + '"', S.gold >= p) + '</div></div>';
   }).join('');
   const row = (s, i) => {
     const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId, s);
@@ -12407,8 +12472,8 @@ function buildTrader(regionId){
       '<div><div class="tr-name" style="color:var(--rc)">' + D.name + '</div>' +
       '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + ' · rolled when you buy it</div></div></div>' +
       '<div class="tr-buy">' +
-      (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + moneyText(full - p) + ' off</div>' : '') +
-      btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', S.gold >= p) +
+      (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + fmtMoney(full - p) + ' off</div>' : '') +
+      btn('Buy — ' + fmtMoney(p), ' data-vbuy="' + i + '"', S.gold >= p) +
       '</div></div>';
   };
 
@@ -13074,6 +13139,21 @@ function doPetRecycle(){
    Samma ram som foremalskorten, sa hela spelet ser likadant ut: konst till vanster,
    fakta till hoger, handlingarna underst. */
 /* Husdjurets hovringskort, byggt av foremalskortets egna klasser. */
+/* Hjalparens niva och XP som en matare. Anvands bade i hovringen och i det
+   utfallda kortet, sa de aldrig kan visa olika saker. */
+function petXpBarHTML(p){
+  const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
+  const on = inTeam(p.uid);
+  const pct = max ? 100 : Math.round(li.into / li.need * 100);
+  return '<div class="pxp">' +
+    '<div class="pxp-top"><b>Level ' + li.lvl + '</b>' +
+      '<span>' + (max ? 'fully grown' : Math.floor(li.into) + ' / ' + li.need + ' XP') + '</span></div>' +
+    '<div class="pxp-bar"><i style="width:' + pct + '%"></i></div>' +
+    '<div class="pxp-note">' + (max ? 'Nothing left to learn.'
+      : on ? 'Working — earns 15% of your XP.'
+           : 'Resting — a helper only grows while it works.') + '</div>' +
+  '</div>';
+}
 function petTipHTML(p){
   const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
   const on = inTeam(p.uid);
@@ -13084,7 +13164,10 @@ function petTipHTML(p){
        star bara ditt namn - arten under ar din sak att minnas, inte kortets. */
     '<div class="gt-rar">' + RARITIES[p.rar].name + (on ? ' \u00b7 Working' : '') + '</div>' +
     '<div class="gt-sep"></div>' +
-    stat(max ? 'Lv 10' : 'Lv ' + li.lvl, max ? '\u00b7 fully grown' : '\u00b7 ' + Math.floor(li.into) + ' / ' + li.need + ' XP') +
+    /* NIVAN MED SIN MATARE. Talen stod har men baren saknades, sa man sag inte
+       hur nara nasta niva hjalparen var - och bara insatta hjalpare vaxer, sa
+       det ar just den maten man vill se. */
+    petXpBarHTML(p) +
     petEffLines(p).map(t => '<div class="gt-stat">' + t + '</div>').join('') +
     '<div class="gt-sep"></div>' +
     line('Recycles into', dustFor(p) + ' ✨') +
@@ -13155,10 +13238,13 @@ function profOwnedHTML(pr){
       '<span class="pf-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</span></div>' +
     '<div class="pf-lbl">' + (pr.kind === 'crafting' ? 'CRAFTS & EQUIPS' : 'GATHERS') + '</div>' +
     '<div class="pf-tags">' + profTags(pr) + '</div>' +
-    (pr.kind === 'crafting'
-      ? '<button class="pf-btn wide" data-book="' + pr.id + '">\ud83d\udcd6 RECIPE BOOK</button>'
-      : gatherLoopHTML(pr.id)) +
+    /* Mellanrummet vaxer sa knapparna hamnar LANGST NER pa bada korten. Forut
+       lag hantverkarens hogre upp an samlarens och korten sag olika ut. */
+    (pr.kind === 'crafting' ? '<div class="pf-grow"></div>' : gatherLoopHTML(pr.id)) +
     '<div class="pf-act">' +
+      (pr.kind === 'crafting'
+        ? '<button class="pf-btn wide" data-book="' + pr.id + '">\ud83d\udcd6 RECIPE BOOK</button>'
+        : '') +
       '<button class="pf-btn danger wide" data-forget="' + pr.id + '">\u267b UNLEARN</button>' +
     '</div>' +
   '</div>';
@@ -13206,12 +13292,6 @@ function renderProfessions(){
     h += '<div class="pf-slots">' + cards + '</div>';
   }
 
-  h += '<div class="pf-note"><span class="pf-i">i</span><span>' +
-    (n >= PROF_MAX
-      ? 'Learn up to ' + PROF_MAX + ' professions. Unlearn a profession to learn a new one.'
-      : 'Learn up to ' + PROF_MAX + ' professions. Each one costs ' + moneyText(cost) +
-        ' — the same every time. Unlearning is free, but you lose the level.') +
-    '</span></div>';
 
   wrap.innerHTML = h;
 
@@ -13256,7 +13336,8 @@ function gatherLoopHTML(id){
   return '<div class="gather-loop gl-shift" data-gather="' + id + '">' +
     '<div class="gl-scene gl-' + id + '"><span class="gl-tool" style="background-image:url(\'' + profArt(id) + '\')"></span></div>' +
     '<div class="gl-right">' +
-      '<div class="gl-verb">' + def.verb + ' in ' + here + ' \u00b7 Tier ' + tier +
+      /* "Tier 0" stod har utan att betyda nagot i yrket - taget bort. */
+      '<div class="gl-verb">' + def.verb + ' in ' + here +
         '<span class="gl-clock"></span></div>' +
       '<div class="gl-bar"><div class="gl-fill" style="width:0%"></div></div>' +
       '<div class="gl-last">' + last + '</div>' +
@@ -13475,12 +13556,11 @@ function renderRecipeBook(){
       ? '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px'
       : '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
     const artInner = isFl ? FLASKS[r.item].ico : '';
-    if (!known){
-      return '<div class="recipe-row locked">' +
-        '<div class="rr-art" style="--rc:' + rarCol(r.rar) + '"></div>' +
-        '<div class="rr-body"><div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
-          '<div class="rr-locked">🔒 Recipe drop — find it out in the world</div></div></div>';
-    }
+    /* ETT RECEPT MAN INTE HITTAT SYNS INTE. Forut stod alla dropprecept som
+       lasta rader i boken - man visste alltsa exakt vad som fanns att hitta
+       innan man hittat det, och boken var full av saker man inte agde. Nu dyker
+       receptet upp forst nar man anvant fyndet. */
+    if (!known) return '';
     if (!recipeLevelOk(r.id)){
       return '<div class="recipe-row locked">' +
         '<div class="rr-art" style="--rc:' + rarCol(r.rar) + '"></div>' +
@@ -13552,6 +13632,7 @@ function petWinHTML(p){
       '<div class="item-art pet-art"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 96) + ';border:0;background:transparent"></div></div>' +
       '<div class="item-head">' +
         '<div class="gt-rar">' + RARITIES[p.rar].name + (on ? ' \u00b7 Working' : '') + '</div>' +
+        petXpBarHTML(p) +
         stat(max ? 'MAX' : li.lvl, max ? 'Level 10' : 'Level') +
         '<div class="iw-affs">' +
           petEffLines(p).map(t => '<div class="af">' + t + '</div>').join('') +
@@ -16671,9 +16752,6 @@ function renderHelperSlots(){
         ';border:0;background:transparent"></span>' +
         (showCap ? '<span class="mh-cap" title="This slot takes up to ' +
           GEAR_RAR[capIdx2].name + '" style="background:' + rarCol(capIdx2) + '"></span>' : '') +
-        /* Den som arbetar VAXER - femton procent av din egen XP. Market sager
-           det utan ord, och den vilande i listan bar sitt motsatta marke. */
-        '<span class="mh-grow" title="Working — earns XP">\u25b2</span>' +
         (a ? '<span class="mh-val">+' + a.v + '%</span>' : '');
       ref.helper.removeAttribute('title');
     } else {
