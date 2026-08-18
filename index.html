@@ -534,6 +534,24 @@ body.dragging *{cursor:grabbing !important}
   color:var(--text);opacity:0;transition:opacity .18s, transform .18s;
 }
 #say-box.on{opacity:1;transform:translate(-50%,0)}
+/* Bransleikonen inuti en vaskruta. */
+.iv-qi{display:inline-block;width:22px;height:22px;background-size:contain;background-repeat:no-repeat;background-position:center}
+/* SAMLARVASKANS RUTOR LYSER ALLTID SVAGT GRONT - man ska aldrig behova hovra
+   for att se var det man samlat hamnar. Samma sken pa dess fack. */
+.inv-slot.gbag-cell{
+  border-color:rgba(74,222,128,.38);
+  background:linear-gradient(180deg,rgba(74,222,128,.07),rgba(74,222,128,.02));
+}
+.inv-bagslot.gbag{box-shadow:inset 0 0 14px rgba(74,222,128,.18)}
+/* Samma sprak som meddelanderutan, men vid handen i stallet for hogst upp. */
+.say-at{
+  position:fixed;z-index:900;pointer-events:none;max-width:260px;text-align:center;
+  padding:8px 12px;border-radius:9px;font-size:11.5px;font-weight:700;line-height:1.5;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);box-shadow:0 12px 30px rgba(0,0,0,.65);
+  color:var(--text);opacity:0;transform:translateY(6px);transition:opacity .18s, transform .18s;
+}
+.say-at.on{opacity:1;transform:translateY(0)}
 /* ==================== YRKESRUTAN (v4.3.0) ====================
    Byggd efter spelarens skisser: tre scener i samma fonster.
    1) tomt lage - tva stora platser att lara sig ett yrke i
@@ -715,6 +733,9 @@ body.dragging *{cursor:grabbing !important}
 .gt-req{margin-left:7px;padding:1px 6px;border-radius:5px;font-size:9.5px;font-weight:800;
   background:rgba(56,232,255,.10);border:1px solid var(--cyan-dim);color:var(--cyan)}
 .gt-req.cant{background:rgba(255,90,90,.12);border-color:var(--red);color:#ff9b9b}
+/* Nivan pa egen rad, utan ram. */
+.gt-lvl{font-size:11px;font-weight:800;color:var(--cyan);margin:2px 0 1px}
+.gt-lvl.cant{color:#ff9b9b}
 .m-tip .mt-blurb{font-size:10px;color:var(--text-dim);line-height:1.4;margin:-2px 0 8px}
 .m-tip .mt-ico{font-size:18px}
 .m-tip .mt-name{font-size:12px;font-weight:900;letter-spacing:.04em}
@@ -2631,6 +2652,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
 .ah-qty input:focus{outline:none;border-color:var(--cyan)}
 .ah-avail{color:var(--text-faint);font-size:11px;margin:6px 2px 0}
 .ah-unit{display:block;font-style:normal;font-size:9.5px;color:var(--text-faint);font-family:var(--font-mono)}
+.mn-subj{font-size:11px;color:var(--text-dim);margin:2px 0 8px}
 .ah-pricebox{
   display:flex;align-items:center;gap:8px;padding:0 12px;
   background:#0b1024;border:1px solid var(--border-soft);border-radius:9px;
@@ -3101,9 +3123,9 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="char-stats-cell">
         <div class="char-stats">
           <div class="cs-title">Stats</div>
-          <div class="cs-cp"><span>Power</span><b id="cs-power">0</b></div>
-          <div class="cs-cp"><span>Damage</span><b id="cs-damage">0</b></div>
-          <div class="cs-cp"><span>Hit</span><b id="cs-hit">0</b></div>
+          <!-- Power, HP och Damage star i den vanliga listan nu. De tre stora
+               rutorna at halva sidan. Hit ar gomd tills PvE finns - talet gar
+               inte att anvanda mot nagot an. -->
           <div class="cs-rows" id="cs-rows"></div>
         </div>
         </div>
@@ -3652,7 +3674,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.9.0 — AVGIFTEN BETALAS I FORVAG</div>
+            <div class="desc">GENESIS v4.10.0 — SKARMEN HANGER MED</div>
           </div>
         </div>
       </div>
@@ -3678,7 +3700,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.9.0 — AVGIFTEN BETALAS I FORVAG</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.10.0 — SKARMEN HANGER MED</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4238,7 +4260,10 @@ async function netPullMailbox(){
     subject: m.subject || '',
     body: m.body || '',
     at: m.at ? new Date(m.at).getTime() : Date.now(),
-    items: Array.isArray(m.items) ? m.items : [],
+    /* Serverns bilagor talar sitt eget sprak: stack_key/item_key/qty. Rutan
+       letade efter key/name/ico och skrev darfor "undefined". Har oversatts de
+       EN gang, sa resten av granssnittet slipper veta var de kom ifran. */
+    items: (Array.isArray(m.items) ? m.items : []).map(mailItemNorm),
     read: !!m.read_at,
     readAt: m.read_at ? new Date(m.read_at).getTime() : null,
     src: 'server'
@@ -4790,6 +4815,9 @@ async function netPullAll(){
   await netPullProfessions();
   await netPullBoosts();
   await netPullAchievements();
+  /* Hamtade vi hem allt ritar vi ocksa om allt. Det ar den enda regel som
+     haller: den som hamtar behover inte veta vilka rutor som pavarkas. */
+  redrawAll();
 }
 
 /* ============ SISTA SYSTEMEN (klientlager 5) ============
@@ -4897,7 +4925,12 @@ async function netPullMail(){
 async function netTakeMail(mailId){
   if (!NET.on) return null;
   const r = await srvRpc('take_mail', {p_character: SRV.charId, p_mail: mailId});
+  /* Brevet ar tomt nu och ska FORSVINNA - ur bade rutan och listan. Forut lag
+     det kvar med sin TAKE-knapp, och ett andra tryck gav "that letter is gone"
+     om nagot man hade framfor sig. */
   await netPullItems();
+  await netPullMailbox();
+  renderMail(); renderMailBadge();
   renderInventory(); updateUI(true);
   return r;
 }
@@ -7493,6 +7526,30 @@ function mailAgeText(at){
   if (s < 86400) return Math.floor(s / 3600) + 'h ago';
   return Math.floor(s / 86400) + 'd ago';
 }
+/* Oversatter en bilaga fran serverns form till den som rutan ritar. */
+/* Rubriken pa ett brev ar VAD det galler - varan, om det ligger nagon i det.
+   Ligger det inget i brevet ar amnet det basta man har. */
+function mailTitleOf(m){
+  const it = m.items && m.items[0];
+  return (it && (it.name || it.key)) || m.subject || 'Message';
+}
+function mailItemNorm(it){
+  if (!it || typeof it !== 'object') return it;
+  if (it.gear) return it;
+  const key = it.stack_key || it.item_key || it.key || '';
+  const mat = MATERIALS[key], fl = FLASKS[key], D = ITEMS[key];
+  const name = it.name || (mat && mat.name) || (fl && fl.name) || (D && D.name) ||
+               (key.indexOf('recipe_') === 0 ? recipeItemName(key.replace(/^recipe_/, '')) : key);
+  const ico = (mat && mat.ico) || (fl && fl.ico) ||
+              (key.indexOf('recipe_') === 0 ? '📜' : (key === 'fuelcell' ? '⛽' : '📦'));
+  return {
+    key: key, name: name, ico: ico,
+    qty: Math.max(1, +it.qty || 1),
+    rar: it.rarity == null ? undefined : (it.rarity | 0),
+    itemKey: it.item_key || undefined,
+    itemId: it.item_id || undefined
+  };
+}
 function mailItemHTML(it, mid, i){
   if (it.gear){
     return '<div class="mail-item" data-take="' + mid + '" data-idx="' + i + '" style="--rc:' + gearRarCol(it.gear) + '">' +
@@ -7500,10 +7557,12 @@ function mailItemHTML(it, mid, i){
       '<span class="mi-name">' + gearName(it.gear) + '</span>' +
       '<span class="mi-take">Take</span></div>';
   }
-  return '<div class="mail-item" data-take="' + mid + '" data-idx="' + i + '">' +
-    '<span class="mi-ico">' + (it.ico || '📦') + '</span>' +
+  const art = it.itemKey && ITEMS[it.itemKey]
+    ? '<span class="mi-art" style="background-image:url(\'' + itemArtFor(it.itemKey, it.rar || 0) + '\')"></span>'
+    : '<span class="mi-ico">' + (it.ico || '📦') + '</span>';
+  return '<div class="mail-item" data-take="' + mid + '" data-idx="' + i + '">' + art +
     '<span class="mi-name">' + (it.name || it.key) + (it.qty > 1 ? ' ×' + it.qty : '') + '</span>' +
-    '<span class="mi-take">Take</span></div>';
+    '<span class="mi-take">TAKE</span></div>';
 }
 function renderMail(){
   const list = $('mail-list');
@@ -7524,7 +7583,7 @@ function renderMail(){
         '<span class="mail-from">' + m.from + '</span>' +
         '<span class="mail-age">' + mailAgeText(m.at) + '</span>' +
       '</div>' +
-      '<div class="mail-subject">' + m.subject + '</div>' +
+      '<div class="mail-subject">' + mailTitleOf(m) + '</div>' +
       '<div class="mail-foot">' +
         (m.items.length ? '<span class="mail-hasitems">📦 ' + m.items.length + '</span>' : '<span class="mail-hasitems empty">read</span>') +
         '<span class="mail-ttl' + (soon ? ' soon' : '') + '">expires in ' + fmtDur(left / 1000) + '</span>' +
@@ -7546,17 +7605,20 @@ function openMailNote(id){
   note.className = 'item-win mail-note';
   note.dataset.mailnote = id;
   const left = mailLeftMs(m);
+  /* ETT RIKTIGT BREV, i den ordning man laser det: vad det galler, fran vem,
+     vad som hant, och sist det som ligger i kuvertet. Forut stod amnet bade som
+     rubrik och en rad ner - samma mening tva ganger. */
   note.innerHTML =
-    '<div class="iw-head"><span class="iw-title">' + m.subject + '</span><button class="iw-x">✕</button></div>' +
-    '<div class="mn-from">From <b>' + m.from + '</b> · ' + mailAgeText(m.at) + '</div>' +
+    '<div class="iw-head"><span class="iw-title">' + mailTitleOf(m) + '</span><button class="iw-x">✕</button></div>' +
+    '<div class="mn-from">From: <b>' + m.from + '</b></div>' +
+    '<div class="mn-subj">Subject: ' + m.subject + '</div>' +
     (m.body ? '<div class="mn-body">' + m.body + '</div>' : '') +
     (m.items.length
-      ? '<div class="mail-items">' + m.items.map((it, i) => mailItemHTML(it, m.id, i)).join('') + '</div>' +
-        '<div class="mn-hint">Click an item to collect it. It stays here until you do.</div>'
+      ? '<div class="mail-items">' + m.items.map((it, i) => mailItemHTML(it, m.id, i)).join('') + '</div>'
       : '') +
     '<div class="mn-foot">' +
       '<span class="mail-ttl' + (left < 86400000 ? ' soon' : '') + '">Expires in ' + fmtDur(left / 1000) + '</span>' +
-      '<button class="mail-del" data-delnote="' + m.id + '">' + (m.items.length ? 'Delete anyway' : 'Delete') + '</button>' +
+      '<button class="mail-del" data-delnote="' + m.id + '">Delete</button>' +
     '</div>';
   document.body.appendChild(note);
   const w = $('mail-overlay').getBoundingClientRect();
@@ -7787,7 +7849,7 @@ function buildRows(){
       const sitting = seatedPet(b.id);
       if (e.shiftKey && sitting){
         seatHelper(b.id, null);
-        say(petName(sitting) + ' is back in your helpers.');
+        sayAt(rowRefs[b.id].helper, petName(sitting) + ' is back in your helpers.');
         return;
       }
       openHelperPicker(b.id, e.clientX, e.clientY);
@@ -8843,7 +8905,12 @@ function charStatRows(){
   const r = [];
   const round = v => Math.round(v * 100) / 100;
   const up = (k, v) => { v = round(v); if (v > 0) r.push([k, '+' + v + '%']); };
+  /* Ordningen ar spelarens: Power, HP, Damage. Hit ar med i koden men gomd -
+     Damage ganger Power delat med hundra - och tas fram den dag den anvands. */
+  r.push(['Power', fmt(totalPower())]);
   r.push(['HP', fmt(totalHP())]);
+  if (totalDamage() > 0) r.push(['Damage', fmt(totalDamage())]);
+  /* r.push(['Hit', fmt(totalHit())]);  <- vantar pa PvE */
   if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '% time']);
   up('Crit Chance', gearBonus('crit'));
   up('Idle Data', gearBonus('idle'));
@@ -8874,11 +8941,7 @@ function charStatRows(){
 }
 function renderCharStats(){
   const el2 = $('cs-rows');
-  const pw = $('cs-power'), dm = $('cs-damage'), ht = $('cs-hit');
-  if (!el2 || !pw) return;
-  pw.textContent = fmt(totalPower());
-  dm.textContent = fmt(totalDamage());
-  ht.textContent = fmt(totalHit());
+  if (!el2) return;
   const rows = charStatRows();
   el2.innerHTML = rows.length
     ? rows.map(r => '<div class="cs-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>').join('')
@@ -9297,16 +9360,25 @@ function bagSegments(){
 function invCellHTML(i, pos){
   const it = S.inv[i];
   const at = pos ? 'grid-column:' + pos.col + ';grid-row:' + pos.row + ';' : '';
+  /* Rutorna som hor till samlarvaskan bar sin egen klass och lyser darfor
+     svagt gront hela tiden, inte bara nar man hovrar. */
+  const gb = (typeof gbagStart === 'function' && i >= gbagStart()) ? ' gbag-cell' : '';
   if (it && it.gear){
-    return '<div class="inv-slot filled gear" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
+    return '<div class="inv-slot filled gear' + gb + '" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
       '<div class="iv-img" style="background-image:url(\'' + gearArt(it.gear) + '\')"></div></div>';
   }
   if (it){
     const showQty = it.stack || it.qty > 1;
-    return '<div class="inv-slot filled" data-inv="' + i + '"' + (at ? ' style="' + at + '"' : '') + '><span class="inv-ico">' + it.ico + '</span>' +
+    /* Branslecellen bar samma bild som matarn i toppen - ingen ny bild, samma
+       bild pa bada stallen, sa man kanner igen den utan att lasa. */
+    const ico = it.key === 'fuelcell'
+      ? '<span class="inv-ico"><span class="qi qi-fuel iv-qi"></span></span>'
+      : '<span class="inv-ico">' + it.ico + '</span>';
+    return '<div class="inv-slot filled' + gb + '" data-inv="' + i + '"' +
+      (at ? ' style="' + at + '"' : '') + '>' + ico +
       (showQty ? '<span class="inv-qty">' + (it.qty > 999 ? '999+' : it.qty) + '</span>' : '') + '</div>';
   }
-  return '<div class="inv-slot" data-inv="' + i + '"' + (at ? ' style="' + at + '"' : '') + '></div>';
+  return '<div class="inv-slot' + gb + '" data-inv="' + i + '"' + (at ? ' style="' + at + '"' : '') + '></div>';
 }
 /* Ett minifönster per UTBRUTEN väska. Fönstret bär sitt fack i data-socket, så
    krysset och facket kan stänga samma sak. */
@@ -10030,6 +10102,27 @@ const floatsLive = [];
    darifran ("bygg en Expedition Beacon forst", ett serverfel) sköts ocksa ut ur
    noden, i andra anden av skarmen fran handen som klickade. De far en egen ruta
    som lagger sig hogst upp i mitten och forsvinner av sig sjalv. */
+/* ETT BESKED DAR HANDEN VAR.
+   Ett svar pa ett klick hor hemma vid det man klickade pa - rutan hogst upp i
+   mitten ar for sadant som inte hor till nagon sarskild plats pa skarmen.
+   Forut flog varje svar till toppen och forsvann dar. */
+function sayAt(elm, text){
+  if (!text) return;
+  if (!elm || !elm.getBoundingClientRect) return say(text);
+  document.querySelectorAll('.say-at').forEach(n => n.remove());
+  const box = document.createElement('div');
+  box.className = 'say-at';
+  box.textContent = text;
+  document.body.appendChild(box);
+  const r = elm.getBoundingClientRect(), b = box.getBoundingClientRect();
+  let x = r.left + r.width / 2 - b.width / 2;
+  let y = r.top - b.height - 10;
+  if (y < 8) y = r.bottom + 10;
+  box.style.left = Math.max(8, Math.min(x, window.innerWidth - b.width - 8)) + 'px';
+  box.style.top = y + 'px';
+  requestAnimationFrame(() => box.classList.add('on'));
+  setTimeout(() => { box.classList.remove('on'); setTimeout(() => box.remove(), 220); }, 3200);
+}
 function say(text){
   if (!text) return;
   let box = document.getElementById('say-box');
@@ -10195,6 +10288,31 @@ function loopBody(now){
 }
 
 let lastSaveShown = 0;
+/* ================= EN OMRITNING SOM RITAR ALLT =================
+   Tre fel i rad kom fran samma sak: servern (eller spellogiken) gjorde ratt,
+   men bara EN ruta ritades om, och de andra stod kvar med gammal bild tills
+   nagot rakade oppna dem igen. Det gar inte att komma ihag att kalla pa nio
+   ritfunktioner pa tjugo stallen. Har ar de samlade pa ETT stalle, och varje
+   vag som hamtar hem sanningen fran servern slutar med att kalla pa den. */
+function redrawAll(){
+  const call = f => { try { if (typeof f === 'function') f(); } catch (e){} };
+  call(renderEquip);
+  call(renderInventory);
+  call(renderBagSlots);
+  call(renderMiniBags);
+  call(renderVault);
+  call(renderVaultBagSlots);
+  call(renderPets);
+  call(renderPetPanel);
+  call(renderHelperSlots);
+  call(renderProfessions);
+  call(renderMail);
+  call(renderMailBadge);
+  call(renderBoostBar);
+  call(renderExpPanel);
+  call(renderCharStats);
+  call(() => updateUI(true));
+}
 function updateUI(force){
   el.data.textContent = fmt(S.data);
   el.dps.textContent = fmt(totalDps()) + '/s';
@@ -10767,8 +10885,12 @@ function takeMailItem(id, i){
     /* Servern tommer HELA brevet at gangen - den kanner inte till enskilda
        rader i ett brev. Det ar en medveten forenkling: ett brev ar en
        forsandelse, inte en hylla. */
-    netTakeMail(id).then(() => { renderMail(); updateUI(true); })
-      .catch(e => say(srvErrText(e)));
+    netTakeMail(id).then(() => {
+      /* Brevet ar tomt och borta pa servern - stang lappen ocksa, annars star
+         den kvar med en knapp som inte langre har nagot att hamta. */
+      document.querySelectorAll('.mail-note[data-mailnote="' + id + '"]').forEach(n => n.remove());
+      renderMail(); renderMailBadge(); renderInventory(); updateUI(true);
+    }).catch(e => say(srvErrText(e)));
     return true;
   }
   const it = m.items[i];
@@ -12403,7 +12525,7 @@ function renderPetTools(){
      fem ganger for att se vad den kan. */
   t.classList.remove('danger');
   t.innerHTML =
-    '<span class="inv-capline"><b>' + count + '</b> pets \u00b7 <b>' + S.pets.dust + '</b> ✨</span>' +
+    '<span class="inv-capline"><b>' + count + '</b> helpers \u00b7 <b>' + S.pets.dust + '</b> ✨</span>' +
     '<span class="pet-toolbtns">' +
     '<span class="pet-sortwrap">' +
       '<button class="inv-sort' + (petSortOpen ? ' on' : '') + '" id="pet-sort">\u21c5 ' + PET_SORTS[petSortIdx].name + '</button>' +
@@ -13310,9 +13432,10 @@ function gearTipHTML(it){
     /* Nivan star bredvid platsen: bade saljare och kopare pa auktionen maste
        kunna se vad de har framfor sig. Pjasen rullades pa den nivan och vaxer
        aldrig efterat. */
-    '<div class="gt-rar">' + GEAR_SLOTS[it.s].name +
-      (it.lv ? '<span class="' + (it.lv > levelInfo().lvl ? 'gt-req cant' : 'gt-req') + '">'
-             + 'Level ' + it.lv + '</span>' : '') + '</div>' +
+    /* Tre rader: namnet, nivan pa egen rad, och platsen sist. Ramen runt nivan
+       ar borta - texten racker, och brickan gjorde kortet bredare an det behovde. */
+    (it.lv ? '<div class="gt-lvl' + (it.lv > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + '</div>' : '') +
+    '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
     /* Tre avgränsade block: plats · talen · förmågor · priset. Strecken
        gör att ögat hittar rätt grupp utan att läsa. */
     '<div class="gt-sep"></div>' +
@@ -13481,9 +13604,8 @@ function itemWinHTML(it, worn){
   return head +
     '<div class="item-top">' + art +
       '<div class="item-head">' +
-        '<div class="gt-rar">' + GEAR_SLOTS[it.s].name +
-          (it.lv ? '<span class="' + (it.lv > levelInfo().lvl ? 'gt-req cant' : 'gt-req') + '">'
-                 + 'Level ' + it.lv + '</span>' : '') + '</div>' +
+        (it.lv ? '<div class="gt-lvl' + (it.lv > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + '</div>' : '') +
+        '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
         stat(fmt(it.hp), 'Health', delta(it.hp - (cur ? cur.hp : 0))) +
         stat(fmt(it.pw || 0), 'Power', delta((it.pw || 0) - (cur ? (cur.pw || 0) : 0))) +
         ((it.dm || (cur && cur.dm)) ? stat(fmt(it.dm || 0), 'Damage',
@@ -14787,7 +14909,10 @@ async function gateEnter(id, name){
        uppstigningen av direkt vid inloggning for var och en som har nagra. */
     lastLevel = levelInfo().lvl; lastPara = levelInfo().para || 0;
     $('gate').classList.add('done');
-    updateUI(true); refreshShelf(); renderInventory();
+    /* HELA skarmen ritas om, inte bara vaskan. Forut var burna handskar och
+       stovlar osynliga efter en omladdning - servern hade dem, karaktarsbladet
+       hade aldrig blivit ombett att rita dem. */
+    refreshShelf(); redrawAll();
   } catch (e){
     gateSay('gate-msg2', e.message);
   }
@@ -15176,7 +15301,11 @@ async function ahRefreshAll(){
     const m = await netAhMy(); AH.my = m;
     ahRenderCats(); ahRenderBottom();
     await ahLoad();
-  } catch (e){ spawnFloat({text: ahErrText(e)}); }
+    /* Att oppna auktionshuset stadar bort utgangna annonser pa servern, och de
+       kommer tillbaka som POST. Hamta inkorgen direkt, annars sitter man med en
+       osedd bricka tills nagot annat rakar hamta den. */
+    await netPullMailbox(); renderMailBadge();
+  } catch (e){ say(ahErrText(e)); }
 }
 async function ahLoad(){
   if (AH.view === 'buy'){
@@ -15856,14 +15985,12 @@ function renderHelperSlots(){
       ref.helper.setAttribute('draggable', 'true');
       ref.helper.dataset.helper = b.id;
       ref.helper.style.setProperty('--rc', rarCol(p.rar));
-      /* Taket syns anda: en liten prick i hornet i den finaste sallsynthet som
-         far sitta har. Ramen tillhor hjalparen som sitter dar, pricken sager
-         vad platsen kan ta emot. */
+      /* INGEN takprick har: platsen ar upptagen, fragan ar besvarad. Pricken
+         hor till en tom plats, dar man annu ska valja. */
       ref.helper.innerHTML = '<span class="pet-sprite" style="' + petSpriteVars(p.sp, 26) +
         ';border:0;background:transparent"></span>' +
-        '<span class="mh-cap" style="background:' + rarCol(Math.max(0, helperRarityAllowed(b.id))) + '"></span>' +
         (a ? '<span class="mh-val">+' + a.v + '%</span>' : '');
-      ref.helper.title = petName(p) + (a ? ' — ' + HELPER_ABILITIES[a.f].text(a.v) : '');
+      ref.helper.removeAttribute('title');
     } else {
       /* RAMEN SAGER TAKET. En tom plats ar streckad i fargen for den finaste
          sallsynthet som far sitta dar just nu - 1 byggnad common, 5 uncommon,
@@ -15874,9 +16001,13 @@ function renderHelperSlots(){
       ref.helper.className = 'm-helper empty';
       ref.helper.removeAttribute('draggable');
       ref.helper.dataset.helper = b.id;
-      ref.helper.style.setProperty('--rc', rarCol(Math.max(0, helperRarityAllowed(b.id))));
-      ref.helper.innerHTML = '<span class="mh-plus">+</span>';
-      ref.helper.title = 'Seat a helper — ' + (HELPER_ABILITIES[b.boon] || {}).name;
+      const capIdx = Math.max(0, helperRarityAllowed(b.id));
+      ref.helper.style.setProperty('--rc', rarCol(capIdx));
+      ref.helper.innerHTML = '<span class="mh-plus">+</span>' +
+        '<span class="mh-cap" data-cap="' + b.id + '" style="background:' + rarCol(capIdx) + '"></span>';
+      /* Ingen webblasartooltip: hovringskortet sager redan samma sak, snyggare.
+         Tva rutor samtidigt ar en for mycket. */
+      ref.helper.removeAttribute('title');
     }
   });
 }
@@ -15976,7 +16107,7 @@ function openHelperPicker(bid, x, y){
      aldrig ga att forvaxla. */
   if (!list.length && !cur){
     const anyRight = petsOwned().some(p => (petAffixes(p)[0] || {}).f === b.boon);
-    say(anyRight
+    sayAt(document.querySelector('[data-helper="' + bid + '"]'), anyRight
       ? 'Your ' + ab.name + ' helper is too rare for this slot — build more ' + b.name + '.'
       : 'No ' + ab.name + ' helper found yet.');
     return;
@@ -16034,11 +16165,14 @@ function seatHelper(bid, uid){
     netSeatHelper(bid, uid ? +uid : null)
       .catch(e => {
         S.helpers = before;
-        renderHelperSlots(); updateUI(true);
+        renderHelperSlots(); renderPets(); renderPetPanel(); updateUI(true);
         say(SEAT_ERRORS[String(e && e.message || e)] || 'Could not seat that helper');
       });
   } else { save(); }
-  renderHelperSlots(); updateUI(true);
+  /* BADA rutorna, i samma ogonblick: platsen fylls OCH listan tappar sin rad.
+     Forut ritades bara platsen om, sa hjalparen lag kvar i listan tills man
+     stangde fonstret och oppnade det igen. */
+  renderHelperSlots(); renderPets(); renderPetPanel(); updateUI(true);
 }
 async function netSeatHelper(bid, uid){
   if (!NET.on) return null;
