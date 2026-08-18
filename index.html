@@ -542,13 +542,24 @@ body.dragging *{cursor:grabbing !important}
   color:var(--text);opacity:0;transition:opacity .18s, transform .18s;
 }
 #say-box.on{opacity:1;transform:translate(-50%,0)}
-/* Ljudknapparna i naven: gront nar det later, rott nar det ar tyst. Fargen
-   sitter pa ikonen OCH pa texten, sa den syns aven for den som har svart att
-   skilja pa nyanser i en liten prick. */
-.nav-btn.nav-snd .ico{font-size:17px;line-height:1}
-.nav-btn.snd-on  .ico,.nav-btn.snd-on  .lbl small{color:var(--green)}
-.nav-btn.snd-off .ico,.nav-btn.snd-off .lbl small{color:var(--red);opacity:.85}
-.nav-btn.snd-off .ico{filter:grayscale(.6)}
+/* Ljudet i bottenraden: gront nar det later, rott nar det ar tyst. */
+.snd-toggle{cursor:pointer;user-select:none}
+.snd-toggle span{font-weight:800;letter-spacing:.06em}
+.snd-toggle.snd-on  span{color:var(--green)}
+.snd-toggle.snd-off span{color:var(--red)}
+.snd-toggle:hover{text-decoration:underline}
+/* Craftbaren: gron och genomskinlig, fyller sig fran vanster pa fem sekunder. */
+.rr-btns{display:flex;gap:6px;align-items:center}
+.rr-craft.all{opacity:.85;font-size:10px;padding:6px 8px}
+.rr-bar{position:absolute;left:0;right:0;bottom:0;height:16px;display:none;
+  align-items:center;justify-content:center;overflow:hidden;border-radius:0 0 9px 9px}
+.rr-bar.on{display:flex}
+.rr-bar i{position:absolute;left:0;top:0;bottom:0;width:0;
+  background:linear-gradient(90deg, rgba(52,211,153,.10), rgba(52,211,153,.34));
+  border-right:1px solid rgba(52,211,153,.55)}
+.rr-bar span{position:relative;font-size:9.5px;font-family:var(--font-mono);
+  color:var(--green);letter-spacing:.08em}
+.recipe-row{position:relative}
 /* ================= DEV-MENYN - TA BORT FORE LANSERING ================= */
 .dev-row .desc{color:#ffb0b6}
 #dev-overlay.open{display:flex;align-items:flex-start;justify-content:center;inset:0}
@@ -2493,7 +2504,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   font-weight:800;font-style:italic;font-size:14px;
 }
 .rb-info:hover{color:var(--text);border-color:var(--purple)}
-.rb-foot-sp{flex:1}
+/* Knappen i MITTEN med informationscirkeln bredvid sig, i stallet for en i var
+   ande av en tom rad. */
+.rb-foot-sp{display:none}
 .rb-infobox{
   display:none;position:absolute;left:16px;right:16px;bottom:70px;z-index:5;
   padding:14px 16px;border-radius:12px;border:1px solid var(--border-glow);
@@ -2506,7 +2519,8 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   color:var(--cyan);margin-bottom:9px}
 .rb-infox{margin-left:auto;width:24px;height:24px;border-radius:50%;cursor:pointer;
   border:1px solid var(--border-soft);background:#10162e;color:var(--text-dim)}
-.rb-foot{display:flex;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid var(--border-soft)}
+/* REBOOT star i MITTEN med informationscirkeln bredvid sig. */
+.rb-foot{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border-soft)}
 .rb-note{flex:1;font-size:11px;color:var(--text-faint);line-height:1.6}
 .rb-go{
   padding:13px 26px;border:none;border-radius:11px;cursor:pointer;
@@ -3154,10 +3168,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
       <div class="nav-btn"><span class="ico"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
       <div class="nav-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
       <div class="nav-btn" id="nav-settings"><span class="ico"><span class="qi qi-settings"></span></span><span class="lbl">Settings</span></div>
-      <!-- LJUDET DIREKT I NAVEN. Gront = pa, rott = av. Samma installningar som
-           i Settings - det ar EN sanning, bara tva stallen att na den fran. -->
-      <div class="nav-btn nav-snd" id="nav-music" title="Music"><span class="ico">🎵</span><span class="lbl">Music<small id="nav-music-state">On</small></span></div>
-      <div class="nav-btn nav-snd" id="nav-sfx" title="Sound"><span class="ico">🔊</span><span class="lbl">Sound<small id="nav-sfx-state">On</small></span></div>
+
     </div>
   </header>
 
@@ -3445,9 +3456,8 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
       <div class="rb-foot">
         <!-- Hela den langa texten bor i informationsknappen nu. Den behovs en
              gang, inte varje gang man oppnar rutan. -->
-        <button class="rb-info" id="rb-info" title="What a reboot does">i</button>
-        <span class="rb-foot-sp"></span>
         <button class="rb-go" id="rb-go">REBOOT</button>
+        <button class="rb-info" id="rb-info" title="What a reboot does">i</button>
       </div>
       <div class="rb-infobox" id="rb-infobox">
         <div class="rb-infohead">WHAT A REBOOT DOES<button class="rb-infox" id="rb-infox">✕</button></div>
@@ -3819,7 +3829,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.19.0 — HANDLEN</div>
+            <div class="desc">GENESIS v4.20.0 — CRAFTBAREN OCH SEX RATTELSER</div>
           </div>
         </div>
       </div>
@@ -3830,7 +3840,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.19.0 — HANDLEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.20.0 — CRAFTBAREN OCH SEX RATTELSER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3838,8 +3848,10 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
     </div>
     <div class="grp">
       <span class="link" id="footer-settings">Settings</span>
-      <span>Sound <span class="on">ON</span></span>
-      <span>Music <span class="on">ON</span></span>
+      <!-- Ljudet vaxlas HAR, i bottenraden. Raderna stod redan har men var dod
+           text som alltid sa ON. Gront nar det later, rott nar det ar tyst. -->
+      <span class="link snd-toggle" id="nav-sfx">Sound <span id="nav-sfx-state">ON</span></span>
+      <span class="link snd-toggle" id="nav-music">Music <span id="nav-music-state">ON</span></span>
       <span class="link">Help</span>
       <span class="link">Open Guide</span>
       <span class="help-circle">?</span>
@@ -5761,6 +5773,72 @@ function craftErrText(e){
   if (m.indexOf('profession_not_learned') >= 0) return 'You have not learned that profession.';
   return srvErrText(e, 'Could not craft that.');
 }
+/* ==================== CRAFTKÖN ====================
+   Ett craft tar FEM SEKUNDER och visas som en bar som fyller sig i receptets
+   egen rad. Trycker man All laggs sa manga som materialet racker till i ko, och
+   baren gar om for varje - ett tryck till avbryter. Kon lever bara i
+   webblasaren; varje enskilt craft ar serverns, precis som forut. */
+const CRAFT_SECS = 5;
+const craftJob = {rid: null, left: 0, t0: 0, busy: false};
+/* Hur manga gangar racker materialet? Utan detta hade "All" varit en gissning. */
+function craftMax(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return 0;
+  let n = 999;
+  Object.keys(r.cost).forEach(k => {
+    n = Math.min(n, Math.floor(matCount(k) / r.cost[k]));
+  });
+  return Math.max(0, Math.min(n, 99));
+}
+function craftQueue(rid, n){
+  if (craftJob.rid === rid && craftJob.left > 0){
+    /* Andra trycket pa samma recept avbryter det som ar kvar. */
+    craftJob.rid = null; craftJob.left = 0; craftJob.busy = false;
+    say('Crafting stopped.');
+    renderRecipeBook();
+    return;
+  }
+  n = Math.max(0, Math.min(n | 0, craftMax(rid)));
+  if (!n){ say('Not enough materials.'); return; }
+  craftJob.rid = rid; craftJob.left = n; craftJob.t0 = performance.now(); craftJob.busy = false;
+  renderRecipeBook();
+}
+/* Ritas av spelets klocka, tio ganger i sekunden. */
+function tickCraft(){
+  if (!craftJob.rid) return;
+  const el = document.querySelector('[data-bar="' + craftJob.rid + '"]');
+  const p = Math.min(1, (performance.now() - craftJob.t0) / (CRAFT_SECS * 1000));
+  if (el){
+    el.classList.add('on');
+    el.firstElementChild.style.width = (p * 100) + '%';
+    el.lastElementChild.textContent = craftJob.left > 1
+      ? (craftJob.left + ' left') : Math.ceil(CRAFT_SECS * (1 - p)) + 's';
+  }
+  if (p < 1 || craftJob.busy) return;
+  craftJob.busy = true;
+  const rid = craftJob.rid;
+  const done = () => {
+    craftJob.busy = false;
+    craftJob.left--;
+    if (craftJob.left > 0 && craftMax(rid) > 0){ craftJob.t0 = performance.now(); }
+    else { craftJob.rid = null; craftJob.left = 0; }
+    renderRecipeBook(); renderProfessions(); updateUI(true);
+  };
+  if (NET.on){
+    netCraft(rid).then(res => {
+      if (res) say('Crafted ' + craftedName(res.crafted));
+      done();
+    }).catch(e => {
+      say(craftErrText(e));
+      craftJob.rid = null; craftJob.left = 0; craftJob.busy = false;
+      renderRecipeBook();
+    });
+  } else {
+    const made = craftRecipe(rid);
+    if (made) say('Crafted ' + (made.flask ? FLASKS[made.flask].name : gearName(made)));
+    done();
+  }
+}
 function craftRecipe(rid){
   if (NET.on){
     netCraft(rid).then(res => {
@@ -5776,7 +5854,10 @@ function craftRecipe(rid){
   /* En flaska staplar - behovs bara en ledig ruta OM den inte redan finns i vaskan. */
   if (!flask && invFirstFree() < 0) return false;     // gear: full vaska craftar inte bort i intet
   Object.keys(r.cost).forEach(k => takeMaterial(k, r.cost[k]));
-  grantProfXP(r.prof, 8 + r.rar * 4);                 /* craftning ger yrkes-XP */
+  /* Samma trappa som servern: 25 + 15 per sallsynthetssteg. Ett craft ska vara
+     vart ungefar vad materialet kostade i insamlad tid - forut gav det 8 XP
+     medan materialet det at var vart runt 68. */
+  grantProfXP(r.prof, 25 + r.rar * 15);
   S.stats = S.stats || {};
   S.stats.crafted = (S.stats.crafted || 0) + 1;
   let out;
@@ -5950,6 +6031,11 @@ const AFFIXES = {
      BOOST DURATION forlanger flaskorna. Den bor i ring- och halsbandspoolen, dar
      spelaren placerade den redan innan flaskorna fanns. */
   petxp:   {name:'Pet XP',           lo:4.30, hi:5.70, sfx:'%'},
+  /* EXPEDITION SPEED FANNS PA SERVERN MEN INTE HAR. En pjas som rullat den bar
+     alltsa en egenskap klienten inte kande igen, och hela kortet kraschade nar
+     det skulle ritas - inget hovringskort, ingen hogerklicksruta, inga varden.
+     Bandet ar samma form som de ovriga, mitten 3,0. */
+  expspd:  {name:'Expedition Speed', lo:2.58, hi:3.42, sfx:'%'},
   /* Flyttade hit fran husdjuren nar hjalparsystemet kom: de ar rena
      stridsvarden och hor hemma pa en pjas, inte i en produktion. */
   boostpot: {name:'Boost Strength',  lo:3.44, hi:4.56, sfx:'%'},
@@ -8050,6 +8136,10 @@ function checkAchievements(silent){
   if (!silent) got.forEach(a => achToast(a));
   renderAchBadge();
   if (achOpen()) renderAchievements();
+  /* Yrkesrutan ritas om medan den star oppen, sa XP-matarn och talen ror sig
+     nar man samlar eller craftar i stallet for att sta still tills man stanger
+     och oppnar rutan igen. */
+  if ($('prof-overlay') && $('prof-overlay').classList.contains('open')) renderProfessions();
   updateUI(true);
   save();
   return got.length;
@@ -9306,7 +9396,12 @@ function renderCharStats(){
     : '<div class="cs-none">No bonuses yet — equip gear or activate a pet.</div>';
 }
 function affLine(x){
+  /* En OKAND egenskap far aldrig falla hela kortet. Sa hande det med Expedition
+     Speed: servern rullade den, klienten kande den inte, och pjasen gick varken
+     att hovra over eller hogerklicka pa. Nu skrivs den ut med sitt rana namn i
+     stallet - fult, men sant, och resten av kortet overlever. */
   const a = AFFIXES[x.k];
+  if (!a) return '+' + (+x.v || 0).toFixed(2) + '% ' + String(x.k);
   return (a.lower ? '−' : '+') + x.v.toFixed(2) + a.sfx + ' ' + a.name;
 }
 /* Jämförelsen: grönt för det du vinner, rött för det du förlorar. Räknas post för post
@@ -10689,6 +10784,9 @@ function loopBody(now){
 
   // Gathering: de larda yrkenas idle-loop, bara med panelen oppen
   tickGather(dt);
+
+  // Craftkon: baren som fyller sig, och craftet nar den ar full
+  tickCraft();
   tickSurveyClock();
   renderBoostBar();
 
@@ -11555,8 +11653,28 @@ function itemDef(row){
             sell: JUNK[row.key].copper, junk: true, kind: 'Junk',
             desc: JUNK[row.key].flavor};
   }
+  /* FLASKOR sa "No details known for this item yet" och hade inget saljvarde:
+     de stod i FLASKS men itemDef letade aldrig dar. Nu star det vad flaskan gor
+     och vad handlaren ger for den. */
+  if (row && row.key && FLASKS[row.key]){
+    const f = FLASKS[row.key], B = FLASK_BOOST[f.boost];
+    const rar = row.rar == null ? 0 : (row.rar | 0);
+    const pct = B && B.pct ? B.pct[Math.min(rar, B.pct.length - 1)] : null;
+    const mins = B && B.mins ? B.mins[Math.min(rar, B.mins.length - 1)] : null;
+    return {key: row.key, name: f.name, ico: f.ico, kind: 'Consumable',
+            sell: FLASK_SELL[Math.min(rar, FLASK_SELL.length - 1)],
+            desc: B ? ('+' + pct + '% ' + B.what + ' for ' + mins + ' minutes.') : undefined};
+  }
+  /* RECEPT: ett fynd som larer sitt recept nar man anvander det. */
+  if (row && row.recipe && RECIPE_BY[row.recipe]){
+    const r = RECIPE_BY[row.recipe];
+    return {key: row.key, name: recipeItemName(row.recipe), ico: '📜', kind: 'Recipe',
+            sell: 0, desc: 'Teaches ' + r.name + ' to ' + (PROF_BY[r.prof] ? PROF_BY[r.prof].name : r.prof) + '.'};
+  }
   return (row && row.key && ITEM_DEFS[row.key]) || null;
 }
+/* Handlarens pris pa en flaska, per sallsynthet. Samma tal som servern har. */
+const FLASK_SELL = [1500, 3000, 6000, 12000];
 /* Regionresor: priset är SUMMAN av ringstegen (spelarens beslut) — inga rabatter
    för långa hopp, ingen billigare hemresa. Hela världen i ett svep = 95, alltså
    nästan full tank: spelets längsta resa är också dess största beslut. */
@@ -13377,16 +13495,20 @@ function renderRecipeBook(){
         '<div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
         '<div class="rr-cost">' + cost + '</div>' +
       '</div>' +
-      '<button class="rr-craft" data-craft="' + r.id + '"' + (afford ? '' : ' disabled') + '>Craft</button>' +
+      '<div class="rr-btns">' +
+        '<button class="rr-craft" data-craft="' + r.id + '"' + (afford ? '' : ' disabled') + '>Craft</button>' +
+        '<button class="rr-craft all" data-craftall="' + r.id + '"' + (afford ? '' : ' disabled') + '>All ' +
+          craftMax(r.id) + '</button>' +
+      '</div>' +
+      /* Baren ligger UNDER raden och fyller sig fran vanster under de fem
+         sekunder ett craft tar. Den ar tom tills man trycker. */
+      '<div class="rr-bar" data-bar="' + r.id + '"><i></i><span></span></div>' +
     '</div>';
   }).join('');
-  list.querySelectorAll('[data-craft]').forEach(b => b.addEventListener('click', () => {
-    const made = craftRecipe(b.dataset.craft);
-    if (made){
-      const nm = made.flask ? FLASKS[made.flask].name : gearName(made);
-      spawnFloat({text: 'Crafted ' + nm + '!'}); renderRecipeBook();
-    }
-  }));
+  list.querySelectorAll('[data-craft]').forEach(b =>
+    b.addEventListener('click', () => craftQueue(b.dataset.craft, 1)));
+  list.querySelectorAll('[data-craftall]').forEach(b =>
+    b.addEventListener('click', () => craftQueue(b.dataset.craftall, craftMax(b.dataset.craftall))));
   /* Hovra en receptrad och se det nastan-vanliga foremalskortet: talen
      "half", formagorna som antal, och saljvardet. Bara pa recept man KAN se
      (kanda) - ett last drop-recept avslojar inget. */
@@ -15225,7 +15347,7 @@ function renderNavSound(){
     const el = $(id); if (!el) return;
     el.classList.toggle('snd-on', !!on);
     el.classList.toggle('snd-off', !on);
-    const lab = $(txt); if (lab) lab.textContent = on ? 'On' : 'Off';
+    const lab = $(txt); if (lab) lab.textContent = on ? 'ON' : 'OFF';
   };
   set('nav-music', S.snd.music, 'nav-music-state');
   set('nav-sfx',   S.snd.sfx,   'nav-sfx-state');
