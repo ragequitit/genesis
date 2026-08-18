@@ -1489,8 +1489,8 @@ body.layout-edit .panel.dragging{opacity:.4}
 .er-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim);font-family:var(--font-mono)}
 .er-claim{
   border:1px solid var(--green);background:rgba(52,211,153,.12);color:var(--green);
-  border-radius:8px;padding:6px;font-size:10px;font-weight:800;cursor:pointer;
-  letter-spacing:.06em;font-family:var(--font-mono);
+  border-radius:8px;padding:7px;font-size:13px;font-weight:800;cursor:pointer;
+  letter-spacing:.10em;font-family:var(--font-mono);
 }
 .exp-found-list{display:flex;flex-direction:column;gap:6px}
 .exp-found{
@@ -3674,7 +3674,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.10.0 — SKARMEN HANGER MED</div>
+            <div class="desc">GENESIS v4.11.0 — VASKFACKEN PA SERVERN</div>
           </div>
         </div>
       </div>
@@ -3700,7 +3700,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.10.0 — SKARMEN HANGER MED</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.11.0 — VASKFACKEN PA SERVERN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4296,6 +4296,18 @@ async function netPullVendorState(){
 }
 async function netPullBagSlots(){
   if (!SRV.charId) return false;
+  /* Prislistan hamtas hem EN gang och ersatter klientens reservlista. Da finns
+     det bara ett stalle dar ett pris bestams, och det ar servern. */
+  try {
+    const cfg = await srvSelect('bag_slot_config', 'select=kind,idx,currency,cost&order=kind,idx');
+    const bag = [], vault = [];
+    (cfg || []).forEach(c => {
+      const row = {cur: c.currency, cost: +c.cost};
+      if (c.kind === 'bag') bag[c.idx] = row; else if (c.kind === 'vault') vault[c.idx] = row;
+    });
+    if (bag.length) BAG_SLOTS = bag.filter(Boolean);
+    if (vault.length) VAULT_BAG_SLOTS = vault.filter(Boolean);
+  } catch (e){ /* ingen prislista hemma: reservlistan far duga tills vidare */ }
   const rows = await srvSelect('character_bag_slots',
     'character_id=eq.' + SRV.charId + '&select=kind,idx');
   S.bags = [0,1,2,3,4].map(() => false);
@@ -4306,6 +4318,22 @@ async function netPullBagSlots(){
     if (r.kind === 'vault' && r.idx < S.vault.bags.length) S.vault.bags[r.idx] = true;
   });
   return true;
+}
+/* Satter en vaska i ett fack, eller tar ut den (kind=null). Servern flyttar
+   den som satt dar forut tillbaka till ryggsacken sjalv. */
+async function netSetBagSocket(gear, kind, idx){
+  if (!NET.on || !gear || !gear.sid) return null;
+  try {
+    const r = await srvRpc('set_bag_socket',
+      {p_character: SRV.charId, p_item: gear.sid, p_kind: kind, p_idx: (idx == null ? null : idx)});
+    await netPullItems();
+    redrawAll();
+    return r;
+  } catch (e){
+    say(srvErrText(e, 'Could not move that bag.'));
+    await netPullItems(); redrawAll();
+    return null;
+  }
 }
 async function netUnlockSlot(kind, idx){
   if (!NET.on) return null;
@@ -4537,13 +4565,24 @@ function netGearFromRow(row){
 async function netPullItems(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level');
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx');
 
   S.equip = {};
+  /* VILKEN VASKA SOM SITTER I VILKET FACK KOMMER NU FRAN SERVERN.
+     Forut bodde det bara i webblasaren: servern skickade samma vaska som ett
+     lost foremal, och da sag man den bade i facket OCH i ryggsacken. Nu ar
+     facket en egenskap hos pjasen, precis som allt annat. */
   const bagRows = [], vaultRows = [];
+  S.bagItems = [null, null, null, null, null];
+  S.vault = S.vault || {};
+  S.vault.bagItems = [null, null, null, null, null, null, null];
   (rows || []).forEach(row => {
     const g = netGearFromRow(row);
-    if (row.location === 'equipped'){
+    if (row.socket_kind === 'bag'){
+      S.bagItems[row.socket_idx] = g;
+    } else if (row.socket_kind === 'vault'){
+      S.vault.bagItems[row.socket_idx] = g;
+    } else if (row.location === 'equipped'){
       S.equip[row.slot_idx] = g;
     } else if (row.location === 'bag'){
       bagRows.push(g);
@@ -7104,15 +7143,18 @@ function vaultNormalize(){
 function unlockVault(i){
   const b = VAULT_BAG_SLOTS[i];
   if (!b || vaultBagUnlocked(i)) return false;
-  if (b.cur === 'gold'){ if (S.gold < b.cost) return false; }
-  else { if (S.credits < b.cost) return false; }
+  /* Alla tre valutorna provas mot ratt planbok. Forut behandlades tokens som
+     credits, sa en tokenplats sag omojlig ut aven med tokens i fickan. */
+  if (purseOf(b.cur) < b.cost) return false;
   if (NET.on){
     netUnlockSlot('vault', i)
       .then(() => { renderVault(); renderPremiumVaultBags(); updateUI(true); })
       .catch(e => say(srvErrText(e, 'Could not unlock that slot.')));
     return true;
   }
-  if (b.cur === 'gold') S.gold -= b.cost; else S.credits -= b.cost;
+  if (b.cur === 'gold') S.gold -= b.cost;
+  else if (b.cur === 'tokens') S.tokens = Math.max(0, (S.tokens || 0) - b.cost);
+  else S.credits -= b.cost;
   S.vault.bags[i] = true;
   if (S.vault.bags.filter(Boolean).length === 1) giveStarterBag('vault');
   renderVault(); renderPremiumVaultBags(); updateUI(true); save();
@@ -7122,6 +7164,11 @@ function unlockVault(i){
    equipBag/unequipBag, men mot valvets egen lista. Krymper valvet FÖRST vid uttag,
    letar ruta SEDAN, och backar hela bytet om något inte får plats. */
 function equipVaultBag(invIdx, socket){
+  if (NET.on){
+    const r0 = S.inv[invIdx];
+    if (r0 && r0.gear){ netSetBagSocket(r0.gear, 'vault', socket); return true; }
+    return false;
+  }
   const row = S.inv[invIdx];
   if (!row || !row.gear || !ITEMS[row.gear.t] || !ITEMS[row.gear.t].bag) return false;
   if (!vaultBagUnlocked(socket)) return false;
@@ -7177,6 +7224,11 @@ function unequipVaultBagToVault(socket, toIdx){
   return true;
 }
 function unequipVaultBag(socket, toIdx){
+  if (NET.on){
+    const b0 = vaultBagIn(socket);
+    if (b0){ netSetBagSocket(b0, null, null); return true; }
+    return false;
+  }
   const b = vaultBagIn(socket);
   if (!b) return false;
   S.vault.bagItems[socket] = null;
@@ -8493,34 +8545,46 @@ const INV_BASE_SLOTS = 20;
 /* Valvet har SJU fack med sin egen trappa: de fyra första köps med guld, de tre
    sista med credits. Facken är oberoende av varandra — köper man ett credit-fack
    först låses bara det upp, och guld-facken förblir låsta tills de köps. */
-const VAULT_BAG_SLOTS = [
+let VAULT_BAG_SLOTS = [
   {cur: 'gold',    cost: GOLD(25)},
   {cur: 'gold',    cost: GOLD(50)},
   {cur: 'gold',    cost: GOLD(120)},
-  {cur: 'gold',    cost: GOLD(250)},
-  {cur: 'credits', cost: 250},
+  {cur: 'tokens',  cost: 30},
+  {cur: 'tokens',  cost: 55},
   {cur: 'credits', cost: 450},
   {cur: 'credits', cost: 650}
 ];
-function vaultBagCostText(i){ const b = VAULT_BAG_SLOTS[i]; return b.cur === 'gold' ? moneyText(b.cost) : b.cost + ' credits'; }
-function vaultBagShortText(i){
-  const b = VAULT_BAG_SLOTS[i];
-  return b.cur === 'gold' ? moneyText(Math.max(0, b.cost - S.gold)) : Math.max(0, b.cost - S.credits) + ' credits';
-}
-const BAG_SLOTS = [
+function vaultBagCostText(i){ return costText(VAULT_BAG_SLOTS[i]); }
+function vaultBagShortText(i){ return shortText(VAULT_BAG_SLOTS[i]); }
+/* PRISET AGS AV SERVERN. Klienten hade en egen lista med egna valutor och
+   visade guld dar servern ville ha tokens - tva prislistor for samma sak, och
+   den ena syntes medan den andra betalade. Nu hamtas bag_slot_config hem och
+   listan nedan ar bara reserv for offline-laget. */
+let BAG_SLOTS = [
   {cur: 'gold',    cost: GOLD(25)},
   {cur: 'gold',    cost: GOLD(50)},
-  {cur: 'credits', cost: 75},
-  {cur: 'credits', cost: 150},
+  {cur: 'tokens',  cost: 25},
+  {cur: 'tokens',  cost: 45},
   {cur: 'credits', cost: 300}
 ];
 function bagUnlocked(i){ return !!(S.bags && S.bags[i]); }
-function bagCostText(i){ const b = BAG_SLOTS[i]; return b.cur === 'gold' ? moneyText(b.cost) : b.cost + ' credits'; }
-function bagAfford(i){ const b = BAG_SLOTS[i]; return b.cur === 'gold' ? S.gold >= b.cost : S.credits >= b.cost; }
-function bagShortText(i){
-  const b = BAG_SLOTS[i];
-  return b.cur === 'gold' ? moneyText(Math.max(0, b.cost - S.gold)) : Math.max(0, b.cost - S.credits) + ' credits';
+/* Tre valutor, ett stalle. Tokens fanns pa servern men inte i de har raderna,
+   sa en tokenplats bade visades och provades som credits. */
+function purseOf(cur){ return cur === 'gold' ? S.gold : cur === 'tokens' ? (S.tokens || 0) : S.credits; }
+function costText(b){
+  return b.cur === 'gold' ? moneyText(b.cost)
+       : b.cur === 'tokens' ? (b.cost + ' \u2b22')
+       : (b.cost + ' credits');
 }
+function shortText(b){
+  const missing = Math.max(0, b.cost - purseOf(b.cur));
+  return b.cur === 'gold' ? moneyText(missing)
+       : b.cur === 'tokens' ? (missing + ' \u2b22')
+       : (missing + ' credits');
+}
+function bagCostText(i){ return costText(BAG_SLOTS[i]); }
+function bagAfford(i){ const b = BAG_SLOTS[i]; return purseOf(b.cur) >= b.cost; }
+function bagShortText(i){ return shortText(BAG_SLOTS[i]); }
 /* ---------- FÖRSTA FACKET BJUDER PÅ EN VÄSKA ----------
    Ett tomt fack är obegripligt tills man har något att stoppa i det. Därför kommer
    en fyrafacksväska med posten när man köper sitt FÖRSTA fack — i ryggsäcken och i
@@ -8556,7 +8620,9 @@ function unlockBag(i){
       .catch(e => say(srvErrText(e, 'Could not unlock that slot.')));
     return true;
   }
-  if (b.cur === 'gold') S.gold -= b.cost; else S.credits -= b.cost;
+  if (b.cur === 'gold') S.gold -= b.cost;
+  else if (b.cur === 'tokens') S.tokens = Math.max(0, (S.tokens || 0) - b.cost);
+  else S.credits -= b.cost;
   S.bags[i] = true;
   /* Bara det ALLRA första facket — inte vart och ett. */
   if (S.bags.filter(Boolean).length === 1) giveStarterBag('inv');
@@ -8636,6 +8702,9 @@ function equipBag(invIdx, socket){
   const row = S.inv[invIdx];
   if (!row || !row.gear || !ITEMS[row.gear.t] || !ITEMS[row.gear.t].bag) return false;
   if (!bagUnlocked(socket)) return false;
+  /* SERVERLAGE: facket ar serverns uppgift. Klienten fragar och ritar om det
+     svaret - den gissar aldrig sjalv, for da fanns tva bilder igen. */
+  if (NET.on){ netSetBagSocket(row.gear, 'bag', socket); return true; }
   const old = bagIn(socket);
   S.inv[invIdx] = old ? {gear: old} : null;
   S.bagItems[socket] = row.gear;
@@ -8655,6 +8724,7 @@ function moveBagSocket(from, to){
   if (from === to) return false;
   const b = bagIn(from);
   if (!b || !bagUnlocked(to)) return false;
+  if (NET.on){ netSetBagSocket(b, 'bag', to); return true; }
   const other = bagIn(to);
   S.bagItems[to] = b;
   S.bagItems[from] = other;
@@ -8670,6 +8740,7 @@ function moveVaultBagSocket(from, to){
   if (from === to) return false;
   const b = vaultBagIn(from);
   if (!b || !vaultBagUnlocked(to)) return false;
+  if (NET.on){ netSetBagSocket(b, 'vault', to); return true; }
   const other = vaultBagIn(to);
   S.vault.bagItems[to] = b;
   S.vault.bagItems[from] = other;
@@ -8683,6 +8754,7 @@ function moveVaultBagSocket(from, to){
 function unequipBag(socket, toIdx){
   const b = bagIn(socket);
   if (!b) return false;
+  if (NET.on){ netSetBagSocket(b, null, null); return true; }
   S.bagItems[socket] = null;
   /* Ordningen är avgörande: krymp FÖRST, leta ruta SEDAN. Räknades rutan ut i den
      gamla storleken kunde den hunnit fyllas av något som flyttats ned — och då
@@ -9563,24 +9635,70 @@ function rollExpeditionLoot(def){
 /* Hämtningen sker i rutan: panelknappen öppnar rutan, den stora knappen delar ut.
    Bytet rullas EN gång och sparas på körningen — stänger man rutan ligger allt kvar,
    ingen omrullning genom att öppna igen. */
+/* EN hamtning, inte tva. Forut hamtade den lilla raden fran servern OCH den
+   stora rutans knapp forsokte hamta samma korning en gang till - da sa servern
+   nej pa nagot som redan lyckats. Nu hamtar raden, och rutan ar ett KVITTO pa
+   vad servern faktiskt gav. Talen kommer darfor ur svaret, inte ur klientens
+   egen bild av korningen (som stod pa noll for allt man inte startat i samma
+   session - darfor "+0 Data" fast 60 kom in). */
 function claimExpedition(id){
   const run = S.exp.runs.find(r => r.id === id && Date.now() >= r.endsAt);
   if (!run) return;
+  if (NET.on){
+    if (expClaiming) return;
+    expClaiming = true;
+    netClaimExpedition(id)
+      .then(r => {
+        expClaiming = false;
+        if (!r) return;
+        showRewards({
+          id: id,
+          total: run.total,
+          data: +(r.loot && r.loot.data) || 0,
+          xp:   +r.xp_gained || 0,
+          loot: {
+            gold:  +(r.loot && r.loot.gold) || 0,
+            frags: +r.frags || 0,
+            gear:  r.gear ? netGearFromClaim(r.gear) : null,
+            cell:  !!r.cell,
+            recipe: r.recipe || null,
+            scrap: +r.scrap || 0
+          }
+        }, true);
+        renderExpPanel(); updateUI(true);
+      })
+      .catch(e => { expClaiming = false; say(srvErrText(e, 'Could not claim that expedition.')); });
+    return;
+  }
   if (!run.loot){ run.loot = rollExpeditionLoot(expDefById(run.id)); save(); }
-  showRewards(run);
+  showRewards(run, false);
+}
+let expClaiming = false;
+/* Serverns fyndrad ar {item, rarity, id} - det racker for att rita kortet. */
+function netGearFromClaim(g){
+  const D = ITEMS[g.item];
+  if (!D) return null;
+  return {t: g.item, r: +g.rarity || 0, sid: g.id, a: [], hp: 0, uid: 0, s: D.slot};
 }
 
 /* Belöningspopupen — spelarens mockup: fyra piedestalkort + sammanfattning + hämtknapp */
-function showRewards(run){
+function showRewards(run, alreadyPaid){
   const def = expDefById(run.id);
   const xpShown = Math.round(run.xp);
-  pendingClaimId = run.id;
+  pendingClaimId = alreadyPaid ? null : run.id;
+  /* Ar det ett kvitto sager knappen bara "Close" - det finns inget kvar att
+     hamta, och en knapp som lovar en hamtning som redan skett ar en fella. */
+  const cb = $('reward-claim');
+  if (cb) cb.innerHTML = alreadyPaid
+    ? 'Close'
+    : '<span class="rw-chev">\u00bb</span> Claim Rewards <span class="rw-chev">\u00ab</span>';
   $('reward-sub').textContent = def.name + ' — ' + def.zone;
   $('reward-cards').innerHTML =
     '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">Data</span><span class="cd-ico">💠</span><span class="cd-v">+' + fmt(run.data) + '</span></div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
-    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span><span class="cd-ico">🪙</span><span class="cd-v">+' + fmtMoney(goldAfterTax(run.loot.gold)) + '</span>' +
-      (taxOn(run.loot.gold) > 0 ? '<span class="cd-tax">−' + moneyText(taxOn(run.loot.gold)) + ' tax</span>' : '') + '</div>' +
+    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span><span class="cd-ico">🪙</span><span class="cd-v">+' +
+      fmtMoney(alreadyPaid ? run.loot.gold : goldAfterTax(run.loot.gold)) + '</span>' +
+      (!alreadyPaid && taxOn(run.loot.gold) > 0 ? '<span class="cd-tax">−' + moneyText(taxOn(run.loot.gold)) + ' tax</span>' : '') + '</div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span><span class="cd-ico">🔷</span><span class="cd-v">+' + run.loot.frags + '</span></div>';
   /* Fyndet ska synas HÄR — ingen ska behöva öppna väskan och gissa. */
   let found = '';
@@ -9618,10 +9736,11 @@ function expZoneOf(runId){
 }
 let pendingClaimId = null;
 function confirmClaim(){
-  if (NET.on && pendingClaimId){
-    netClaimExpedition(pendingClaimId)
-      .then(() => { renderExpPanel(); updateUI(true); })
-      .catch(e => say(srvErrText(e)));
+  /* Serverlage: hamtningen ar redan gjord av knappen pa raden. Har stangs bara
+     kvittot. */
+  if (NET.on){
+    pendingClaimId = null;
+    $('reward-overlay').classList.remove('open');
     return;
   }
   if (pendingClaimId == null) return;
@@ -9743,7 +9862,7 @@ function renderExpPanel(){
       '<div class="er-head"><span class="er-name">' + def.name + '</span><span class="er-zone">' + def.zone + '</span></div>' +
       '<div class="er-bar"><div class="er-fill" style="width:' + pct + '%"></div></div>' +
       (done
-        ? '<button class="er-claim" data-claim="' + run.id + '">Claim — 💠' + fmt(run.data) + ' +🪙+🔷</button>'
+        ? '<button class="er-claim" data-claim="' + run.id + '">Claim</button>'
         : '<div class="er-meta"><span>⏱ ' + fmtDur(left) + '</span><span>💠 ' + fmt(run.data) + '</span></div>') +
       '</div>';
   }
