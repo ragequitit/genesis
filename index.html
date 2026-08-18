@@ -3705,7 +3705,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.13.1 — RATT PJAS, TOM PLATS</div>
+            <div class="desc">GENESIS v4.13.2 — RYKTET RAKNAS PA SERVERN</div>
           </div>
         </div>
       </div>
@@ -3731,7 +3731,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.13.1 — RATT PJAS, TOM PLATS</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.13.2 — RYKTET RAKNAS PA SERVERN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4539,12 +4539,16 @@ async function netPullMilestones(){
 async function netPullRegions(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('character_regions',
-    'character_id=eq.' + SRV.charId + '&select=region,visited_at');
+    'character_id=eq.' + SRV.charId + '&select=region,visited_at,rep_secs');
   const known = [], visited = [];
   (rows || []).forEach(r => {
     if (REGIONS[r.region]){
       known.push(r.region);
       if (r.visited_at) visited.push(r.region);
+      /* RYKTET AR SERVERNS. Klienten raknade sekunder lokalt och sparade dem
+         aldrig i serverlage, sa matarn borjade om pa noll vid varje omladdning
+         medan servern hade hallit rakningen hela tiden. */
+      S.rep[r.region] = Math.max(+r.rep_secs || 0, S.rep[r.region] || 0);
     }
   });
   if (known.length){
@@ -14995,7 +14999,16 @@ function refreshRegionUI(){
   const R = REGIONS[S.world.current];
   el.heroTitle.textContent = R.name.toUpperCase();
   el.regionThumb.textContent = R.name.toUpperCase();
-  el.currentZone.textContent = S.world.zone || 'No zone entered';
+  /* Raden visar VAR man star. Star man bara i regionen utan att ha gatt in i en
+     zon finns det inget att visa - da doljs raden i stallet for att pasta att
+     nagot saknas. Ryktet ar regionens och bryr sig inte om zonen. */
+  const zl = el.currentZone.closest('.zone-line');
+  if (S.world.zone){
+    el.currentZone.textContent = S.world.zone;
+    if (zl) zl.style.display = '';
+  } else if (zl){
+    zl.style.display = 'none';
+  }
 }
 
 /* ---------- INSTÄLLNINGAR ---------- */
