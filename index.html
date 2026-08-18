@@ -1920,8 +1920,10 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   85%{opacity:1;transform:translate(-50%,0)}
   100%{opacity:0;transform:translate(-50%,-6px)}
 }
+/* Sort och Sell hor ihop och star bredvid varandra langst till vanster;
+   platsraknaren far ta hogerkanten. Forut sprack de isar over hela raden. */
 .inv-toolbar{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  display:flex;align-items:center;justify-content:flex-start;gap:8px;
   margin:0 0 10px;padding:5px 8px;
   border:1px solid var(--border-soft);border-radius:9px;
   background:linear-gradient(180deg, rgba(30,40,84,.6), rgba(14,19,42,.6));
@@ -2306,6 +2308,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 /* Saljknappen ar byggd som Sort, men i gult. */
 .inv-sellmode{border-color:rgba(255,197,66,.55);color:var(--gold);background:rgba(255,197,66,.08)}
 .inv-sellmode.on{background:rgba(255,197,66,.20);color:#ffe9b0}
+.inv-toolbar .inv-capline{margin-left:auto}
 /* Bocken i hornet pa en ruta som gar att salja. */
 .inv-slot .sell-tick{
   position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;
@@ -3702,7 +3705,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.12.2 — SVEPET EFTER BYGGET</div>
+            <div class="desc">GENESIS v4.13.0 — SERVERN VET VAR DU AR</div>
           </div>
         </div>
       </div>
@@ -3728,7 +3731,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.12.2 — SVEPET EFTER BYGGET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.13.0 — SERVERN VET VAR DU AR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4116,6 +4119,22 @@ async function netPull(){
      annan enhet. */
   NET.awaySecs = c.ticked_at ? Math.max(0, (Date.now() - new Date(c.ticked_at).getTime()) / 1000) : 0;
   if (c.region && REGIONS[c.region]) S.world.current = c.region;
+  /* ZONEN OCKSA. Servern har vetat hela tiden var man star; klienten laste bara
+     regionen och satte en i dess ingang, sa en omladdning kastade ut en ur
+     zonen man rest till. */
+  if (c.zone && REGIONS[S.world.current] && REGIONS[S.world.current].zones.indexOf(c.zone) >= 0){
+    S.world.zone = c.zone;
+  }
+  /* Och en PAGAENDE RESA: serverns klocka avgor nar man ar framme. Utan detta
+     stod man kvar pa avresestallet tills nasta gang nagot rakade fraga. */
+  if (c.travel_ends && new Date(c.travel_ends).getTime() > Date.now() && c.travel_to){
+    S.world.travel = {
+      to: c.travel_to, zone: null, from: c.region,
+      eta: new Date(c.travel_ends).getTime(), fuel: 0
+    };
+  } else if (S.world.travel && !c.travel_ends){
+    S.world.travel = null;
+  }
 
   /* Maskinerna: serverns antal, inte de lokalt sparade. */
   const mach = await srvSelect('machines', 'character_id=eq.' + SRV.charId + '&select=machine_id,count');
@@ -4879,12 +4898,16 @@ async function netPullAll(){
   await netPullBagSlots();
   await netPullVendorState();
   await netPullPerks();
-  await netPullHelpers();
   await netPullMailbox();
   await netPullRunsInto();
   await netPullRegions();
   await netPullItems();
   await netPullPets();
+  /* HJALPARNA SIST AV DE TVA: listan over vem som sitter var pekar pa husdjur,
+     och den lastes forut INNAN husdjuren fanns hemma. Da matchade ingenting,
+     och varje omladdning tomde alla produktioner. Serverns lista var ratt hela
+     tiden - klienten hann bara lasa den for tidigt. */
+  await netPullHelpers();
   await netPullProfessions();
   await netPullBoosts();
   await netPullAchievements();
@@ -14415,6 +14438,10 @@ $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove
    börja rent med bara basrutan. Alla stängningsvägar går via dessa två. */
 function closeInventoryWindow(){
   hideGearTip();
+  /* SALJLAGET SLAPPER NAR MAN LAMNAR RUMMET. Det ar nagot man ar mitt uppe i,
+     inte nagot man stallt in - och en bock som ligger kvar och vantar pa ett
+     klick man glomt bort att man gjort ar en falla. */
+  if (typeof sellMode !== 'undefined' && sellMode) setSellMode(false);
   $('inv-overlay').classList.remove('open');
   /* BARA väskans egna: '.bagwin' träffar även valvets. */
   document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
@@ -16233,10 +16260,16 @@ function renderHelperSlots(){
       ref.helper.setAttribute('draggable', 'true');
       ref.helper.dataset.helper = b.id;
       ref.helper.style.setProperty('--rc', rarCol(p.rar));
-      /* INGEN takprick har: platsen ar upptagen, fragan ar besvarad. Pricken
-         hor till en tom plats, dar man annu ska valja. */
+      /* SLUTLIG REGEL (spelarens): en FYLLD plats har heldragen ram i
+         HJALPARENS farg och en liten prick i TAKETS farg - sa man ser bade vem
+         som arbetar och hur hogt man skulle kunna ga. Sitter det redan nagon
+         lika fin som taket finns inget kvar att stravea mot, och da ingen prick. */
+      const capIdx2 = Math.max(0, helperRarityAllowed(b.id));
+      const showCap = p.rar < capIdx2;
       ref.helper.innerHTML = '<span class="pet-sprite" style="' + petSpriteVars(p.sp, 26) +
         ';border:0;background:transparent"></span>' +
+        (showCap ? '<span class="mh-cap" title="This slot takes up to ' +
+          GEAR_RAR[capIdx2].name + '" style="background:' + rarCol(capIdx2) + '"></span>' : '') +
         /* Den som arbetar VAXER - femton procent av din egen XP. Market sager
            det utan ord, och den vilande i listan bar sitt motsatta marke. */
         '<span class="mh-grow" title="Working — earns XP">\u25b2</span>' +
@@ -16252,10 +16285,11 @@ function renderHelperSlots(){
       ref.helper.className = 'm-helper empty';
       ref.helper.removeAttribute('draggable');
       ref.helper.dataset.helper = b.id;
+      /* TOM plats: streckad ram i takets farg, och ingen prick - strecken sager
+         redan allt som behovs. */
       const capIdx = Math.max(0, helperRarityAllowed(b.id));
       ref.helper.style.setProperty('--rc', rarCol(capIdx));
-      ref.helper.innerHTML = '<span class="mh-plus">+</span>' +
-        '<span class="mh-cap" data-cap="' + b.id + '" style="background:' + rarCol(capIdx) + '"></span>';
+      ref.helper.innerHTML = '<span class="mh-plus">+</span>';
       /* Ingen webblasartooltip: hovringskortet sager redan samma sak, snyggare.
          Tva rutor samtidigt ar en for mycket. */
       ref.helper.removeAttribute('title');
