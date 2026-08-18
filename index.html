@@ -3560,7 +3560,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.3.8 — SKRAPET GRATT</div>
+            <div class="desc">GENESIS v4.4.1 — SJALSBUNDET SAGS RATT</div>
           </div>
         </div>
       </div>
@@ -3586,7 +3586,7 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.3.8 — SKRAPET GRATT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.4.1 — SJALSBUNDET SAGS RATT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -3865,6 +3865,53 @@ async function srvRpc(fn, args){
   return srvCall('/rest/v1/rpc/' + fn, {method: 'POST', body: args || {}});
 }
 /* Las ur en tabell. Radnivasakerheten ser till att man bara ser sitt eget. */
+/* SERVERNS SKAL, I ORD.
+   Tystnad ar det varsta svaret en knapp kan ge, men "det gick inte" ar nast
+   varst: servern VET varfor, och den kunskapen kastades bort pa sju stallen.
+   Ordlistan ar ett stalle, sa samma kod aldrig kan fa tva olika texter. */
+const SRV_ERRORS = {
+  backpack_full:            'Your backpack is full.',
+  vault_full:               'The vault is full.',
+  insufficient_gold:        'Not enough gold.',
+  insufficient_credits:     'Not enough credits.',
+  insufficient_tokens:      'Not enough Tokens.',
+  insufficient_fragments:   'Not enough fragments.',
+  insufficient_dust:        'Not enough dust.',
+  insufficient_data:        'Not enough Data.',
+  insufficient_fuel:        'Not enough fuel for that trip.',
+  cannot_be_sold:           'The vendor does not buy that.',
+  not_enough_items:         'You do not have that many.',
+  nothing_to_sell:          'There is nothing there to sell.',
+  bad_quantity:             'That amount does not work.',
+  bind_on_pickup:           'Bind on Pickup — sell it to a vendor, not to a player.',
+  item_not_found:           'That item is gone.',
+  item_not_in_bag:          'That has to be in your backpack.',
+  item_must_be_in_bag:      'That has to be in your backpack.',
+  level_too_low_for_item:   'Your level is too low to wear that.',
+  pet_not_found:            'That companion is gone.',
+  helper_is_working:        'Take it out of its production first.',
+  tank_already_full:        'The tank is already full.',
+  not_usable:               'That cannot be used.',
+  unknown_flask:            'That cannot be used.',
+  flask_missing:            'You do not have that flask.',
+  slot_already_unlocked:    'That slot is already open.',
+  buy_in_order:             'Open the slots in order.',
+  need_three_free_slots:    'Three free slots are needed for that.',
+  mail_has_items:           'Take the attachments first.',
+  mail_not_found:           'That letter is gone.',
+  name_taken:               'That name is taken.',
+  name_too_long:            'That name is too long.',
+  name_characters:          'Letters and numbers only.',
+  not_your_character:       'That is not your character.',
+  not_authenticated:        'Sign in again.',
+  offline:                  'No connection to the server.'
+};
+function srvErrText(e, fallback){
+  const m = String((e && e.message) || e || '');
+  if (SRV_ERRORS[m]) return SRV_ERRORS[m];
+  for (const k in SRV_ERRORS) if (m.indexOf(k) >= 0) return SRV_ERRORS[k];
+  return fallback || 'The server said no.';
+}
 async function srvSelect(table, query){
   await srvEnsureSession();
   return srvCall('/rest/v1/' + table + (query ? '?' + query : ''));
@@ -4785,7 +4832,8 @@ const COPPER_PER_GOLD = COPPER_PER_SILVER * SILVER_PER_GOLD;
 /* ==================== MATERIAL (professions, lager 2) ====================
    Material ar stackbara foremal i den vanliga vaskan. Fem falt racker:
    key (unik), name, ico (emoji tills egen konst finns), tier (0 core / 1 rare),
-   bop (Bind on Pickup - kan ej saljas). En gathering-profession ager sina
+   bop (Bind on Pickup - kan ej handlas med andra spelare; handlaren koper dem
+   anda). En gathering-profession ager sina
    material via 'prof'. Detta ar KATALOGEN; sjalva gatheringen byggs i nasta lager. */
 const MATERIALS = {
   /* --- Extractor: metaller, mineral, adelstenar --- */
@@ -5038,7 +5086,7 @@ function salvagePreview(it){
 function salvageGear(idx){
   const row = S.inv[idx];
   if (!row || !row.gear || !canSalvage(row.gear)) return false;
-  if (NET.on){ netSalvage(row.gear).catch(e => spawnFloat({text: e.message})); return true; }
+  if (NET.on){ netSalvage(row.gear).catch(e => say(srvErrText(e))); return true; }
   const it = row.gear, pv = salvagePreview(it);
   pv.rows.forEach(r => giveMaterial(r.key, r.qty));
   if (pv.bonus){
@@ -5239,7 +5287,7 @@ function useRecipeItem(idx){
   const row = S.inv[idx];
   if (!row || !row.recipe) return false;
   if (NET.on){
-    netLearnRecipe(row.recipe).catch(e => spawnFloat({text: e.message}));
+    netLearnRecipe(row.recipe).catch(e => say(srvErrText(e)));
     return true;
   }
   const rid = row.recipe;
@@ -5294,7 +5342,7 @@ function craftRecipe(rid){
   if (NET.on){
     netCraft(rid).then(res => {
       if (res) spawnFloat({text: 'Crafted ' + (res.crafted || '')});
-    }).catch(e => spawnFloat({text: e.message}));
+    }).catch(e => say(srvErrText(e)));
     return true;
   }
   const r = RECIPE_BY[rid];
@@ -5342,7 +5390,7 @@ function profLearned(id){ return !!(S.prof && S.prof.known && S.prof.known[id]);
 function profCount(){ return S.prof ? Object.keys(S.prof.known).length : 0; }
 function profLvl(id){ return S.prof && S.prof.known[id] ? profLevelInfo(S.prof.known[id].xp).lvl : 0; }
 function learnProfession(id){
-  if (NET.on){ netLearnProfession(id).catch(e => spawnFloat({text: e.message})); return true; }
+  if (NET.on){ netLearnProfession(id).catch(e => say(srvErrText(e))); return true; }
   if (!PROF_BY[id]) return false;
   if (profLearned(id)) return false;
   if (profCount() >= PROF_MAX) return false;
@@ -6043,7 +6091,7 @@ function renamePet(uid, raw){
   /* Tomt namn betyder "tillbaka till artnamnet" i stallet for ett namnlost djur. */
   if (NET.on){
     netRenamePet(p, (n && n !== PETS[p.sp].name) ? n : null)
-      .catch(() => spawnFloat({text: 'Could not rename'}));
+      .catch(e => say(srvErrText(e, 'Could not rename that companion.')));
     return true;
   }
   if (n && n !== PETS[p.sp].name) p.n = n; else delete p.n;
@@ -6108,8 +6156,12 @@ function petSort(){
 /* Vad ETT husdjur ger i damm just nu, med det aktiva husdjurets formaga inraknad.
    Rakas pa ett stalle sa varningen, summeringen och den verkliga utbetalningen
    aldrig kan saga olika saker. */
+/* Det fanns ett pahang har for en formaga som heter 'dust'. Ingen av de tio
+   hjalparformagorna heter sa, och serverns motsvarighet hangde pa lagplatserna
+   som inte finns langre - bada sidor rakade alltsa alltid noll. Tabellens tal
+   ar hela sanningen, och nu star det sa. */
 function dustFor(p){
-  return Math.round(DUST_YIELD[p.rar] * (1 + helperBonus('dust') / 100));
+  return DUST_YIELD[p.rar];
 }
 function petSelSummary(){
   const list = Array.from(petSel).map(petByUid).filter(Boolean);
@@ -6152,9 +6204,9 @@ function teamSlots(){
   const lvl = levelInfo().lvl;
   let n = 0;
   for (let i = 0; i < PET_SLOT_LEVELS.length; i++) if (lvl >= PET_SLOT_LEVELS[i]) n++;
-  /* Omstartsformånen ger en plats till. Utan detta gjorde formanen ingenting -
-     man kunde kopa den for Tokens och fa noll. */
-  return n + (NET.on ? perkLvl('petSlot') : 0);
+  /* Har lag ett pahang for en formån 'petSlot'. Den finns inte i omstartstradet,
+     sa uppslagningen gav alltid noll - en dod rad som sag levande ut. */
+  return n;
 }
 function teamAt(i){ return petByUid(S.pets.team[i]); }
 function activeTeam(){
@@ -6187,7 +6239,7 @@ function setTeamPet(uid, slot){
   if (NET.on){
     /* SERVERLAGE: laget bor pa servern. Forut sattes det bara lokalt och
        foll tillbaka vid nasta hamtning. */
-    netSetTeam(p, i).catch(() => spawnFloat({text: 'Could not change the team'}));
+    netSetTeam(p, i).catch(e => say(srvErrText(e, 'Could not change the team.')));
     return true;
   }
   if (cur >= 0 && cur !== i) S.pets.team[cur] = S.pets.team[i] || null;
@@ -6199,7 +6251,7 @@ function clearTeamSlot(i){
   if (i < 0 || i >= S.pets.team.length) return;
   if (NET.on){
     const p = teamAt(i);
-    if (p) netSetTeam(p, null).catch(() => spawnFloat({text: 'Could not change the team'}));
+    if (p) netSetTeam(p, null).catch(e => say(srvErrText(e, 'Could not change the team.')));
     return;
   }
   S.pets.team[i] = null;
@@ -6815,7 +6867,16 @@ function milMult(bid){
 }
 function prodPerUnit(b){ return b.prod * milMult(b.id) * (1 + 0.05 * S.up.network); }
 function prodOf(b){ return prodPerUnit(b) * S.own[b.id]; }
-function totalDps(){ return BUILDINGS.reduce((a,b) => a + prodOf(b), 0) * repBonusMult() * (1 + flaskPct('idle') / 100) * (1 + gearBonus('idle') / 100 + achIdlePct() / 100 + boostPct('idle') / 100); }
+/* EXAKT samma form som serverns idle_mult: ryktet dar du star ar en egen
+   faktor, allt annat ligger i samma parentes. Forut multiplicerade klienten
+   flaskan for sig OCH la pa rykte och prestationer som servern inte kande till
+   alls - siffran pa skarmen var darfor for hog och Datat ryckte tillbaka vid
+   varje synk. Nu vet servern om bada, och de tva raknar likadant. */
+function totalDps(){
+  const base = BUILDINGS.reduce((a,b) => a + prodOf(b), 0);
+  return base * repBonusMult()
+       * (1 + (gearBonus('idle') + achIdlePct() + flaskPct('idle') + boostPct('idle')) / 100);
+}
 /* Machine Cost sanker priset. Rabatten sitter i EN funktion som bade kostnaden
    och "hur manga har jag rad med" laser, annars skulle knappen kunna saga en sak
    och plangboken en annan. */
@@ -6875,7 +6936,7 @@ function unlockVault(i){
   if (NET.on){
     netUnlockSlot('vault', i)
       .then(() => { renderVault(); renderPremiumVaultBags(); updateUI(true); })
-      .catch(e => spawnFloat({text: 'Could not unlock that slot'}));
+      .catch(e => say(srvErrText(e, 'Could not unlock that slot.')));
     return true;
   }
   if (b.cur === 'gold') S.gold -= b.cost; else S.credits -= b.cost;
@@ -6976,7 +7037,7 @@ function toVault(invIdx, at){
   if (NET.on){
     const row = S.inv[invIdx];
     if (row && row.gear){
-      netMoveVault(row.gear, true).catch(e => spawnFloat({text: e.message}));
+      netMoveVault(row.gear, true).catch(e => say(srvErrText(e)));
       return true;
     }
     return false;
@@ -6995,7 +7056,7 @@ function fromVault(vaultIdx, at){
   if (!row) return false;
   if (NET.on){
     if (row.gear){
-      netMoveVault(row.gear, false).catch(e => spawnFloat({text: e.message}));
+      netMoveVault(row.gear, false).catch(e => say(srvErrText(e)));
       return true;
     }
     return false;
@@ -7276,7 +7337,7 @@ function quickEquipFromVault(i){
     netMoveVault(g, false)
       .then(() => netEquip(g, g.s))
       .then(() => { renderEquip(); renderVault(); updateUI(true); })
-      .catch(e => spawnFloat({text: e.message}));
+      .catch(e => say(srvErrText(e)));
     return true;
   }
   S.vault.inv[i] = null;
@@ -8228,7 +8289,7 @@ function unlockBag(i){
        lokalt och facket foll bort vid nasta hamtning. */
     netUnlockSlot('bag', i)
       .then(() => { renderInventory(); renderPremiumBags(); updateUI(true); })
-      .catch(e => spawnFloat({text: 'Could not unlock that slot'}));
+      .catch(e => say(srvErrText(e, 'Could not unlock that slot.')));
     return true;
   }
   if (b.cur === 'gold') S.gold -= b.cost; else S.credits -= b.cost;
@@ -8545,7 +8606,7 @@ function equipGear(idx, want){
 function unequipGear(slotIdx, toIdx){
   const it = S.equip[slotIdx];
   if (!it) return false;
-  if (NET.on){ netUnequip(it).catch(e => spawnFloat({text: e.message})); return true; }
+  if (NET.on){ netUnequip(it).catch(e => say(srvErrText(e))); return true; }
   const at = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx])
     ? toIdx : invFirstFree();
   if (at < 0) return false;
@@ -8569,7 +8630,7 @@ function useInvItem(idx){
     if (NET.on){
       netUseStackItem(row.key)
         .then(() => spawnFloat({text: BOOSTS[bk].name + ' active'}))
-        .catch(() => spawnFloat({text: 'Could not use that'}));
+        .catch(e => say(srvErrText(e, 'Could not use that.')));
       return true;
     }
     drinkBoost(bk);
@@ -8584,7 +8645,7 @@ function useInvItem(idx){
   if (NET.on){
     netUseStackItem('fuelcell')
       .then(() => spawnFloat({text: '+' + FUEL_CELL_RESTORE + ' fuel'}))
-      .catch(() => spawnFloat({text: 'Could not use the cell'}));
+      .catch(e => say(srvErrText(e, 'Could not use the fuel cell.')));
     return true;
   }
   addFuel(FUEL_CELL_RESTORE);
@@ -8599,7 +8660,7 @@ function sellStack(idx, all){
   const n = all ? row.qty : 1;
   if (NET.on){
     netSellStack(row.key, n, row.rar)
-      .catch(e => spawnFloat({text: 'Could not sell that'}));
+      .catch(e => say(srvErrText(e, 'Could not sell that.')));
     return true;
   }
   S.gold += def.sell * n;
@@ -8615,7 +8676,7 @@ function findStackIdx(key){
 function sellGear(idx){
   if (NET.on){
     const row = S.inv[idx];
-    if (row && row.gear){ netSell(row.gear).catch(e => spawnFloat({text: e.message})); }
+    if (row && row.gear){ netSell(row.gear).catch(e => say(srvErrText(e))); }
     return;
   }
   const row = S.inv[idx];
@@ -9154,7 +9215,7 @@ function confirmClaim(){
   if (NET.on && pendingClaimId){
     netClaimExpedition(pendingClaimId)
       .then(() => { renderExpPanel(); updateUI(true); })
-      .catch(e => spawnFloat({text: e.message}));
+      .catch(e => say(srvErrText(e)));
     return;
   }
   if (pendingClaimId == null) return;
@@ -10253,7 +10314,7 @@ function drinkFlask(idx){
   const row = S.inv[idx];
   if (!row || !row.flask || row.qty < 1) return false;
   if (NET.on){
-    netDrinkFlask(row.key, row.rar).catch(e => spawnFloat({text: e.message}));
+    netDrinkFlask(row.key, row.rar).catch(e => say(srvErrText(e)));
     return true;
   }
   const fb = FLASK_BOOST[row.boost];
@@ -10373,7 +10434,7 @@ function takeMailItem(id, i){
        rader i ett brev. Det ar en medveten forenkling: ett brev ar en
        forsandelse, inte en hylla. */
     netTakeMail(id).then(() => { renderMail(); updateUI(true); })
-      .catch(e => spawnFloat({text: e.message}));
+      .catch(e => say(srvErrText(e)));
     return true;
   }
   const it = m.items[i];
@@ -10602,7 +10663,13 @@ function itemDef(row){
    nästan full tank: spelets längsta resa är också dess största beslut. */
 const FUEL_STEP = {0: 15, 1: 20, 2: 25, 3: 35};   // steg mellan ring N och N+1
 function fuelMax(){ return FUEL_MAX_BASE; }
-function fuelRegenPerMin(){ return FUEL_REGEN_PER_MIN * (1 + helperBonus('fuel') / 100); }
+/* Deep Reserves fyller tanken tio procent fortare per niva. Servern har alltid
+   raknat med den; matarn pa skarmen gjorde det inte, sa baren krop langsammare
+   an verkligheten. */
+function fuelRegenPerMin(){
+  return FUEL_REGEN_PER_MIN * (1 + helperBonus('fuel') / 100)
+       * (1 + 0.10 * (NET.on ? perkLvl('fuelFlow') : 0));
+}
 function fuelBetween(fromId, toId){
   let a = REGIONS[fromId].tier, b = REGIONS[toId].tier;
   if (a > b){ const t = a; a = b; b = t; }
@@ -11260,7 +11327,7 @@ function vendorEntry(regionId, i){
 }
 function buyVendorGear(regionId, i){
   if (NET.on){
-    netVendorBuy(regionId, i).catch(e => spawnFloat({text: e.message}));
+    netVendorBuy(regionId, i).catch(e => say(srvErrText(e)));
     return;
   }
   const stock = vendorEntry(regionId, i);
@@ -11645,7 +11712,7 @@ function startTravel(id){
                         eta: Date.parse(r.arrives) || (Date.now() + (r.secs || 120) * 1000),
                         fuel: r.fuel_paid || 0};
       refreshTravelBar(); refreshWarp(); updateUI(true);
-    }).catch(e => spawnFloat({text: e.message}));
+    }).catch(e => say(srvErrText(e)));
     return;
   }
   const t = TRAVEL_BY_TIER[REGIONS[id].tier];
@@ -12022,7 +12089,7 @@ function doPetRecycle(){
     const list = petSelSummary().list.filter(p => !inTeam(p.uid));
     (async () => {
       for (const p of list){
-        try { await netRecyclePet(p); } catch (e){ spawnFloat({text: e.message}); break; }
+        try { await netRecyclePet(p); } catch (e){ say(srvErrText(e)); break; }
       }
     })();
     petSel.clear(); petSelMode = false;
@@ -12274,7 +12341,9 @@ function gatherPlaceCatch(el, btn){
 const GATHER_ERRORS = {
   already_working:        'That shift is already running.',
   shift_ready_to_collect: 'That shift is finished — collect it first.',
-  profession_not_learned: 'You have not learned that profession.'
+  profession_not_learned: 'You have not learned that profession.',
+  gathering_not_started:  'No shift is running there.',
+  offline:                'No connection — the shift is safe on the server.'
 };
 async function gatherBegin(id){
   const sh = gatherShift(id);
@@ -12349,13 +12418,21 @@ function gatherShowGot(id, mats){
 async function gatherFinish(id){
   const sh = gatherShift(id);
   if (!sh.ready) return;
-  sh.ready = false; sh.ends = 0;
   if (NET.on){
+    /* Knappen fick INTE suddas forst. Gick anropet fel forsvann den, passet sag
+       tomt ut, och materialet lag kvar hos servern tills man laddade om. Nu
+       stryks passet forst nar servern sagt att det ar hamtat. */
     try {
       const r = await netGatherCollect(id, true);
+      sh.ready = false; sh.ends = 0;
       gatherShowGot(id, r && r.materials);
-    } catch (e){ spawnFloat({text: 'Could not collect'}); }
+    } catch (e){
+      say(GATHER_ERRORS[String(e && e.message || e)] || 'Could not collect — the shift is still waiting.');
+      renderGatherLoops();
+      return;
+    }
   } else {
+    sh.ready = false; sh.ends = 0;
     /* Lokalt: rulla resten av passet. */
     let n = 0, lastKey = null;
     const total = Math.floor(gatherShiftSecs() / gatherCycleSecs(id));
@@ -12626,7 +12703,7 @@ function showReveal(pet){
     '<div class="rv-eff">' + petEffText(pet, '<br>') + '</div></div></div>';
 }
 function openCache(){
-  if (NET.on){ netOpenCache().catch(e => spawnFloat({text: e.message})); return; }
+  if (NET.on){ netOpenCache().catch(e => say(srvErrText(e))); return; }
   const pool = REGION_PETS[S.world.current];
   if (!pool || S.frags < cacheCost()) return;
   S.frags -= cacheCost();
@@ -14663,7 +14740,8 @@ function ahErrText(e){
   const m = String(e && e.message || e);
   const map = {
     insufficient_gold: 'Not enough gold', listing_gone: 'Already sold or removed',
-    too_many_listings: 'Listing limit reached (10)', bind_on_pickup: 'Bind on Pickup — cannot be traded',
+    too_many_listings: 'Listing limit reached (10)',
+    bind_on_pickup: 'Bind on Pickup — sell it to a vendor, not to a player',
     item_must_be_in_bag: 'Item must be in your backpack', not_enough_items: 'Not enough in stock',
     bad_price: 'Enter a price of at least 1 gold', bad_duration: 'Pick a duration',
     offline: 'No connection', not_signed_in: 'Sign in to trade'
@@ -14907,7 +14985,7 @@ function ahRenderPicker(){
   });
   let h = '<div class="ah-pick-title">Your backpack — pick something to sell</div><div class="ah-rows ah-pick">';
   if (!rows.length){
-    h += '<div class="ah-empty">Nothing tradeable in your backpack.<br>Bind on Pickup materials can never be sold.</div>';
+    h += '<div class="ah-empty">Nothing tradeable in your backpack.<br>Bind on Pickup materials cannot be traded with other players — the vendor still buys them.</div>';
   } else {
     h += rows.map((r, i) =>
       '<div class="ah-row ah-prow" data-i="' + i + '">' +
@@ -15418,8 +15496,22 @@ function openHelperPicker(bid, x, y){
   }));
   setTimeout(() => document.addEventListener('click', closeHelperPicker, {once: true}), 0);
 }
+/* Vad servern kan svara nar en hjalpare inte far sitta. Ett eget skal ar alltid
+   battre an "det gick inte" - servern VET varfor. */
+const SEAT_ERRORS = {
+  wrong_ability_for_this_production: 'That companion works somewhere else.',
+  rarity_needs_more_buildings:       'Build more of that production before this rarity can sit there.',
+  build_one_first:                   'Build one of that production first.',
+  unknown_machine:                   'That production does not exist.',
+  pet_not_found:                     'That companion is gone.',
+  offline:                           'No connection to the server.'
+};
 function seatHelper(bid, uid){
   S.helpers = S.helpers || {};
+  /* Bilden FORE, sa den gar att lagga tillbaka om servern sager nej. Forut stod
+     hjalparen kvar pa skarmen som om hen jobbade, utan att ge nagot - exakt den
+     fallan platserna byggdes for att ta bort. */
+  const before = Object.assign({}, S.helpers);
   if (!uid){ delete S.helpers[bid]; }
   else {
     /* Ett husdjur sitter pa hogst ETT stalle. */
@@ -15428,7 +15520,11 @@ function seatHelper(bid, uid){
   }
   if (NET.on){
     netSeatHelper(bid, uid ? +uid : null)
-      .catch(e => spawnFloat({text: 'Could not seat that helper'}));
+      .catch(e => {
+        S.helpers = before;
+        renderHelperSlots(); updateUI(true);
+        say(SEAT_ERRORS[String(e && e.message || e)] || 'Could not seat that helper');
+      });
   } else { save(); }
   renderHelperSlots(); updateUI(true);
 }
