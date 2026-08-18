@@ -732,11 +732,15 @@ body.dragging *{cursor:grabbing !important}
 .pf-drow span:last-child{color:var(--text);font-family:var(--font-mono)}
 
 /* Hjalparens ruta ligger FRAMFOR kortet, inte i det. */
-.machine-line{display:flex;align-items:center;gap:8px}
+/* Hjalparrutan ar lika HOG som produktionskortet och star tatt intill det.
+   Kopknappen har krympt en tredjedel, sa raden far plats med bada utan att bli
+   trangre for ogat. */
+.machine-line{display:flex;align-items:stretch;gap:8px}
 .machine-line > .machine-row{flex:1 1 auto;min-width:0}
+.machine-line > .m-helper{height:auto;align-self:stretch;width:46px}
 .machine-row{
   display:grid;
-  grid-template-columns:40px minmax(0,1fr) auto 92px;
+  grid-template-columns:40px minmax(0,1fr) auto 64px;
   align-items:center;gap:10px;
   background:var(--bg-row);border:1px solid var(--border-soft);border-radius:var(--radius-sm);
   padding:11px 10px;cursor:pointer;transition:background .15s;
@@ -2564,7 +2568,6 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   border:1px solid #050810;box-shadow:0 0 6px rgba(0,0,0,.8);
 }
 /* Vem vaxer och vem star stilla. */
-.pc-idle{position:absolute;top:2px;left:3px;font-size:8px;color:var(--text-faint);opacity:.75}
 /* Yrkeskortet ar en pelare: allt vaxer, knapparna star i botten. */
 .pf-own{display:flex;flex-direction:column}
 .pf-grow{flex:1 1 auto;min-height:8px}
@@ -2572,6 +2575,29 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
 /* Craft och All ar lika stora. */
 .rr-btns .rr-craft{flex:1 1 0;min-width:74px}
 .rr-craft.all{opacity:1;font-size:11px;padding:8px}
+/* PROFILSIDAN. */
+#profile-overlay.open{display:flex;align-items:flex-start;justify-content:center;inset:0}
+.profile-modal{position:absolute;top:8vh;width:min(460px,94vw);max-height:82vh;display:flex;
+  flex-direction:column;background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.7)}
+.profile-body{padding:14px 16px;overflow-y:auto}
+.pf-row{display:flex;justify-content:space-between;gap:14px;padding:5px 0;
+  font-size:12px;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,.04)}
+.pf-row b{color:var(--text);font-family:var(--font-mono)}
+.pf-handle{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--border-soft);background:#0e1330;margin-bottom:4px}
+.pf-handle > div{flex:1}
+.pf-handle-name{font-size:15px;font-weight:800;color:var(--cyan);font-family:var(--font-mono)}
+.pf-edit{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.pf-edit input{flex:1 1 160px}
+.btn-neutral.wide{width:100%}
+/* Traffen: en prick som lyser gront nar personen ar online. */
+.pf-found{margin:6px 0 2px}
+.pf-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--border-soft);background:#0e1330}
+.pf-card .pf-dot{width:9px;height:9px;border-radius:50%;background:var(--text-faint);flex:none}
+.pf-card.on .pf-dot{background:var(--green);box-shadow:0 0 10px rgba(52,211,153,.7)}
 /* Knapparna ska KANNAS nedtryckta: de sjunker en aning och tappar sin skugga.
    Utan det ar ett tryck som inte hann fram omojligt att skilja fran ett som
    aldrig registrerades. */
@@ -3161,7 +3187,6 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <!-- Namnet kommer fran karaktaren, inte ur filen. Hela kortet gar att
              klicka pa och oppnar kontot. -->
         <div class="player-name" id="player-name">RUNNER</div>
-        <div class="player-handle" id="player-handle" style="display:none"></div>
         <div class="player-sub" id="player-level-text">Runner Level 1</div>
         <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
         <div class="xp-label" id="xp-label">0 / 100 XP</div>
@@ -3590,6 +3615,18 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     </div>
   </div>
 
+  <!-- ================= PROFILSIDAN =================
+       Kortet uppe till vanster leder hit: kontot, karaktaren och talen. -->
+  <div class="float-win" id="profile-overlay">
+    <div class="modal profile-modal">
+      <div class="inv-titlebar">
+        <span class="inv-title">Profile</span>
+        <button class="inv-x" id="profile-close">✕</button>
+      </div>
+      <div class="profile-body" id="profile-body"></div>
+    </div>
+  </div>
+
   <!-- ================= DEV-RUTAN — TA BORT FORE LANSERING ================= -->
   <div class="float-win" id="dev-overlay">
     <div class="modal dev-modal">
@@ -3852,7 +3889,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.22.0 — BODEN OCH STARTKNAPPEN</div>
+            <div class="desc">GENESIS v4.24.0 — SLA UPP EN SPELARE</div>
           </div>
         </div>
       </div>
@@ -3863,7 +3900,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.22.0 — BODEN OCH STARTKNAPPEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.24.0 — SLA UPP EN SPELARE</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -8350,6 +8387,16 @@ function helperTipBoxHTML(b){
   const owned = S.own[b.id] || 0;
   const ab = HELPER_ABILITIES[b.boon];
   const cur = seatedPet(b.id);
+  /* SITTER DET NAGON DAR ar det HJALPAREN man vill veta nagot om - hela kortet,
+     med niva och XP-matare - och forst en rad som sager var den arbetar. */
+  if (cur){
+    const a2 = helperAbilityOf(cur);
+    return '<div class="mt-head"><span class="mt-name">' + petName(cur) +
+        ' is working in ' + b.name + '</span></div>' +
+      '<div class="mt-boon">' + (a2 ? HELPER_ABILITIES[a2.f].text(a2.v) : ab.name) + '</div>' +
+      petXpBarHTML(cur) +
+      '<div class="mt-boon" style="opacity:.75">Shift-click or drag it out to send it back.</div>';
+  }
   const allowed = helperRarityAllowed(b.id);
   const nextTier = HELPER_TIERS.findIndex(t => owned < t);
   let h = '<div class="mt-head"><span class="mt-name">' + b.name + ' \u2014 ' + ab.name + '</span></div>';
@@ -9949,7 +9996,16 @@ function setBagOpen(socket, open){
   save();
   return true;
 }
+/* Nar innehallet andras ska oppna foremalskort vars pjas ar borta stanga sig
+   sjalva - annars star de kvar och pratar om nagot som salts, sanks eller
+   flyttats av servern. */
+function closeDeadItemWindows(){
+  document.querySelectorAll('.item-win[data-uid]').forEach(w => {
+    if (!findByUid(+w.dataset.uid)) w.remove();
+  });
+}
 function renderInventory(){
+  closeDeadItemWindows();
   renderBagSlots();
   const cap = $('inv-cap');
   if (cap) cap.textContent = invUsed() + ' / ' + invSlots();
@@ -9981,8 +10037,15 @@ function renderInventory(){
    ur minuter och ring blev bade tiden och regionen odefinierade - listan skrev
    "NaNc - NaNc". Formeln var ratt hela tiden; anropet var fel. */
 function expGoldText(def){
+  /* SPANNET SAGS I HELA GULD (spelarens beslut). "1g 75s 69c – 2g 23s 60c" ar
+     sant men olasbart pa en rad man skummar; "1-3g" sager samma sak. Det lagre
+     talet rundas NED och det ovre UPP, sa lofte hallet aldrig ar mindre an det
+     ser ut. Under ett guld visas valorerna som forut - da sager "0-1g" inget. */
   const r = expGoldRange(def);
-  return moneyText(r[0]) + ' – ' + moneyText(r[1]);
+  if (r[1] < COPPER_PER_GOLD) return moneyText(r[0]) + ' – ' + moneyText(r[1]);
+  const lo = Math.floor(r[0] / COPPER_PER_GOLD);
+  const hi = Math.ceil(r[1] / COPPER_PER_GOLD);
+  return (lo === hi ? lo : lo + '–' + hi) + 'g';
 }
 /* Guldet foljer TID och RING, inte Data-belöningen. Forut var det tio procent
    av Data, och Data skalar exponentiellt mellan ringarna - alltsa arvde
@@ -10949,14 +11012,8 @@ function updateUI(force){
     const nm = (NET.on && SRV.charName) ? SRV.charName : 'Runner';
     if (el.playerName.textContent !== nm.toUpperCase()) el.playerName.textContent = nm.toUpperCase();
   }
-  /* Handlen star under namnet: kontot ovanfor karaktaren, som i "ChrisWhippit
-     spelar Hithatt". */
-  const hEl = $('player-handle');
-  if (hEl){
-    const h = (NET.on && SRV.handle) ? ('@' + SRV.handle) : '';
-    hEl.style.display = h ? '' : 'none';
-    if (hEl.textContent !== h) hEl.textContent = h;
-  }
+  /* Handlen star INTE har - karaktarens namn racker pa kortet. Kontot med sitt
+     namn bor pa profilsidan, dit kortet leder. */
   el.xpFill.style.width = Math.min(100, (li.into / li.need) * 100) + '%';
   el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
 
@@ -12658,11 +12715,28 @@ function renderBoostBar(){
   const bar = $('boost-bar');
   if (!bar) return;
   let h = '';
+  const seen = {};
   for (const k in BOOSTS){
     const left = boostLeft(k);
     if (left <= 0) continue;
+    seen[k] = true;
     const B = BOOSTS[k];
     h += '<div class="boost-chip" data-boost="' + k + '">' +
+      '<span class="bc-ico">' + B.ico + '</span>' +
+      '<span class="bc-time">' + fmtDur(left) + '</span></div>';
+  }
+  /* FLASKORNA SAKNADES HAR. En drucken flaska verkade pa riktigt - servern
+     raknade med den - men den syntes inte i raden, sa man visste varken att den
+     gick eller hur lange. Flaskornas boostar bor i S.flaskBoost och har sin egen
+     tabell med namn och ikon. */
+  const fb = S.flaskBoost || {};
+  for (const k in fb){
+    if (seen[k]) continue;
+    const left = Math.max(0, ((fb[k].until || 0) - Date.now()) / 1000);
+    if (left <= 0) continue;
+    const B = FLASK_BOOST[k] || BOOSTS[k];
+    if (!B) continue;
+    h += '<div class="boost-chip" data-fboost="' + k + '">' +
       '<span class="bc-ico">' + B.ico + '</span>' +
       '<span class="bc-time">' + fmtDur(left) + '</span></div>';
   }
@@ -12675,7 +12749,7 @@ function hookBoostTips(bar){
   if (bar.dataset.tipped) return;
   bar.dataset.tipped = '1';
   bar.addEventListener('mouseover', e => {
-    const chip = e.target.closest('[data-boost]');
+    const chip = e.target.closest('[data-boost]') || e.target.closest('[data-fboost]');
     if (!chip) return;
     const B = BOOSTS[chip.dataset.boost];
     if (!B) return;
@@ -13029,10 +13103,6 @@ function renderPets(){
       ' style="--rc:' + rarCol(p.rar) + '">' +
       '<div class="pet-sprite" style="' + petSpriteVars(p.sp, 42) + ';border:0;background:transparent">' + PETS[p.sp].name[0] + '</div>' +
       '<span class="pc-lvl' + (max ? ' max' : '') + '">' + (max ? 'MAX' : li.lvl) + '</span>' +
-      /* En hjalpare i LISTAN far ingen XP - bara de som sitter i en produktion
-         vaxer. Det syntes inte, sa nivaerna sag ut att komma fran ingenstans.
-         Nu bar en vilande hjalpare ett litet stilla-marke. */
-      '<span class="pc-idle" title="Not working — earns no XP">\u23f8</span>' +
       (petSelMode && !on ? '<span class="pc-tick">' + (sel ? '\u2713' : '') + '</span>' : '') +
       (on ? '<span class="pc-slot">' + (teamIndexOf(p.uid) + 1) + '</span>' : '') +
       '</div>';
@@ -13801,7 +13871,13 @@ $('pet-team-grid').addEventListener('click', () => {
   if (pane) pane.click();
   spawnFloat({text: 'Seat helpers beside each production'});
 });
-$('pets-close').addEventListener('click', () => $('pets-overlay').classList.remove('open'));
+/* Krysset behovde forut flera tryck: pekarhanterarna for dra-och-slapp lag
+   ovanpa och at klicket. Vi stanger pa POINTERDOWN i stallet, sa knappen svarar
+   pa forsta trycket oavsett vad som hander efterat. */
+$('pets-close').addEventListener('pointerdown', e => {
+  e.stopPropagation(); e.preventDefault();
+  $('pets-overlay').classList.remove('open');
+});
 $('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
 $('cache-buy').addEventListener('click', openCache);
 /* Ett klick i rutnatet betyder olika saker i de tva lagena, och bara de tva:
@@ -14200,7 +14276,8 @@ function itemWinHTML(it, worn){
 function itemWinActions(win, uid){
   const box = win.querySelector('.item-actions');
   const found = findByUid(uid);
-  if (!found){ box.innerHTML = '<div class="gc-row">This item is gone.</div>'; return; }
+  /* Finns pjasen inte langre finns det inget att gora med den - stang. */
+  if (!found){ win.remove(); return; }
   if (found.where === 'vault'){
     box.innerHTML = '<button class="ia-cancel" data-act="unvault">To backpack</button>';
   } else if (found.where === 'bag'){
@@ -14233,6 +14310,9 @@ function spawnItemWin(uid, nearX, nearY){
   const it = found.it;
   const win = document.createElement('div');
   win.className = 'item-win';
+  /* Kortet bar pjasens id, sa det gar att stanga automatiskt nar pjasen
+     forsvinner - salt, sankt eller flyttat av servern. */
+  win.dataset.uid = uid;
   win.style.setProperty('--rc', gearRarCol(it));
   win.innerHTML = itemWinHTML(it, found.where === 'equip');
   itemWinActions(win, uid);
@@ -14248,7 +14328,10 @@ function spawnItemWin(uid, nearX, nearY){
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const cur = findByUid(uid);
-    if (!cur){ itemWinActions(win, uid); return; }
+    /* AR PJASEN BORTA AR KORTET FARDIGT. Forut byttes knappraden mot texten
+       "This item is gone" och rutan blev staende kvar och pratade om nagot som
+       inte langre finns. Ett kort utan foremal ska stanga sig. */
+    if (!cur){ hideGearTip(); win.remove(); return; }
     if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
     else if (btn.dataset.act === 'unvault'){ if (fromVault(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unbag'){ if (unequipBag(cur.idx)) win.remove(); }
@@ -14262,7 +14345,13 @@ function spawnItemWin(uid, nearX, nearY){
         '<button class="ia-danger" data-act="sell-yes">Yes, sell it</button>' +
         '<button class="ia-cancel" data-act="sell-no">Keep it</button>';
     }
-    else if (btn.dataset.act === 'sell-yes'){ sellGear(cur.idx); win.remove(); }
+    else if (btn.dataset.act === 'sell-yes'){
+      /* Stang FORST, salj sedan. Forsaljningen ar serverns och tar en stund;
+         under tiden ska ingen ruta sta kvar med knappar for en pjas som ar pa
+         vag bort. */
+      hideGearTip(); win.remove();
+      sellGear(cur.idx);
+    }
     else if (btn.dataset.act === 'sell-no'){ itemWinActions(win, uid); }
     else if (btn.dataset.act === 'salvage'){
       const box = win.querySelector('.item-actions'), pv = salvagePreview(cur.it);
@@ -15346,9 +15435,123 @@ function resetShow(step){
   $('settings-main').style.display = '';
 }
 $('nav-settings').addEventListener('click', openSettings);
-/* Spelarkortet ar vagen till kontot. Har bor karaktarsbytet redan, och hit
-   kommer handlen i nasta steg. */
-$('panel-player').addEventListener('click', openSettings);
+/* Spelarkortet leder till PROFILSIDAN: kontot, karaktaren och talen. */
+$('panel-player').addEventListener('click', openProfile);
+$('profile-close').addEventListener('click', () => $('profile-overlay').classList.remove('open'));
+$('profile-overlay').addEventListener('click', e => {
+  if (e.target === $('profile-overlay')) $('profile-overlay').classList.remove('open');
+});
+function openProfile(){
+  renderProfile();
+  $('profile-overlay').classList.add('open');
+  bringToFront($('profile-overlay'));
+}
+function renderProfile(){
+  const box = $('profile-body'); if (!box) return;
+  const li = levelInfo();
+  const st = S.stats || {};
+  const row = (k, v) => '<div class="pf-row"><span>' + k + '</span><b>' + v + '</b></div>';
+  const left = (SRV.handleCanChangeAt || 0) - Date.now();
+  box.innerHTML =
+    '<div class="section-label">Account</div>' +
+    '<div class="pf-handle">' +
+      '<div><div class="pf-handle-name">' + (NET.on && SRV.handle ? '@' + SRV.handle : '— no handle yet') + '</div>' +
+      '<div class="desc">' + (!NET.on ? 'Sign in to claim a handle.'
+        : left > 0 ? 'You can change it again in ' + fmtDur(left / 1000) + '.'
+        : 'Friends find you by this. Changing it locks the name for 7 days.') + '</div></div>' +
+      (NET.on ? '<button class="btn-neutral" id="pf-handle-btn"' + (left > 0 ? ' disabled' : '') + '>Change</button>' : '') +
+    '</div>' +
+    '<div class="pf-edit" id="pf-edit" style="display:none">' +
+      '<input class="gate-input" id="pf-handle-input" maxlength="16" placeholder="NewHandle">' +
+      '<button class="btn-neutral" id="pf-handle-save">Save</button>' +
+      '<button class="btn-neutral" id="pf-handle-cancel">Cancel</button>' +
+      '<div class="desc" id="pf-handle-msg"></div>' +
+    '</div>' +
+    '<div class="section-label">Character</div>' +
+    row('Name', (NET.on && SRV.charName) ? SRV.charName : 'Runner') +
+    row('Level', li.para ? (li.lvl + ' · Paragon ' + li.para) : li.lvl) +
+    row('XP', Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US')) +
+    row('Standing in', REGIONS[S.world.current] ? REGIONS[S.world.current].name : '—') +
+    row('Reputation here', '★'.repeat(repRank()) + '☆'.repeat(5 - repRank())) +
+    '<div class="section-label">Numbers</div>' +
+    row('Data per second', fmt(totalDps())) +
+    row('Gold', fmtMoneyFull(S.gold)) +
+    row('Tokens', fmt(S.tokens || 0)) +
+    row('Reboots', fmt(S.reboots || 0)) +
+    row('Expeditions claimed', fmt(st.expDone || 0)) +
+    row('Gear sold', fmt(st.sold || 0)) +
+    row('Caches opened', fmt(st.caches || 0)) +
+    row('Helpers', fmt(petsOwned().length)) +
+    /* SLA UPP EN SPELARE. Exakt handle, inte del av namn - annars kan vem som
+       helst rada fram listan over alla spelare bokstav for bokstav. Det som
+       visas ar namnet, om personen ar online och vilken karaktar hen spelar.
+       Aldrig guld, vaska eller position. */
+    '<div class="section-label">Find a player</div>' +
+    '<div class="pf-edit" style="display:flex">' +
+      '<input class="gate-input" id="pf-find-input" maxlength="16" placeholder="ChrisWhippit"' +
+        (NET.on ? '' : ' disabled') + '>' +
+      '<button class="btn-neutral" id="pf-find-btn"' + (NET.on ? '' : ' disabled') + '>Look up</button>' +
+    '</div>' +
+    '<div class="pf-found" id="pf-found"></div>' +
+    '<div class="section-label">Switch</div>' +
+    '<button class="btn-neutral wide" id="pf-settings">Open settings</button>';
+
+  const b1 = $('pf-handle-btn');
+  if (b1) b1.addEventListener('click', () => {
+    $('pf-edit').style.display = '';
+    $('pf-handle-input').value = SRV.handle || '';
+    $('pf-handle-input').focus();
+  });
+  const cancel = $('pf-handle-cancel');
+  if (cancel) cancel.addEventListener('click', () => { $('pf-edit').style.display = 'none'; });
+  const save = $('pf-handle-save');
+  if (save) save.addEventListener('click', async () => {
+    $('pf-handle-msg').textContent = 'Saving…';
+    try { await netSetHandle($('pf-handle-input').value.trim()); renderProfile(); }
+    catch (e){ $('pf-handle-msg').textContent = handleErrText(e); }
+  });
+  const sbtn = $('pf-settings');
+  if (sbtn) sbtn.addEventListener('click', () => {
+    $('profile-overlay').classList.remove('open'); openSettings();
+  });
+  const fbtn = $('pf-find-btn'), finp = $('pf-find-input');
+  if (fbtn) fbtn.addEventListener('click', () => findPlayer(finp.value.trim()));
+  if (finp) finp.addEventListener('keydown', e => { if (e.key === 'Enter') findPlayer(finp.value.trim()); });
+}
+const FIND_ERRORS = {
+  player_not_found:  'No player with that handle.',
+  handle_characters: 'Handles are letters, numbers and _ , 3 to 16 characters.',
+  not_authenticated: 'Sign in to look someone up.'
+};
+function findErrText(e){
+  const m = String((e && e.message) || e || '');
+  for (const k in FIND_ERRORS) if (m.indexOf(k) >= 0) return FIND_ERRORS[k];
+  return srvErrText(e, 'Could not look that up.');
+}
+async function findPlayer(h){
+  const box = $('pf-found'); if (!box) return;
+  if (!h){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="desc">Looking…</div>';
+  try {
+    const r = await srvRpc('find_player', {p_handle: h});
+    /* "Sist sedd" i ord: en exakt tidpunkt sager mer om nagon annans dygn an
+       den behover. */
+    const seen = r.online ? 'online now'
+      : (r.last_seen_secs == null ? 'never seen'
+         : 'last seen ' + fmtDur(r.last_seen_secs) + ' ago');
+    box.innerHTML =
+      '<div class="pf-card' + (r.online ? ' on' : '') + '">' +
+        '<div class="pf-dot"></div>' +
+        '<div><div class="pf-handle-name">@' + r.handle + (r.is_me ? ' (you)' : '') + '</div>' +
+        '<div class="desc">' + seen +
+          (r.playing ? ' \u00b7 playing <b>' + r.playing + '</b>' +
+            (r.level ? ' (level ' + r.level + ')' : '') : ' \u00b7 no characters yet') +
+        '</div></div>' +
+      '</div>';
+  } catch (e){
+    box.innerHTML = '<div class="desc" style="color:#ff9b9b">' + findErrText(e) + '</div>';
+  }
+}
 $('footer-settings').addEventListener('click', openSettings);
 $('settings-close').addEventListener('click', closeSettings);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeSettings(); });
