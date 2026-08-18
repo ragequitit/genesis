@@ -149,6 +149,9 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 .player-info{display:flex;flex-direction:column;gap:3px;min-width:150px}
 .player-name{font-weight:800;letter-spacing:.05em;font-size:14px}
+.player-handle{font-size:10px;color:var(--cyan);font-family:var(--font-mono);letter-spacing:.04em}
+#panel-player.clickable{cursor:pointer;transition:border-color .15s}
+#panel-player.clickable:hover{border-color:var(--cyan)}
 .player-sub{font-size:9px;letter-spacing:.12em;color:var(--purple);font-weight:700;text-transform:uppercase}
 .xp-bar{height:7px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border-soft);overflow:hidden;margin-top:2px}
 .xp-fill{height:100%;width:88%;border-radius:99px;background:linear-gradient(90deg,var(--purple),var(--magenta))}
@@ -539,6 +542,29 @@ body.dragging *{cursor:grabbing !important}
   color:var(--text);opacity:0;transition:opacity .18s, transform .18s;
 }
 #say-box.on{opacity:1;transform:translate(-50%,0)}
+/* Ljudknapparna i naven: gront nar det later, rott nar det ar tyst. Fargen
+   sitter pa ikonen OCH pa texten, sa den syns aven for den som har svart att
+   skilja pa nyanser i en liten prick. */
+.nav-btn.nav-snd .ico{font-size:17px;line-height:1}
+.nav-btn.snd-on  .ico,.nav-btn.snd-on  .lbl small{color:var(--green)}
+.nav-btn.snd-off .ico,.nav-btn.snd-off .lbl small{color:var(--red);opacity:.85}
+.nav-btn.snd-off .ico{filter:grayscale(.6)}
+/* ================= DEV-MENYN - TA BORT FORE LANSERING ================= */
+.dev-row .desc{color:#ffb0b6}
+#dev-overlay.open{display:flex;align-items:flex-start;justify-content:center;inset:0}
+.dev-modal{position:absolute;top:6vh;width:min(560px,94vw);max-height:86vh;display:flex;
+  flex-direction:column;background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--red);border-radius:14px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.75)}
+.dev-body{padding:14px 16px;overflow-y:auto}
+.dev-warn{padding:10px 12px;border-radius:9px;margin-bottom:10px;font-size:11.5px;line-height:1.6;
+  border:1px solid var(--red);background:rgba(255,77,109,.10);color:#ffb3c1}
+.dev-who{font-size:11px;color:var(--text-dim);margin-bottom:6px;font-family:var(--font-mono)}
+.dev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;margin-bottom:6px}
+.dev-grid button{padding:9px;border-radius:9px;cursor:pointer;font-size:11.5px;font-weight:700;
+  border:1px solid var(--border-glow);background:#10162e;color:var(--text)}
+.dev-grid button:hover{border-color:var(--cyan);color:var(--cyan)}
+.dev-said{margin-top:10px;font-size:11.5px;color:var(--green);min-height:16px}
+/* ================= slut dev-menyns stil ================= */
 /* Bransleikonen inuti en vaskruta. */
 .iv-qi{display:inline-block;width:22px;height:22px;background-size:contain;background-repeat:no-repeat;background-position:center}
 /* SAMLARVASKANS RUTOR LYSER ALLTID SVAGT GRONT - man ska aldrig behova hovra
@@ -3005,6 +3031,21 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="gate-note">Your progress lives on the server, so you can play from any device.</div>
       </div>
 
+      <!-- HANDLEN: kontots namn, valt fore forsta karaktaren. Ett konto ska
+           aldrig finnas utan ett satt att bli hittad pa. -->
+      <div id="gate-handle" class="gate-step" style="display:none">
+        <div class="gate-sub">Pick your handle</div>
+        <div class="gate-note">This is your account name — one for all your characters.
+          Friends will find you by it. Letters, numbers and _ , 3 to 16 characters.
+          You can change it later, but only once a week.</div>
+        <div class="gate-newrow">
+          <input class="gate-input" id="gate-handle-input" placeholder="ChrisWhippit" maxlength="16" autocomplete="off">
+          <button class="gate-go small" id="gate-handle-go">Claim</button>
+        </div>
+        <div class="gate-msg" id="gate-msg-handle"></div>
+        <button class="gate-link" id="gate-handle-signout">Sign out</button>
+      </div>
+
       <div id="gate-chars" class="gate-step" style="display:none">
         <div class="gate-sub">Choose a character</div>
         <div class="gate-list" id="gate-charlist"></div>
@@ -3077,10 +3118,13 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
   <header class="topbar col col-top">
 
     <!-- Spelarkortet -->
-    <div class="panel hpanel" id="panel-player">
+    <div class="panel hpanel clickable" id="panel-player" title="Your account">
       <div class="avatar">🥷<span class="lvl-badge" id="lvl-badge">1</span></div>
       <div class="player-info">
-        <div class="player-name">WHIPPEN RUNNER</div>
+        <!-- Namnet kommer fran karaktaren, inte ur filen. Hela kortet gar att
+             klicka pa och oppnar kontot. -->
+        <div class="player-name" id="player-name">RUNNER</div>
+        <div class="player-handle" id="player-handle" style="display:none"></div>
         <div class="player-sub" id="player-level-text">Runner Level 1</div>
         <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
         <div class="xp-label" id="xp-label">0 / 100 XP</div>
@@ -3110,6 +3154,10 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
       <div class="nav-btn"><span class="ico"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
       <div class="nav-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
       <div class="nav-btn" id="nav-settings"><span class="ico"><span class="qi qi-settings"></span></span><span class="lbl">Settings</span></div>
+      <!-- LJUDET DIREKT I NAVEN. Gront = pa, rott = av. Samma installningar som
+           i Settings - det ar EN sanning, bara tva stallen att na den fran. -->
+      <div class="nav-btn nav-snd" id="nav-music" title="Music"><span class="ico">🎵</span><span class="lbl">Music<small id="nav-music-state">On</small></span></div>
+      <div class="nav-btn nav-snd" id="nav-sfx" title="Sound"><span class="ico">🔊</span><span class="lbl">Sound<small id="nav-sfx-state">On</small></span></div>
     </div>
   </header>
 
@@ -3509,6 +3557,52 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
     </div>
   </div>
 
+  <!-- ================= DEV-RUTAN — TA BORT FORE LANSERING ================= -->
+  <div class="float-win" id="dev-overlay">
+    <div class="modal dev-modal">
+      <div class="inv-titlebar">
+        <span class="inv-title">Developer</span>
+        <button class="inv-x" id="dev-close">✕</button>
+      </div>
+      <div class="dev-body">
+        <div class="dev-warn">Everything here is free and writes straight to the server.
+          Use a throwaway character — this is for testing, not for playing.</div>
+        <div class="dev-who" id="dev-who"></div>
+        <div class="section-label">Money</div>
+        <div class="dev-grid">
+          <button data-dev="gold" data-amt="1000">+1 000 gold</button>
+          <button data-dev="credits" data-amt="1000">+1 000 credits</button>
+          <button data-dev="tokens" data-amt="500">+500 tokens</button>
+          <button data-dev="fragments" data-amt="500">+500 fragments</button>
+          <button data-dev="dust" data-amt="1000">+1 000 dust</button>
+          <button data-dev="data" data-amt="1000000000">+1 bn Data</button>
+        </div>
+        <div class="section-label">Progress</div>
+        <div class="dev-grid">
+          <button data-dev="level" data-amt="10">Level 10</button>
+          <button data-dev="level" data-amt="25">Level 25</button>
+          <button data-dev="level" data-amt="50">Level 50</button>
+          <button data-dev="xp" data-amt="100000">+100 000 XP</button>
+          <button data-dev="machines" data-amt="25">+25 of every machine</button>
+          <button data-dev="world" data-amt="1">Chart the whole world</button>
+        </div>
+        <div class="section-label">Stuff</div>
+        <div class="dev-grid">
+          <button data-dev="gear" data-amt="0">Gear · common</button>
+          <button data-dev="gear" data-amt="2">Gear · rare</button>
+          <button data-dev="gear" data-amt="5">Gear · mythic</button>
+          <button data-dev="pet" data-amt="2">Helper · rare</button>
+          <button data-dev="pet" data-amt="5">Helper · mythic</button>
+          <button data-dev="materials" data-amt="200">200 of every material</button>
+          <button data-dev="bagslots" data-amt="1">Unlock every bag slot</button>
+          <button data-dev="fuel" data-amt="1">Fill the tank</button>
+        </div>
+        <div class="dev-said" id="dev-said"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ================= slut dev-rutan ================= -->
+
   <div class="gear-tip" id="gear-tip"></div>
   <!-- ================= HUSDJUREN ================= -->
   <div class="float-win" id="recipe-overlay">
@@ -3633,6 +3727,17 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
       </div>
 
       <div id="settings-main">
+        <!-- ================= DEV-MENYN — TA BORT FORE LANSERING =================
+             En knapp, en ruta, ett serveranrop (dev_grant). Hela blocket ar
+             avgransat med kommentarer sa det gar att riva i ett svep. -->
+        <div class="settings-row dev-row">
+          <div>
+            <div>Developer</div>
+            <div class="desc">Free everything, for testing. Use it on a throwaway character — it writes to the server like anything else. REMOVE BEFORE LAUNCH.</div>
+          </div>
+          <button class="btn-neutral" id="dev-open">Open</button>
+        </div>
+        <!-- ================= slut dev-menyn ================= -->
         <!-- Utloggningen fanns bara INNE i inloggningsluckan, och luckan stangs
              nar man kommit in. Var man val i spelet fanns det alltsa ingen vag
              tillbaka till karaktarslistan alls - man fick tomma webblasarens
@@ -3651,12 +3756,21 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
           </div>
           <button class="btn-neutral" id="char-signout">Sign out</button>
         </div>
-        <div class="settings-row">
+        <!-- HANDLEN i kontot: visa, och byt om karensen tillater. -->
+        <div class="settings-row" id="row-handle">
           <div>
-            <div>Reset Game</div>
-            <div class="desc">Wipes all progress and starts over from the beginning.</div>
+            <div>Handle <b id="set-handle">—</b></div>
+            <div class="desc" id="set-handle-desc">Your account name. Friends find you by it.</div>
           </div>
-          <button class="btn-danger" id="reset-step0">Reset</button>
+          <button class="btn-neutral" id="set-handle-btn">Change</button>
+        </div>
+        <div class="settings-row" id="row-handle-edit" style="display:none">
+          <div style="flex:1">
+            <input class="gate-input" id="set-handle-input" placeholder="NewHandle" maxlength="16" style="width:100%">
+            <div class="desc" id="set-handle-msg"></div>
+          </div>
+          <button class="btn-neutral" id="set-handle-save">Save</button>
+          <button class="btn-neutral" id="set-handle-cancel">Cancel</button>
         </div>
         <div class="settings-row">
           <div>
@@ -3705,33 +3819,18 @@ body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.13.2 — RYKTET RAKNAS PA SERVERN</div>
+            <div class="desc">GENESIS v4.19.0 — HANDLEN</div>
           </div>
         </div>
       </div>
 
-      <div class="reset-confirm" id="reset-step1">
-        <p>Do you really want to reset this game?</p>
-        <div class="confirm-btns">
-          <button class="btn-neutral" id="reset-cancel-1">Cancel</button>
-          <button class="btn-danger" id="reset-yes-1">Yes, reset</button>
-        </div>
-      </div>
-
-      <div class="reset-confirm" id="reset-step2">
-        <p><span class="warn">Are you sure?</span><br>This action will restore your game from the very beginning. Everything you have built will be gone. There is no way back.</p>
-        <div class="confirm-btns">
-          <button class="btn-neutral" id="reset-cancel-2">Cancel</button>
-          <button class="btn-danger" id="reset-yes-2">Reset everything</button>
-        </div>
-      </div>
     </div>
   </div>
 
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.13.2 — RYKTET RAKNAS PA SERVERN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.19.0 — HANDLEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4536,6 +4635,25 @@ async function netPullMilestones(){
   (rows || []).forEach(r => { S.mil[r.machine_id + ':' + r.step] = true; });
   return true;
 }
+/* RAKNARNA. Servern har bokfort dem hela tiden - hur manga expeditioner man
+   hamtat, hur mycket man salt, hur manga cacher man oppnat - medan klienten
+   holl en egen uppsattning som nollades vid varje omladdning. Namnen skiljer
+   sig mellan sidorna, sa oversattningen star har och ingen annanstans. */
+const STAT_MAP = {
+  exp_done: 'expDone', gear_sold: 'sold', vendor_buys: 'bought',
+  caches: 'caches', taps: 'ticks', regions_seen: 'regionsSeen'
+};
+async function netPullStats(){
+  if (!SRV.charId) return false;
+  const rows = await srvSelect('character_stats_counters',
+    'character_id=eq.' + SRV.charId + '&select=stat,value');
+  S.stats = S.stats || {};
+  (rows || []).forEach(r => {
+    const k = STAT_MAP[r.stat];
+    if (k) S.stats[k] = Math.max(0, Math.floor(+r.value) || 0);
+  });
+  return true;
+}
 async function netPullRegions(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('character_regions',
@@ -4554,6 +4672,22 @@ async function netPullRegions(){
   if (known.length){
     S.world.known = known;
     S.world.visited = visited.length ? visited : [S.world.current];
+  }
+  /* ZONERNA MAN SETT, och darmed de UPPTACKTA EXPEDITIONERNA. Bada bodde bara
+     i webblasaren, och sparfilen skriver med flit ingenting i serverlage - sa
+     hela listan over upptackta expeditioner nollades vid varje omladdning.
+     Servern ager det nu; klienten raknar bara fram foljden. */
+  const zrows = await srvSelect('character_zones',
+    'character_id=eq.' + SRV.charId + '&select=region,zone');
+  if (zrows){
+    S.world.zonesSeen = [];
+    S.exp.found = S.exp.found || [];
+    zrows.forEach(z => {
+      if (!REGIONS[z.region] || REGIONS[z.region].zones.indexOf(z.zone) < 0) return;
+      const k = zoneKey(z.region, z.zone);
+      if (S.world.zonesSeen.indexOf(k) < 0) S.world.zonesSeen.push(k);
+      discoverZoneExpeditions(z.region, z.zone);
+    });
   }
   const res = await srvSelect('character_research',
     'character_id=eq.' + SRV.charId + '&select=region,ends_at');
@@ -4797,6 +4931,14 @@ async function netSetTeam(pet, slot){
   renderPets(); renderPetPanel(); updateUI(true);
   return r;
 }
+async function netFeedPet(pet, dust){
+  if (!NET.on || !pet || !pet.sid) return null;
+  const r = await srvRpc('feed_pet',
+    {p_character: SRV.charId, p_pet: pet.sid, p_dust: Math.max(1, dust | 0)});
+  await netPull(); await netPullPets();
+  renderPets(); renderPetPanel(); updateUI(true);
+  return r;
+}
 async function netRecyclePet(pet){
   if (!NET.on || !pet || !pet.sid) return null;
   const r = await srvRpc('recycle_pet', {p_character: SRV.charId, p_pet: pet.sid});
@@ -4917,6 +5059,8 @@ async function netPullAll(){
   await netPullProfessions();
   await netPullBoosts();
   await netPullAchievements();
+  await netPullStats();
+  try { await netMyProfile(); } catch (e){}
   /* Hamtade vi hem allt ritar vi ocksa om allt. Det ar den enda regel som
      haller: den som hamtar behover inte veta vilka rutor som pavarkas. */
   redrawAll();
@@ -4943,27 +5087,6 @@ async function netVendorBuy(regionId, slot){
   return r;
 }
 
-/* ===== TESTVERKTYG - TA BORT FORE LANSERING =====
-   Tva anrop som ger gratis pengar respektive en vaska for ett guld. De ligger
-   samlade har, och deras motsvarigheter pa servern heter dev_grant_money och
-   dev_grant_bag, sa hela leksaken gar att riva pa fyra stallen. */
-async function netTestMoney(kind){
-  if (!NET.on) return null;
-  const r = await srvRpc('dev_grant_money', {p_character: SRV.charId, p_kind: kind});
-  if (r && r.gold != null) S.gold = +r.gold;
-  if (r && r.credits != null) S.credits = +r.credits;
-  updateUI(true);
-  return r;
-}
-async function netTestBag(key){
-  if (!NET.on) return null;
-  const r = await srvRpc('dev_grant_bag', {p_character: SRV.charId, p_key: key});
-  if (r && r.gold != null) S.gold = +r.gold;
-  await netPullItems();
-  renderInventory(); updateUI(true);
-  return r;
-}
-/* ===== slut testverktyg ===== */
 
 /* ---------- EXPEDITIONERNA ---------- */
 async function netPullRuns(){
@@ -5620,11 +5743,30 @@ function canAfford(rid){
 }
 /* Craftar: kraver lart yrke, kant recept, tillrackligt material och en ledig
    vaskruta. Drar materialet, rullar pjasen med taket, lagger den i vaskan. */
+/* Vad ett craft gav, i ord. */
+function craftedName(key){
+  if (!key) return 'it';
+  const D = ITEMS[key], m = MATERIALS[key], f = FLASKS[key];
+  return (D && D.name) || (m && m.name) || (f && f.name) || key;
+}
+/* Servern sager 'insufficient_material_copper_ore' nar nagot saknas - en kod
+   ingen ordlista kanner igen, sa beskedet blev "the server said no". Nu lases
+   materialets namn ut ur koden och sags rakt ut. */
+function craftErrText(e){
+  const m = String((e && e.message) || e || '');
+  const hit = m.match(/insufficient_material_([a-z0-9_]+)/);
+  if (hit) return 'Not enough ' + craftedName(hit[1]) + '.';
+  if (m.indexOf('profession_level_too_low') >= 0) return 'Your profession level is too low for that recipe.';
+  if (m.indexOf('recipe_not_known') >= 0) return 'You have not learned that recipe.';
+  if (m.indexOf('profession_not_learned') >= 0) return 'You have not learned that profession.';
+  return srvErrText(e, 'Could not craft that.');
+}
 function craftRecipe(rid){
   if (NET.on){
     netCraft(rid).then(res => {
-      if (res) spawnFloat({text: 'Crafted ' + (res.crafted || '')});
-    }).catch(e => say(srvErrText(e)));
+      /* Serverns svar bar den inre nyckeln. Spelaren ska se NAMNET. */
+      if (res) say('Crafted ' + craftedName(res.crafted));
+    }).catch(e => say(craftErrText(e)));
     return true;
   }
   const r = RECIPE_BY[rid];
@@ -6280,13 +6422,18 @@ function petsForRegion(rid){
    ska fortsatta ge hela listan for en region. */
 const REGION_PETS = {};
 Object.keys(REGION_OWN_PETS).forEach(rid => { REGION_PETS[rid] = petsForRegion(rid); });
+/* SAMMA TRAPPA SOM SERVERN, och samma som utrustningen använder.
+   Klienten hade en egen: 1 · 1,5 · 2,5 · 4 · 6 · 10, medan servern rullar
+   1 · 1,35 · 1,8 · 2,4 · 3,2 · 4,2. En mythic blev alltså 2,4 gånger starkare i
+   klientens uträkning än i den som faktiskt gäller. Servern rullar varenda
+   hjälpare, så det är dess trappa som är sann. */
 const RARITIES = [
   {id: 'common',    name: 'Common',    mult: 1},
-  {id: 'uncommon',  name: 'Uncommon',  mult: 1.5},
-  {id: 'rare',      name: 'Rare',      mult: 2.5},
-  {id: 'epic',      name: 'Epic',      mult: 4},
-  {id: 'legendary', name: 'Legendary', mult: 6},
-  {id: 'mythic',    name: 'Mythic',    mult: 10}
+  {id: 'uncommon',  name: 'Uncommon',  mult: 1.35},
+  {id: 'rare',      name: 'Rare',      mult: 1.8},
+  {id: 'epic',      name: 'Epic',      mult: 2.4},
+  {id: 'legendary', name: 'Legendary', mult: 3.2},
+  {id: 'mythic',    name: 'Mythic',    mult: 4.2}
 ];
 /* Cachens sallsynthetsvikter PER TIER - samma form som gear redan anvander, sa
    spelaren slipper lara sig ett andra system. Avstandet lutar oddsen, och lutningen
@@ -7915,6 +8062,7 @@ const el = {
   hex: $('core-hex'), coreWrap: $('core-wrap'), coreSpark: $('core-spark'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
   list: $('machine-list'), shelf: $('milestone-shelf'), core: $('core-upgrades'),
   stage: $('core-stage'), saveStatus: $('save-status'), nextSave: $('next-save'),
+  playerName: $('player-name'),
   lvlBadge: $('lvl-badge'), lvlText: $('player-level-text'), xpFill: $('xp-fill'), xpLabel: $('xp-label'),
   repStars: $('rep-stars'), repFill: $('rep-fill'), repNext: $('rep-next'), repBonus: $('rep-bonus'),
   heroTitle: $('hero-title'), regionThumb: $('region-thumb'),
@@ -10632,6 +10780,20 @@ function updateUI(force){
   el.lvlText.textContent = li.para
     ? 'Runner Level ' + li.lvl + ' · Paragon ' + li.para
     : 'Runner Level ' + li.lvl;
+  /* Kortet stod med ett hardkodat namn i filen. Nu star det som galler: den
+     karaktar man faktiskt spelar, och offline det generiska ordet. */
+  if (el.playerName){
+    const nm = (NET.on && SRV.charName) ? SRV.charName : 'Runner';
+    if (el.playerName.textContent !== nm.toUpperCase()) el.playerName.textContent = nm.toUpperCase();
+  }
+  /* Handlen star under namnet: kontot ovanfor karaktaren, som i "ChrisWhippit
+     spelar Hithatt". */
+  const hEl = $('player-handle');
+  if (hEl){
+    const h = (NET.on && SRV.handle) ? ('@' + SRV.handle) : '';
+    hEl.style.display = h ? '' : 'none';
+    if (hEl.textContent !== h) hEl.textContent = h;
+  }
   el.xpFill.style.width = Math.min(100, (li.into / li.need) * 100) + '%';
   el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
 
@@ -11933,16 +12095,6 @@ function openZone(regionId, zi, keepNote){
     buyVendorGear(regionId, +b.dataset.vbuy);
     openZone(regionId, zi, true);
   }));
-  /* TESTVÄSKOR — TA BORT FÖRE LANSERING */
-  $('region-body').querySelectorAll('[data-testbag]').forEach(b => b.addEventListener('click', () => {
-    buyTestBag(regionId, +b.dataset.testbag);
-    openZone(regionId, zi, true);
-  }));
-  /* TESTPENGAR — TA BORT FÖRE LANSERING */
-  $('region-body').querySelectorAll('[data-testmoney]').forEach(b => b.addEventListener('click', () => {
-    grabTestMoney(b.dataset.testmoney);
-    openZone(regionId, zi, true);
-  }));
   $('region-body').querySelectorAll('[data-start]').forEach(b => {
     b.addEventListener('click', () => {
       /* Startade den? Då är rutan färdig med sitt ärende — stäng den. */
@@ -12141,31 +12293,7 @@ function buildTrader(regionId){
       btn('Buy — ' + moneyText(p), ' data-vbuy="' + i + '"', S.gold >= p) +
       '</div></div>';
   };
-  /* ===== TESTVÄSKOR — TA BORT FÖRE LANSERING =====
-     Tre väskor (4/6/8 platser) för 1 guld hos handlaren i hemregionen, så väskfacken
-     i ryggsäck och valv går att prova. Hela blocket är avgränsat och rivs enkelt. */
-  if (regionId === 'neonhub'){
-    sup += '<div class="section-label" style="color:#ffcf6b">Test bags — remove before launch</div>';
-    sup += TEST_BAGS.map((tb, i) =>
-      '<div class="trader-row"><div class="tr-item">' +
-      '<span class="vg-art" style="background-image:url(\'' + itemArtFor(tb.key, ITEMS[tb.key].rars[0]) + '\')"></span>' +
-      '<div><div class="tr-name" style="color:' + NEUTRAL_COL + '">' + ITEMS[tb.key].name + '</div>' +
-      '<div class="tr-sub">Bag · +' + ITEMS[tb.key].bag + ' slots · test item</div></div></div>' +
-      '<div class="tr-buy">' + btn('Buy — ' + moneyText(GOLD(1)), ' data-testbag="' + i + '"', S.gold >= GOLD(1)) + '</div></div>'
-    ).join('');
-    /* Två knappar som fyller på pengar för testning — grabbar 100 credits respektive
-       100 guld per tryck. TA BORT före lansering, precis som väskorna ovan. */
-    sup += '<div class="trader-row"><div class="tr-item">' +
-      '<span class="vg-art" style="background:rgba(56,232,255,.12);display:flex;align-items:center;justify-content:center;font-size:22px">💳</span>' +
-      '<div><div class="tr-name" style="color:var(--cyan)">+100 Credits</div>' +
-      '<div class="tr-sub">Test money · free</div></div></div>' +
-      '<div class="tr-buy">' + btn('Grab 100c', ' data-testmoney="credits"', true) + '</div></div>';
-    sup += '<div class="trader-row"><div class="tr-item">' +
-      '<span class="vg-art" style="background:rgba(255,207,107,.14);display:flex;align-items:center;justify-content:center;font-size:22px">🪙</span>' +
-      '<div><div class="tr-name" style="color:#ffcf6b">+100 Gold</div>' +
-      '<div class="tr-sub">Test money · free</div></div></div>' +
-      '<div class="tr-buy">' + btn('Grab 100g', ' data-testmoney="gold"', true) + '</div></div>';
-  }
+
   const stock = vendorStock(regionId);
   let gear = '<div class="section-label">Stock <span class="vg-clock" id="vendor-clock">restock in ' +
        fmtDur(vendorRestockIn(regionId)) + '</span></div>';
@@ -12185,56 +12313,6 @@ function buildTrader(regionId){
     '</div>' + note + (tab === 'gear' ? gear : sup);
 }
 let vendorTab = 'gear';    // vilken flik som visas hos handlaren
-/* ===== TESTVÄSKOR — TA BORT FÖRE LANSERING ===== */
-const TEST_BAGS = [
-  {key: 'bag_field_pouch'},      // +4
-  {key: 'bag_courier_satchel'},  // +6
-  {key: 'bag_runners_pack'}      // +8
-];
-function grabTestMoney(kind){
-  /* MASTE TAS BORT HELT FORE LANSERING - knapp och serverfunktion.
-     Online agen servern pengarna, sa knappen fragar den. Forut sa den bara
-     "Not available online", vilket gjorde den varldos i det enda lage spelet
-     faktiskt korn i. */
-  if (NET.on){
-    netTestMoney(kind)
-      .then(() => { vendorNote = kind === 'gold' ? 'Grabbed 100 gold.' : 'Grabbed 100 credits.';
-                    redrawZone(); updateUI(true); })
-      .catch(e => { vendorNote = srvErrText(e, 'Could not grab that.'); redrawZone(); });
-    return true;
-  }
-  if (kind === 'gold'){ S.gold += GOLD(100); vendorNote = 'Grabbed 100 gold.'; }
-  else { S.credits += 100; vendorNote = 'Grabbed 100 credits.'; }
-  updateUI(true); save();
-  return true;
-}
-function buyTestBag(regionId, i){
-  /* MASTE TAS BORT HELT FORE LANSERING - knapp och serverfunktion.
-     Vaskan rullas pa servern, annars finns den inte vid nasta hamtning. */
-  const tbn = TEST_BAGS[i];
-  if (!tbn || regionId !== 'neonhub') return false;
-  if (NET.on){
-    netTestBag(tbn.key)
-      .then(() => { vendorNote = 'Bought ' + ITEMS[tbn.key].name + '.';
-                    redrawZone(); renderInventory(); updateUI(true); })
-      .catch(e => { vendorNote = srvErrText(e, 'Could not buy that.'); redrawZone(); });
-    return true;
-  }
-  const tb = TEST_BAGS[i];
-  if (!tb || regionId !== 'neonhub') return false;
-  if (!atVendor(regionId)){ vendorNote = 'You have to be standing at this Vendor to trade.'; return false; }
-  if (S.gold < GOLD(1)){ vendorNote = 'Not enough money — you need ' + moneyText(GOLD(1) - S.gold) + ' more.'; return false; }
-  const free = invFirstFree();
-  if (free < 0){ vendorNote = 'Your backpack is full — nothing was bought.'; return false; }
-  S.gold -= GOLD(1);
-  const it = rollItem(tb.key, ITEMS[tb.key].rars[0]);
-  it.src = 'Test bag';
-  S.inv[free] = {gear: it};
-  vendorNote = 'Bought ' + ITEMS[tb.key].name + '.';
-  updateUI(true); renderInventory(); save();
-  return true;
-}
-/* ===== slut testväskor ===== */
 /* Priset följer samma rep-rabatt som cellen — en handlare som gillar dig är
    billigare på allt, annars vore rabatten en gåta. */
 function boostPrice(key, regionId){
@@ -13416,11 +13494,18 @@ function spawnPetWin(uid, nearX, nearY){
     else if (act === 'rec-no'){ petWinActions(win, uid); }
   });
 }
+/* Matningen rakans BARA lokalt forut: stoftet drogs i webblasaren och XP:n var
+   borta vid nasta hamtning. Servern har alltid haft funktionen - klienten
+   anropade den aldrig. */
 function feedPet(uid){
   const p = petByUid(uid);
   if (!p) return;
   const spend = feedAmount(p);
   if (spend <= 0) return;
+  if (NET.on){
+    netFeedPet(p, spend).catch(e => say(srvErrText(e, 'Could not feed that helper.')));
+    return;
+  }
   S.pets.dust -= spend;
   p.xp = Math.min(PET_XP_MAX, (p.xp || 0) + spend * DUST_XP);
   save(); renderPets(); renderPetPanel();
@@ -15013,21 +15098,92 @@ function refreshRegionUI(){
 
 /* ---------- INSTÄLLNINGAR ---------- */
 const overlay = $('settings-overlay');
-function openSettings(){ overlay.classList.add('open'); resetShow('main'); }
+function openSettings(){
+  overlay.classList.add('open'); resetShow('main');
+  renderHandleRow();
+}
+/* Kontots handle-rad. Karensen visas i klartext - en knapp som inte gar att
+   trycka pa ska saga VARFOR, inte bara vara gra. */
+function renderHandleRow(){
+  const row = $('row-handle'); if (!row) return;
+  row.style.display = NET.on ? '' : 'none';
+  $('row-handle-edit').style.display = 'none';
+  if (!NET.on) return;
+  $('set-handle').textContent = SRV.handle ? ('@' + SRV.handle) : '—';
+  const left = (SRV.handleCanChangeAt || 0) - Date.now();
+  const btn = $('set-handle-btn');
+  btn.disabled = left > 0;
+  $('set-handle-desc').textContent = left > 0
+    ? 'Your account name. You can change it again in ' + fmtDur(left / 1000) + '.'
+    : 'Your account name. Friends find you by it. Changing it locks the name for 7 days.';
+}
+$('set-handle-btn').addEventListener('click', () => {
+  $('row-handle-edit').style.display = '';
+  $('set-handle-input').value = SRV.handle || '';
+  $('set-handle-msg').textContent = '';
+  $('set-handle-input').focus();
+});
+$('set-handle-cancel').addEventListener('click', () => { $('row-handle-edit').style.display = 'none'; });
+$('set-handle-save').addEventListener('click', async () => {
+  const v = $('set-handle-input').value.trim();
+  $('set-handle-msg').textContent = 'Saving…';
+  try {
+    await netSetHandle(v);
+    $('set-handle-msg').textContent = '';
+    renderHandleRow(); updateUI(true);
+  } catch (e){ $('set-handle-msg').textContent = handleErrText(e); }
+});
 function closeSettings(){ overlay.classList.remove('open'); }
+/* RESET GAME AR BORTTAGEN. Den var fran tiden da man hade EN karaktar och
+   ingen server: enda vagen tillbaka var att torka den lokala sparfilen. Nu
+   skapar man en ny karaktar eller raderar den man har, och bada de vagarna gar
+   genom servern som allt annat. Funktionen star kvar tom sa oppningen av
+   installningarna inte behover veta att den forsvunnit. */
 function resetShow(step){
-  $('settings-main').style.display = (step === 'main') ? '' : 'none';
-  $('reset-step1').classList.toggle('open', step === 1);
-  $('reset-step2').classList.toggle('open', step === 2);
+  $('settings-main').style.display = '';
 }
 $('nav-settings').addEventListener('click', openSettings);
+/* Spelarkortet ar vagen till kontot. Har bor karaktarsbytet redan, och hit
+   kommer handlen i nasta steg. */
+$('panel-player').addEventListener('click', openSettings);
 $('footer-settings').addEventListener('click', openSettings);
 $('settings-close').addEventListener('click', closeSettings);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeSettings(); });
-$('reset-step0').addEventListener('click', () => resetShow(1));
 /* Byt karaktar: slapp karaktaren men behall inloggningen, glom den lokala
    spegeln och ladda om. Servern ror vi inte - karaktaren star kvar precis som
    den var. Nollningsflaggan hindrar att spegeln skrivs tillbaka pa vagen ut. */
+/* ================= DEV-MENYN — TA BORT FORE LANSERING =================
+   En knapp, ett anrop, en omritning. Allt gar genom dev_grant pa servern, sa
+   det som delas ut ar lika verkligt som allt annat - det ar just det som gor
+   den anvandbar for att leta buggar. */
+$('dev-open').addEventListener('click', () => {
+  if (!NET.on){ say('The developer menu needs the server.'); return; }
+  $('dev-who').textContent = 'Signed in as: ' + (SRV.charName || 'unknown character');
+  $('dev-said').textContent = '';
+  $('dev-overlay').classList.add('open');
+  bringToFront($('dev-overlay'));
+});
+$('dev-close').addEventListener('click', () => $('dev-overlay').classList.remove('open'));
+$('dev-overlay').addEventListener('click', e => {
+  if (e.target === $('dev-overlay')) $('dev-overlay').classList.remove('open');
+});
+$('dev-overlay').querySelectorAll('[data-dev]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!NET.on) return;
+    btn.disabled = true;
+    try {
+      const r = await srvRpc('dev_grant',
+        {p_character: SRV.charId, p_what: btn.dataset.dev, p_amount: +btn.dataset.amt || 1});
+      $('dev-said').textContent = 'Granted: ' + ((r && r.note) || btn.dataset.dev);
+      await netPullAll();
+      await netSync();
+    } catch (e){
+      $('dev-said').textContent = srvErrText(e, 'The server refused that.');
+    }
+    btn.disabled = false;
+  });
+});
+/* ================= slut dev-menyn ================= */
 $('char-switch').addEventListener('click', () => {
   resetInProgress = true;
   try { localStorage.removeItem(SAVE_KEY); } catch (e){}
@@ -15051,9 +15207,6 @@ $('char-signout').addEventListener('click', async () => {
   try { await srvSignOut(); } catch (e){ srvClearSession(); }
   location.reload();
 });
-$('reset-cancel-1').addEventListener('click', () => resetShow('main'));
-$('reset-yes-1').addEventListener('click', () => resetShow(2));
-$('reset-cancel-2').addEventListener('click', () => resetShow('main'));
 function applySoundPrefs(){
   Sound.setEnabled(S.snd.sfx);
   Sound.musicEnabled = S.snd.music;
@@ -15063,18 +15216,45 @@ function applySoundPrefs(){
   $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
   $('vol-sfx').value = Math.round(S.snd.sv * 100);
   $('vol-music').value = Math.round(S.snd.mv * 100);
+  renderNavSound();
 }
+/* Knapparna i naven visar samma tillstand som Settings. Byter man i det ena
+   stallet foljer det andra med - det finns bara EN installning. */
+function renderNavSound(){
+  const set = (id, on, txt) => {
+    const el = $(id); if (!el) return;
+    el.classList.toggle('snd-on', !!on);
+    el.classList.toggle('snd-off', !on);
+    const lab = $(txt); if (lab) lab.textContent = on ? 'On' : 'Off';
+  };
+  set('nav-music', S.snd.music, 'nav-music-state');
+  set('nav-sfx',   S.snd.sfx,   'nav-sfx-state');
+}
+$('nav-music').addEventListener('click', () => {
+  S.snd.music = !S.snd.music;
+  Sound.setMusicEnabled(S.snd.music);
+  $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
+  renderNavSound(); save();
+});
+$('nav-sfx').addEventListener('click', () => {
+  S.snd.sfx = !S.snd.sfx;
+  Sound.setEnabled(S.snd.sfx);
+  /* Ett litet klick tillbaka, sa man HOR att ljudet kom pa igen. */
+  if (S.snd.sfx) Sound.resume().then(() => Sound.play('ding'));
+  $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
+  renderNavSound(); save();
+});
 $('snd-sfx').addEventListener('click', () => {
   S.snd.sfx = !S.snd.sfx;
   Sound.setEnabled(S.snd.sfx);
   $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
-  save();
+  renderNavSound(); save();
 });
 $('snd-music').addEventListener('click', () => {
   S.snd.music = !S.snd.music;
   Sound.setMusicEnabled(S.snd.music);
   $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
-  save();
+  renderNavSound(); save();
 });
 $('vol-sfx').addEventListener('input', () => {
   S.snd.sv = (+$('vol-sfx').value) / 100;
@@ -15089,11 +15269,8 @@ $('layout-reset').addEventListener('click', () => {
   try { localStorage.removeItem(LAYOUT_KEY); } catch(e){}
   location.reload();
 });
-$('reset-yes-2').addEventListener('click', () => {
-  try { localStorage.removeItem(SAVE_KEY); } catch(e){}
-  resetInProgress = true;
-  location.reload();
-});
+/* Flaggan lever kvar: bytet av karaktar anvander den for att hindra att den
+   lokala spegeln skrivs tillbaka pa vagen ut. */
 let resetInProgress = false;
 
 /* ==================== PORTENS LOGIK ====================
@@ -15124,6 +15301,52 @@ let gateKeepMsg = false;   /* halsningen fran mejllanken ska inte suddas bort */
 function gateShowAuth(){
   $('gate-auth').style.display = '';
   $('gate-chars').style.display = 'none';
+  $('gate-handle').style.display = 'none';
+}
+
+/* ==================== HANDLEN ====================
+   Kontots namn. EN per konto, unikt oavsett skiftlage, och alla karaktarer
+   ligger under det. Servern ager bade regeln och unikheten; klienten fragar
+   och visar svaret. */
+const HANDLE_ERRORS = {
+  handle_length:     'Handles are 3 to 16 characters.',
+  handle_characters: 'Letters, numbers and _ only, and it must start with a letter.',
+  handle_taken:      'That handle is taken.',
+  handle_reserved:   'That handle was recently released — it is held for a few days.',
+  handle_cooldown:   'You changed your handle in the last 7 days. Wait it out.'
+};
+function handleErrText(e){
+  const m = String((e && e.message) || e || '');
+  for (const k in HANDLE_ERRORS) if (m.indexOf(k) >= 0) return HANDLE_ERRORS[k];
+  return srvErrText(e, 'Could not set that handle.');
+}
+async function netMyProfile(){
+  if (!NET.on) return null;
+  const r = await srvRpc('my_profile', {});
+  SRV.handle = (r && r.handle) || null;
+  SRV.handleCanChangeAt = (r && r.can_change_at) ? new Date(r.can_change_at).getTime() : 0;
+  return r;
+}
+async function netSetHandle(h){
+  const r = await srvRpc('set_handle', {p_handle: h});
+  SRV.handle = (r && r.handle) || SRV.handle;
+  if (r && r.can_change_at) SRV.handleCanChangeAt = new Date(r.can_change_at).getTime();
+  return r;
+}
+/* Porten: har man inget namn far man valja ett INNAN karaktarerna visas. */
+function gateShowHandle(){
+  $('gate-auth').style.display = 'none';
+  $('gate-chars').style.display = 'none';
+  $('gate-handle').style.display = '';
+  gateSay('gate-msg-handle', '', false);
+  $('gate-handle-input').focus();
+}
+async function gateAfterAuth(){
+  try {
+    const p = await netMyProfile();
+    if (p && p.needs_handle){ gateShowHandle(); return; }
+  } catch (e){ /* svarar inte servern far karaktarsvalet saga till i stallet */ }
+  await gateShowChars();
 }
 const CHAR_MAX = 10;
 async function gateShowChars(){
@@ -15170,7 +15393,7 @@ function gateAskDelete(row, id, name){
     const b = e.target.closest('[data-step]');
     if (!b) return;
     const step = b.dataset.step;
-    if (step === 'no'){ gateShowChars(); return; }
+    if (step === 'no'){ gateAfterAuth(); return; }
     if (step === 'yes'){
       box.innerHTML = '<div class="gcd-head">There is no way back</div>' +
         '<div class="gcd-body">' + name + ' goes for good: every machine, every piece of gear, ' +
@@ -15204,7 +15427,7 @@ function gateAskDelete(row, id, name){
       try {
         await srvRpc('delete_character', {p_character: id, p_name: typed});
         if (SRV.charId === id){ SRV.charId = null; SRV.charName = null; srvSaveSession(); }
-        await gateShowChars();
+        await gateAfterAuth();
       } catch (err){
         msg.textContent = 'Could not delete that character.';
         b.disabled = false;
@@ -15261,7 +15484,7 @@ $('gate-submit').addEventListener('click', async () => {
     } else {
       await srvSignIn(email, pass);
     }
-    await gateShowChars();
+    await gateAfterAuth();
   } catch (e){
     gateSay('gate-msg', e.message);
   }
@@ -15296,6 +15519,23 @@ $('gate-create').addEventListener('click', async () => {
   $('gate-create').disabled = false;
 });
 
+/* Portens handle-knapp. */
+$('gate-handle-go').addEventListener('click', async () => {
+  const v = $('gate-handle-input').value.trim();
+  gateSay('gate-msg-handle', 'Checking…', true);
+  try {
+    await netSetHandle(v);
+    gateSay('gate-msg-handle', 'Handle claimed.', true);
+    await gateShowChars();
+  } catch (e){ gateSay('gate-msg-handle', handleErrText(e)); }
+});
+$('gate-handle-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('gate-handle-go').click();
+});
+$('gate-handle-signout').addEventListener('click', () => {
+  srvSignOut().catch(() => {});
+  srvClearSession(); SRV.handle = null; gateShowAuth();
+});
 $('gate-signout').addEventListener('click', async () => {
   await srvSignOut();
   $('gate-charlist').innerHTML = '';
@@ -15341,7 +15581,7 @@ async function gateFromLink(link){
     const who = await srvCall('/auth/v1/user');
     SRV.user = who; srvSaveSession();
     gateKeepMsg = true;
-    await gateShowChars();
+    await gateAfterAuth();
     gateSay('gate-msg2', link.type === 'signup'
       ? 'Email confirmed. Name your first character to begin.'
       : 'Signed in. Choose a character.', true);
@@ -15366,7 +15606,7 @@ async function gateFromLink(link){
       updateUI(true); refreshShelf(); renderInventory();
       return;
     }
-    await gateShowChars();
+    await gateAfterAuth();
   } catch (e){
     srvClearSession(); gateShowAuth();
   }
