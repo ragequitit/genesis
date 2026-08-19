@@ -4052,7 +4052,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.40.0 — KRETSKORT PA TRE PANELER</div>
+            <div class="desc">GENESIS v4.42.0 — VASKAN MINNS SIN ORDNING</div>
           </div>
         </div>
       </div>
@@ -4063,7 +4063,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.40.0 — KRETSKORT PA TRE PANELER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.42.0 — VASKAN MINNS SIN ORDNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5078,8 +5078,21 @@ async function netPullItems(){
   const gStart = Math.max(gbagStart(), needMain);
   const gLen = Math.max(gbagKinds() + GATHER_SPARE, gathRows.length);
   S.inv = new Array(gStart + gLen).fill(null);
+  /* ORDNINGEN ar spelarens, inte serverns. Varje sak forsoker forst tillbaka till
+     den ruta den lag i; bara det som ar NYTT, eller vars ruta blivit upptagen,
+     packas i forsta lediga. Sa star en flyttad melon kvar dar man la den. */
+  const order = invOrderLoad();
+  const spill = [];
+  const place = (row, key, fallbackFrom) => {
+    const at2 = key ? order[key] : undefined;
+    if (Number.isInteger(at2) && at2 >= fallbackFrom && at2 < S.inv.length && !S.inv[at2]){
+      S.inv[at2] = row; return true;
+    }
+    spill.push({row: row, from: fallbackFrom});
+    return false;
+  };
   let at = 0;
-  bagRows.forEach(g => { S.inv[at++] = {gear: g}; });
+  bagRows.forEach(g => { place({gear: g}, g.sid ? 'i:' + g.sid : null, 0); });
 
   /* Valvets rutor byggs om fran serverns rader. */
   S.vault = S.vault || {};
@@ -5103,16 +5116,27 @@ async function netPullItems(){
     else if (fl){ name = fl.name; ico = fl.ico; }
     else if (st.kind === 'recipe'){ name = recipeItemName(st.stack_key.replace(/^recipe_/, '')); ico = '📜'; }
     else if (idef){ name = idef.name; ico = idef.ico || '📦'; }
-    S.inv[gathered ? gat++ : at++] = {
+    const row = {
       key: st.stack_key, name: name, ico: ico, qty: +st.qty || 1, stack: true,
       mat: st.kind === 'material', bop: !!(mat && mat.bop),
       flask: st.kind === 'flask', boost: fl ? fl.boost : undefined,
       recipe: st.kind === 'recipe' ? st.stack_key.replace(/^recipe_/, '') : undefined,
       rar: st.rarity == null ? undefined : (st.rarity | 0)
     };
+    place(row, invRowKey(row), gathered ? gStart : 0);
   };
   mainRows.forEach(st => putStack(st, false));
   gathRows.forEach(st => putStack(st, true));
+  /* Det som inte fick sin gamla ruta laggs i forsta lediga - i sin egen halva av
+     vaskan, sa samlat material aldrig hamnar bland resten eller tvartom. */
+  spill.forEach(x => {
+    let i = x.from;
+    const stop = x.from >= gStart ? S.inv.length : gStart;
+    while (i < stop && S.inv[i]) i++;
+    if (i < stop){ S.inv[i] = x.row; return; }
+    let j = 0; while (j < S.inv.length && S.inv[j]) j++;
+    if (j < S.inv.length) S.inv[j] = x.row; else S.inv.push(x.row);
+  });
   return true;
 }
 
@@ -5188,6 +5212,28 @@ function netPetFromRow(row){
    speldata - servern har ingen asikt om det. Men den maste anda overleva en
    omladdning, annars kanns varje flytt som en bugg. Ordningen sparas darfor
    lokalt, pa serverns id. */
+/* ---------- VASKANS ORDNING ----------
+   [BUG] ALLT HOPPADE TILLBAKA TILL FORSTA RUTAN. Servern bryr sig inte om VAR i
+   vaskan en sak ligger, bara att den finns - sa varje hamtning packade om hela
+   ryggsacken fran borjan och slangde det man just ordnat. Husdjuren hade sedan
+   lange en lokal ordningslista; vaskan hade ingen. Nu har den det.
+   Nyckeln ar serverns id for en pjas, och nyckel+sallsynthet for en stapel. */
+const INV_ORDER_KEY = 'genesis.invorder';
+function invRowKey(row){
+  if (!row) return null;
+  if (row.gear) return row.gear.sid ? 'i:' + row.gear.sid : null;
+  if (row.stack) return 's:' + row.key + ':' + (row.rar == null ? '-' : row.rar);
+  return null;
+}
+function invOrderLoad(){
+  try { const d = JSON.parse(localStorage.getItem(INV_ORDER_KEY) || '{}');
+        return (d && typeof d === 'object') ? d : {}; } catch (e){ return {}; }
+}
+function invOrderSave(){
+  const map = {};
+  (S.inv || []).forEach((row, i) => { const k = invRowKey(row); if (k) map[k] = i; });
+  try { localStorage.setItem(INV_ORDER_KEY, JSON.stringify(map)); } catch (e){}
+}
 const PET_ORDER_KEY = 'genesis.petorder';
 function petOrderLoad(){
   try { const d = JSON.parse(localStorage.getItem(PET_ORDER_KEY) || '{}');
@@ -5221,6 +5267,20 @@ async function netPullPets(){
     S.pets.owned[i] = p;
   });
   for (let i = 0; i < S.pets.owned.length; i++) if (!S.pets.owned[i]) S.pets.owned[i] = null;
+  /* [BUG] HJALPARNA FOLL UR SINA PLATSER. Varje hamtning ger husdjuren NYA
+     loptal, och listan over vem som sitter var pekar pa loptal - sa i samma
+     sekund husdjuren hamtades om pekade varje plats i tomma luften. Det syntes
+     tydligast vid atervinning: alla insatta hjalpare foll ur, och kom tillbaka
+     forst vid en omladdning. Servern hade dem kvar hela tiden.
+     Platserna las darfor om HAR, inne i hamtningen, i stallet for pa de sex
+     stallen som anropar den - da kan det aldrig glommas pa ett sjunde. */
+  await netPullHelpers();
+  /* UPPTACKTERNA: serverns lista, som overlever atervinning. Allt man ager
+     raknas ocksa in, sa listan aldrig kan vara mindre an det man har i handen. */
+  const seen = await srvSelect('character_species',
+    'character_id=eq.' + SRV.charId + '&select=species');
+  S.pets.seen = (seen || []).map(x => x.species);
+  (S.pets.owned || []).forEach(p => { if (p) markPetSeen(p.sp); });
   return true;
 }
 async function netOpenCache(){
@@ -5252,7 +5312,7 @@ async function netRecyclePet(pet){
   const r = await srvRpc('recycle_pet', {p_character: SRV.charId, p_pet: pet.sid});
   if (r && r.dust_total != null) S.pets.dust = +r.dust_total;
   await netPullPets();
-  renderPets(); renderPetPanel(); updateUI(true);
+  renderPets(); renderPetPanel(); renderHelperSlots(); updateUI(true);
   return r;
 }
 async function netRenamePet(pet, name){
@@ -7001,6 +7061,18 @@ function renamePet(uid, raw){
    finns inget tak och inga platser att kopa, for husdjur ar inte packning. */
 const PET_COLS = 6, PET_MIN_SLOTS = 30, PET_SPARE = 6;
 function petsOwned(){ return S.pets.owned.filter(Boolean); }
+/* Vilka arter man UPPTACKT. Servern for listan; den overlever atervinning.
+   Offline finns ingen server, sa da raknar vi fram den ur det man ager - och
+   det man agt tidigare sparas i samma lista sa den vaxer och krymper aldrig. */
+function petSeen(sp){
+  S.pets.seen = S.pets.seen || [];
+  return S.pets.seen.indexOf(sp) >= 0;
+}
+function markPetSeen(sp){
+  if (!sp) return;
+  S.pets.seen = S.pets.seen || [];
+  if (S.pets.seen.indexOf(sp) < 0) S.pets.seen.push(sp);
+}
 function petSlots(){
   let last = -1;
   for (let i = 0; i < S.pets.owned.length; i++) if (S.pets.owned[i]) last = i;
@@ -7014,6 +7086,7 @@ function addPet(pet){
   let i = S.pets.owned.indexOf(null);
   if (i < 0) i = S.pets.owned.length;
   S.pets.owned[i] = pet;
+  markPetSeen(pet && pet.sp);        /* upptackten skrivs ner nar arten kommer hem */
   return i;
 }
 /* Byter innehallet i tva rutor. Ar malet tomt ar det en flytt, annars ett byte -
@@ -7185,7 +7258,7 @@ function petExtraFrags(rnd){
 
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
-  pets: {owned: [], team: [null, null, null], seq: 1, dust: 0},
+  pets: {owned: [], team: [null, null, null], seq: 1, dust: 0, seen: []},
   equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
   bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
@@ -9645,6 +9718,7 @@ function invSort(){
   const out = gear.concat(rest);
   for (let i = 0; i < st; i++) S.inv[i] = out[i] || null;
   for (let i = st; i < invSlots(); i++) S.inv[i] = gath[i - st] || null;
+  invOrderSave();                 /* sorteringen ar ocksa en ordning att minnas */
   renderInventory(); save();
 }
 /* Valvets sortering: samma ordning som väskans, men mot valvets egen lista. */
@@ -9710,6 +9784,9 @@ function invSwap(a, b){
   if (ra && isGatherRow(ra)) gbagOutSet(ra.key, !inGatherBag(b));
   if (rb && isGatherRow(rb)) gbagOutSet(rb.key, !inGatherBag(a));
   const t = S.inv[a]; S.inv[a] = S.inv[b]; S.inv[b] = t;
+  /* Ordningen sparas i samma andetag som den andras - annars skrivs den over av
+     nasta hamtning fran servern, och saken hoppar tillbaka. */
+  invOrderSave();
   renderInventory(); save();
   return true;
 }
@@ -11370,6 +11447,18 @@ function redrawAll(){
   call(renderBoostBar);
   call(renderExpPanel);
   call(renderCharStats);
+  /* [BUG] REGIONEN RITADES ALDRIG OM. Den har listan ar den gemensamma
+     omritningen varje hamtning ska sluta med - men den sa ingenting om VAR man
+     star. Vid start ritades hjaltebandet och ryktesrutan en gang, med det
+     forvalda "neonhub", och sedan hamtade servern hem Glass Ocean utan att
+     nagon bad om en ny ritning. Kartan las S.world.current direkt och visade
+     ratt; rubriken och ryktet stod kvar pa fel region och sag ut att motsaga
+     kartan. Samma familj som tio buggar den har veckan: ratt sak pa servern,
+     skarmen inte omritad. */
+  call(refreshRegionUI);
+  call(renderMap);
+  call(refreshTravelBar);
+  call(refreshWarp);
   call(() => updateUI(true));
 }
 function updateUI(force){
@@ -13764,6 +13853,16 @@ function renderPets(){
   if (pool){
     coll.innerHTML = pool.map(sp => {
       const best = petsOwned().filter(o => o.sp === sp).sort((a, b) => b.rar - a.rar)[0];
+      /* [BUG] SAMLINGEN GLOMDE ALLT MAN ATERVUNNIT. Den raknades fram ur vilka
+         husdjur man AGER just nu, sa den som atervann hela sin uppfodning fick
+         tillbaka en samling full av silhuetter - som om han aldrig sett dem.
+         Upptackten ar en handelse, inte ett innehav. Ager man en visas dess
+         basta sallsynthet; ager man ingen men HAR sett arten star den kvar i
+         vitt, med sitt namn. */
+      if (!best && petSeen(sp))
+        return '<div class="pet-tile"><div class="pet-sprite" style="' + petSpriteVars(sp, 62) +
+          ';border-color:var(--border-soft);opacity:.85">' + PETS[sp].name[0] + '</div>' +
+          '<div class="pt-name" style="color:var(--text-dim)">' + PETS[sp].name + '</div></div>';
       if (best)
         return '<div class="pet-tile"><div class="pet-sprite" style="' + petSpriteVars(sp, 62) + ';border-color:' + rarCol(best.rar) + '">' + PETS[sp].name[0] + '</div><div class="pt-name" style="color:' + rarCol(best.rar) + '">' + PETS[sp].name + '</div></div>';
       return '<div class="pet-tile"><div class="pet-sprite shadow" style="' + petSpriteVars(sp, 62) + '"></div><div class="pt-name">???</div></div>';
