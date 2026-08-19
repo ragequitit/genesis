@@ -3920,7 +3920,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.26.0 — KNAPPAR SOM SVARAR</div>
+            <div class="desc">GENESIS v4.27.0 — RESAN OCH RELIKEN</div>
           </div>
         </div>
       </div>
@@ -3931,7 +3931,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.26.0 — KNAPPAR SOM SVARAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.27.0 — RESAN OCH RELIKEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5761,6 +5761,10 @@ const RECIPES = [
   {id:'jc_r4', prof:'jewelcrafter', name:'Signal Relic',     item:'neck_signal_tag',   rar:2, lvl:12, source:'drop', cost:{gold_ore:5, crystal_quartz:6, ruby:1, resonance_dust:1}},
   {id:'jc_r5', prof:'jewelcrafter', name:'Perfect Sapphire', item:'ring_crystal_ring', rar:2, lvl:12, source:'drop', cost:{sapphire:3, crystal_quartz:4, resonance_dust:1}},
   {id:'jc_e1', prof:'jewelcrafter', name:'Heart of the Network',item:'neck_crystal_amulet',rar:3, lvl:20, source:'drop', cost:{gold_ore:6, ruby:2, sapphire:2, diamond_shard:1, resonance_dust:2}},
+  /* JUVELERARENS RELIK. Kristallkvarts fran gruvan bar den, precis som spelaren
+     bad om. Receptet faller som de andra sallsynta - det star inte i boken fran
+     borjan. */
+  {id:'jc_rel1',prof:'jewelcrafter', name:'Depth-Cut Ruby',   item:'relic_ruby_of_the_depths', rar:2, lvl:12, source:'drop', cost:{ruby:2, crystal_quartz:6, gold_ore:4, resonance_dust:1}},
 
   /* ===================== CHEMIST (16) - consumables ===================== */
   /* Chemistens produkter ar forbrukningsvaror; de anvander flask-foremal (byggs nedan)
@@ -6116,7 +6120,9 @@ const GEAR_SLOTS = [
   {id:'offhand', name:'Off Hand'},
   {id:'bag',       name:'Bag'},
   {id:'transport', name:'Transport'},
-  {id:'ring2',     name:'Ring II'},
+  /* Det ar inte en "Ring II" - det ar ett andra finger. Samma ringar, tva
+     platser, och den lediga fylls forst. Darfor samma namn som den forsta. */
+  {id:'ring2',     name:'Ring'},
   {id:'relic',     name:'Relic'}
 ];
 const SLOT_RING2 = 12, SLOT_RELIC = 13;
@@ -6166,7 +6172,14 @@ const AFFIXES = {
   /* Flyttade hit fran husdjuren nar hjalparsystemet kom: de ar rena
      stridsvarden och hor hemma pa en pjas, inte i en produktion. */
   boostpot: {name:'Boost Strength',  lo:3.44, hi:4.56, sfx:'%'},
-  boostdur: {name:'Boost Duration',  lo:3.44, hi:4.56, sfx:'%'}
+  boostdur: {name:'Boost Duration',  lo:3.44, hi:4.56, sfx:'%'},
+  /* TRANSPORTENS EGEN. Var forut ett fast tal per sallsynthet (6/10/15/21/28/36)
+     som dessutom bara fanns i klienten - servern raknade aldrig med den, sa en
+     epic transport gav uppmatt exakt noll kortare resa. Nu ar den en vanlig
+     rullad egenskap: bandet 7,00-9,00 gangrat med sallsynthetens multiplikator,
+     garanterad pa varje fordon och omojlig pa allt annat. Servern rullar den och
+     servern raknar med den. */
+  travel:  {name:'Travel Speed',     lo:7.00, hi:9.00, sfx:'%'}
 };
 const AFFIX_KEYS = Object.keys(AFFIXES);
 /* ---------- SPECIALPOOLEN (spelarens låsta design, byggd i v0.53.0) ----------
@@ -6188,7 +6201,10 @@ const AFFIX_KEYS = Object.keys(AFFIXES);
    noden och nar man later den ga ar den identiteten vard nagot for alla. */
 const JEWEL_POOL = ['crit', 'critdmg'];
 const SPECIAL_SLOTS = {6: true, 8: true, 12: true};        // halsband, ring
-const NORMAL_KEYS = AFFIX_KEYS.filter(k => JEWEL_POOL.indexOf(k) < 0);
+/* Restiden ar UTE ur alla poolar: den hor bara hemma pa ett fordon och garanteras
+   dar. Samma regel star pa servern, och de tva far aldrig rulla olika. */
+const SLOT_ONLY_KEYS = ['travel'];
+const NORMAL_KEYS = AFFIX_KEYS.filter(k => JEWEL_POOL.indexOf(k) < 0 && SLOT_ONLY_KEYS.indexOf(k) < 0);
 /* Smyckenas ovriga rullningar far ta bade ur kritparet och ur den vanliga poolen -
    sa en ring KAN bli helt kritinriktad, men behover inte bli det. */
 const JEWEL_REST = JEWEL_POOL.concat(NORMAL_KEYS);
@@ -6259,6 +6275,14 @@ defBag('bag_vault_crate',     'Vault Crate',      2, 8);
 [['streetblade', 'Streetblade'], ['hoverdeck', 'Hoverdeck'], ['sky_lance', 'Sky Lance'],
  ['wavecutter', 'Wavecutter'], ['slipstream', 'Slipstream'], ['prowler', 'Prowler']]
   .forEach(m => defItem('transport_' + m[0], m[1], 11, 'assets/gear/transport/transport_' + m[0] + '.png', ALL_RAR));
+/* RELIKEN. En enda, med flit: platsen har statt tom sedan den ritades, och vi
+   provar den med ett foremal innan vi bygger en katalog. Den rullar egenskaper,
+   kraft och halsa precis som all annan utrustning i alla sex steg, men bar ingen
+   skada. Den faller BARA ur uppdrag - relikplatsen ar utanfor den vanliga
+   dropplottningen - och juveleraren kan slipa en ur kristallkvarts.
+   BILDEN ar an sa lange en platshallare; spelaren ritar den. */
+defItem('relic_ruby_of_the_depths', 'Ruby of the Depths', SLOT_RELIC,
+        'assets/gear/relics/relic_ruby_of_the_depths.png', ALL_RAR);
 /* Uppslagning: vilka saker kan falla på plats X i raritet Y. Byggs en gång. */
 const ITEMS_BY = [];
 (function indexItems(){
@@ -6281,6 +6305,10 @@ function pickItemKey(rarIdx){
   const slots = [], weights = [];
   for (let s = 0; s < GEAR_SLOTS.length; s++){
     if (!ITEMS_BY[s][rarIdx].length) continue;
+    /* RELIKEN AR UTANFOR DEN VANLIGA LOTTNINGEN. Den ska falla ur uppdrag och
+       ingenting annat - inte ur handelsboden, inte ur lador, inte ur tomgangen.
+       Samma undantag star pa servern, och de tva maste alltid vara overens. */
+    if (s === SLOT_RELIC) continue;
     slots.push(s);
     weights.push(LIGHT_SLOTS[GEAR_SLOTS[s].id] || 1);
   }
@@ -6325,7 +6353,12 @@ function rollItem(key, rarIdx, capFrac){
      blir det 65,6 % tre olika, 32,8 % ett par och 1,6 % alla tre lika. */
   const pool = SPECIAL_SLOTS[D.slot] ? JEWEL_REST : NORMAL_KEYS;
   let want = R.aff;
-  if (SPECIAL_SLOTS[D.slot]){
+  if (D.slot === 11){
+    /* FORDONET far ALLTID sin restid forst, aven en common med bara en
+       egenskap - det ar transportens identitet. Samma regel som pa servern. */
+    rollOne('travel');
+    want--;
+  } else if (SPECIAL_SLOTS[D.slot]){
     rollOne(JEWEL_POOL[Math.floor(Math.random() * JEWEL_POOL.length)]);
     want--;
   }
@@ -10811,6 +10844,26 @@ function sayAt(elm, text){
   requestAnimationFrame(() => box.classList.add('on'));
   setTimeout(() => { box.classList.remove('on'); setTimeout(() => box.remove(), 220); }, 3200);
 }
+/* SAMMA RUTA, MEN VID PEKAREN. Klickar man pa en tom hjalparplats sitter redan
+   hovringens upplysning ovanfor platsen - och da lade sig svaret ovanpa den, sa
+   tva rutor slogs om samma plats. Klicksvaret hor till HANDEN: det ska dyka upp
+   dar man just tryckte, strax under pekaren. */
+function sayAtPoint(x, y, text){
+  if (!text) return;
+  document.querySelectorAll('.say-at').forEach(n => n.remove());
+  const box = document.createElement('div');
+  box.className = 'say-at';
+  box.textContent = text;
+  document.body.appendChild(box);
+  const b = box.getBoundingClientRect();
+  let bx = x - b.width / 2;
+  let by = y + 18;                                   /* under pekaren, inte over */
+  if (by + b.height > window.innerHeight - 8) by = y - b.height - 14;
+  box.style.left = Math.max(8, Math.min(bx, window.innerWidth - b.width - 8)) + 'px';
+  box.style.top  = Math.max(8, by) + 'px';
+  requestAnimationFrame(() => box.classList.add('on'));
+  setTimeout(() => { box.classList.remove('on'); setTimeout(() => box.remove(), 220); }, 3200);
+}
 function say(text){
   if (!text) return;
   let box = document.getElementById('say-box');
@@ -11884,10 +11937,15 @@ const ZONE_TRAVEL_TIME = 10;
    mytisk motorcykel är alltid snabbare än en vanlig — det är hela poängen med att
    byta upp sig. Gäller både regionresor och zonhopp; expeditionernas längd rör den
    inte (det är Mission Speed, som inte finns än). */
-const MOUNT_SPEED = [6, 10, 15, 21, 28, 36];   // procent kortare restid per raritet
+/* Restiden ar numera en RULLAD egenskap pa sjalva fordonet, inte ett fast tal
+   per sallsynthetssteg. Vi laser den dar den star, och taket pa 60 procent ar
+   samma som serverns - de tva far aldrig svara olika. */
 function mountSpeed(){
   const m = S.equip[11];
-  return m ? MOUNT_SPEED[m.r] || 0 : 0;
+  if (!m || !m.a) return 0;
+  let v = 0;
+  m.a.forEach(x => { if (x.k === 'travel') v += x.v; });
+  return Math.min(60, v);
 }
 function travelSeconds(base){
   return Math.max(1, Math.round(base * (1 - mountSpeed() / 100)));
@@ -14153,7 +14211,6 @@ function gearTipHTML(it){
     ((it.dm || (cur && cur.dm)) ? stat(fmt(it.dm || 0), 'Damage', 'cp',
         delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
     '<div class="gt-sep"></div>' +
-    (it.s === 11 ? '<div class="gt-aff">−' + MOUNT_SPEED[it.r] + '% Travel Time</div>' : '') +
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
     '<div class="gt-sep"></div>' +
     line('Sells for', fmtMoney(gearGold(it))) +
@@ -14320,7 +14377,6 @@ function itemWinHTML(it, worn){
         ((it.dm || (cur && cur.dm)) ? stat(fmt(it.dm || 0), 'Damage',
             delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
         '<div class="iw-affs">' +
-          (it.s === 11 ? '<div class="af">−' + MOUNT_SPEED[it.r] + '% Travel Time</div>' : '') +
           it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
           /* Priset sags EN gang, pa sin egen rad. Knapparna handlar bara om
              handlingen. */
@@ -17255,7 +17311,7 @@ function openHelperPicker(bid, x, y){
      aldrig ga att forvaxla. */
   if (!list.length && !cur){
     const anyRight = petsOwned().some(p => (petAffixes(p)[0] || {}).f === b.boon);
-    sayAt(document.querySelector('[data-helper="' + bid + '"]'), anyRight
+    sayAtPoint(x, y, anyRight
       ? 'Your ' + ab.name + ' helper is too rare for this slot — build more ' + b.name + '.'
       : 'No ' + ab.name + ' helper found yet.');
     return;
