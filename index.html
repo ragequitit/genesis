@@ -897,6 +897,10 @@ body.dragging *{cursor:grabbing !important}
 }
 .map-node.zone .map-dot{width:30px;height:30px;font-size:12px;border-color:var(--violet)}
 .map-node.zone-here .map-dot{border-color:var(--cyan);box-shadow:0 0 12px rgba(56,232,255,.6)}
+/* DIMMAN OVER EN OKARTLAGD ZON: platsen syns, innehallet inte. Dampad och streckad
+   sa den lases som "ej oppnad an" och inte som "trasig". */
+.map-node.zone-fog .map-dot{border-style:dashed;opacity:.45}
+.map-node.zone-fog .map-name{opacity:.5;font-style:italic}
 .map-node.zone-pvp .map-dot{border-color:var(--red)}
 .map-node.zone-pvp .map-name{color:var(--red)}
 .map-node.core .map-dot{width:46px;height:46px;font-size:20px}
@@ -2617,6 +2621,19 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   box-shadow:inset 0 2px 6px rgba(0,0,0,.45);
   filter:brightness(.94);
 }
+/* [BUG, LARDOM] NEDTRYCKNINGEN SLOG UT KNAPPENS EGEN PLACERING. Tva knappar
+   POSITIONERAS med transform - krysset ar centrerat i sidled med translateY(-50%)
+   och vaskknappen i hojdled med translateX(-50%). Regeln ovan skriver over hela
+   transform-egenskapen, sa i det ogonblick man tryckte forsvann centreringen och
+   knappen HOPPADE: krysset arton pixlar RAKT NER, vaskknappen nitton pixlar at
+   sidan. Fingret hamnade utanfor knappen, mus-upp landade pa nagot annat, och
+   inget klick blev av. Bara den som traffade knappens absoluta nederkant lyckades
+   - da rackte knappen fortfarande under fingret efter hoppet. Krysset blev
+   dessutom VARRE av att jag gjorde det storre: 24 px hoppade 14, 32 px hoppar 18.
+   Ratt sak: behall placeringen OCH lagg sjunkandet till. En knapp vars lage
+   bygger pa transform maste upprepa det i sitt nedtryckta lage. */
+.inv-x:active:not(:disabled){transform:translateY(-50%) translateY(2px) scale(.985)}
+.bag-btn:active:not(:disabled){transform:translateX(-50%) translateY(2px) scale(.985)}
 /* Hjalparens XP-matare. */
 .pxp{margin:8px 0 6px}
 .pxp-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
@@ -3920,7 +3937,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.27.0 — RESAN OCH RELIKEN</div>
+            <div class="desc">GENESIS v4.28.1 — KRYSSET STAR STILL</div>
           </div>
         </div>
       </div>
@@ -3931,7 +3948,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.27.0 — RESAN OCH RELIKEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.28.1 — KRYSSET STAR STILL</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4343,6 +4360,10 @@ async function netPull(){
   } else if (S.world.travel && !c.travel_ends){
     S.world.travel = null;
   }
+  /* DRONAREN SOM KARTLAGGER EN ZON. Servern ager klockan; klienten visar den. */
+  S.zoneScan = (c.scan_zone && c.scan_ends)
+    ? {region: c.scan_region, zone: c.scan_zone, eta: new Date(c.scan_ends).getTime()}
+    : null;
 
   /* Maskinerna: serverns antal, inte de lokalt sparade. */
   const mach = await srvSelect('machines', 'character_id=eq.' + SRV.charId + '&select=machine_id,count');
@@ -4665,6 +4686,25 @@ async function netUseStackItem(key){
   return r;
 }
 /* Byta zon inne i regionen kostar bransle - och det ar serverns tank. */
+/* ---------- ZONDRONAREN ----------
+   Trettio sekunder, ingen kostnad, en zon i taget. Nar den kommit hem ar zonen
+   kartlagd for gott och resan dit ar ogonblicklig i all framtid. */
+async function netScanZone(zone){
+  if (!NET.on) return null;
+  const r = await srvRpc('scan_zone', {p_character: SRV.charId, p_zone: zone});
+  if (r && r.ends) S.zoneScan = {region: r.region, zone: r.zone, eta: new Date(r.ends).getTime()};
+  return r;
+}
+async function netScanZoneClaim(){
+  if (!NET.on) return null;
+  const r = await srvRpc('scan_zone_claim', {p_character: SRV.charId});
+  if (r && r.charted){
+    S.zoneScan = null;
+    markZoneSeen(r.region, r.zone);
+    discoverZoneExpeditions(r.region, r.zone);
+  }
+  return r;
+}
 async function netEnterZone(zone){
   if (!NET.on) return null;
   const r = await srvRpc('enter_zone', {p_character: SRV.charId, p_zone: zone || null});
@@ -6969,6 +7009,8 @@ let S = {
   vend: {},                     // handlarnas lager per region + deras klockor
   rep: {neonhub: 0},    // sekunder av närvaro per region-id
   world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
+  /* Dronaren som kartlagger EN zon at gangen. null = ingen ute. */
+  zoneScan: null,
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
   premium: {offlineHours: 0},   // 0-4 -> 6/12/16/20/24h offlinetak
   snd: {sfx: true, music: true, sv: 0.7, mv: 0.35},
@@ -11026,6 +11068,9 @@ function loopBody(now){
 
   // Ankomstkontroll för resande
   checkTravel();
+  // Dronaren som kartlagger en zon
+  checkZoneScan();
+  tickZoneScanClock();
 
   // Autospar var 10:e sekund
   if (now - saveGate > 10000){ saveGate = now; save(); }
@@ -11931,7 +11976,9 @@ const DISCOVER_TIME = {1: 600, 2: 1500, 3: 2400, 4: 3300};
    gor den omojlig att balansera. Har finns darfor bara tid. */
 const TRAVEL_BY_TIER = {0: {time: 120}, 1: {time: 120}, 2: {time: 300}, 3: {time: 600}, 4: {time: 1200}};
 /* Zonbyte inom regionen du står i: gratis, men inte gratis i TID. */
-const ZONE_TRAVEL_TIME = 10;
+/* PENSIONERAD i v4.28.0. Zonbytet hade en pahittad klocka som bara levde i
+   webblasaren - servern flyttade en direkt. Vantan bor pa dronaren nu, en gang
+   per zon, och sjalva hoppet ar ogonblickligt. */
 /* ---------- TRANSPORTENS FÖRMÅGA ----------
    Ett fordon KORTAR RESAN. Förmågan är inte rullad utan sitter i rariteten, så en
    mytisk motorcykel är alltid snabbare än en vanlig — det är hela poängen med att
@@ -11984,6 +12031,61 @@ function isKnown(id){ return S.world.known.includes(id); }
 function isVisited(id){ return S.world.visited.includes(id); }
 function zoneKey(regionId, zone){ return regionId + '|' + zone; }
 function isZoneSeen(regionId, zone){ return S.world.zonesSeen.includes(zoneKey(regionId, zone)); }
+/* ---------- ZONERNAS DIMMA (v4.28.0) ----------
+   En region visar sig hel, men bara HANDELSZONEN ar oppen nar man landar - det
+   ar regionens torg och dit man kommer. Ovriga zoner ligger i dimma tills en
+   dronare kartlagt dem: trettio sekunder, ingen kostnad, en zon i taget. Nar det
+   ar gjort ar det gjort for gott, och resan dit ar ogonblicklig i all framtid.
+   Skalet ar spelets form: en vantan per zon EN gang ar utforskning, en vantan
+   varje gang man byter zon ar bara friktion i ett spel som ska ga av sig sjalvt. */
+const ZONE_SCAN_TIME = 30;
+function isZoneCharted(regionId, zone){
+  return zone === TRADE_ZONE || isZoneSeen(regionId, zone);
+}
+function zoneScanHere(regionId, zone){
+  const sc = S.zoneScan;
+  return (sc && sc.region === regionId && sc.zone === zone) ? sc : null;
+}
+function zoneScanLeft(){
+  return S.zoneScan ? Math.max(0, (S.zoneScan.eta - Date.now()) / 1000) : 0;
+}
+/* Dronaren kommer hem. I serverlage ar det servern som kartlagger - klienten
+   fragar bara. Offline gor vi det sjalva. */
+function checkZoneScan(){
+  const sc = S.zoneScan;
+  if (!sc || Date.now() < sc.eta) return;
+  if (NET.on){
+    if (checkZoneScan._busy) return;
+    checkZoneScan._busy = true;
+    netScanZoneClaim().then(r => {
+      checkZoneScan._busy = false;
+      if (r && r.charted){
+        say(r.zone + ' charted — travel there is instant now.');
+        renderMap(); refreshRegionUI(); renderExpPanel(); updateUI(true);
+      }
+    }).catch(() => { checkZoneScan._busy = false; });
+    return;
+  }
+  S.zoneScan = null;
+  markZoneSeen(sc.region, sc.zone);
+  discoverZoneExpeditions(sc.region, sc.zone);
+  say(sc.zone + ' charted — travel there is instant now.');
+  renderMap(); refreshRegionUI(); renderExpPanel(); updateUI(true); save();
+}
+function startZoneScan(regionId, zone){
+  if (S.zoneScan) return false;
+  if (regionId !== S.world.current || S.world.travel) return false;
+  if (isZoneCharted(regionId, zone)) return false;
+  if (NET.on){
+    netScanZone(zone)
+      .then(() => { refreshRegionUI(); renderMap(); updateUI(true); })
+      .catch(() => say('The drone could not be sent.'));
+    return true;
+  }
+  S.zoneScan = {region: regionId, zone: zone, eta: Date.now() + ZONE_SCAN_TIME * 1000};
+  refreshRegionUI(); renderMap(); updateUI(true); save();
+  return true;
+}
 function markZoneSeen(regionId, zone){
   const k = zoneKey(regionId, zone);
   if (!S.world.zonesSeen.includes(k)) S.world.zonesSeen.push(k);
@@ -12053,10 +12155,15 @@ function tipForZone(regionId, zi){
   const z = R.zones[zi];
   const di = desigInfo(zoneDesig(regionId, z));
   const here = (regionId === S.world.current && S.world.zone === z);
+  if (!isZoneCharted(regionId, z)){
+    const mine = zoneScanHere(regionId, z);
+    return '<b>' + z + '</b><br><span style="opacity:.7">Uncharted</span>' +
+      '<div class="t-hint">' + (mine ? '🛰 Drone on the way' : 'Click to send a drone') + '</div>';
+  }
   return '<b>' + z + '</b><br>' +
     '<span style="color:' + di.color + '">' + di.note + '</span>' +
     '<br>Level ' + R.band + ' · Expeditions: 0' +
-    '<div class="t-hint">' + (here ? '📍 You are here' : 'Click to open') + '</div>';
+    '<div class="t-hint">' + (here ? '📍 You are here' : 'Click to travel — instant') + '</div>';
 }
 
 let panning = false, panStart = null, panMoved = 0;
@@ -12271,9 +12378,15 @@ function renderRegionView(){
     const here = (id === S.world.current && S.world.zone === z);
     const n = document.createElement('div');
     const zd = zoneDesig(id, z);
-    n.className = 'map-node zone' + (here ? ' zone-here' : '') + (zd === 'PvP' ? ' zone-pvp' : '') + (!here && isZoneSeen(id, z) ? ' visited' : '');
+    /* DIMMAN. En okartlagd zon syns som en plats pa kartan men ar inte oppen -
+       man vet ATT den finns, inte VAD den ar. Dronaren tar bort dimman. */
+    const charted = isZoneCharted(id, z);
+    const scanning = !!zoneScanHere(id, z);
+    n.className = 'map-node zone' + (here ? ' zone-here' : '') + (zd === 'PvP' ? ' zone-pvp' : '') +
+      (!here && charted ? ' visited' : '') + (charted ? '' : ' zone-fog');
     n.style.left = p.x + '%'; n.style.top = p.y + '%';
-    n.innerHTML = '<div class="map-dot">' + (here ? '📍' : '·') + '</div><div class="map-name">' + z + '</div>';
+    n.innerHTML = '<div class="map-dot">' + (here ? '📍' : (charted ? '·' : (scanning ? '🛰' : '?'))) + '</div>' +
+      '<div class="map-name">' + z + '</div>';
     n._tip = () => tipForZone(id, i);
     n._action = () => openZone(id, i);
     mapNodes.appendChild(n);
@@ -12407,7 +12520,10 @@ function openZone(regionId, zi, keepNote){
     (di.note ? '<div class="desig-note" style="border-color:' + di.color + ';color:' + di.color + '">' + di.note + '</div>' : '') +
     (zone === TRADE_ZONE
       ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
-      : '<div class="section-label">Expeditions</div>' + buildZoneExpeditions(regionId, zone)) +
+      : '<div class="section-label">Expeditions</div>' +
+        (isZoneCharted(regionId, zone)
+          ? buildZoneExpeditions(regionId, zone)
+          : '<div class="shelf-empty">Uncharted. Send a drone to see what is out there.</div>')) +
     '<div class="section-label">Players in zone</div>' +
     '<div class="shelf-empty">Only you — other players appear when the server goes live.</div>' +
     buildZoneAction(regionId, zone);
@@ -12433,6 +12549,11 @@ function openZone(regionId, zi, keepNote){
     buyVendorGear(regionId, +b.dataset.vbuy);
     openZone(regionId, zi, true);
   }));
+  $('region-body').querySelectorAll('[data-hop]').forEach(b => {
+    b.addEventListener('click', () => {
+      if (goToZone(b.dataset.hop)) openZone(regionId, zi, true);
+    });
+  });
   $('region-body').querySelectorAll('[data-start]').forEach(b => {
     b.addEventListener('click', () => {
       /* Startade den? Då är rutan färdig med sitt ärende — stäng den. */
@@ -12444,9 +12565,13 @@ function openZone(regionId, zi, keepNote){
   if (rbtn) rbtn.addEventListener('click', () => openTravelNow(regionId));
   const zbtn = $('zone-enter');
   if (zbtn) zbtn.addEventListener('click', () => {
-    /* Samma väg som Travel-knappen i expeditionslistan: en riktig resa med warp
-       och nedräkning. Inga genvägar som teleporterar. */
-    if (goToZone(regionId + '|' + zone)) closeRegion();
+    /* Hoppet ar ogonblickligt, sa rutan far STA KVAR och rita om sig - man vill
+       se zonens uppdrag i samma andetag som man kommer dit. */
+    if (goToZone(regionId + '|' + zone)) openZone(regionId, zi, true);
+  });
+  const sbtn = $('zone-scan');
+  if (sbtn) sbtn.addEventListener('click', () => {
+    if (startZoneScan(regionId, zone)) openZone(regionId, zi, true);
   });
 }
 /* ---------- VENDORNS GEAR ----------
@@ -12725,6 +12850,11 @@ function buildZoneExpeditions(regionId, zone){
     let btn;
     if (running) btn = '<button class="zx-btn running" disabled>Running</button>';
     else if (S.world.travel) btn = '<button class="zx-btn cant" disabled>In transit…</button>';
+    /* STAR MAN INTE HAR SKA KNAPPEN TA EN HIT, inte saga nej. Uppdraget kravs i
+       sin egen zon - men resan dit ar ett klick och ett svisch, sa knappen gor
+       den at en och startar sedan. */
+    else if (!here && S.world.current === regionId && isZoneCharted(regionId, zone))
+      btn = '<button class="zx-btn" data-hop="' + regionId + '|' + zone + '">Travel here</button>';
     else if (!here) btn = '<button class="zx-btn cant" disabled>Enter zone</button>';
     else if (lvl < def.lvl) btn = '<button class="zx-btn cant" disabled>Lv ' + def.lvl + '</button>';
     else if (slotsFull) btn = '<button class="zx-btn cant" disabled>Slots full</button>';
@@ -12755,7 +12885,23 @@ function buildZoneAction(regionId, zone){
   if (S.world.travel){
     return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">In transit…</button></div>';
   }
-  return '<div class="region-actions"><button class="btn-primary" id="zone-enter">🛰 Travel to ' + zone + ' — ' + fmtDur(travelSeconds(ZONE_TRAVEL_TIME)) + '</button></div>';
+  /* OKARTLAGD ZON: dronaren forst. Klockan tickar i knappen, och ar en annan
+     dronare redan ute sager knappen det i stallet for att tiga. */
+  if (!isZoneCharted(regionId, zone)){
+    const mine = zoneScanHere(regionId, zone);
+    if (mine){
+      return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.7">' +
+        '🛰 Drone charting ' + zone + ' — <span id="zone-scan-clock">' +
+        fmtDur(zoneScanLeft()) + '</span></button></div>';
+    }
+    if (S.zoneScan){
+      return '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">' +
+        'Your drone is charting ' + S.zoneScan.zone + '</button></div>';
+    }
+    return '<div class="region-actions"><button class="btn-primary" id="zone-scan">' +
+      '🛰 Send drone — ' + fmtDur(ZONE_SCAN_TIME) + '</button></div>';
+  }
+  return '<div class="region-actions"><button class="btn-primary" id="zone-enter">🛰 Travel to ' + zone + ' — instant</button></div>';
 }
 
 /* --- Resandet --- */
@@ -12875,6 +13021,12 @@ function hookBoostTips(bar){
   bar.addEventListener('mouseout', e => {
     if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-boost]')) hideGearTip();
   });
+}
+/* Nedrakningen i dronarknappen. Bara SIFFRAN byts - knappen sjalv ror sig inte,
+   annars rivs den bort under fingret precis som Start-knappen gjorde. */
+function tickZoneScanClock(){
+  const el = $('zone-scan-clock');
+  if (el) el.textContent = fmtDur(zoneScanLeft());
 }
 function tickVendorClock(){
   if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
@@ -13113,20 +13265,35 @@ function goToZone(pair){
   if (regionId !== S.world.current) return false;
   if (!REGIONS[regionId] || !REGIONS[regionId].zones.includes(zone)) return false;
   if (S.world.zone === zone) return true;
-  if (S.fuel < ZONE_FUEL_COST) return false;
-  if (NET.on){
-    /* SERVERLAGE: branslet dras dar, och zonen sparas sa handlarkontrollen
-       vet var man star. */
-    netEnterZone(zone).catch(() => spawnFloat({text: 'Not enough fuel'}));
-  } else {
-    S.fuel -= ZONE_FUEL_COST;
+  /* EN OKARTLAGD ZON GAR INTE ATT RESA TILL. Dit skickar man en dronare forst. */
+  if (!isZoneCharted(regionId, zone)){
+    say('Send a drone to chart ' + zone + ' first.');
+    return false;
   }
-  S.world.travel = {to: regionId, zone: zone, from: regionId, eta: Date.now() + travelSeconds(ZONE_TRAVEL_TIME) * 1000, fuel: ZONE_FUEL_COST};
-  refreshTravelBar();
-  refreshWarp();
-  renderExpPanel();
-  save();
+  if (S.fuel < ZONE_FUEL_COST){ say('Not enough fuel.'); return false; }
+  /* OGONBLICKLIG (v4.28.0). Zonbytet hade forut en pahittad klocka som bara levde
+     i webblasaren - servern flyttade en direkt, sa en omladdning mitt i "resan"
+     visade att man redan var framme. Vantan bor pa dronaren i stallet, en gang
+     per zon, och sjalva hoppet ar ett svisch. */
+  if (NET.on){
+    netEnterZone(zone)
+      .then(() => { S.world.zone = zone; afterZoneHop(regionId, zone); })
+      .catch(() => say('Not enough fuel.'));
+    return true;
+  }
+  S.fuel -= ZONE_FUEL_COST;
+  S.world.zone = zone;
+  afterZoneHop(regionId, zone);
   return true;
+}
+/* Sjalva svischen: en rad text, kartan och listorna om, och sparat. */
+function afterZoneHop(regionId, zone){
+  markZoneSeen(regionId, zone);
+  discoverZoneExpeditions(regionId, zone);
+  viewedRegion = regionId;
+  say('Arrived in ' + zone + '.');
+  renderMap(); refreshRegionUI(); refreshWarp(); renderExpPanel(); updateUI(true);
+  save();
 }
 /* ---------- HUSDJUREN: panel, samling, cachen ---------- */
 function rarCol(r){ return 'var(--rarity-' + RARITIES[r].id + ')'; }
