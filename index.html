@@ -3957,7 +3957,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.33.0 — UPPSLAGET OVER YRKENA</div>
+            <div class="desc">GENESIS v4.35.1 — FEM ar TAKET</div>
           </div>
         </div>
       </div>
@@ -3968,7 +3968,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.33.0 — UPPSLAGET OVER YRKENA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.35.1 — FEM ar TAKET</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4257,6 +4257,7 @@ async function srvRpc(fn, args){
    varst: servern VET varfor, och den kunskapen kastades bort pa sju stallen.
    Ordlistan ar ett stalle, sa samma kod aldrig kan fa tva olika texter. */
 const SRV_ERRORS = {
+  boost_slots_full:  'All your boost slots are in use — wait for one to run out, or open another in the Reboot tree.',
   backpack_full:            'Your backpack is full.',
   vault_full:               'The vault is full.',
   insufficient_gold:        'Not enough gold.',
@@ -5716,8 +5717,11 @@ const PROFESSIONS = [
    blurb:'Forges weapons, off-hands and — uniquely — transports.',
    slots:['Main-hand','Off-hand','Transport'], comp:'forge_core'},
   {id:'jewelcrafter',name:'Jewelcrafter', kind:'crafting', ico:'💍',
-   blurb:'Cuts gems and crafts neck, both rings and relics.',
-   slots:['Neck','Ring I','Ring II','Relic','Gems'], comp:'resonance_dust'},
+   /* EN RING, EN GANG. "Ring I" och "Ring II" var tva brickor for samma sak -
+      det ar samma ring, den passar bara bada fingrarna. Beskrivningen sager
+      redan att man kan bara tva. */
+   blurb:'Cuts gems and crafts neck, rings and relics.',
+   slots:['Neck','Ring','Relic','Gems'], comp:'resonance_dust'},
   {id:'chemist',     name:'Chemist',      kind:'crafting', ico:'⚗️',
    blurb:'Brews flasks, serums and tonics — consumable boosts.',
    slots:['Flasks','Serums','Tonics'], comp:'catalyst_essence'},
@@ -7164,7 +7168,9 @@ function load(){
         Object.keys(d.vend).forEach(id => {
           const v = d.vend[id];
           if (!REGIONS[id] || !v || !Array.isArray(v.stock) || !(+v.next > 0)) return;
-          const stock = v.stock.filter(x => x && ITEMS[x.k] && (x.r | 0) <= VENDOR_MAX_RAR &&
+          /* Taket ar regionens eget nu, inte ett gemensamt: ett sparat lager fran
+             fore v4.34.0 kan bara en epic i en inre ring, och den ska bort. */
+          const stock = v.stock.filter(x => x && ITEMS[x.k] && (x.r | 0) <= vendorMaxRar(id) &&
                                             ITEMS[x.k].rars.indexOf(x.r | 0) >= 0)
             .slice(0, VENDOR_SLOTS)
             .map(x => ({k: x.k, r: x.r | 0, sold: !!x.sold}));
@@ -9744,6 +9750,10 @@ function useInvItem(idx){
   }
   const bk = BOOST_KEY_BY_ITEM[row.key];
   if (bk){
+    if (!boostSlotsFree(bk)){
+      say('All your boost slots are in use (' + boostsRunning() + ' of ' + boostSlots() + ').');
+      return false;
+    }
     if (NET.on){
       netUseStackItem(row.key)
         .then(() => spawnFloat({text: BOOSTS[bk].name + ' active'}))
@@ -11621,6 +11631,30 @@ const BOOSTS = {
   expspd: {name: 'Chrono Draft',  ico: '⏱️', mins: 30, pct: 25,  what: 'shorter expeditions'},
   luck:   {name: 'Fortune Vial',  ico: '🍀', mins: 20, pct: 50,  what: 'more Loot Luck'}
 };
+/* ---------- HUR MANGA BOOSTAR SOM FAR GA SAMTIDIGT (v4.35.0) ----------
+   Tva fran borjan. Omstartstradets TRE noder oppnar en plats var, sa fem ar
+   taket. Skalet ar att en boost ska vara ett VAL - gar allt samtidigt spelar det
+   ingen roll vilken man dricker. Att FORLANGA eller forstarka en boost man redan
+   har kostar ingen plats: det ar samma boost, inte en till. Samma regel star pa
+   servern, och det ar serverns svar som galler. */
+const BOOST_SLOTS_BASE = 2;
+function boostSlots(){
+  return BOOST_SLOTS_BASE + perkLvl('boostSlotA') + perkLvl('boostSlotB') + perkLvl('boostSlotC');
+}
+/* Alla boostar som gar just nu, bade bodens och flaskornas - de delar rad pa
+   skarmen och ska dela plats ocksa. En boost som finns i bada raknas EN gang. */
+function runningBoostKeys(){
+  const out = {};
+  for (const k in BOOSTS) if (boostLeft(k) > 0) out[k] = true;
+  const fb = S.flaskBoost || {};
+  for (const k in fb) if ((fb[k].until || 0) > Date.now()) out[k] = true;
+  return Object.keys(out);
+}
+function boostsRunning(){ return runningBoostKeys().length; }
+function boostSlotsFree(key){
+  if (key && runningBoostKeys().indexOf(key) >= 0) return true;   /* forlangning */
+  return boostsRunning() < boostSlots();
+}
 function boostLeft(key){
   const t = S.boosts && S.boosts[key];
   return t && t > Date.now() ? (t - Date.now()) / 1000 : 0;
@@ -11648,6 +11682,12 @@ function boostMinutes(key){
 function drinkFlask(idx){
   const row = S.inv[idx];
   if (!row || !row.flask || row.qty < 1) return false;
+  /* Platsen provas INNAN flaskan tas ur vaskan - annars hade en full uppsattning
+     atit flaskan och gett ingenting. Samma ordning som pa servern. */
+  if (!boostSlotsFree(row.boost)){
+    say('All your boost slots are in use (' + boostsRunning() + ' of ' + boostSlots() + ').');
+    return false;
+  }
   if (NET.on){
     netDrinkFlask(row.key, row.rar).catch(e => say(srvErrText(e)));
     return true;
@@ -12708,11 +12748,20 @@ function vendorGearPrice(rarIdx, regionId, entry){
    tidpunkter per region, så det snurrar ändå påfyllningar hela tiden. */
 const RESTOCK_MS = 5 * 60 * 60 * 1000;
 const VENDOR_SLOTS = 4;
-const VENDOR_MAX_RAR = 3;        // epic är taket, aldrig legendary eller mythic
-/* Vikterna är regionens egna, men avkapade vid epic och omräknade — annars hade
-   det bara blivit färre saker i lagret när en legendary rullades bort. */
+/* TAKET FOLJER RINGEN (v4.34.0). I de tre INRE ringarna (tier 0, 1 och 2) ar
+   RARE det finaste boden saljer - epic, legendary och mythic maste man hitta
+   eller tillverka dar. Fran fjarde ringen och utat far boden salja epic igen,
+   hogst en per pafyllning. Legendary och mythic gar aldrig att kopa nagonstans.
+   Skalet ar att de forsta ringarna ar dar man bygger sin utrustning, och da ska
+   ett fynd betyda nagot - inte vara nagot man kunde ha kopt. */
+function vendorMaxRar(regionId){
+  const R = REGIONS[regionId];
+  return (R && R.tier > 2) ? 3 : 2;
+}
+/* Vikterna är regionens egna, men avkapade vid takets steg och omräknade — annars
+   hade det bara blivit färre saker i lagret när en för fin pjäs rullades bort. */
 function vendorWeights(regionId){
-  return gearWeightsFor(regionId).slice(0, VENDOR_MAX_RAR + 1);
+  return gearWeightsFor(regionId).slice(0, vendorMaxRar(regionId) + 1);
 }
 function rollVendorStock(regionId){
   const w = vendorWeights(regionId);
@@ -12723,6 +12772,7 @@ function rollVendorStock(regionId){
     /* Taket på en epic per påfyllning: nästa epic blir en rare i stället. Utan
        den här raden har frontiärens handlare ofta tre epic samtidigt. */
     if (r === 3){ if (epics >= 1) r = 2; else epics++; }
+    if (r > vendorMaxRar(regionId)) r = vendorMaxRar(regionId);
     out.push({k: pickItemKey(r), r: r, sold: false});
   }
   return out;
@@ -13097,14 +13147,27 @@ function hookBoostTips(bar){
   bar.addEventListener('mouseover', e => {
     const chip = e.target.closest('[data-boost]') || e.target.closest('[data-fboost]');
     if (!chip) return;
-    const B = BOOSTS[chip.dataset.boost];
+    /* [BUG] EN DRUCKEN FLASKA HADE INGEN HOVRING. Raden slog alltid upp i
+       handelsbodens tabell, aven for en bricka som kom fran en flaska - och da
+       fanns ingen post, sa den gav upp och visade ingenting alls. Nu laser vi ur
+       ratt tabell for ratt sorts boost, och brickan sager bade VAD den gor,
+       HUR MYCKET just din ger och hur lang tid som ar kvar. */
+    const fk = chip.dataset.fboost;
+    const key = fk || chip.dataset.boost;
+    const fb = fk ? (S.flaskBoost || {})[fk] : null;
+    const B = fk ? (FLASK_BOOST[fk] || BOOSTS[fk]) : BOOSTS[key];
     if (!B) return;
-    showPlainTip('<b>' + B.name + '</b><br>+' + B.pct + '% ' + B.what +
-                 '<br>' + boostMinutes(chip.dataset.boost) + ' min per bottle', e.clientX, e.clientY);
+    const pct = fb && fb.pct != null ? Math.round(fb.pct) : B.pct;
+    const left = fk ? Math.max(0, ((fb && fb.until || 0) - Date.now()) / 1000) : boostLeft(key);
+    showPlainTip('<b>' + B.name + '</b><br>+' + pct + '% ' + B.what +
+                 '<br>' + fmtDur(left) + ' left' +
+                 '<div class="t-hint">' + boostsRunning() + ' of ' + boostSlots() +
+                 ' boost slots in use</div>', e.clientX, e.clientY);
   });
   bar.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
   bar.addEventListener('mouseout', e => {
-    if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-boost]')) hideGearTip();
+    const to = e.relatedTarget;
+    if (!to || !to.closest || (!to.closest('[data-boost]') && !to.closest('[data-fboost]'))) hideGearTip();
   });
 }
 /* Nedrakningen i dronarknappen. Bara SIFFRAN byts - knappen sjalv ror sig inte,
@@ -17255,7 +17318,8 @@ function rbPerkCost(p){
 const RB_ICONS = {
   cheapNode:'🛠', headStart:'⏻', expSlot:'📦', keepMile:'💎', fuelFlow:'🛢',
   shiftFast:'✋', gatherLuck:'👁', scrapLuck:'🤿', cacheCheap:'🗃',
-  ahFee:'🛒', signalFilter:'📻', standingOrders:'👥'
+  ahFee:'🛒', signalFilter:'📻', standingOrders:'👥',
+  boostSlotA:'🧯', boostSlotB:'🎚', boostSlotC:'🌊'
 };
 /* Vad NASTA niva ger, i en rad. Rutan ska svara pa "vad far jag for pengarna". */
 const RB_NEXT = {
@@ -17264,7 +17328,9 @@ const RB_NEXT = {
   fuelFlow:'+10% fuel regen', shiftFast:'-0.5s per gathering roll',
   gatherLuck:'+2% gathering hit rate', scrapLuck:'+2% scrap from expeditions',
   cacheCheap:'-1 fragment per cache', ahFee:'-1 point auction fee',
-  signalFilter:'-1 junk item in the pool', standingOrders:'+1 rarity step persistence'
+  signalFilter:'-1 junk item in the pool', standingOrders:'+1 rarity step persistence',
+  boostSlotA:'+1 boost at a time', boostSlotB:'+1 boost at a time',
+  boostSlotC:'+1 boost at a time'
 };
 let rbPicked = null;
 /* Raderna: tva overst, sedan bredare nedat. Samma tal som servern har i
