@@ -2582,7 +2582,11 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .m-helper.drop-ok{border-color:var(--green)!important;
   box-shadow:0 0 16px rgba(74,222,128,.55)!important;transform:scale(1.08)}
 body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
-.m-helper.locked{opacity:.25;cursor:default;border-style:solid}
+/* LAST, INTE BORTA. 25 % var sa nara osynligt att platsen lastes som att den
+   inte fanns. Nu syns den som en stangd dorr: dampad men lasbar, med ett las i. */
+.m-helper.locked{opacity:.55;cursor:default;border-style:dashed;
+  border-color:var(--border-soft);background:rgba(4,7,16,.5)}
+.mh-lock{font-size:15px;opacity:.6;filter:grayscale(1)}
 
 .m-helper.filled{border:1px solid var(--rc);border-style:solid;background:#10162e}
 .mh-plus{color:var(--text-faint);font-size:17px}
@@ -3957,7 +3961,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.35.1 — FEM ar TAKET</div>
+            <div class="desc">GENESIS v4.35.2 — LAST, INTE BORTA</div>
           </div>
         </div>
       </div>
@@ -3968,7 +3972,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.35.1 — FEM ar TAKET</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.35.2 — LAST, INTE BORTA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -17531,7 +17535,18 @@ function renderHelperSlots(){
     if (!ref || !ref.helper) return;
     const p = seatedPet(b.id);
     const owned = S.own[b.id] || 0;
-    if (owned < 1){ ref.helper.className = 'm-helper locked'; ref.helper.innerHTML = ''; return; }
+    /* EN LAST PLATS SAG BORTA UT. Platsen ritades tom och nastan genomskinlig
+       (25 %) nar man inte agde nagon av maskinen, sa mot den morka bakgrunden
+       lastes den som att den inte fanns - de tva sista produktionerna sag ut att
+       sakna hjalparplats helt. Den finns, den ar bara inte oppen an. Nu star ett
+       las i rutan och hovringen sager vad som kravs. */
+    if (owned < 1){
+      ref.helper.className = 'm-helper locked';
+      ref.helper.removeAttribute('draggable');
+      ref.helper.innerHTML = '<span class="mh-lock">\ud83d\udd12</span>';
+      ref.helper.title = 'Build one ' + b.name + ' to open this helper slot';
+      return;
+    }
     if (p){
       const a = helperAbilityOf(p);
       ref.helper.className = 'm-helper filled';
