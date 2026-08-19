@@ -232,6 +232,58 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-split > .char-layout{transform:translateX(4px)}
 .char-split > .transport-row{transform:translateX(4px)}
 #panel-character > .panel-title{padding-left:5px}
+/* ==================== KRETSKORT SOM FOND (v4.40.0) ====================
+   Karaktarsrutan bar ett kretskort som BILDFIL. De har tre panelerna far samma
+   kansla ritad i ren CSS i stallet - inga nya filer att ladda, och monstret kan
+   bara sin egen farg per panel.
+   Fonden ar fyra lager, uppifran och ner:
+     1) ett dampande tacke i panelens egen farg, sa monstret trader tillbaka,
+     2) LODPUNKTER - sma runda prickar i ett rutnat, som hal i ett kort,
+     3) LEDNINGSBANOR - tunna linjer, en uppsattning lodrat och en vagrat,
+        plus ett par diagonaler sa det inte blir ett rutigt papper,
+     4) panelens vanliga toning underst.
+   Fargen sitter i --ct (circuit tint) och satts per panel. Styrkan ar med flit
+   lag: fonden ska kannas, inte lasas. */
+.panel.circuit{
+  --ct: var(--violet);
+  --ct-line: color-mix(in srgb, var(--ct) 26%, transparent);
+  --ct-dot:  color-mix(in srgb, var(--ct) 34%, transparent);
+  --ct-bus:  color-mix(in srgb, var(--ct) 34%, transparent);
+  --ct-pad:  color-mix(in srgb, var(--ct) 40%, transparent);
+  background:
+    /* 1 - tacket */
+    linear-gradient(rgba(10,14,32,.66), rgba(10,14,32,.66)),
+    /* 2 - LODOGON: en tunn ring, som en genomkontakt pa ett riktigt kort */
+    radial-gradient(circle at 48px 48px,
+      transparent 0 2.6px, var(--ct-pad) 2.6px 3.6px, transparent 3.7px),
+    /* 3 - GENOMKONTAKTER: sma fyllda prickar, tatare an ogonen */
+    radial-gradient(circle at 16px 16px, var(--ct-dot) 0 1.5px, transparent 1.6px),
+    /* 4 - BUSSARNA: de kraftigare banorna, glest lagda */
+    repeating-linear-gradient(90deg, var(--ct-bus) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(0deg,  var(--ct-bus) 0 1px, transparent 1px 96px),
+    /* 5 - SPAREN: tunna banor i ett tatare, forskjutet natverk */
+    repeating-linear-gradient(90deg, var(--ct-line) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(0deg,  var(--ct-line) 0 1px, transparent 1px 32px),
+    /* 6 - panelens egen ton */
+    linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  background-size: auto, 96px 96px, 32px 32px, auto, auto, auto, auto, auto;
+  background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 16px 16px, 16px 16px, 0 0;
+}
+/* En svag glod i ovre hornet, som ljuset i karaktarsrutan - den ger djup och
+   hindrar att monstret ser ut som ett rutat papper. */
+.panel.circuit::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(120% 80% at 12% 0%,
+    color-mix(in srgb, var(--ct) 12%, transparent) 0%, transparent 62%);
+}
+.panel.circuit{position:relative}
+.panel.circuit > *{position:relative;z-index:1}
+/* En panel, en farg. Tonerna ar hamtade ur spelets egen palett och halls
+   dampade - produktionen cyan (samma som talen den visar), snabbaccessen
+   violett, expeditionerna gron (samma som en klar korning). */
+#panel-production{--ct:var(--cyan-dim)}
+#panel-quick-access{--ct:var(--violet)}
+#panel-expeditions{--ct:var(--green)}
 .transport-row{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:8px;flex:0 0 auto}
 .transport-slot{
   width:96px;height:52px;font-size:23px;
@@ -3498,7 +3550,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     <div class="col col-right">
 
       <!-- MACHINES / UPGRADES / PREMIUM (flikram) -->
-      <section class="panel" id="panel-production">
+      <section class="panel circuit" id="panel-production">
         <div class="tabs three" id="production-tabs">
           <div class="tab active" data-pane="pane-machines">Production</div>
           <div class="tab" data-pane="pane-upgrades">Upgrades</div>
@@ -3534,7 +3586,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </section>
 
       <!-- EXPEDITIONS -->
-      <section class="panel" id="panel-expeditions">
+      <section class="panel circuit" id="panel-expeditions">
         <!-- Meddelandet sitter OVANFOR flikarna. Det lag inne i Active, sa den
              som tryckte Start i Discovered fick svaret renderat i en dold ruta -
              knappen sag ut att inte gora nagonting alls. -->
@@ -3554,7 +3606,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </section>
 
       <!-- QUICK ACCESS -->
-      <section class="panel" id="panel-quick-access">
+      <section class="panel circuit" id="panel-quick-access">
         <div class="panel-title">Quick Access</div>
         <div class="qa-grid">
           <div class="qa-btn" id="qa-inventory"><span class="ico"><span class="qi qi-inventory"></span></span><span class="lbl">Inventory</span></div>
@@ -4000,7 +4052,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.38.0 — DEN UPPSKURNA MELONEN</div>
+            <div class="desc">GENESIS v4.40.0 — KRETSKORT PA TRE PANELER</div>
           </div>
         </div>
       </div>
@@ -4011,7 +4063,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.38.0 — DEN UPPSKURNA MELONEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.40.0 — KRETSKORT PA TRE PANELER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -9500,12 +9552,21 @@ function addInvItem(def){
    spelet inte kopa nagot ska det inte se ut som om det kan. */
 let sellMode = false;
 const sellPick = new Set();
+/* UTRUSTNING GAR OCKSA ATT BOCKA FOR (v4.39.0). Regeln var att en pjas ar nagot
+   man tittar pa innan man gor sig av med den, sa saljlaget slapp bara in staplar.
+   Men har man tio droppar man redan bestamt sig om ar tio kort i rad ren friktion.
+   En pjas som SITTER PA en, eller ligger i ett vaskfack, ar fortfarande utanfor -
+   det man bar ska aldrig kunna saljas av misstag. */
 function sellableRow(row){
-  if (!row || row.gear || !row.stack) return false;
+  if (!row) return false;
+  if (row.gear) return gearGold(row.gear) > 0;
+  if (!row.stack) return false;
   const d = itemDef(row);
   return !!(d && d.sell > 0);
 }
 function sellRowValue(row){
+  if (!row) return 0;
+  if (row.gear) return Math.round(gearGold(row.gear));
   const d = itemDef(row);
   return d ? Math.round(d.sell * (row.qty || 1)) : 0;
 }
@@ -9530,11 +9591,21 @@ async function sellPickedNow(){
   /* Fragan ar pa riktigt: namn och summa. Det har ar enda stallet dar man kan
      salja tio saker i ett klick, och en rakad malmhog kan vara en timmes
      arbete. */
-  const list = rows.map(r => '<div class="sell-line"><span>' + r.row.name +
-      (r.row.qty > 1 ? ' ×' + r.row.qty : '') + '</span><span>' + moneyText(r.value) + '</span></div>').join('');
+  /* En pjas skrivs med sin egen farg i listan - det ar sista chansen att se att
+     man rakat bocka for en epic bland tio commons. */
+  const list = rows.map(r => {
+    const nm = r.row.gear
+      ? '<span style="color:' + gearRarCol(r.row.gear) + '">' + gearName(r.row.gear) + '</span>'
+      : r.row.name + (r.row.qty > 1 ? ' ×' + r.row.qty : '');
+    return '<div class="sell-line"><span>' + nm + '</span><span>' + moneyText(r.value) + '</span></div>';
+  }).join('');
+  const nGear = rows.filter(r => r.row.gear).length;
+  const what = nGear === rows.length ? (rows.length === 1 ? ' item?' : ' items?')
+             : nGear === 0 ? (rows.length === 1 ? ' stack?' : ' stacks?')
+             : ' things?';
   const ok = await askConfirm({
     ico: '🪙', color: 'var(--gold)',
-    title: 'Sell ' + rows.length + (rows.length === 1 ? ' stack?' : ' stacks?'),
+    title: 'Sell ' + rows.length + what,
     body: list + '<div class="sell-total"><span>Total</span><span>' + moneyText(total) + '</span></div>',
     yes: 'YES, SELL', no: 'KEEP THEM'
   });
@@ -9543,10 +9614,15 @@ async function sellPickedNow(){
   let got = 0, broke = false;
   for (const r of rows){
     if (NET.on){
-      try { await netSellStack(r.row.key, r.row.qty, r.row.rar); got += r.value; }
+      try {
+        if (r.row.gear) await netSell(r.row.gear);
+        else await netSellStack(r.row.key, r.row.qty, r.row.rar);
+        got += r.value;
+      }
       catch (e){ say(srvErrText(e, 'Could not sell that.')); broke = true; break; }
     } else {
       S.gold += r.value;
+      if (r.row.gear) S.stats.sold = (S.stats.sold || 0) + 1;
       S.inv[r.idx] = null;
       got += r.value;
     }
@@ -10176,8 +10252,12 @@ function invCellHTML(i, pos){
      svagt gront hela tiden, inte bara nar man hovrar. */
   const gb = (typeof gbagStart === 'function' && i >= gbagStart()) ? ' gbag-cell' : '';
   if (it && it.gear){
-    return '<div class="inv-slot filled gear' + gb + '" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
-      '<div class="iv-img" style="background-image:url(\'' + gearArt(it.gear) + '\')"></div></div>';
+    /* Bocken ritas ocksa pa en pjas nu - annars gick den att valja men syntes inte. */
+    const gtick = (sellMode && sellableRow(it))
+      ? '<span class="sell-tick">' + (sellPick.has(i) ? '✓' : '') + '</span>' : '';
+    return '<div class="inv-slot filled gear' + gb + (sellPick.has(i) ? ' sell-on' : '') +
+      '" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
+      '<div class="iv-img" style="background-image:url(\'' + gearArt(it.gear) + '\')"></div>' + gtick + '</div>';
   }
   if (it){
     const showQty = it.stack || it.qty > 1;
@@ -15609,7 +15689,7 @@ hookDragSource($('machine-list'), e => {
 $('inv-sort').addEventListener('click', invSort);
 /* Forsta trycket oppnar laget, andra trycket stalller fragan. */
 $('inv-sellmode').addEventListener('click', () => {
-  if (!sellMode){ setSellMode(true); say('Pick the stacks you want to sell, then press Sell again.'); }
+  if (!sellMode){ setSellMode(true); say('Pick what you want to sell, then press Sell again.'); }
   else if (sellPick.size) sellPickedNow();
   else setSellMode(false);
 });
@@ -15671,9 +15751,17 @@ function beginDrag(d, x, y){
     g.style.backgroundImage = "url('" + gearArt(d.gear) + "')";
     g.style.setProperty('--rc', gearRarCol(d.gear));
   } else {
-    /* Staplar har ingen konst — visa deras ikon i stället. */
-    g.textContent = (d.row && d.row.ico) || '📦';
-    g.classList.add('ghost-ico');
+    /* [BUG] EN STAPEL MED EGEN BILD TAPPADE DEN I DRAGET. Kommentaren har sa att
+       "staplar har ingen konst", och det stamde tills melonen fick sin - da visade
+       rutan bilden men spoket ett tecken, sa saken bytte utseende mitt i handen.
+       Bar stapeln en bild i katalogen bar spoket samma bild. */
+    const sdef = d.row && ITEM_DEFS[d.row.key];
+    if (sdef && sdef.art){
+      g.style.backgroundImage = "url('" + sdef.art + "')";
+    } else {
+      g.textContent = (d.row && d.row.ico) || '📦';
+      g.classList.add('ghost-ico');
+    }
     g.style.setProperty('--rc', 'var(--cyan)');
   }
   document.body.appendChild(g);
