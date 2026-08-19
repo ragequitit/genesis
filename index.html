@@ -384,6 +384,24 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   line-height:1.4;margin:1px 0 5px}
 /* MELONENS RUTA: tva kort sida vid sida, var och en i sin raritetsfarg. */
 .mel-box{max-width:420px}
+/* Den uppskurna melonen overst - dar tecknet satt forut. Samma glod som ramen. */
+.mel-open{width:96px;height:96px;background-size:contain;background-repeat:no-repeat;
+  background-position:center;
+  filter:drop-shadow(0 0 16px color-mix(in srgb, var(--pc) 55%, transparent))}
+/* Knappen: ensam, centrerad, och lyser i samma neonbla som ramen. */
+.mel-act{display:flex;justify-content:center;width:100%;margin-top:6px}
+.mel-collect{
+  padding:10px 30px;border-radius:10px;cursor:pointer;
+  font:inherit;font-size:12px;font-weight:900;letter-spacing:.16em;
+  color:#eaffff;background:linear-gradient(180deg,rgba(56,232,255,.20),rgba(56,232,255,.07));
+  border:1.5px solid var(--pc);
+  box-shadow:0 0 18px color-mix(in srgb, var(--pc) 45%, transparent),
+             inset 0 0 12px color-mix(in srgb, var(--pc) 18%, transparent);
+  transition:box-shadow .12s, filter .12s;
+}
+.mel-collect:hover{filter:brightness(1.15);
+  box-shadow:0 0 28px color-mix(in srgb, var(--pc) 70%, transparent),
+             inset 0 0 14px color-mix(in srgb, var(--pc) 26%, transparent)}
 .mel-row{display:flex;gap:12px;justify-content:center;margin:14px 0 4px}
 .mel-card{flex:1;max-width:160px;padding:12px 10px;border-radius:12px;
   border:1px solid var(--rc);background:#0b1024;text-align:center}
@@ -1768,7 +1786,12 @@ body.modal-open{overflow:hidden}
 .item-win{
   /* Over panelerna, alltid. Ett kort man just plockat fram med hogerklick ska
      aldrig hamna BAKOM fonstret man plockade fram det ur. */
-  position:fixed;z-index:420;width:352px;
+  /* KORTET FOLJER SITT INNEHALL. 352 px var en fast bredd, och pa ett gear-kort
+     ar den bredaste raden bara omkring 150 px - alltsa stod en dryg tredjedel av
+     kortet tomt till hoger. Nu ar bredden max-content med ett tak: gear-kortet
+     krymper till sina egna rader, medan en stapel med brodtext fortfarande bryter
+     vid taket i stallet for att bli en enda lang rad. */
+  position:fixed;z-index:420;width:max-content;min-width:250px;max-width:352px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   border:1px solid rgba(255,255,255,.22);border-radius:12px;
   box-shadow:0 14px 40px rgba(0,0,0,.7);
@@ -3977,7 +4000,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.37.1 — MELONEN PA AUKTIONEN</div>
+            <div class="desc">GENESIS v4.38.0 — DEN UPPSKURNA MELONEN</div>
           </div>
         </div>
       </div>
@@ -3988,7 +4011,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.37.1 — MELONEN PA AUKTIONEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.38.0 — DEN UPPSKURNA MELONEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5018,10 +5041,16 @@ async function netPullItems(){
   const putStack = (st, gathered) => {
     const mat = MATERIALS[st.stack_key];
     const fl  = FLASKS[st.stack_key];
+    /* [BUG] MELONEN HETTE SIN NYCKEL. Namnet slogs upp i materialen, flaskorna
+       och recepten - men foremal som bara star i foremalskatalogen foll igenom
+       och fick sin rana nyckel som namn, alltsa "mystery_melon". Katalogen
+       fragas nu ocksa. */
+    const idef = ITEM_DEFS[st.stack_key];
     let name = st.stack_key, ico = '📦';
     if (mat){ name = mat.name; ico = mat.ico; }
     else if (fl){ name = fl.name; ico = fl.ico; }
     else if (st.kind === 'recipe'){ name = recipeItemName(st.stack_key.replace(/^recipe_/, '')); ico = '📜'; }
+    else if (idef){ name = idef.name; ico = idef.ico || '📦'; }
     S.inv[gathered ? gat++ : at++] = {
       key: st.stack_key, name: name, ico: ico, qty: +st.qty || 1, stack: true,
       mat: st.kind === 'material', bop: !!(mat && mat.bop),
@@ -12014,7 +12043,9 @@ const ITEM_DEFS = {
     name: 'Mystery Melon', ico: '🍉', art: 'assets/items/mystery_melon.png',
     kind: 'Consumable',
     flavor: 'What is that? Is it edible? Is it a glitch?',
-    desc: 'Open it for two pieces of gear. What comes out is rolled when you open it — it could be two commons, it could be two epics.',
+    desc: 'You should try to open it up.',
+    /* Den UPPSKURNA melonen: egen bild, bara till rutan som visar vad som lag i. */
+    artOpen: 'assets/items/mystery_melon_open.png',
     sell: GOLD(10)
   }
 };
@@ -12133,11 +12164,14 @@ function showMelonResult(list){
   }).join('');
   back.innerHTML =
     '<div class="ask-box mel-box" style="--pc:var(--cyan)">' +
-      '<div class="ask-ico">🍉</div>' +
-      '<div class="ask-h1">You cut it open</div>' +
-      '<div class="ask-body">Two pieces were inside.</div>' +
+      /* Den uppskurna melonen i stallet for ett tecken, och rubriken pa TVA rader
+         i samma storlek och snitt - andra raden ar en fortsattning, inte en
+         underrubrik, sa den far inte krympa. */
+      '<div class="mel-open" style="background-image:url(\'' +
+        ITEM_DEFS[MELON_KEY].artOpen + '\')"></div>' +
+      '<div class="ask-h1">You cracked it open,<br>and you found this inside</div>' +
       '<div class="mel-row">' + cards + '</div>' +
-      '<div class="ask-row"><button class="pf-btn" data-ok>NICE</button></div>' +
+      '<div class="mel-act"><button class="mel-collect" data-ok>COLLECT</button></div>' +
     '</div>';
   document.body.appendChild(back);
   const done = () => back.remove();
@@ -15042,20 +15076,15 @@ function openStackMenu(key, x, y){
     const at = findStackIdx(key);
     if (at < 0){ closeStackMenu(); return; }
     const r = S.inv[at], def = itemDef(r);
-    let h = '<div class="pm-head">' + (r.name || key) + (r.qty > 1 ? ' \u00d7 ' + r.qty : '') + '</div>';
-    /* EN MENY ar till for att VALJA en handling, inte for att forklara. Raden
-       stannar bara dar den bar nagot menyn INTE redan sager:
-         - receptfyndet heter bara "Schematic", sa raden ar det enda som avslojar
-           vilket recept man haller i,
-         - vardepaketet maste berata vad som ligger i det,
-         - skrapets rad ar ingen forklaring utan en vits, och den kostar inget.
-       Den forsvinner dar den bara upprepar: flaskan (knappen och hovringen sager
-       redan allt), branslecellen (tre rader som sager samma sak som knappen under)
-       och materialen ("Gathered by Extractor" - det star i hovringen). */
-    /* Melonen har sin forklaring pa hovringskortet; menyn ska bara erbjuda valen. */
-    const skipNote = r.flask || r.key === 'fuelcell' || r.key === MELON_KEY ||
-                     (def && def.kind === 'Material');
-    if (def && def.desc && !skipNote) h += '<div class="pm-note">' + def.desc + '</div>';
+    /* EN MENY AR BARA VALEN. Namnet stod overst och beskrivningen under det -
+       men man har just hogerklickat pa saken, sa man vet redan vad den heter, och
+       hovringen har berattat vad den gor. Kvar star bara det man kan GORA.
+       Tva undantag: receptfyndet heter bara "Schematic", sa dess rad ar det enda
+       som avslojar vilket recept man haller i, och vardepaketet maste saga vad
+       som ligger i det. */
+    let h = '';
+    const keepNote = !!r.recipe || isBundleKey(key);
+    if (def && def.desc && keepNote) h += '<div class="pm-note">' + def.desc + '</div>';
     if (key === MELON_KEY){
       /* FORSTA valet ar att oppna den, sista ar att salja. Det man vill gora
          oftast star overst. */
