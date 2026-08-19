@@ -378,6 +378,21 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gear-tip.on{display:block}
 .gt-name{font-size:14px;font-weight:900;line-height:1.25}
 .gt-rar{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--text);margin-bottom:5px}
+/* Den kursiva raden under namnet: en ton, inte en upplysning. Mindre an namnet
+   och dampad, sa den lases som en rost och inte som en regel. */
+.gt-flavor{font-size:11px;font-style:italic;color:var(--text-dim);opacity:.85;
+  line-height:1.4;margin:1px 0 5px}
+/* MELONENS RUTA: tva kort sida vid sida, var och en i sin raritetsfarg. */
+.mel-box{max-width:420px}
+.mel-row{display:flex;gap:12px;justify-content:center;margin:14px 0 4px}
+.mel-card{flex:1;max-width:160px;padding:12px 10px;border-radius:12px;
+  border:1px solid var(--rc);background:#0b1024;text-align:center}
+.mel-art{width:64px;height:64px;margin:0 auto 8px;background-size:contain;
+  background-repeat:no-repeat;background-position:center}
+.mel-nm{font-size:12.5px;font-weight:800;color:var(--rc);line-height:1.3}
+.mel-rar{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:800;color:var(--rc);opacity:.8;margin-top:3px}
+.mel-lv{font-size:10.5px;color:var(--text-faint);margin-top:4px}
 /* Siffran FÖRST, sedan vad den heter — som i förlagan ("17 Armor"). En rad, inte
    en tabell: ögat läser talet direkt utan att vandra till högerkanten. */
 .gt-stat{font-size:12px;padding:1.5px 0;color:var(--text-dim)}
@@ -3738,6 +3753,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <button data-dev="materials" data-amt="200">200 of every material</button>
           <button data-dev="bagslots" data-amt="1">Unlock every bag slot</button>
           <button data-dev="fuel" data-amt="1">Fill the tank</button>
+          <button data-dev="melon" data-amt="5">5 Mystery Melons</button>
         </div>
         <div class="dev-said" id="dev-said"></div>
       </div>
@@ -3961,7 +3977,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.35.2 — LAST, INTE BORTA</div>
+            <div class="desc">GENESIS v4.37.1 — MELONEN PA AUKTIONEN</div>
           </div>
         </div>
       </div>
@@ -3972,7 +3988,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.35.2 — LAST, INTE BORTA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.37.1 — MELONEN PA AUKTIONEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4677,6 +4693,21 @@ async function netVendorGiftClaim(regionId){
   await netPullItems();
   renderInventory(); updateUI(true);
   return r;
+}
+async function netOpenMelon(){
+  if (!NET.on) return null;
+  const r = await srvRpc('open_melon', {p_character: SRV.charId});
+  await netPull(); await netPullItems();
+  renderInventory(); updateUI(true);
+  /* Servern rullade pjaserna och la dem i vaskan. Vi letar upp DEM, sa rutan
+     visar exakt det som faktiskt hamnade dar - inte en gissning ur svaret. */
+  const ids = (r && r.got) ? r.got.map(x => x.id) : [];
+  const out = [];
+  for (let i = 0; i < invSlots(); i++){
+    const row = S.inv[i];
+    if (row && row.gear && ids.indexOf(row.gear.sid) >= 0) out.push(row.gear);
+  }
+  return out;
 }
 async function netOpenBundle(key){
   if (!NET.on) return null;
@@ -5852,6 +5883,8 @@ const RECIPES = [
   {id:'ch_r3', prof:'chemist', name:'Deep Focus Serum',    item:'flask_focus',   rar:2, lvl:12, source:'drop', cost:{circuit_root:4, crystal_quartz:3, catalyst_essence:1}, consumable:'crit'},
   {id:'ch_r4', prof:'chemist', name:'Network Overclock',   item:'flask_data',    rar:2, lvl:12, source:'drop', cost:{neon_bloom:5, glass_moss:3, catalyst_essence:1}, consumable:'idle'},
   {id:'ch_r5', prof:'chemist', name:'Pathfinder Compound', item:'flask_trail',   rar:2, lvl:12, source:'drop', cost:{glass_moss:4, refined_bioessence:1, catalyst_essence:1}, consumable:'travel'},
+  {id:'ch_c6', prof:'chemist', name:'Fortune Flask',    item:'flask_fortune', rar:0, lvl:1, source:'known', cost:{glass_moss:2, crystal_quartz:1}, consumable:'luck'},
+  {id:'ch_u6', prof:'chemist', name:'Fortune Compound', item:'flask_fortune', rar:1, lvl:5, source:'known', cost:{glass_moss:3, prism_sap:2}, consumable:'luck'},
   {id:'ch_e1', prof:'chemist', name:'Genesis Compound',    item:'flask_genesis', rar:3, lvl:20, source:'drop', cost:{refined_bioessence:3, neon_bloom:6, catalyst_essence:2}, consumable:'idle'}
 ];
 const RECIPE_BY = {}; RECIPES.forEach(r => RECIPE_BY[r.id] = r);
@@ -5867,7 +5900,12 @@ const FLASKS = {
   flask_learning:  {name:'Learning Flask', ico:'📘', boost:'xp'},
   flask_echo:      {name:'Echo Serum',     ico:'🐾', boost:'petxp'},
   flask_expedition:{name:'Expedition Catalyst',ico:'🧭', boost:'expspd'},
-  flask_genesis:   {name:'Genesis Compound',ico:'✨', boost:'idle'}
+  flask_genesis:   {name:'Genesis Compound',ico:'✨', boost:'idle'},
+  /* [BUG] LOOT LUCK SAKNADES BLAND FLASKORNA. Alla andra boostar hade sin flaska;
+     turen hade bara handelsbodens flaska - och den var dessutom trasig i
+     serverlage, for tabellen over pagaende boostar kravde att boosttypen fanns
+     bland flaskornas och "luck" gjorde inte det. Nu finns den pa riktigt. */
+  flask_fortune:   {name:'Fortune Flask',  ico:'🍀', boost:'luck'}
 };
 function isFlask(key){ return !!FLASKS[key]; }
 /* Boostvarden per boostnyckel och raritet: langre OCH starkare med rariteten. En
@@ -5879,7 +5917,8 @@ const FLASK_BOOST = {
   travel:    {name:'Slipstream',      ico:'💨', pct:[15,20,30,45],   mins:[15,20,30,60], what:'shorter travel'},
   xp:        {name:'Learning',        ico:'📘', pct:[20,30,45,70],   mins:[15,20,30,60], what:'Player XP'},
   petxp:     {name:'Echo Growth',     ico:'🐾', pct:[25,40,60,90],   mins:[15,20,30,60], what:'Pet XP'},
-  expspd:    {name:'Expedition Rush',  ico:'🧭', pct:[20,30,45,70],   mins:[20,30,45,90], what:'shorter expeditions'}
+  expspd:    {name:'Expedition Rush',  ico:'🧭', pct:[20,30,45,70],   mins:[20,30,45,90], what:'shorter expeditions'},
+  luck:      {name:'Fortune',          ico:'🍀', pct:[20,30,45,70],   mins:[15,20,30,60], what:'more Loot Luck'}
 };
 /* STRAFFET AR BORT (v4.31.0). Tillverkat gear rullade forut bara mellan golvet
    och bandets MITT - hela oversta halvan var avskuren, sa ett PERFEKT tillverkat
@@ -9752,6 +9791,7 @@ function useInvItem(idx){
     if (got && got.length) spawnFloat({text: 'Opened — ' + got.length + ' pieces'});
     return !!(got && got.length);
   }
+  if (row.key === MELON_KEY) return openMelon(idx);
   const bk = BOOST_KEY_BY_ITEM[row.key];
   if (bk){
     if (!boostSlotsFree(bk)){
@@ -10114,9 +10154,14 @@ function invCellHTML(i, pos){
     const showQty = it.stack || it.qty > 1;
     /* Branslecellen bar samma bild som matarn i toppen - ingen ny bild, samma
        bild pa bada stallen, sa man kanner igen den utan att lasa. */
+    /* En stapel kan bara en BILD i stallet for ett tecken - melonen gor det.
+       Samma ruta, samma storlek, bara en annan sorts innehall. */
+    const artDef = ITEM_DEFS[it.key];
     const ico = it.key === 'fuelcell'
       ? '<span class="inv-ico"><span class="qi qi-fuel iv-qi"></span></span>'
-      : '<span class="inv-ico">' + it.ico + '</span>';
+      : (artDef && artDef.art
+          ? '<div class="iv-img" style="background-image:url(\'' + artDef.art + '\')"></div>'
+          : '<span class="inv-ico">' + it.ico + '</span>');
     const tick = (sellMode && sellableRow(it))
       ? '<span class="sell-tick">' + (sellPick.has(i) ? '✓' : '') + '</span>' : '';
     return '<div class="inv-slot filled' + gb + (sellPick.has(i) ? ' sell-on' : '') +
@@ -10302,6 +10347,9 @@ function rollExpeditionLoot(def){
   if (Math.random() < Math.min(0.20, 0.05 * Math.pow(Math.max(1, def.mins) / 2, 0.4))){
     loot.cell = true;
   }
+  /* MELONEN. Platt chans, ingen langd och ingen tur - lika sallsynt som en epic
+     pjas ar i forsta ringen. Samma tal som servern har. */
+  if (Math.random() < MELON_CHANCE) loot.melon = true;
   const chance = Math.min(0.95, gearDropChance(def) * (1 + (gearBonus('luck') + boostPct('luck')) / 100));
   if (Math.random() < chance){
     const rar = rollRarity(gearWeightsFor(def.region), Math.random());
@@ -10512,6 +10560,19 @@ function confirmClaim(){
         items: [{gear: run.loot.gear}]
       });
       spawnFloat({ text: 'Backpack full — sent to Inbox' });
+    }
+  }
+  /* Melonen staplar, sa den behover bara en ruta om den ar ny. */
+  if (run.loot.melon){
+    const D = ITEM_DEFS[MELON_KEY];
+    if (!addInvItem({key: MELON_KEY, name: D.name, ico: D.ico, stack: true})){
+      addMail({
+        from: 'Salvage Bay', src: 'overflow',
+        subject: D.name + ' held for you',
+        body: 'Your backpack was full when this came back from ' + (expZoneOf(run.id) || 'the field') +
+              '. Make room and collect it here.',
+        items: [{key: MELON_KEY, name: D.name, ico: D.ico, qty: 1}]
+      });
     }
   }
   /* Reliken tas emot pa samma satt som utrustningen: i vaskan om det finns plats,
@@ -11944,8 +12005,24 @@ const ITEM_DEFS = {
     desc: 'Drink for ' + BOOSTS.luck.pct + '% more Loot Luck for ' + BOOSTS.luck.mins +
           ' minutes. It raises the chance of a drop, not its rarity.',
     sell: GOLD(15)
+  },
+  /* MYSTERY MELON. Faller BARA ur uppdrag - inte ur boden, inte ur tomgangen,
+     inte ur ett recept. Oppnad ger den TVA pjaser ur andra ringens tabell, sa en
+     melon ar vard tva slag utan att man vet vad man far. Den bar en bild i
+     stallet for ett tecken; "flavor" ar den kursiva raden pa hovringskortet. */
+  mystery_melon: {
+    name: 'Mystery Melon', ico: '🍉', art: 'assets/items/mystery_melon.png',
+    kind: 'Consumable',
+    flavor: 'What is that? Is it edible? Is it a glitch?',
+    desc: 'Open it for two pieces of gear. What comes out is rolled when you open it — it could be two commons, it could be two epics.',
+    sell: GOLD(10)
   }
 };
+const MELON_KEY = 'mystery_melon';
+const MELON_DROPS = 2;
+const MELON_TIER = 1;          // andra ringens odds (spelarens beslut)
+/* Fyra procent: exakt den andel en epic pjas har i forsta ringens tabell. */
+const MELON_CHANCE = 0.04;
 const BOOST_KEY_BY_ITEM = {boost_idle: 'idle', boost_expspd: 'expspd', boost_luck: 'luck'};
 /* ---------- HANDLARENS PAKET ----------
    Vid femstjärnigt rykte skickar handlaren bud: kom förbi, jag har något åt dig.
@@ -12008,6 +12085,64 @@ function openBundle(idx){
   }
   renderInventory(); updateUI(true); save();
   return got;
+}
+/* ---------- MYSTERY MELON ----------
+   Tva pjaser ur ANDRA ringens tabell, rullade i det ogonblick man oppnar. Kraver
+   tva lediga rutor, precis som vardepaketet kraver tre - annars vore det oklart
+   vad man forlorade. Servern rullar i serverlage; klienten bara visar. */
+function openMelon(idx){
+  const row = S.inv[idx];
+  if (!row || row.key !== MELON_KEY) return false;
+  let free = 0;
+  for (let i = 0; i < invSlots(); i++) if (!S.inv[i]) free++;
+  if (row.qty <= 1) free++;                 /* melonens egen ruta blir ledig */
+  if (free < MELON_DROPS){ say('You need ' + MELON_DROPS + ' free slots to open it.'); return false; }
+  if (NET.on){
+    netOpenMelon()
+      .then(got => { if (got && got.length) showMelonResult(got); })
+      .catch(e => say(srvErrText(e, 'Could not open it.')));
+    return true;
+  }
+  row.qty--;
+  if (row.qty <= 0) S.inv[idx] = null;
+  const got = [];
+  for (let i = 0; i < MELON_DROPS; i++){
+    const rar = rollRarity(CACHE_WEIGHTS[MELON_TIER] || CACHE_WEIGHTS[0], Math.random());
+    const g = rollItem(pickItemKey(rar), rar);
+    g.src = 'Mystery Melon';
+    const f = invFirstFree();
+    if (f >= 0){ S.inv[f] = {gear: g}; got.push(g); }
+  }
+  renderInventory(); updateUI(true); save();
+  if (got.length) showMelonResult(got);
+  return true;
+}
+/* Rutan som visar vad som lag i den. Samma varld som spelets ovriga rutor: en
+   rubrik, pjaserna med sin bild och sin raritetsfarg, och en knapp som stanger. */
+function showMelonResult(list){
+  const back = document.createElement('div');
+  back.className = 'ask-back';
+  const cards = list.map(g => {
+    const D = ITEMS[g.t] || {};
+    return '<div class="mel-card" style="--rc:' + rarCol(g.r) + '">' +
+      '<div class="mel-art" style="background-image:url(\'' + gearArt(g) + '\')"></div>' +
+      '<div class="mel-nm">' + (D.name || 'Unknown') + '</div>' +
+      '<div class="mel-rar">' + GEAR_RAR[g.r].name + '</div>' +
+      '<div class="mel-lv">Item level ' + (g.lv || 1) + '</div>' +
+    '</div>';
+  }).join('');
+  back.innerHTML =
+    '<div class="ask-box mel-box" style="--pc:var(--cyan)">' +
+      '<div class="ask-ico">🍉</div>' +
+      '<div class="ask-h1">You cut it open</div>' +
+      '<div class="ask-body">Two pieces were inside.</div>' +
+      '<div class="mel-row">' + cards + '</div>' +
+      '<div class="ask-row"><button class="pf-btn" data-ok>NICE</button></div>' +
+    '</div>';
+  document.body.appendChild(back);
+  const done = () => back.remove();
+  back.querySelector('[data-ok]').addEventListener('click', done);
+  back.addEventListener('click', e => { if (e.target === back) done(); });
 }
 /* Paketen finns inte i ITEM_DEFS — de skapas per region — så uppslagningen känner
    igen dem på nyckeln och bygger definitionen i farten. */
@@ -12899,6 +13034,11 @@ function buildTrader(regionId){
          säger boden ifrån i klartext i stället för att sitta grå och tyst. */
       '<div class="tr-buy">' + btn('Buy — ' + fmtMoney(p), ' data-buyboost="' + key + '"', S.gold >= p) + '</div></div>';
   }).join('');
+  /* FORTUNE FLASK SALJS INTE HAR. Boden hade redan sin loot-boost - Fortune Vial -
+     och en andra rad med nastan samma namn gjorde bara vialen meningslos: flaskan
+     var trettio ganger billigare per procentminut. Uppdelningen ar densamma som
+     for varje annan boost: boden saljer vialen, kemisten brygger flaskan, och en
+     bryggd i hogre sallsynthet ar det starkaste som finns. */
   const row = (s, i) => {
     const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId, s);
     const full = vendorGearPrice(s.r);
@@ -14576,6 +14716,9 @@ function stackTipHTML(row){
   const junk = !!(d && d.junk);
   return '<div class="gt-name"' + (junk ? ' style="color:var(--text-faint)"' : '') + '>' +
       row.name + '</div>' +
+    /* En kursiv rad MELLAN namnet och sorten, for det som behover en ton snarare
+       an en forklaring. Melonen bar den; ingenting annat gor det an. */
+    (d && d.flavor ? '<div class="gt-flavor">' + d.flavor + '</div>' : '') +
     '<div class="gt-rar"' + (junk ? ' style="color:var(--text-faint)"' : '') + '>' +
       (d ? (d.kind || 'Item').toUpperCase() : 'ITEM') + '</div>' +
     '<div class="gt-sep"></div>' +
@@ -14909,8 +15052,15 @@ function openStackMenu(key, x, y){
        Den forsvinner dar den bara upprepar: flaskan (knappen och hovringen sager
        redan allt), branslecellen (tre rader som sager samma sak som knappen under)
        och materialen ("Gathered by Extractor" - det star i hovringen). */
-    const skipNote = r.flask || r.key === 'fuelcell' || (def && def.kind === 'Material');
+    /* Melonen har sin forklaring pa hovringskortet; menyn ska bara erbjuda valen. */
+    const skipNote = r.flask || r.key === 'fuelcell' || r.key === MELON_KEY ||
+                     (def && def.kind === 'Material');
     if (def && def.desc && !skipNote) h += '<div class="pm-note">' + def.desc + '</div>';
+    if (key === MELON_KEY){
+      /* FORSTA valet ar att oppna den, sista ar att salja. Det man vill gora
+         oftast star overst. */
+      h += '<button class="pm-item" data-act="melon">Open it up</button>';
+    }
     if (key === 'fuelcell'){
       const full = S.fuel >= fuelMax();
       h += '<button class="pm-item" data-act="use"' + (full ? ' disabled' : '') + '>' +
@@ -14946,7 +15096,8 @@ function openStackMenu(key, x, y){
     const at = findStackIdx(key);
     if (at < 0){ closeStackMenu(); return; }
     const act = b.dataset.act;
-    if (act === 'use'){ useInvItem(at); closeStackMenu(); }
+    if (act === 'melon'){ openMelon(at); closeStackMenu(); }
+    else if (act === 'use'){ useInvItem(at); closeStackMenu(); }
     else if (act === 'drink'){ if (drinkFlask(at)) say('Boost active!'); closeStackMenu(); }
     else if (act === 'learn'){
       const res = useRecipeItem(at);
@@ -17043,9 +17194,13 @@ function ahRenderPicker(){
         type: D && GEAR_SLOTS[D.slot] ? GEAR_SLOTS[D.slot].name : 'Gear',
         art: itemArtFor(g.t, g.r), avail: 1});
     } else if (it.stack && !it.bop){
+      /* En stapel kan bara en BILD i stallet for ett tecken, och sorten star i
+         katalogen nar den finns dar - annars hade melonen kallats "Material". */
+      const D = ITEM_DEFS[it.key];
       rows.push({kind: 'stack', key: it.key, rar: it.rar == null ? null : it.rar,
-        name: it.name, ico: it.ico, avail: it.qty,
-        type: it.flask ? 'Consumable' : (it.recipe ? 'Recipe' : 'Material')});
+        name: it.name, ico: it.ico, art: D && D.art ? D.art : null, avail: it.qty,
+        type: it.flask ? 'Consumable'
+            : (it.recipe ? 'Recipe' : (D && D.kind ? D.kind : 'Material'))});
     }
   });
   let h = '<div class="ah-pick-title">Your backpack — pick something to sell</div><div class="ah-rows ah-pick">';
@@ -17055,7 +17210,7 @@ function ahRenderPicker(){
     h += rows.map((r, i) =>
       '<div class="ah-row ah-prow" data-i="' + i + '">' +
         '<span class="ah-c-item">' +
-          (r.kind === 'item'
+          (r.art
             ? '<span class="ah-art" style="background-image:url(\'' + r.art + '\')"></span>'
             : '<span class="ah-art ah-art-emoji">' + r.ico + '</span>') +
           '<span class="ah-nm"><b style="color:' + ahRarCol(r.rar) + '">' + r.name + '</b><i>' + r.type + '</i></span></span>' +
