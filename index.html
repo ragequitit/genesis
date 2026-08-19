@@ -4052,7 +4052,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.42.1 — MELONEN AR ANDRA RINGEN</div>
+            <div class="desc">GENESIS v4.43.0 — RESTEN KASTAS INTE LANGRE</div>
           </div>
         </div>
       </div>
@@ -4063,7 +4063,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.42.1 — MELONEN AR ANDRA RINGEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.43.0 — RESTEN KASTAS INTE LANGRE</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -10478,11 +10478,29 @@ function expXpReward(def){
   return Math.round(48 * Math.pow(1.8, R ? Math.min(4, R.tier | 0) : 0)
                        * Math.pow(Math.max(1, def.mins || 1), 0.55));
 }
-function expFragBase(def){ return Math.max(1, Math.floor((def.mins || 1) / 5)); }
+/* [OBALANS] RESTEN KASTADES. Fragmenten raknades som minuter delat med fem,
+   avrundat NEDAT - sa allt mellan fem och tio minuter gav exakt ett fragment.
+   Sex minuter gav 0,167 per minut mot femmans 0,200, alltsa var tre uppdrag i
+   spelet strikt daliga att kora. Resten blir nu en CHANS pa ett fragment till,
+   precis som Fragment Find-bonusen redan raknas: sex minuter ger ett plus tjugo
+   procents chans pa ett andra, i snitt 1,2. Tvaminutersuppdraget ar orort - dess
+   rest ger ingen extrachans, for det lever redan pa golvet "minst ett". */
+function expFragWhole(def){ return Math.floor((def.mins || 1) / 5); }
+function expFragFrac(def){
+  const w = expFragWhole(def);
+  return w >= 1 ? ((def.mins || 1) / 5) - w : 0;
+}
+function expFragBase(def){
+  const w = expFragWhole(def);
+  return Math.max(1, w) + (Math.random() < expFragFrac(def) ? 1 : 0);
+}
 function expFragBonus(){ return (gearBonus('frag') + helperBonus('frag')) / 100; }
+/* Intervallet som VISAS ska inte slumpa - det ar en upplysning, inte en dragning.
+   Golvet ar det hela talet, taket ar ett mer om nagon av de tva resterna finns. */
 function expFragRange(def){
-  const lo = expFragBase(def) + Math.floor(expFragBonus());
-  return [lo, lo + ((expFragBonus() % 1) > 0 ? 1 : 0)];
+  const lo = Math.max(1, expFragWhole(def)) + Math.floor(expFragBonus());
+  const extra = (expFragFrac(def) > 0 ? 1 : 0) + ((expFragBonus() % 1) > 0 ? 1 : 0);
+  return [lo, lo + extra];
 }
 function rollIn(range){ return range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1)); }
 /* Gear-droppen: grundchans per expedition, höjd av Loot Luck. Sällsyntheten lutar
