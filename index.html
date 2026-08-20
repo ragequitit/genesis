@@ -4052,7 +4052,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.44.0 — MATERIALEN HAR KORTA NAMN</div>
+            <div class="desc">GENESIS v4.47.0 — SANKORNA OCH MARKNADEN</div>
           </div>
         </div>
       </div>
@@ -4063,7 +4063,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.44.0 — MATERIALEN HAR KORTA NAMN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.47.0 — SANKORNA OCH MARKNADEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -6254,6 +6254,10 @@ function craftRecipe(rid){
   } else {
     const g = rollItem(r.item, r.rar, CRAFT_CAP);
     g.craft = 1;                       /* stampeln, oberoende av bandet */
+    /* CRAFTAT ANVANDER INTE SALLSYNTHETENS GULDBAND (v4.45.0). Bandet hor till
+       DROPPAD utrustning. En craftad pjas ar vard 20 % av vad receptet at, och
+       talet sitter pa pjasen fran den sekund den fods - det ror sig aldrig mer. */
+    g.g = craftedValue(r);
     addExtraAffix(g);                  /* tillverkat bar en egenskap extra */
     S.inv[invFirstFree()] = {gear: g};
     out = g;
@@ -9331,9 +9335,9 @@ const INV_BASE_SLOTS = 20;
    sista med credits. Facken är oberoende av varandra — köper man ett credit-fack
    först låses bara det upp, och guld-facken förblir låsta tills de köps. */
 let VAULT_BAG_SLOTS = [
-  {cur: 'gold',    cost: GOLD(25)},
-  {cur: 'gold',    cost: GOLD(50)},
-  {cur: 'gold',    cost: GOLD(120)},
+  {cur: 'gold',    cost: GOLD(30)},
+  {cur: 'gold',    cost: GOLD(75)},
+  {cur: 'gold',    cost: GOLD(150)},
   {cur: 'tokens',  cost: 30},
   {cur: 'tokens',  cost: 55},
   {cur: 'credits', cost: 450},
@@ -9347,7 +9351,7 @@ function vaultBagShortText(i){ return shortText(VAULT_BAG_SLOTS[i]); }
    listan nedan ar bara reserv for offline-laget. */
 let BAG_SLOTS = [
   {cur: 'gold',    cost: GOLD(25)},
-  {cur: 'gold',    cost: GOLD(50)},
+  {cur: 'gold',    cost: GOLD(60)},
   {cur: 'tokens',  cost: 25},
   {cur: 'tokens',  cost: 45},
   {cur: 'credits', cost: 300}
@@ -10462,11 +10466,24 @@ function expGoldText(def){
    ut. Nu: avtagande takt (korta uppdrag bast per minut), ett steg per ring,
    och ett smalt slumpband sa belöningen aldrig blir en loneutbetalning.
    Samma tal som servern raknar. */
-const EXP_GOLD_ANCHOR = 13636;      // koppar
+/* EXPEDITIONSGULDET (v4.46.0) — SATT SOM EN TIMPENNING, INTE SOM EN KURVA.
+   Den gamla formeln var avtagande per minut: ett tvaminutersuppdrag gav mest
+   guld per timme av allt i spelet, sa det basta man kunde gora var att sitta och
+   starta om det. Nu ar det tvartom - langa uppdrag ger BATTRE per timme, vilket
+   ar vad ett idlespel vill belona.
+
+   Varje ring har en timpenning per plats, och langden lutar den:
+     0,45 vid tva minuter, stigande mot 1,00 vid tva timmar.
+   Talen ar per plats och FORE skatten. Samma tal som servern raknar. */
+const EXP_GOLD_PER_HOUR = [71000, 118000, 188000, 282000, 400000];  // koppar/timme/plats
+function expDurationBonus(mins){
+  const m = Math.min(120, Math.max(2, mins));
+  return 0.45 + 0.55 * Math.pow((m - 2) / 118, 0.6);
+}
 function expGoldRange(def){
   const tier = (REGIONS[def.region] ? REGIONS[def.region].tier : 0) | 0;
-  const mid = EXP_GOLD_ANCHOR * Math.pow(1.8, Math.min(4, tier))
-            * Math.pow(Math.max(1, def.mins), 0.55);
+  const mins = Math.min(120, Math.max(2, def.mins));
+  const mid = EXP_GOLD_PER_HOUR[Math.min(4, tier)] * (mins / 60) * expDurationBonus(mins);
   return [Math.round(mid * 0.88), Math.round(mid * 1.12)];
 }
 /* Fragmenten foljer LANGDEN, inte nivan - ett fragment per pabörjad femminuters,
@@ -10514,7 +10531,16 @@ function rollIn(range){ return range[0] + Math.floor(Math.random() * (range[1] -
 const EXP_TAX = 0.15;
 function taxOn(gold){ return Math.floor(gold * EXP_TAX); }
 function goldAfterTax(gold){ return Math.max(0, gold - taxOn(gold)); }
-const GEAR_DROP_BASE = 0.22, GEAR_DROP_ANCHOR = 2, GEAR_DROP_CURVE = 0.45, GEAR_DROP_MAX = 0.75;
+/* DROPPCHANSERNA (v4.46.0) — ALLA FOLJER LANGDEN, OCH TUREN LIGGER YTTERST.
+   Ordningen ar tvingande och far aldrig kastas om:
+       1. rakna grundkurvan ur langden
+       2. TAKA grundkurvan
+       3. multiplicera med (1 + Loot Luck)
+       4. taka hela talet
+   Turen laggs alltsa PA efter grundtaket, aldrig i det - annars ater taket upp
+   turen och Loot Luck blir en egenskap som inte gor nagot. */
+const GEAR_DROP_PER_MIN = 0.00625, GEAR_DROP_MAX = 0.75;
+function lootLuckMult(){ return 1 + (gearBonus('luck') + boostPct('luck') + flaskPct('luck')) / 100; }
 /* Expeditionens verkliga längd i sekunder: nominell tid minus Expedition Speed. */
 function expTimeText(def){
   const s = expRunSeconds(def), nom = def.mins * 60;
@@ -10526,9 +10552,9 @@ function expRunSeconds(def){
      fortfarande, så en körning kan aldrig bli ögonblicklig. */
   return Math.max(30, Math.round(def.mins * 60 * (1 - (gearBonus('expspd') + boostPct('expspd') + flaskPct('expspd')) / 100)));
 }
+function relTier(def){ const R = REGIONS[def.region]; return R ? (R.tier | 0) : 0; }
 function gearDropChance(def){
-  const t = Math.max(1, def.mins) / GEAR_DROP_ANCHOR;
-  return Math.min(GEAR_DROP_MAX, GEAR_DROP_BASE * Math.pow(t, GEAR_DROP_CURVE));
+  return Math.min(GEAR_DROP_MAX, GEAR_DROP_PER_MIN * Math.max(1, def.mins));
 }
 const GEAR_WEIGHTS = {
   0: [640, 250,  80,  25,  4, 1],
@@ -10548,13 +10574,15 @@ function rollExpeditionLoot(def){
   };
   /* Bränslecell: en chans, aldrig en garanti. Skalar med längden precis som gear
      men mycket snålare — cellen är ett fynd, inte en inkomst. */
-  if (Math.random() < Math.min(0.20, 0.05 * Math.pow(Math.max(1, def.mins) / 2, 0.4))){
+  if (Math.random() < 0.12 * (Math.min(120, Math.max(2, def.mins)) / 120)){
     loot.cell = true;
   }
-  /* MELONEN. Platt chans, ingen langd och ingen tur - lika sallsynt som en epic
-     pjas ar i forsta ringen. Samma tal som servern har. */
-  if (Math.random() < MELON_CHANCE) loot.melon = true;
-  const chance = Math.min(0.95, gearDropChance(def) * (1 + (gearBonus('luck') + boostPct('luck')) / 100));
+  /* MELONEN foljer nu langden som allt annat. Platt chans betydde att ett
+     tvaminutersuppdrag gav lika manga meloner per korning som ett tvatimmars,
+     alltsa sextio ganger fler per timme - samma sjukdom som guldet hade.
+     Turen rakans INTE har, och det ar med flit: melonen ar en slump, inte ett fynd. */
+  if (Math.random() < MELON_CHANCE * (Math.min(120, Math.max(2, def.mins)) / 120)) loot.melon = true;
+  const chance = Math.min(0.95, gearDropChance(def) * lootLuckMult());
   if (Math.random() < chance){
     const rar = rollRarity(gearWeightsFor(def.region), Math.random());
     loot.gear = rollItem(pickItemKey(rar), rar);
@@ -10568,8 +10596,8 @@ function rollExpeditionLoot(def){
      Samma tal som pa servern: tva procent i grunden, langre uppdrag ger mer,
      Loot Luck raknas med, taket ar atta procent. */
   if (RELIC_DROPS.length){
-    const relChance = Math.min(0.08, 0.02 * Math.pow(Math.max(1, def.mins) / 2, 0.35) *
-      (1 + (gearBonus('luck') + boostPct('luck')) / 100));
+    const relBase = Math.min(0.20, 0.04 * (Math.min(120, Math.max(2, def.mins)) / 120) * (1 + relTier(def) * 0.15));
+    const relChance = Math.min(0.95, relBase * lootLuckMult());
     if (Math.random() < relChance){
       const rr = rollRarity(gearWeightsFor(def.region), Math.random());
       const key = RELIC_DROPS[Math.floor(Math.random() * RELIC_DROPS.length)];
@@ -10581,7 +10609,8 @@ function rollExpeditionLoot(def){
   const rtier = RR ? (RR.tier | 0) : 0;
   const rpool = undiscoveredRecipesForTier(rtier);
   if (rpool.length){
-    const recChance = Math.min(0.30, 0.06 * (1 + (gearBonus('luck') + boostPct('luck')) / 100) * (1 + rtier * 0.15));
+    const recBase = Math.min(0.20, 0.06 * (Math.min(120, Math.max(2, def.mins)) / 120) * (1 + rtier * 0.15));
+    const recChance = Math.min(0.30, recBase * lootLuckMult());
     if (Math.random() < recChance) loot.recipe = rpool[Math.floor(Math.random() * rpool.length)].id;
   }
   return loot;
@@ -11884,9 +11913,14 @@ const REGIONS = {
    att hitta. Cellpriset är samma i hela världen; det som skiljer är DITT rykte
    i regionen: 3 % rabatt per stjärna. Rykte blir därmed pengar. */
 const TRADE_ZONE = 'Vendor';
-const CELL_PRICE_BASE = GOLD(10);
+/* HANDLARENS PRISER (v4.47.0). Aterkopet ar alltid en femtedel av kopet, och
+   en golvregel haller det sa: rabatten far aldrig trycka kopet under 125 % av
+   vad handlaren betalar tillbaka. Utan den kan en femstjarnig rabatt gora en
+   boost till en pengamaskin. */
+const CELL_PRICE_BASE = GOLD(12);
 function cellPrice(regionId){
-  return Math.max(1, Math.round(CELL_PRICE_BASE * (1 - 0.03 * repRank(regionId))));
+  return Math.max(vendorBuyFloor('fuelcell'),
+                  Math.round(CELL_PRICE_BASE * (1 - 0.03 * repRank(regionId))));
 }
 
 /* ================= BRÄNSLET =================
@@ -12150,7 +12184,33 @@ function markMailRead(id){
 }
 /* Skrotets saljpris - samma tal som servern har i sin prislista. Det ar INGEN
    skrapsak: det ar ett material, och det ligger darfor utanfor JUNK. */
-const SCRAP_SELL = 2000;
+/* ---------- MATERIALENS SALJVARDEN (v4.45.0) ----------
+   EN lista, samma tal som servern. Talen ar med flit laga - handlaren ar ett
+   golv, inte en inkomst. Vill man ha betalt saljer man till en annan spelare.
+
+   TVA KONVERTERINGAR AR EXAKT VARDENEUTRALA, och det ar hela poangen:
+     3 Scrap a 1 silver  -> 1 basmaterial a 3 silver
+     5 sallsynta a 15 s  -> 1 foradlat a 75 silver
+   Gled nagot av talen isar skulle foradlingen antingen forstora varde (som den
+   gjorde nar skrotet var vart 20 silver och en malm 12) eller trycka pengar. */
+const MAT_SELL = {
+  scrap:    100,     /* 1 silver  - skrotet ar inte langre idleinkomsten */
+  base:     300,     /* 3 silver  */
+  gem:      800,     /* 8 silver  */
+  rare:    1500,     /* 15 silver - sjalsbundet, handlaren kop:er det anda */
+  refined: 7500,     /* 75 silver = 5 x 15, vardeneutralt */
+  comp:    1500      /* 15 silver - hantverkarens egen bundna komponent */
+};
+function matSellValue(key){
+  if (key === 'salvaged_scrap') return MAT_SELL.scrap;
+  const m = MATERIALS[key];
+  if (!m) return 0;
+  if (m.gem)     return MAT_SELL.gem;
+  if (m.refined) return MAT_SELL.refined;
+  if (m.comp)    return MAT_SELL.comp;
+  return m.tier >= 1 ? MAT_SELL.rare : MAT_SELL.base;
+}
+const SCRAP_SELL = MAT_SELL.scrap;
 /* Skrapets saljpris - samma tal som servern har. Flavor visas i hovertexten. */
 const JUNK = {
   junk_soda:     {copper: 2,  flavor:'Someone drank the good part.'},
@@ -12201,26 +12261,26 @@ const ITEM_DEFS = {
     ico: '⛽',
     kind: 'Consumable',
     desc: 'A sealed charge of warp fuel. Use it to restore ' + FUEL_CELL_RESTORE + ' fuel — the tank never overflows, so a full tank refuses the cell instead of wasting it.',
-    sell: GOLD(5)
+    sell: GOLD(2.5)
   },
   boost_idle: {
     name: BOOSTS.idle.name, ico: BOOSTS.idle.ico, kind: 'Consumable',
     desc: 'Drink to double your Data per second for ' + BOOSTS.idle.mins +
           ' minutes. Drinking another adds its time to the one already running.',
-    sell: GOLD(12)
+    sell: GOLD(7)
   },
   boost_expspd: {
     name: BOOSTS.expspd.name, ico: BOOSTS.expspd.ico, kind: 'Consumable',
     desc: 'Drink to finish expeditions ' + BOOSTS.expspd.pct + '% faster for ' +
           BOOSTS.expspd.mins + ' minutes. Runs already under way keep their own clock.',
     /* Priset följde timmen; halverad tid, halverat värde. */
-    sell: GOLD(10)
+    sell: GOLD(9)
   },
   boost_luck: {
     name: BOOSTS.luck.name, ico: BOOSTS.luck.ico, kind: 'Consumable',
     desc: 'Drink for ' + BOOSTS.luck.pct + '% more Loot Luck for ' + BOOSTS.luck.mins +
           ' minutes. It raises the chance of a drop, not its rarity.',
-    sell: GOLD(15)
+    sell: GOLD(11)
   },
   /* MYSTERY MELON. Faller BARA ur uppdrag - inte ur boden, inte ur tomgangen,
      inte ur ett recept. Oppnad ger den TVA pjaser ur andra ringens tabell, sa en
@@ -12233,7 +12293,7 @@ const ITEM_DEFS = {
     desc: 'You should try to open it up.',
     /* Den UPPSKURNA melonen: egen bild, bara till rutan som visar vad som lag i. */
     artOpen: 'assets/items/mystery_melon_open.png',
-    sell: GOLD(10)
+    sell: GOLD(5)
   }
 };
 const MELON_KEY = 'mystery_melon';
@@ -12390,8 +12450,7 @@ function itemDef(row){
     /* Foradlat kostar 3 + 2 sallsynta a 50 silver att gora, alltsa 250 silver,
        och ar vart precis det. Forut stod det 90 har och pa servern - da
        forstorde foradlingen varde hos handlaren i stallet for att bevara det. */
-    const sell = m.gem ? 6000 : m.refined ? 25000 : m.comp ? 12000
-               : (m.tier >= 1 ? 5000 : 1200);
+    const sell = matSellValue(row.key);
     return {key: row.key, name: m.name, ico: m.ico, sell: sell, kind: 'Material',
             desc: m.prof ? 'Gathered by ' + (PROF_BY[m.prof] ? PROF_BY[m.prof].name : m.prof) + '.' : undefined};
   }
@@ -12411,7 +12470,7 @@ function itemDef(row){
     const pct = B && B.pct ? B.pct[Math.min(rar, B.pct.length - 1)] : null;
     const mins = B && B.mins ? B.mins[Math.min(rar, B.mins.length - 1)] : null;
     return {key: row.key, name: f.name, ico: f.ico, kind: 'Consumable',
-            sell: FLASK_SELL[Math.min(rar, FLASK_SELL.length - 1)],
+            sell: (craftedStackValue(row.key, rar) || FLASK_SELL[Math.min(rar, FLASK_SELL.length - 1)]),
             desc: B ? ('+' + pct + '% ' + B.what + ' for ' + mins + ' minutes.') : undefined};
   }
   /* RECEPT: ett fynd som larer sitt recept nar man anvander det. */
@@ -12423,6 +12482,59 @@ function itemDef(row){
   return (row && row.key && ITEM_DEFS[row.key]) || null;
 }
 /* Handlarens pris pa en flaska, per sallsynthet. Samma tal som servern har. */
+/* ---------- VAD ETT CRAFTAT FORMAL AR VART (v4.45.0) ----------
+   DET HAR AR VAD SOM STANGER PENGAMASKINEN. Ett recept at material for 60
+   silver och gav en pjas handlaren kop:te for 11,5 GULD - nitton ganger
+   pengarna, riskfritt, fran niva 1. Sedan pjaserna skalar med niva blev det
+   trettiotva ganger som varst.
+
+   Nu ar ett craftat foremal vart 20 % av det receptet at, och ingenting annat.
+   Talet ror sig ALDRIG: inte med niva, inte med rykte, inte om priserna andras
+   sedan, inte nar det byter agare.
+
+   VARFOR TVA VAGAR ATT LAGRA DET:
+   - En PJAS ar unik och har en egen rad. Vardet raknas nar den fods och sitter
+     pa pjasen.
+   - En FLASKA STAPLAR. En stapel har nyckel, sallsynthet och antal - det finns
+     ingen plats att hanga ett varde per exemplar pa. Darfor raknas flaskans
+     varde en gang per RECEPT och slas upp pa (nyckel, sallsynthet). Alla
+     exemplar av samma flaska ar da lika mycket varda, vilket ar precis vad en
+     stapel kraver. Skulle tva recept ge samma flaska i samma sallsynthet maste
+     de ge samma varde - det vaktas nedan. */
+const CRAFT_VALUE_FRAC = 0.20;
+/* Vad EN enhet av en ingrediens ar vard nar receptets kostnad raknas. */
+function ingredientValue(key){
+  if (MATERIALS[key]) return matSellValue(key);
+  return 0;
+}
+/* Summan av vad receptet at. */
+function recipeInputValue(r){
+  let sum = 0;
+  Object.keys(r.cost || {}).forEach(k => { sum += ingredientValue(k) * r.cost[k]; });
+  return sum;
+}
+function craftedValue(r){ return Math.floor(CRAFT_VALUE_FRAC * recipeInputValue(r)); }
+/* Uppslagningen for STAPLAR: byggs en gang ur receptlistan. Nyckeln ar exakt
+   den staplarna redan anvander, sa ett varde kan aldrig hamna pa fel exemplar. */
+const CRAFTED_STACK_VALUE = {};
+(function buildCraftedStackValues(){
+  RECIPES.forEach(r => {
+    if (!FLASKS[r.item]) return;          /* bara stackbara slutprodukter */
+    const key = r.item + ':' + r.rar;
+    const v = craftedValue(r);
+    if (CRAFTED_STACK_VALUE[key] != null && CRAFTED_STACK_VALUE[key] !== v){
+      console.warn('Tva recept ger samma flaska med olika varde:', key,
+                   CRAFTED_STACK_VALUE[key], v);
+    }
+    CRAFTED_STACK_VALUE[key] = v;
+  });
+})();
+function craftedStackValue(itemKey, rar){
+  const v = CRAFTED_STACK_VALUE[itemKey + ':' + (rar | 0)];
+  return v == null ? 0 : v;
+}
+/* HANDLARENS EGNA flaskor (de han saljer ur boden) har sina egna priser och
+   rors inte av det har - de ar inte craftade. */
 const FLASK_SELL = [1500, 3000, 6000, 12000];
 /* Regionresor: priset är SUMMAN av ringstegen (spelarens beslut) — inga rabatter
    för långa hopp, ingen billigare hemresa. Hela världen i ett svep = 95, alltså
@@ -13299,10 +13411,19 @@ function buildTrader(regionId){
 let vendorTab = 'gear';    // vilken flik som visas hos handlaren
 /* Priset följer samma rep-rabatt som cellen — en handlare som gillar dig är
    billigare på allt, annars vore rabatten en gåta. */
+const VENDOR_BUY_PRICE = {
+  fuelcell:     GOLD(12),
+  boost_idle:   GOLD(35),
+  boost_expspd: GOLD(45),
+  boost_luck:   GOLD(55)
+};
+/* Golvet: kopet far aldrig hamna under 125 % av aterkopet, hur manga stjarnor
+   man an har. Da kan man aldrig kopa billigt och salja tillbaka med vinst. */
+function vendorBuyFloor(key){ return Math.ceil(ITEM_DEFS[key].sell * 1.25); }
 function boostPrice(key, regionId){
-  const base = ITEM_DEFS[key].sell * 4;
+  const base = VENDOR_BUY_PRICE[key] != null ? VENDOR_BUY_PRICE[key] : ITEM_DEFS[key].sell * 4;
   const stars = repRank(regionId);
-  return Math.max(1, Math.round(base * (1 - 0.03 * stars)));
+  return Math.max(vendorBuyFloor(key), Math.round(base * (1 - 0.03 * stars)));
 }
 function buyBoost(regionId, key){
   const D = ITEM_DEFS[key];
@@ -14936,7 +15057,7 @@ function gearTipHTML(it){
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
     '<div class="gt-sep"></div>' +
     line('Sells for', fmtMoney(gearGold(it))) +
-    (it.craft ? '<div class="gt-craft">⚒️ Crafted</div>' : '') +
+    (it.craft ? '<div class="gt-craft">⚒️ Crafted — low vendor value</div>' : '') +
     hint;
 }
 /* Samma ruta som gear använder, men med staplarnas tre svar. Ingen påhittad
@@ -17132,11 +17253,48 @@ const AH = {
   counts: null, res: null, my: null,
   sel: null, qty: 1, price: 0, hours: 24, busy: false
 };
-const AH_FEE_BASE = {24: 5, 48: 10, 72: 15};
-/* Market Standing sanker avgiften en procentenhet per niva. Utan detta visade
-   saljrutan en hogre avgift an den servern faktiskt drar nar varan gar. */
+/* AVGIFTEN AR DELAD I TVA SEDAN v4.47.0.
+
+   Forut kostade det 5-15 % ATT LAGGA UPP en annons, och pengarna var borta
+   aven om ingen kopte. Med en tunn marknad ar det en straffavgift for att ens
+   forsoka: satter man fel pris en gang har man betalat femton procent for
+   ingenting. Nu:
+
+     ANNONSAVGIFT  0,5 / 1 / 1,5 %  betalas nar annonsen laggs upp, minst 1 silver
+     FORSALJNINGSSKATT  8 %         dras BARA nar nagot faktiskt saljs
+
+   Att prova kostar alltsa nastan ingenting; det som kostar ar att lyckas. Och
+   skatten ar det enda i spelet som tar bort guld ur ekonomin pa riktigt. */
+const AH_FEE_BASE = {24: 0.5, 48: 1, 72: 1.5};
+const AH_SALE_TAX_BASE = 8, AH_SALE_TAX_FLOOR = 5, AH_FEE_MIN = SILVER(1);
+/* Market Standing sanker numera SKATTEN, inte annonsavgiften - en procentenhet
+   per niva, med golv pa fem procent. Att sanka en halvprocentsavgift hade varit
+   en formån som inte gick att kanna. */
+function ahSaleTaxPct(){
+  return Math.max(AH_SALE_TAX_FLOOR, AH_SALE_TAX_BASE - (NET.on ? perkLvl('ahFee') : 0));
+}
+function ahListingFeeCopper(totalGold){
+  return Math.max(AH_FEE_MIN, Math.ceil(totalGold * COPPER_PER_GOLD * AH_FEE_BASE[AH.hours] / 100));
+}
+/* De fyra talen ritas om pa ETT stalle. Forut stod samma uttryck pa fyra
+   rader och det racker att en glommer bort skatten for att rutan ska ljuga. */
+function ahRefreshMoneyRows(){
+  const t = AH.qty * AH.price, cu = t * COPPER_PER_GOLD;
+  const fee = ahListingFeeCopper(t);
+  const tax = Math.ceil(cu * ahSaleTaxPct() / 100);
+  const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  set('ah-feeval', moneyText(fee));
+  set('ah-taxval', moneyText(tax));
+  set('ah-payval', moneyText(Math.max(0, Math.floor(cu - tax))));
+  const tv = $('ah-totalval'); if (tv) tv.innerHTML = ahCoin(t);
+  const btn = $('ah-listbtn');
+  if (btn){
+    btn.disabled = S.gold < fee;
+    btn.textContent = fee > 0 ? 'LIST ITEM — PAY ' + moneyText(fee) : 'LIST ITEM';
+  }
+}
 function ahFeePct(hours){
-  return Math.max(1, AH_FEE_BASE[hours] - (NET.on ? perkLvl('ahFee') : 0));
+  return AH_FEE_BASE[hours];
 }
 const AH_FEE = AH_FEE_BASE;
 const AH_CATS = [
@@ -17498,14 +17656,18 @@ function ahRenderSellPanel(){
     '<div class="ah-pricebox"><span class="ah-coin">🪙</span><input id="ah-price" inputmode="numeric" value="' + (AH.price || '') + '" placeholder="0"><span class="ah-pen">✎</span></div>' +
     /* Avgiften betalas NAR annonsen laggs upp, inte nar nagot saljs. Da maste
        den sta som en kostnad har, inte som ett avdrag langre fram. */
-    '<div class="ah-feerow"><span>Market fee (' + fee + '%) — paid now</span>' +
+    '<div class="ah-feerow"><span>Listing fee (' + fee + '%) — paid now</span>' +
       '<span id="ah-feeval">' + moneyText(feeCu) + '</span></div>' +
+    '<div class="ah-feerow"><span>Sale tax (' + ahSaleTaxPct() + '%) — only if it sells</span>' +
+      '<span id="ah-taxval">' + moneyText(Math.ceil(total * COPPER_PER_GOLD * ahSaleTaxPct() / 100)) + '</span></div>' +
     '<div class="ah-total"><span>You ask</span><span id="ah-totalval">' + ahCoin(total) + '</span></div>' +
+    '<div class="ah-feerow"><span>You receive if it sells</span>' +
+      '<span id="ah-payval">' + moneyText(Math.floor(total * COPPER_PER_GOLD * (1 - ahSaleTaxPct() / 100))) + '</span></div>' +
     '<div class="ah-lbl">Duration</div>' +
     '<select id="ah-dur" class="ah-dur">' +
-      '<option value="24"' + (AH.hours === 24 ? ' selected' : '') + '>24 HOURS — 5% fee</option>' +
-      '<option value="48"' + (AH.hours === 48 ? ' selected' : '') + '>48 HOURS — 10% fee</option>' +
-      '<option value="72"' + (AH.hours === 72 ? ' selected' : '') + '>72 HOURS — 15% fee</option>' +
+      '<option value="24"' + (AH.hours === 24 ? ' selected' : '') + '>24 HOURS — 0.5% listing fee</option>' +
+      '<option value="48"' + (AH.hours === 48 ? ' selected' : '') + '>48 HOURS — 1% listing fee</option>' +
+      '<option value="72"' + (AH.hours === 72 ? ' selected' : '') + '>72 HOURS — 1.5% listing fee</option>' +
     '</select>' +
     '<button class="ah-listbtn" id="ah-listbtn"' +
       (S.gold < feeCu ? ' disabled' : '') + '>' +
@@ -17524,24 +17686,15 @@ function ahRenderSellPanel(){
     let n = Math.min(s.avail, Math.max(0, +raw || 0));
     if (String(n) !== raw) qv.value = raw === '' ? '' : String(n);
     AH.qty = Math.max(1, n);
-    const t = AH.qty * AH.price;
-    $('ah-feeval').textContent = moneyText(Math.ceil(t * COPPER_PER_GOLD * ahFeePct(AH.hours) / 100));
-    $('ah-totalval').innerHTML = ahCoin(t);
+    ahRefreshMoneyRows();
   });
   qv.addEventListener('blur', () => { qv.value = AH.qty; });
   const pr = $('ah-price');
   pr.addEventListener('input', () => {
     AH.price = Math.max(0, Math.floor(+pr.value.replace(/[^0-9]/g, '') || 0));
-    const t = AH.qty * AH.price;
-    $('ah-feeval').textContent = moneyText(Math.ceil(t * COPPER_PER_GOLD * ahFeePct(AH.hours) / 100));
-    $('ah-totalval').innerHTML = ahCoin(t);
-    /* Knappen maste ocksa folja med: skriver man in ett pris man inte har rad
-       att annonsera for ska den slockna direkt, inte vid nasta omritning. */
-    const btn = $('ah-listbtn'), cu = Math.ceil(t * COPPER_PER_GOLD * ahFeePct(AH.hours) / 100);
-    if (btn){
-      btn.disabled = S.gold < cu;
-      btn.textContent = cu > 0 ? 'LIST ITEM — PAY ' + moneyText(cu) : 'LIST ITEM';
-    }
+    /* Knappen foljer med direkt: skriver man in ett pris man inte har rad att
+       annonsera for ska den slockna nu, inte vid nasta omritning. */
+    ahRefreshMoneyRows();
   });
   $('ah-dur').addEventListener('change', e => { AH.hours = +e.target.value; ahRenderSellPanel(); });
   $('ah-listbtn').addEventListener('click', ahDoList);
