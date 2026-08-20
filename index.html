@@ -539,6 +539,17 @@ body.dragging *{cursor:grabbing !important}
 /* Prisraden far luft over sig - utan den satt den klistrad mot sista
    egenskapen och de tva sag ut som samma lista. */
 .iw-price{margin-top:8px}
+/* ---------- KOPET FLYGER TILL VASKAN ----------
+   Utan den har fanns ingen bekraftelse alls: man tryckte kop, guldet sjonk och
+   ingenting rorde sig. En ikon som lamnar knappen och landar i vaskan sager
+   BADE att kopet gick igenom OCH var saken tog vagen - utan ett enda ord. */
+.buy-fly{position:fixed;z-index:12000;pointer-events:none;font-size:26px;
+  line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));
+  will-change:transform,opacity}
+.bag-btn.got{animation:bagGot .45s ease}
+@keyframes bagGot{0%{transform:translateX(-50%) scale(1)}
+  40%{transform:translateX(-50%) scale(1.18)}
+  100%{transform:translateX(-50%) scale(1)}}
 /* Tuning-knappen ar liten och sitter i egenskapens egen rad - den ska inte
    aga kortet, den ar ett tillval. */
 .af-tune{margin-left:8px;border:1px solid var(--border-soft);background:transparent;
@@ -4062,7 +4073,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.57.1 — HJALPARNA OCH TRADET SVEPTA</div>
+            <div class="desc">GENESIS v4.58.0 — SJU RATTNINGAR UR DIN SPELOMGANG</div>
           </div>
         </div>
       </div>
@@ -4073,7 +4084,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.57.1 — HJALPARNA OCH TRADET SVEPTA</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.58.0 — SJU RATTNINGAR UR DIN SPELOMGANG</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4906,7 +4917,11 @@ async function netVendorBuyStack(regionId, key, qty){
   const r = await srvRpc('vendor_buy_stack',
     {p_character: SRV.charId, p_region: regionId, p_key: key, p_qty: Math.max(1, qty | 0) || 1});
   await netPull(); await netPullItems();
-  renderInventory(); updateUI(true);
+  /* [BUGG] Forut ritades bara vaskan om. Kopte man hantverkssatser med
+     receptboken oppen stod raden kvar rod tills man stangde och oppnade den
+     igen. redrawAll ar den gemensamma omritningen - allt som beror pa
+     serverdata ska ga genom den, annars blir det har felet igen nasta gang. */
+  redrawAll();
   return r;
 }
 async function netSellStack(key, qty, rar){
@@ -5852,7 +5867,12 @@ function tickGather(dt){
     }
     changed = true;
   }
-  if (changed && panelOpen) renderGatherLoops();
+  /* [BUGG] BARA PASSETS EGEN RAD RITADES OM. Materialet tickade in och siffran
+     bredvid rorde sig, men XP-MATAREN ovanfor stod stilla tills man stangde och
+     oppnade yrkessidan - for den ritas av renderProfessions, som ingen bad om.
+     Samma familj som allt annat den har veckan: ratt sak i minnet, skarmen inte
+     omritad. */
+  if (changed && panelOpen){ renderGatherLoops(); renderProfessions(); }
 }
 function matDef(key){ return MATERIALS[key] || null; }
 /* Ger spelaren material - en tunn wrapper over addInvItem sa allt material fods
@@ -6317,6 +6337,17 @@ function craftMax(rid){
   });
   return Math.max(0, Math.min(n, 99));
 }
+/* Kon ar bunden till att RUTAN AR OPPEN. Stanger man receptboken mitt i en
+   "All 50" ska det sluta - forut fortsatte den i bakgrunden och at material
+   ur en vaska man inte tittade pa. */
+function craftStopIfClosed(){
+  const ov = $('recipe-overlay');
+  if (craftJob.left > 0 && (!ov || !ov.classList.contains('open'))){
+    craftJob.rid = null; craftJob.left = 0; craftJob.busy = false;
+    return true;
+  }
+  return false;
+}
 function craftQueue(rid, n){
   if (craftJob.rid === rid && craftJob.left > 0){
     /* Andra trycket pa samma recept avbryter det som ar kvar. */
@@ -6333,6 +6364,7 @@ function craftQueue(rid, n){
 /* Ritas av spelets klocka, tio ganger i sekunden. */
 function tickCraft(){
   if (!craftJob.rid) return;
+  if (craftStopIfClosed()) return;   /* rutan stangd -> kon avbryts */
   const el = document.querySelector('[data-bar="' + craftJob.rid + '"]');
   const p = Math.min(1, (performance.now() - craftJob.t0) / (CRAFT_SECS * 1000));
   if (el){
@@ -10710,6 +10742,12 @@ function renderInventory(){
 /* Tar HELA uppdraget. Forut tog den uppdragets niva, och eftersom guldet raknas
    ur minuter och ring blev bade tiden och regionen odefinierade - listan skrev
    "NaNc - NaNc". Formeln var ratt hela tiden; anropet var fel. */
+/* Myntet ska visa den valor beloppet faktiskt hamnar i. Ett uppdrag som ger
+   44 silver med ett GULDMYNT framfor sig sager fel sak pa en rad man skummar. */
+function expCoinIco(def){
+  const r = expGoldRange(def);
+  return r[1] >= COPPER_PER_GOLD ? '🪙' : (r[1] >= 100 ? '🥈' : '🥉');
+}
 function expGoldText(def){
   /* SPANNET SAGS I HELA GULD (spelarens beslut). "1g 75s 69c – 2g 23s 60c" ar
      sant men olasbart pa en rad man skummar; "1-3g" sager samma sak. Det lagre
@@ -11211,7 +11249,7 @@ function renderExpPanel(){
         if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-travelto="' + def.region + '">Travel</button>';
       }
       h += '<div class="exp-found"><div class="ef-head"><span class="ef-name">' + def.name + '</span>' + status + '</div>' +
-        '<div class="ef-meta"><span>⏱ ' + expTimeText(def) + '</span><span>Lv ' + def.lvl + '</span><span>🪙 ' + expGoldText(def) + '</span><span>🔷 ' + expFragRange(def).join('-') + '</span>' + action + '</div></div>';
+        '<div class="ef-meta"><span>⏱ ' + expTimeText(def) + '</span><span>Lv ' + def.lvl + '</span><span>' + expCoinIco(def) + ' ' + expGoldText(def) + '</span><span>🔷 ' + expFragRange(def).join('-') + '</span>' + action + '</div></div>';
     });
     /* SAMMA SPARR SOM AKTIVA LISTAN, och den saknades har. Listan byggdes om
        varje sekund aven nar ingenting andrats, sa Start-knappen revs bort mitt
@@ -11573,6 +11611,31 @@ function say(text){
   clearTimeout(say._t);
   say._t = setTimeout(() => box.classList.remove('on'), 3200);
 }
+/* Kastar en ikon fran ETT element till vaskknappen. Banan ar en bage - en rak
+   linje ser ut som ett fel, en bage ser ut som nagot man kastat. */
+function flyToBag(fromEl, ico){
+  const bag = $('bag-btn');
+  if (!fromEl || !bag || !ico) return;
+  const a = fromEl.getBoundingClientRect(), b = bag.getBoundingClientRect();
+  const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;
+  const x1 = b.left + b.width / 2, y1 = b.top + b.height / 2;
+  const el = document.createElement('div');
+  el.className = 'buy-fly'; el.textContent = ico;
+  el.style.left = '0px'; el.style.top = '0px';
+  el.style.transform = 'translate(' + (x0 - 13) + 'px,' + (y0 - 13) + 'px)';
+  document.body.appendChild(el);
+  const lift = Math.min(160, Math.abs(x1 - x0) * 0.45 + 40);
+  const anim = el.animate([
+    {transform: 'translate(' + (x0-13) + 'px,' + (y0-13) + 'px) scale(1)',   opacity: 1},
+    {transform: 'translate(' + ((x0+x1)/2-13) + 'px,' + ((y0+y1)/2-lift-13) + 'px) scale(1.25)', opacity: 1, offset: .55},
+    {transform: 'translate(' + (x1-13) + 'px,' + (y1-13) + 'px) scale(.45)', opacity: .2}
+  ], {duration: 620, easing: 'cubic-bezier(.4,.05,.3,1)'});
+  anim.onfinish = () => {
+    el.remove();
+    bag.classList.add('got');
+    setTimeout(() => bag.classList.remove('got'), 460);
+  };
+}
 function spawnFloat(opts){
   /* Ett tal borjar med + eller ar en crit; allt annat ar ett meddelande. */
   const t = String(opts && opts.text || '');
@@ -11749,6 +11812,12 @@ function redrawAll(){
   call(renderPetPanel);
   call(renderHelperSlots);
   call(renderProfessions);
+  /* [BUGG] RECEPTBOKEN STOD INTE HAR. Den ritades bara om av craftandet sjalvt,
+     sa allt ANNAT som andrar materialet - ett kop hos handlaren, ett uppdrag
+     som landar, en vara fran auktionen - lamnade raderna kvar i sitt gamla
+     skick. Kopte man hantverkssatser med boken oppen stod raden rod tills man
+     stangde och oppnade den igen. */
+  call(renderRecipeBook);
   call(renderMail);
   call(renderMailBadge);
   call(renderFriendBadge);
@@ -13410,7 +13479,10 @@ function openZone(regionId, zi, keepNote){
   }));
   const gbtn = $('vendor-gift');
   if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); openZone(regionId, zi, true); });
-  if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
+  if (tbuy) tbuy.addEventListener('click', () => {
+    if (S.gold >= cellPrice(regionId)) flyToBag(tbuy, ITEM_DEFS.fuelcell.ico);
+    buyCell(regionId); openZone(regionId, zi, true);
+  });
   const rfr = $('vendor-refresh');
   if (rfr) rfr.addEventListener('click', () => {
     rfr.disabled = true;
@@ -13423,15 +13495,20 @@ function openZone(regionId, zi, keepNote){
       .catch(e => { say(srvErrText(e)); rfr.disabled = false; });
   });
   $('region-body').querySelectorAll('[data-buykit]').forEach(b => b.addEventListener('click', () => {
-    buyCraftingKit(regionId, +b.dataset.buykit);
+    if (buyCraftingKit(regionId, +b.dataset.buykit)) flyToBag(b, MATERIALS.crafting_kit.ico);
     openZone(regionId, zi, true);
   }));
   $('region-body').querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
+    const D = ITEM_DEFS[b.dataset.buyboost];
+    if (D && S.gold >= boostPrice(b.dataset.buyboost, regionId)) flyToBag(b, D.ico);
     buyBoost(regionId, b.dataset.buyboost);
     openZone(regionId, zi, true);
   }));
   /* Kortet ritas om efter varje köp — priser, råd och knapparnas läge ska stämma. */
   $('region-body').querySelectorAll('[data-vbuy]').forEach(b => b.addEventListener('click', () => {
+    const st = vendorStock(regionId)[+b.dataset.vbuy];
+    const p = st ? vendorGearPrice(st.r, regionId, st.price) : 0;
+    if (st && S.gold >= p) flyToBag(b, '⚔️');
     buyVendorGear(regionId, +b.dataset.vbuy);
     openZone(regionId, zi, true);
   }));
@@ -13817,7 +13894,7 @@ function buildZoneExpeditions(regionId, zone){
     else btn = '<button class="zx-btn" data-start="' + def.id + '">Start</button>';
     return '<div class="zx-row"><div class="zx-info">' +
       '<div class="zx-name">' + def.name + '</div>' +
-      '<div class="zx-meta">⏱ ' + expTimeText(def) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · 🪙 ' + expGoldText(def) + ' · 🔷 ' + expFragRange(def).join('-') + '</div>' +
+      '<div class="zx-meta">⏱ ' + expTimeText(def) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · ' + expCoinIco(def) + ' ' + expGoldText(def) + ' · 🔷 ' + expFragRange(def).join('-') + '</div>' +
       '<div class="zx-levy">🪙 Tax — ' + Math.round(EXP_TAX * 100) + '% of gold is taken on claim</div>' +
       '</div>' + btn + '</div>';
   }).join('');
