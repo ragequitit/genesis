@@ -536,6 +536,9 @@ body.dragging *{cursor:grabbing !important}
    klassen byggdes för är borta sedan v0.55.0 — skillnaden står numera på raden. */
 .gc-row{padding:1px 0;color:var(--text-dim);font-size:11.5px}
 .item-actions{display:flex;justify-content:flex-start;gap:8px;margin-top:10px}
+/* Prisraden far luft over sig - utan den satt den klistrad mot sista
+   egenskapen och de tva sag ut som samma lista. */
+.iw-price{margin-top:8px}
 /* Små knappar i rad, inte breda staplade block: de ska inte äga fönstret. */
 .item-actions button{
   white-space:nowrap;border-radius:9px;padding:8px 14px;font-size:11.5px;font-weight:800;
@@ -4052,7 +4055,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.51.2 — VARJE SET HAR SITT EGET VAPEN</div>
+            <div class="desc">GENESIS v4.53.1 — FLASKORNAS TRAPPA VAR TRASIG</div>
           </div>
         </div>
       </div>
@@ -4063,7 +4066,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.51.2 — VARJE SET HAR SITT EGET VAPEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.53.1 — FLASKORNAS TRAPPA VAR TRASIG</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5963,115 +5966,164 @@ function profArt(id){ return 'assets/professions/' + id + '.png'; }
    hittas som recipe-item forst. Detta ar STARTUPPSATTNINGEN som bevisar motorn;
    de fulla 64 recepten fylls i nasta lager. Formen ar den slutliga. */
 const RECIPES = [
-
-  /* ===================== SAMLARYRKENAS FORADLING (v2.0.0) =====================
-     Spelarens beslut: alla kan hitta Salvaged Scrap, men BARA ett samlaryrke
-     kan gora nagot av det. Det ar samlarens verkliga varde - inte att hitta,
-     utan att foradla. Och de bundna sallsynta fynden blir saljbara forst nar
-     de foradlats, sa hantverkaren kan kopa dem pa auktionen. */
+  /* ---------- OMVANDLINGARNA (13) ----------
+     De som ger ett MATERIAL i stallet for en fardig produkt. De kraver darfor
+     inga hantverkssatser, och alla fem ar exakt vardeneutrala. */
   {id:'ex_s1', prof:'extractor',    name:'Smelt Scrap',        item:'copper_ore',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'fa_s1', prof:'fabricator',   name:'Unravel Scrap',      item:'synthetic_fiber',   rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'bh_s1', prof:'bioharvester', name:'Culture Scrap',      item:'glass_moss',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'me_s1', prof:'mechanic',     name:'Reuse Scrap',        item:'wire',              rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
-  /* SPOLEN CRAFTAS NUMERA. Den lag i Fabricators insamlingspool for att jamna
-     ut hur manga fynd yrket hade - men med Mechanic pa plats har alla fyra
-     poolerna fem basmaterial, och en spole ar en TILLVERKAD sak, inte nagot man
-     hittar. Befintliga spolar i vaskan ar oforandrade. */
   {id:'fa_k1', prof:'fabricator',   name:'Make Spool',         item:'filament_spool',    rar:0, lvl:5, source:'known',  cost:{synthetic_fiber:2, signal_cord:1}},
   {id:'ex_r1', prof:'extractor',    name:'Refine Voidsteel',   item:'refined_voidsteel', rar:2, lvl:10, source:'known', cost:{voidsteel_ore:3, genesis_crystal:2}},
   {id:'fa_r1', prof:'fabricator',   name:'Refine Phaseweave',  item:'refined_phaseweave',rar:2, lvl:10, source:'known', cost:{phase_thread:3, memory_weave:2}},
   {id:'bh_r1', prof:'bioharvester', name:'Refine Bioessence',  item:'refined_bioessence',rar:2, lvl:10, source:'known', cost:{null_orchid:3, genesis_spore:2}},
   {id:'me_r1', prof:'mechanic',     name:'Build Tech Parts',    item:'tech_parts',        rar:2, lvl:10, source:'known', cost:{power_core:3, data_chip:2}},
-  /* ===================== HANTVERKARNAS EGNA KOMPONENTER =====================
-     Forut kom de BARA ur skrotning. Nu gor hantverkaren dem sjalv - av
-     foradlat material kopt av en samlare, sa kedjan mellan yrkena halls hel. */
   {id:'of_k1', prof:'outfitter',    name:'Spin Masterweave',   item:'masterweave_thread',rar:2, lvl:10, source:'known', cost:{refined_phaseweave:1, static_silk:4}},
   {id:'ws_k1', prof:'weaponsmith',  name:'Cast Forge Core',    item:'forge_core',        rar:2, lvl:10, source:'known', cost:{refined_voidsteel:1, iron_ore:4}},
   {id:'jc_k1', prof:'jewelcrafter', name:'Grind Resonance',    item:'resonance_dust',    rar:2, lvl:10, source:'known', cost:{refined_voidsteel:1, crystal_quartz:4}},
   {id:'ch_k1', prof:'chemist',      name:'Distil Catalyst',    item:'catalyst_essence',  rar:2, lvl:10, source:'known', cost:{refined_bioessence:1, neon_bloom:4}},
-  /* ===================== OUTFITTER (16) ===================== */
-  /* Common - billigt, bara core-fibrer */
-  {id:'of_c1', prof:'outfitter', name:"Courier's Gloves", item:'runners_gloves', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, carbon_weave:1, signal_cord:2}},
-  {id:'of_c2', prof:'outfitter', name:'Padded Workboots', item:'runners_boots',  rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, polymer_mesh:2}},
-  {id:'of_c3', prof:'outfitter', name:'Utility Trousers', item:'runners_trousers',rar:0, lvl:1, source:'known', cost:{synthetic_fiber:4, static_silk:1}},
-  {id:'of_c4', prof:'outfitter', name:'Field Vest',       item:'runners_vest',    rar:0, lvl:1, source:'known', cost:{synthetic_fiber:4, polymer_mesh:2}},
-  {id:'of_c5', prof:'outfitter', name:'Utility Belt',      item:'waist_utility_rig',rar:0, lvl:1, source:'known', cost:{synthetic_fiber:2, iron_ore:1}},
-  /* Uncommon - static silk och carbon vav */
-  {id:'of_u1', prof:'outfitter', name:'Staticweave Gloves',   item:'runners_gloves',  rar:1, lvl:5, source:'known', cost:{static_silk:3, carbon_weave:2}},
-  {id:'of_u2', prof:'outfitter', name:'Reinforced Trailboots',item:'runners_boots',   rar:1, lvl:5, source:'known', cost:{static_silk:3, polymer_mesh:3, iron_ore:1}},
-  {id:'of_u3', prof:'outfitter', name:'Signalweave Trousers', item:'runners_trousers',rar:1, lvl:5, source:'known', cost:{static_silk:4, carbon_weave:3}},
-  {id:'of_u4', prof:'outfitter', name:'Woven Courier Vest',  item:'runners_vest',    rar:1, lvl:5, source:'known', cost:{carbon_weave:5, polymer_mesh:2, filament_spool:3}},
-  {id:'of_u5', prof:'outfitter', name:'Phasebound Belt',      item:'waist_signal_belt',rar:1, lvl:5, source:'known', cost:{static_silk:3, carbon_weave:2, gold_ore:1}},
-  /* Rare - drar in Masterweave Thread (BoP) + dyrare tradeable */
-  {id:'of_r1', prof:'outfitter', name:'Phasewalker Boots',    item:'runners_boots',   rar:2, lvl:10, source:'drop', cost:{carbon_weave:5, static_silk:4, refined_phaseweave:1, masterweave_thread:1}},
-  {id:'of_r2', prof:'outfitter', name:'Staticrunner Gloves',  item:'runners_gloves',  rar:2, lvl:10, source:'drop', cost:{static_silk:5, carbon_weave:4, masterweave_thread:1}},
-  {id:'of_r3', prof:'outfitter', name:'Deep Network Vest',    item:'runners_vest',    rar:2, lvl:10, source:'drop', cost:{carbon_weave:6, static_silk:5, refined_phaseweave:2, masterweave_thread:1}},
-  {id:'of_r4', prof:'outfitter', name:'Memoryweave Trousers', item:'runners_trousers',rar:2, lvl:10, source:'drop', cost:{static_silk:5, refined_phaseweave:1, masterweave_thread:1}},
-  {id:'of_r5', prof:'outfitter', name:'Signalkeeper Belt',    item:'waist_plated_sash',rar:2, lvl:10, source:'drop', cost:{carbon_weave:5, static_silk:3, masterweave_thread:1, gold_ore:2}},
-  /* Epic - ett projekt */
-  {id:'of_e1', prof:'outfitter', name:'Nullweave Mantle',     item:'runners_vest',    rar:3, lvl:16, source:'drop', cost:{carbon_weave:8, static_silk:6, refined_phaseweave:3, masterweave_thread:2, gold_ore:4}},
 
-  /* ===================== WEAPONSMITH (16) ===================== */
-  {id:'ws_c1', prof:'weaponsmith', name:'Ironcut Blade',   item:'runners_dagger',      rar:0, lvl:1, source:'known', cost:{iron_ore:4, carbon_weave:1}},
-  {id:'ws_c2', prof:'weaponsmith', name:'Tinvein Dagger',item:'runners_dagger',     rar:0, lvl:1, source:'known', cost:{copper_ore:4, iron_ore:1}},
-  {id:'ws_c3', prof:'weaponsmith', name:'Field Guard',     item:'offhand_wooden_shield',rar:0, lvl:1, source:'known', cost:{iron_ore:3, polymer_mesh:2}},
-  {id:'ws_c4', prof:'weaponsmith', name:'Signal Baton',    item:'runners_dagger',      rar:0, lvl:1, source:'known', cost:{iron_ore:3, copper_ore:2}},
-  {id:'ws_c5', prof:'weaponsmith', name:'Courier Board',   item:'transport_streetblade',rar:0, lvl:1, source:'known', cost:{iron_ore:4, carbon_weave:3, polymer_mesh:2, signal_cord:2}},
-  {id:'ws_u1', prof:'weaponsmith', name:'Coilblade',       item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:5, crystal_quartz:2}},
-  {id:'ws_u2', prof:'weaponsmith', name:'Signal Guard',    item:'offhand_street_buckler',rar:1, lvl:5, source:'known', cost:{iron_ore:4, carbon_weave:3, prism_sap:2}},
-  {id:'ws_u3', prof:'weaponsmith', name:'Longwave Rifle',  item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:5, gold_ore:2, carbon_weave:2}},
-  {id:'ws_u4', prof:'weaponsmith', name:'Gavelfall Maul',  item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:6, crystal_quartz:2}},
-  {id:'ws_u5', prof:'weaponsmith', name:'Skyrail Drifter', item:'transport_hoverdeck', rar:1, lvl:5, source:'known', cost:{iron_ore:5, carbon_weave:4, prism_sap:2, gold_ore:2}},
-  {id:'ws_r1', prof:'weaponsmith', name:'Quartzcut Blade',item:'runners_dagger',      rar:2, lvl:10, source:'drop', cost:{iron_ore:6, crystal_quartz:4, forge_core:1}},
-  {id:'ws_r2', prof:'weaponsmith', name:'Arcshield',       item:'offhand_arc_torch',   rar:2, lvl:10, source:'drop', cost:{iron_ore:5, gold_ore:3, forge_core:1}},
-  {id:'ws_r3', prof:'weaponsmith', name:'Fusecoil Staff',  item:'runners_dagger',      rar:2, lvl:10, source:'drop', cost:{iron_ore:6, crystal_quartz:4, refined_voidsteel:1, forge_core:1}},
-  {id:'ws_r4', prof:'weaponsmith', name:'Longwave Marksman',item:'runners_dagger',     rar:2, lvl:10, source:'drop', cost:{iron_ore:7, gold_ore:3, forge_core:1}},
-  {id:'ws_r5', prof:'weaponsmith', name:'Phase Drifter',   item:'transport_sky_lance', rar:2, lvl:10, source:'drop', cost:{iron_ore:6, carbon_weave:5, refined_voidsteel:1, forge_core:1}},
-  {id:'ws_e1', prof:'weaponsmith', name:'Voidrunner Bike', item:'transport_prowler',   rar:3, lvl:16, source:'drop', cost:{iron_ore:10, carbon_weave:6, refined_voidsteel:2, forge_core:2, gold_ore:5}},
+  /* ---------- REGISTRET (128 fardiga produkter) ----------
+     Varje recept pekar pa ETT eget foremal. Det gick inte forut: de sex
+     rustningsplatserna hade ett foremal var, sa fyra olika recept hade alla
+     gjort nagot som hette "Runner's Gloves". Nu finns sex set om tretton
+     delar, och tilldelningen valjer ett foremal vars sallsynthetsband BORJAR
+     pa receptets steg - da kanns setet som sin niva.
 
-  /* ===================== JEWELCRAFTER (16) ===================== */
-  {id:'jc_c1', prof:'jewelcrafter', name:'Tin Signal Ring',item:'ring_copper_band', rar:0, lvl:1, source:'known', cost:{copper_ore:3, crystal_quartz:1}},
-  {id:'jc_c2', prof:'jewelcrafter', name:'Iron Loop',        item:'ring_iron_ring',    rar:0, lvl:1, source:'known', cost:{iron_ore:3, crystal_quartz:1}},
-  {id:'jc_c3', prof:'jewelcrafter', name:'Quartz Pendant',   item:'neck_signal_tag',   rar:0, lvl:1, source:'known', cost:{crystal_quartz:3, copper_ore:1, filament_spool:2}},
-  {id:'jc_c4', prof:'jewelcrafter', name:"Courier's Charm",  item:'neck_circuit_pendant',rar:0, lvl:1, source:'known', cost:{copper_ore:2, gold_ore:1}},
-  {id:'jc_c5', prof:'jewelcrafter', name:'Cut Quartz',       item:'ring_signal_ring',  rar:0, lvl:1, source:'known', cost:{crystal_quartz:4}},
-  {id:'jc_u1', prof:'jewelcrafter', name:'Platinum Signal Ring', item:'ring_signal_ring',  rar:1, lvl:5, source:'known', cost:{gold_ore:3, crystal_quartz:2}},
-  {id:'jc_u2', prof:'jewelcrafter', name:'Static Pendant',   item:'neck_circuit_pendant',rar:1, lvl:5, source:'known', cost:{gold_ore:2, crystal_quartz:3, static_silk:1, prism_sap:2}},
-  {id:'jc_u3', prof:'jewelcrafter', name:'Quartz Loop',     item:'ring_crystal_ring', rar:1, lvl:5, source:'known', cost:{crystal_quartz:4, gold_ore:2}},
-  {id:'jc_u4', prof:'jewelcrafter', name:'Network Charm',    item:'neck_signal_tag',   rar:1, lvl:5, source:'known', cost:{gold_ore:3, amethyst:1}},
-  {id:'jc_u5', prof:'jewelcrafter', name:'Cut Amethyst',     item:'ring_circuit_band', rar:1, lvl:5, source:'known', cost:{amethyst:2, crystal_quartz:2, prism_sap:2}},
-  {id:'jc_r1', prof:'jewelcrafter', name:'Resonance Ring',   item:'ring_crystal_ring', rar:2, lvl:10, source:'drop', cost:{gold_ore:4, ruby:2, resonance_dust:1}},
-  {id:'jc_r2', prof:'jewelcrafter', name:'Glassheart Pendant',item:'neck_crystal_amulet',rar:2, lvl:10, source:'drop', cost:{crystal_quartz:5, sapphire:2, resonance_dust:1}},
-  {id:'jc_r3', prof:'jewelcrafter', name:'Phase Loop',       item:'ring_signal_ring',  rar:2, lvl:10, source:'drop', cost:{gold_ore:4, amethyst:2, resonance_dust:1}},
-  {id:'jc_r4', prof:'jewelcrafter', name:'Signal Relic',     item:'neck_signal_tag',   rar:2, lvl:10, source:'drop', cost:{gold_ore:5, crystal_quartz:6, ruby:1, resonance_dust:1}},
-  {id:'jc_r5', prof:'jewelcrafter', name:'Perfect Sapphire', item:'ring_crystal_ring', rar:2, lvl:10, source:'drop', cost:{sapphire:3, crystal_quartz:4, resonance_dust:1}},
-  {id:'jc_e1', prof:'jewelcrafter', name:'Heart of the Network',item:'neck_crystal_amulet',rar:3, lvl:16, source:'drop', cost:{gold_ore:6, ruby:2, sapphire:2, diamond_shard:1, resonance_dust:2}},
-  /* JUVELERARENS RELIK. Kristallkvarts fran gruvan bar den, precis som spelaren
-     bad om. Receptet faller som de andra sallsynta - det star inte i boken fran
-     borjan. */
-  {id:'jc_rel1',prof:'jewelcrafter', name:'Everfrost Cut',    item:'relic_shard_of_everfrost', rar:2, lvl:10, source:'drop', cost:{diamond_shard:1, crystal_quartz:6, gold_ore:4, resonance_dust:1}},
-
-  /* ===================== CHEMIST (16) - consumables ===================== */
-  /* Chemistens produkter ar forbrukningsvaror; de anvander flask-foremal (byggs nedan)
-     och rullar INTE gear-stats. De laggs som stackbara boostar. */
-  {id:'ch_c1', prof:'chemist', name:'Data Flask',     item:'flask_data',    rar:0, lvl:1, source:'known', cost:{neon_bloom:2, crystal_quartz:1}, consumable:'idle'},
-  {id:'ch_c2', prof:'chemist', name:'Focus Flask',    item:'flask_focus',   rar:0, lvl:1, source:'known', cost:{circuit_root:2, crystal_quartz:1}, consumable:'crit'},
-  {id:'ch_c3', prof:'chemist', name:'Impact Flask',   item:'flask_impact',  rar:0, lvl:1, source:'known', cost:{static_cap:2, crystal_quartz:1}, consumable:'critdmg'},
-  {id:'ch_c4', prof:'chemist', name:'Trail Flask',    item:'flask_trail',   rar:0, lvl:1, source:'known', cost:{glass_moss:2, neon_bloom:1, signal_cord:1}, consumable:'travel'},
-  {id:'ch_c5', prof:'chemist', name:'Learning Flask', item:'flask_learning',rar:0, lvl:1, source:'known', cost:{neon_bloom:2, circuit_root:1}, consumable:'xp'},
-  {id:'ch_u1', prof:'chemist', name:'Overclock Serum',  item:'flask_data',    rar:1, lvl:5, source:'known', cost:{neon_bloom:3, static_cap:2}, consumable:'idle'},
-  {id:'ch_u2', prof:'chemist', name:'Precision Compound',item:'flask_focus',   rar:1, lvl:5, source:'known', cost:{circuit_root:3, crystal_quartz:2}, consumable:'crit'},
-  {id:'ch_u3', prof:'chemist', name:'Impact Catalyst',  item:'flask_impact',  rar:1, lvl:5, source:'known', cost:{static_cap:3, gold_ore:1}, consumable:'critdmg'},
-  {id:'ch_u4', prof:'chemist', name:'Slipstream Tonic',  item:'flask_trail',   rar:1, lvl:5, source:'known', cost:{glass_moss:3, circuit_root:2}, consumable:'travel'},
-  {id:'ch_u5', prof:'chemist', name:'Learning Compound', item:'flask_learning',rar:1, lvl:5, source:'known', cost:{neon_bloom:3, circuit_root:3}, consumable:'xp'},
-  {id:'ch_r1', prof:'chemist', name:'Echo Growth Serum',   item:'flask_echo',    rar:2, lvl:10, source:'drop', cost:{neon_bloom:4, refined_bioessence:1, catalyst_essence:1}, consumable:'petxp'},
-  {id:'ch_r2', prof:'chemist', name:'Expedition Catalyst', item:'flask_expedition',rar:2, lvl:10, source:'drop', cost:{circuit_root:4, static_cap:3, catalyst_essence:1}, consumable:'expedspeed'},
-  {id:'ch_r3', prof:'chemist', name:'Deep Focus Serum',    item:'flask_focus',   rar:2, lvl:10, source:'drop', cost:{circuit_root:4, crystal_quartz:3, catalyst_essence:1}, consumable:'crit'},
-  {id:'ch_r4', prof:'chemist', name:'Network Overclock',   item:'flask_data',    rar:2, lvl:10, source:'drop', cost:{neon_bloom:5, glass_moss:3, catalyst_essence:1}, consumable:'idle'},
-  {id:'ch_r5', prof:'chemist', name:'Pathfinder Compound', item:'flask_trail',   rar:2, lvl:10, source:'drop', cost:{glass_moss:4, refined_bioessence:1, catalyst_essence:1}, consumable:'travel'},
-  {id:'ch_c6', prof:'chemist', name:'Fortune Flask',    item:'flask_fortune', rar:0, lvl:1, source:'known', cost:{glass_moss:2, crystal_quartz:1}, consumable:'luck'},
-  {id:'ch_u6', prof:'chemist', name:'Fortune Compound', item:'flask_fortune', rar:1, lvl:5, source:'known', cost:{glass_moss:3, prism_sap:2}, consumable:'luck'},
-  {id:'ch_e1', prof:'chemist', name:'Genesis Compound',    item:'flask_genesis', rar:3, lvl:16, source:'drop', cost:{refined_bioessence:3, neon_bloom:6, catalyst_essence:2}, consumable:'idle'}
+     Ingredienslistorna foljer fyra regler, alla matbara:
+       - yrkets huvudpool ger minst halften av materialet i VARJE recept
+       - ingen pool under en fjardedel i ett recept med flera pooler
+       - malm i klader, vaxter i vapen och tyg i ringar ar forbjudet
+       - vanliga recept gar mest att gora med EN samlare, episka aldrig
+     Reglerna finns som en kontroll langre ned; bryts nagon syns det. */
+  {id:'of_c1', prof:'outfitter', name:"Courier's Gloves", item:'runners_gloves', rar:0, lvl:1, source:'known', cost:{polymer_mesh:2, carbon_weave:3, crafting_kit:1}},
+  {id:'of_c2', prof:'outfitter', name:'Padded Workboots', item:'runners_boots', rar:0, lvl:1, source:'known', cost:{polymer_mesh:2, signal_cord:3, crafting_kit:1}},
+  {id:'of_c3', prof:'outfitter', name:'Utility Trousers', item:'runners_trousers', rar:0, lvl:1, source:'known', cost:{carbon_weave:2, static_silk:3, crafting_kit:1}},
+  {id:'of_c4', prof:'outfitter', name:'Field Vest', item:'runners_vest', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, static_silk:2, crafting_kit:1}},
+  {id:'of_c5', prof:'outfitter', name:'Utility Belt', item:'waist_utility_rig', rar:0, lvl:1, source:'known', cost:{polymer_mesh:1, signal_cord:2, neon_bloom:1, static_cap:1, crafting_kit:1}},
+  {id:'of_c6', prof:'outfitter', name:'Survey Cap', item:'runners_cap', rar:0, lvl:1, source:'known', cost:{carbon_weave:1, static_silk:2, glass_moss:1, prism_sap:1, crafting_kit:1}},
+  {id:'of_u1', prof:'outfitter', name:'Staticweave Gloves', item:'runners_gloves', rar:1, lvl:5, source:'known', cost:{carbon_weave:4, static_silk:5, crafting_kit:2}},
+  {id:'of_u2', prof:'outfitter', name:'Reinforced Trailboots', item:'runners_boots', rar:1, lvl:5, source:'known', cost:{polymer_mesh:4, signal_cord:5, crafting_kit:2}},
+  {id:'of_u3', prof:'outfitter', name:'Signalweave Trousers', item:'runners_trousers', rar:1, lvl:5, source:'known', cost:{carbon_weave:4, static_silk:5, crafting_kit:2}},
+  {id:'of_u4', prof:'outfitter', name:'Woven Courier Vest', item:'runners_vest', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:4, carbon_weave:5, crafting_kit:2}},
+  {id:'of_u5', prof:'outfitter', name:'Phasebound Belt', item:'waist_signal_belt', rar:1, lvl:5, source:'known', cost:{polymer_mesh:2, signal_cord:3, static_cap:2, prism_sap:2, crafting_kit:2}},
+  {id:'of_u6', prof:'outfitter', name:'Polymer Pants', item:'circuit_trousers', rar:1, lvl:5, source:'known', cost:{polymer_mesh:3, static_silk:2, neon_bloom:2, circuit_root:2, crafting_kit:2}},
+  {id:'of_u7', prof:'outfitter', name:'Signal Hood', item:'circuit_cap', rar:1, lvl:5, source:'known', cost:{static_silk:2, signal_cord:3, lens:2, cog:2, crafting_kit:2}},
+  {id:'of_r1', prof:'outfitter', name:'Phasewalker Boots', item:'runners_boots', rar:2, lvl:10, source:'drop', cost:{carbon_weave:2, signal_cord:4, static_cap:3, prism_sap:3, refined_phaseweave:1, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r2', prof:'outfitter', name:'Staticrunner Gloves', item:'runners_gloves', rar:2, lvl:10, source:'drop', cost:{polymer_mesh:3, static_silk:3, circuit_root:3, glass_moss:3, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r3', prof:'outfitter', name:'Deep Network Vest', item:'runners_vest', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:3, static_silk:3, battery:4, cog:2, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r4', prof:'outfitter', name:'Memoryweave Trousers', item:'runners_trousers', rar:2, lvl:10, source:'drop', cost:{polymer_mesh:7, carbon_weave:5, refined_phaseweave:1, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r5', prof:'outfitter', name:'Signalkeeper Belt', item:'waist_plated_sash', rar:2, lvl:10, source:'drop', cost:{carbon_weave:2, signal_cord:4, neon_bloom:2, static_cap:4, refined_phaseweave:1, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r6', prof:'outfitter', name:'Phase Visor', item:'phase_cap', rar:2, lvl:10, source:'drop', cost:{static_silk:2, signal_cord:4, lens:4, cog:2, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r7', prof:'outfitter', name:'Runner Boots', item:'phase_boots', rar:2, lvl:10, source:'drop', cost:{polymer_mesh:4, carbon_weave:2, neon_bloom:3, glass_moss:3, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_r8', prof:'outfitter', name:'Sealed Gloves', item:'phase_gloves', rar:2, lvl:10, source:'drop', cost:{static_silk:6, circuit_root:3, prism_sap:3, refined_phaseweave:1, masterweave_thread:1, crafting_kit:4}},
+  {id:'of_e1', prof:'outfitter', name:'Nullweave Mantle', item:'runners_vest', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:5, carbon_weave:5, glass_moss:4, prism_sap:6, refined_phaseweave:2, masterweave_thread:2, crafting_kit:7}},
+  {id:'of_e2', prof:'outfitter', name:'Courier Armor', item:'genesis_vest', rar:3, lvl:16, source:'drop', cost:{carbon_weave:1, static_silk:9, static_cap:3, prism_sap:7, refined_phaseweave:2, masterweave_thread:2, crafting_kit:7}},
+  {id:'of_e3', prof:'outfitter', name:'Genesis Pants', item:'genesis_trousers', rar:3, lvl:16, source:'drop', cost:{polymer_mesh:5, static_silk:5, neon_bloom:5, glass_moss:5, refined_phaseweave:2, masterweave_thread:2, crafting_kit:7}},
+  {id:'of_e4', prof:'outfitter', name:'Null Hood', item:'genesis_cap', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:5, carbon_weave:5, circuit_root:6, static_cap:4, refined_phaseweave:2, masterweave_thread:2, crafting_kit:7}},
+  {id:'of_e5', prof:'outfitter', name:'Phase Boots', item:'genesis_boots', rar:3, lvl:16, source:'drop', cost:{polymer_mesh:3, signal_cord:7, wire:7, cog:3, refined_phaseweave:2, masterweave_thread:2, crafting_kit:7}},
+  {id:'ws_c1', prof:'weaponsmith', name:'Ironcut Blade', item:'runners_dagger', rar:0, lvl:1, source:'known', cost:{iron_ore:3, crystal_quartz:2, crafting_kit:1}},
+  {id:'ws_c2', prof:'weaponsmith', name:'Tinvein Dagger', item:'runners_dagger', rar:0, lvl:1, source:'known', cost:{copper_ore:3, cobalt_ore:2, crafting_kit:1}},
+  {id:'ws_c3', prof:'weaponsmith', name:'Field Guard', item:'offhand_wooden_shield', rar:0, lvl:1, source:'known', cost:{iron_ore:3, cobalt_ore:2, crafting_kit:1}},
+  {id:'ws_c4', prof:'weaponsmith', name:'Signal Baton', item:'runners_dagger', rar:0, lvl:1, source:'known', cost:{crystal_quartz:3, carbon_weave:1, signal_cord:1, crafting_kit:1}},
+  {id:'ws_c5', prof:'weaponsmith', name:'Courier Board', item:'transport_streetblade', rar:0, lvl:1, source:'known', cost:{iron_ore:3, cobalt_ore:2, crafting_kit:1}},
+  {id:'ws_c6', prof:'weaponsmith', name:'Copper Pistol', item:'runners_dagger', rar:0, lvl:1, source:'known', cost:{copper_ore:2, iron_ore:1, polymer_mesh:1, signal_cord:1, crafting_kit:1}},
+  {id:'ws_u1', prof:'weaponsmith', name:'Coilblade', item:'runners_dagger', rar:1, lvl:5, source:'known', cost:{copper_ore:4, cobalt_ore:5, crafting_kit:2}},
+  {id:'ws_u2', prof:'weaponsmith', name:'Signal Guard', item:'offhand_street_buckler', rar:1, lvl:5, source:'known', cost:{iron_ore:4, cobalt_ore:1, polymer_mesh:2, signal_cord:2, crafting_kit:2}},
+  {id:'ws_u3', prof:'weaponsmith', name:'Longwave Rifle', item:'runners_dagger', rar:1, lvl:5, source:'known', cost:{copper_ore:5, cobalt_ore:4, crafting_kit:2}},
+  {id:'ws_u4', prof:'weaponsmith', name:'Gavelfall Maul', item:'runners_dagger', rar:1, lvl:5, source:'known', cost:{iron_ore:4, crystal_quartz:5, crafting_kit:2}},
+  {id:'ws_u5', prof:'weaponsmith', name:'Skyrail Drifter', item:'transport_hoverdeck', rar:1, lvl:5, source:'known', cost:{copper_ore:3, iron_ore:2, polymer_mesh:3, carbon_weave:1, crafting_kit:2}},
+  {id:'ws_u6', prof:'weaponsmith', name:'Cog Hammer', item:'circuit_blade', rar:1, lvl:5, source:'known', cost:{copper_ore:3, cobalt_ore:2, circuit:2, cog:2, crafting_kit:2}},
+  {id:'ws_u7', prof:'weaponsmith', name:'Coil Pistol', item:'salvage_blade', rar:1, lvl:5, source:'known', cost:{iron_ore:2, crystal_quartz:3, circuit:2, battery:2, crafting_kit:2}},
+  {id:'ws_r1', prof:'weaponsmith', name:'Quartzcut Blade', item:'runners_dagger', rar:2, lvl:10, source:'drop', cost:{copper_ore:6, crystal_quartz:6, refined_voidsteel:1, forge_core:1, crafting_kit:4}},
+  {id:'ws_r2', prof:'weaponsmith', name:'Arcshield', item:'offhand_arc_torch', rar:2, lvl:10, source:'drop', cost:{iron_ore:3, cobalt_ore:3, battery:4, cog:2, refined_voidsteel:1, forge_core:1, crafting_kit:4}},
+  {id:'ws_r3', prof:'weaponsmith', name:'Fusecoil Staff', item:'runners_dagger', rar:2, lvl:10, source:'drop', cost:{iron_ore:3, cobalt_ore:3, circuit:3, battery:3, forge_core:1, crafting_kit:4}},
+  {id:'ws_r4', prof:'weaponsmith', name:'Longwave Marksman', item:'runners_dagger', rar:2, lvl:10, source:'drop', cost:{iron_ore:3, cobalt_ore:3, polymer_mesh:3, carbon_weave:3, forge_core:1, crafting_kit:4}},
+  {id:'ws_r5', prof:'weaponsmith', name:'Phase Drifter', item:'transport_sky_lance', rar:2, lvl:10, source:'drop', cost:{copper_ore:4, iron_ore:2, polymer_mesh:2, signal_cord:4, refined_voidsteel:1, forge_core:1, crafting_kit:4}},
+  {id:'ws_r6', prof:'weaponsmith', name:'Circuit Rifle', item:'phase_blade', rar:2, lvl:10, source:'drop', cost:{copper_ore:4, crystal_quartz:2, wire:3, circuit:3, forge_core:1, crafting_kit:4}},
+  {id:'ws_r7', prof:'weaponsmith', name:'Cobalt Shield', item:'offhand_coil_battery', rar:2, lvl:10, source:'drop', cost:{iron_ore:3, cobalt_ore:3, carbon_weave:3, signal_cord:3, refined_voidsteel:1, forge_core:1, crafting_kit:4}},
+  {id:'ws_r8', prof:'weaponsmith', name:'Power Maul', item:'phase_blade', rar:2, lvl:10, source:'drop', cost:{crystal_quartz:4, cobalt_ore:2, battery:3, cog:3, forge_core:1, crafting_kit:4}},
+  {id:'ws_r9', prof:'weaponsmith', name:'Signal Blade', item:'circuit_blade', rar:2, lvl:10, source:'drop', cost:{copper_ore:3, crystal_quartz:3, carbon_weave:3, signal_cord:3, forge_core:1, crafting_kit:4}},
+  {id:'ws_e1', prof:'weaponsmith', name:'Voidrunner Bike', item:'transport_prowler', rar:3, lvl:16, source:'drop', cost:{copper_ore:6, cobalt_ore:4, circuit:4, battery:6, refined_voidsteel:2, forge_core:2, crafting_kit:7}},
+  {id:'ws_e2', prof:'weaponsmith', name:'Longshot Rifle', item:'genesis_blade', rar:3, lvl:16, source:'drop', cost:{copper_ore:3, crystal_quartz:7, circuit:6, lens:4, refined_voidsteel:2, forge_core:2, crafting_kit:7}},
+  {id:'ws_e3', prof:'weaponsmith', name:'Phase Bike', item:'genesis_transport', rar:3, lvl:16, source:'drop', cost:{iron_ore:5, cobalt_ore:5, polymer_mesh:5, signal_cord:5, refined_voidsteel:2, forge_core:2, crafting_kit:7}},
+  {id:'ws_e4', prof:'weaponsmith', name:'Voidsteel Blade', item:'voidsteel_blade', rar:3, lvl:16, source:'drop', cost:{iron_ore:3, crystal_quartz:7, carbon_weave:6, signal_cord:4, refined_voidsteel:2, forge_core:2, crafting_kit:7}},
+  {id:'jc_c1', prof:'jewelcrafter', name:'Tin Signal Ring', item:'ring_copper_band', rar:0, lvl:1, source:'known', cost:{copper_ore:3, gold_ore:2, crafting_kit:1}},
+  {id:'jc_c2', prof:'jewelcrafter', name:'Iron Loop', item:'ring_iron_ring', rar:0, lvl:1, source:'known', cost:{copper_ore:2, iron_ore:3, crafting_kit:1}},
+  {id:'jc_c3', prof:'jewelcrafter', name:'Quartz Pendant', item:'neck_signal_tag', rar:0, lvl:1, source:'known', cost:{crystal_quartz:2, cobalt_ore:1, neon_bloom:1, prism_sap:1, crafting_kit:1}},
+  {id:'jc_c4', prof:'jewelcrafter', name:"Courier's Charm", item:'neck_circuit_pendant', rar:0, lvl:1, source:'known', cost:{gold_ore:4, crystal_quartz:1, crafting_kit:1}},
+  {id:'jc_c5', prof:'jewelcrafter', name:'Cut Quartz', item:'ring_signal_ring', rar:0, lvl:1, source:'known', cost:{gold_ore:2, crystal_quartz:3, crafting_kit:1}},
+  {id:'jc_c6', prof:'jewelcrafter', name:'Cobalt Ring', item:'ring_circuit_band', rar:0, lvl:1, source:'known', cost:{gold_ore:1, cobalt_ore:2, glass_moss:1, prism_sap:1, crafting_kit:1}},
+  {id:'jc_u1', prof:'jewelcrafter', name:'Platinum Signal Ring', item:'ring_signal_ring', rar:1, lvl:5, source:'known', cost:{gold_ore:5, cobalt_ore:4, crafting_kit:2}},
+  {id:'jc_u2', prof:'jewelcrafter', name:'Static Pendant', item:'neck_circuit_pendant', rar:1, lvl:5, source:'known', cost:{gold_ore:3, crystal_quartz:2, polymer_mesh:2, static_silk:2, crafting_kit:2}},
+  {id:'jc_u3', prof:'jewelcrafter', name:'Quartz Loop', item:'ring_crystal_ring', rar:1, lvl:5, source:'known', cost:{gold_ore:4, crystal_quartz:5, crafting_kit:2}},
+  {id:'jc_u4', prof:'jewelcrafter', name:'Network Charm', item:'neck_signal_tag', rar:1, lvl:5, source:'known', cost:{copper_ore:4, crystal_quartz:5, crafting_kit:2}},
+  {id:'jc_u5', prof:'jewelcrafter', name:'Cut Amethyst', item:'ring_circuit_band', rar:1, lvl:5, source:'known', cost:{gold_ore:9, amethyst:1, crafting_kit:2}},
+  {id:'jc_u6', prof:'jewelcrafter', name:'Ruby Ring', item:'circuit_band', rar:1, lvl:5, source:'known', cost:{iron_ore:3, gold_ore:2, glass_moss:2, prism_sap:2, ruby:1, crafting_kit:2}},
+  {id:'jc_u7', prof:'jewelcrafter', name:'Signal Pendant', item:'circuit_neck', rar:1, lvl:5, source:'known', cost:{iron_ore:2, cobalt_ore:3, static_silk:1, signal_cord:3, crafting_kit:2}},
+  {id:'jc_r1', prof:'jewelcrafter', name:'Resonance Ring', item:'ring_crystal_ring', rar:2, lvl:10, source:'drop', cost:{gold_ore:6, cobalt_ore:6, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r2', prof:'jewelcrafter', name:'Glassheart Pendant', item:'neck_crystal_amulet', rar:2, lvl:10, source:'drop', cost:{iron_ore:4, crystal_quartz:2, glass_moss:3, prism_sap:3, refined_voidsteel:1, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r3', prof:'jewelcrafter', name:'Phase Loop', item:'ring_signal_ring', rar:2, lvl:10, source:'drop', cost:{copper_ore:3, iron_ore:3, glass_moss:2, prism_sap:4, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r4', prof:'jewelcrafter', name:'Signal Relic', item:'neck_signal_tag', rar:2, lvl:10, source:'drop', cost:{iron_ore:3, crystal_quartz:3, static_silk:3, signal_cord:3, refined_voidsteel:1, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r5', prof:'jewelcrafter', name:'Perfect Sapphire', item:'ring_crystal_ring', rar:2, lvl:10, source:'drop', cost:{crystal_quartz:3, cobalt_ore:3, neon_bloom:4, glass_moss:2, sapphire:2, refined_voidsteel:1, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r6', prof:'jewelcrafter', name:'Circuit Relic', item:'phase_relic', rar:2, lvl:10, source:'drop', cost:{gold_ore:6, circuit:3, lens:3, refined_voidsteel:1, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r7', prof:'jewelcrafter', name:'Data Ring', item:'phase_band', rar:2, lvl:10, source:'drop', cost:{gold_ore:6, wire:3, lens:3, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_r8', prof:'jewelcrafter', name:'Lens Relic', item:'circuit_relic', rar:2, lvl:10, source:'drop', cost:{copper_ore:3, gold_ore:3, lens:3, cog:3, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_rel1', prof:'jewelcrafter', name:'Everfrost Cut', item:'relic_shard_of_everfrost', rar:2, lvl:10, source:'drop', cost:{gold_ore:3, cobalt_ore:3, neon_bloom:3, prism_sap:3, diamond_shard:2, refined_voidsteel:1, resonance_dust:1, crafting_kit:4}},
+  {id:'jc_e1', prof:'jewelcrafter', name:'Heart of the Network', item:'neck_crystal_amulet', rar:3, lvl:16, source:'drop', cost:{copper_ore:6, cobalt_ore:4, lens:6, cog:4, refined_voidsteel:2, resonance_dust:2, crafting_kit:7}},
+  {id:'jc_e2', prof:'jewelcrafter', name:'Genesis Relic', item:'genesis_relic', rar:3, lvl:16, source:'drop', cost:{gold_ore:10, neon_bloom:7, prism_sap:3, refined_voidsteel:2, resonance_dust:2, crafting_kit:7}},
+  {id:'jc_e3', prof:'jewelcrafter', name:'Glass Relic', item:'voidsteel_relic', rar:3, lvl:16, source:'drop', cost:{gold_ore:6, crystal_quartz:4, glass_moss:6, prism_sap:4, refined_voidsteel:2, resonance_dust:2, crafting_kit:7}},
+  {id:'jc_e4', prof:'jewelcrafter', name:'Void Ring', item:'genesis_band', rar:3, lvl:16, source:'drop', cost:{iron_ore:6, gold_ore:4, neon_bloom:6, glass_moss:4, refined_voidsteel:2, resonance_dust:2, crafting_kit:7}},
+  {id:'ch_c1', prof:'chemist', name:'Data Flask', item:'flask_data', rar:0, lvl:1, source:'known', cost:{neon_bloom:2, static_cap:3, crafting_kit:1}},
+  {id:'ch_c2', prof:'chemist', name:'Focus Flask', item:'flask_focus', rar:0, lvl:1, source:'known', cost:{circuit_root:4, prism_sap:1, crafting_kit:1}},
+  {id:'ch_c3', prof:'chemist', name:'Impact Flask', item:'flask_impact', rar:0, lvl:1, source:'known', cost:{static_cap:3, prism_sap:2, crafting_kit:1}},
+  {id:'ch_c4', prof:'chemist', name:'Trail Flask', item:'flask_trail', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:2, circuit_root:1, glass_moss:2, crafting_kit:1}},
+  {id:'ch_c5', prof:'chemist', name:'Learning Flask', item:'flask_learning', rar:0, lvl:1, source:'known', cost:{neon_bloom:3, circuit_root:2, crafting_kit:1}},
+  {id:'ch_c6', prof:'chemist', name:'Fortune Flask', item:'flask_fortune', rar:0, lvl:1, source:'known', cost:{glass_moss:4, prism_sap:1, crafting_kit:1}},
+  {id:'ch_u1', prof:'chemist', name:'Overclock Serum', item:'flask_data', rar:1, lvl:5, source:'known', cost:{neon_bloom:7, static_cap:2, crafting_kit:2}},
+  {id:'ch_u2', prof:'chemist', name:'Precision Compound', item:'flask_focus', rar:1, lvl:5, source:'known', cost:{circuit_root:7, prism_sap:2, crafting_kit:2}},
+  {id:'ch_u3', prof:'chemist', name:'Impact Catalyst', item:'flask_impact', rar:1, lvl:5, source:'known', cost:{static_cap:6, prism_sap:3, crafting_kit:2}},
+  {id:'ch_u4', prof:'chemist', name:'Slipstream Tonic', item:'flask_trail', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:4, circuit_root:1, glass_moss:4, crafting_kit:2}},
+  {id:'ch_u5', prof:'chemist', name:'Learning Compound', item:'flask_learning', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:4, neon_bloom:4, circuit_root:1, crafting_kit:2}},
+  {id:'ch_u6', prof:'chemist', name:'Fortune Compound', item:'flask_fortune', rar:1, lvl:5, source:'known', cost:{glass_moss:3, prism_sap:2, wire:2, battery:2, crafting_kit:2}},
+  {id:'ch_u7', prof:'chemist', name:'Expedition Flask', item:'flask_expedition', rar:1, lvl:5, source:'known', cost:{circuit_root:3, static_cap:2, wire:2, lens:2, crafting_kit:2}},
+  {id:'ch_u8', prof:'chemist', name:'Lucky Tonic', item:'flask_fortune', rar:2, lvl:10, source:'drop', cost:{glass_moss:4, prism_sap:1, circuit:2, lens:2, crafting_kit:4}},
+  {id:'ch_r1', prof:'chemist', name:'Echo Growth Serum', item:'flask_echo', rar:2, lvl:10, source:'drop', cost:{neon_bloom:7, glass_moss:5, refined_bioessence:1, catalyst_essence:1, crafting_kit:4}},
+  {id:'ch_r2', prof:'chemist', name:'Expedition Catalyst', item:'flask_expedition', rar:2, lvl:10, source:'drop', cost:{static_cap:6, wire:3, circuit:3, catalyst_essence:1, crafting_kit:4}},
+  {id:'ch_r3', prof:'chemist', name:'Deep Focus Serum', item:'flask_focus', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:6, circuit_root:6, refined_bioessence:1, catalyst_essence:1, crafting_kit:4}},
+  {id:'ch_r4', prof:'chemist', name:'Network Overclock', item:'flask_data', rar:2, lvl:10, source:'drop', cost:{neon_bloom:3, static_cap:9, refined_bioessence:1, catalyst_essence:1, crafting_kit:4}},
+  {id:'ch_r5', prof:'chemist', name:'Pathfinder Compound', item:'flask_trail', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:3, polymer_mesh:3, circuit_root:3, glass_moss:3, catalyst_essence:1, crafting_kit:4}},
+  {id:'ch_r6', prof:'chemist', name:'Deep Expedition Flask', item:'flask_expedition', rar:3, lvl:16, source:'drop', cost:{circuit_root:3, static_cap:3, wire:3, battery:3, catalyst_essence:1, crafting_kit:7}},
+  {id:'ch_r7', prof:'chemist', name:'Growth Serum', item:'flask_echo', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:6, neon_bloom:3, glass_moss:3, catalyst_essence:1, crafting_kit:2}},
+  {id:'ch_r8', prof:'chemist', name:'Learning Serum', item:'flask_learning', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:5, polymer_mesh:1, circuit_root:6, refined_bioessence:1, catalyst_essence:1, crafting_kit:4}},
+  {id:'ch_e1', prof:'chemist', name:'Genesis Compound', item:'flask_genesis', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:7, polymer_mesh:3, static_cap:10, refined_bioessence:2, catalyst_essence:2, crafting_kit:7}},
+  {id:'ch_e2', prof:'chemist', name:'Genesis Serum', item:'flask_echo', rar:3, lvl:16, source:'drop', cost:{neon_bloom:6, glass_moss:4, wire:5, circuit:5, refined_bioessence:2, catalyst_essence:2, crafting_kit:7}},
+  {id:'me_c1', prof:'mechanic', name:'Cargo Board', item:'salvage_transport', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:1, polymer_mesh:1, battery:2, cog:1, crafting_kit:1}},
+  {id:'me_c2', prof:'mechanic', name:'Pocket Beacon', item:'relic_ruby_of_the_depths', rar:0, lvl:1, source:'known', cost:{cobalt_ore:2, circuit:1, lens:2, crafting_kit:1}},
+  {id:'me_c3', prof:'mechanic', name:'Pocket Drone', item:'offhand_arc_torch', rar:0, lvl:1, source:'known', cost:{wire:3, circuit:2, crafting_kit:1}},
+  {id:'me_c4', prof:'mechanic', name:'Street Board', item:'transport_hoverdeck', rar:0, lvl:1, source:'known', cost:{battery:2, cog:3, crafting_kit:1}},
+  {id:'me_c5', prof:'mechanic', name:'Survey Lens', item:'relic_shard_of_everfrost', rar:0, lvl:1, source:'known', cost:{circuit:2, lens:3, crafting_kit:1}},
+  {id:'me_c6', prof:'mechanic', name:'Wire Tool', item:'offhand_deck_slate', rar:0, lvl:1, source:'known', cost:{wire:3, battery:2, crafting_kit:1}},
+  {id:'me_u1', prof:'mechanic', name:'Alloy Board', item:'circuit_transport', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:3, carbon_weave:1, battery:2, cog:3, crafting_kit:2}},
+  {id:'me_u2', prof:'mechanic', name:'Battery Drone', item:'circuit_offhand', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:2, carbon_weave:2, wire:2, battery:3, crafting_kit:2}},
+  {id:'me_u3', prof:'mechanic', name:'Coil Board', item:'transport_prowler', rar:1, lvl:5, source:'known', cost:{polymer_mesh:2, signal_cord:2, circuit:3, cog:2, crafting_kit:2}},
+  {id:'me_u4', prof:'mechanic', name:'Repair Arm', item:'offhand_drone_cradle', rar:1, lvl:5, source:'known', cost:{synthetic_fiber:2, carbon_weave:2, wire:2, lens:3, crafting_kit:2}},
+  {id:'me_u5', prof:'mechanic', name:'Repair Drone', item:'offhand_street_buckler', rar:1, lvl:5, source:'known', cost:{circuit:4, cog:5, crafting_kit:2}},
+  {id:'me_u6', prof:'mechanic', name:'Scout Lens', item:'salvage_relic', rar:1, lvl:5, source:'known', cost:{wire:4, lens:5, crafting_kit:2}},
+  {id:'me_u7', prof:'mechanic', name:'Signal Scope', item:'circuit_relic', rar:1, lvl:5, source:'known', cost:{wire:4, circuit:5, crafting_kit:2}},
+  {id:'me_r2', prof:'mechanic', name:'Circuit Bike', item:'phase_transport', rar:2, lvl:10, source:'drop', cost:{copper_ore:2, iron_ore:1, carbon_weave:3, circuit:3, cog:3, tech_parts:1, crafting_kit:4}},
+  {id:'me_r3', prof:'mechanic', name:'Cobalt Bike', item:'transport_sky_lance', rar:2, lvl:10, source:'drop', cost:{copper_ore:3, cobalt_ore:3, battery:4, cog:2, tech_parts:1, crafting_kit:4}},
+  {id:'me_r4', prof:'mechanic', name:'Data Compass', item:'phase_relic', rar:2, lvl:10, source:'drop', cost:{wire:5, lens:7, tech_parts:1, crafting_kit:4}},
+  {id:'me_r5', prof:'mechanic', name:'Network Compass', item:'relic_ruby_of_the_depths', rar:2, lvl:10, source:'drop', cost:{copper_ore:2, iron_ore:4, circuit:2, cog:4, tech_parts:1, crafting_kit:4}},
+  {id:'me_r6', prof:'mechanic', name:'Power Lens', item:'relic_shard_of_everfrost', rar:2, lvl:10, source:'drop', cost:{wire:6, lens:6, tech_parts:1, crafting_kit:4}},
+  {id:'me_r7', prof:'mechanic', name:'Prism Scope', item:'salvage_relic', rar:2, lvl:10, source:'drop', cost:{prism_sap:6, circuit:3, cog:3, tech_parts:1, crafting_kit:4}},
+  {id:'me_r8', prof:'mechanic', name:'Relay Drone', item:'phase_offhand', rar:2, lvl:10, source:'drop', cost:{iron_ore:2, cobalt_ore:1, synthetic_fiber:1, polymer_mesh:2, battery:6, tech_parts:1, crafting_kit:4}},
+  {id:'me_r9', prof:'mechanic', name:'Signal Drone', item:'salvage_offhand', rar:2, lvl:10, source:'drop', cost:{battery:6, cog:6, tech_parts:1, crafting_kit:4}},
+  {id:'me_e1', prof:'mechanic', name:'Core Bike', item:'voidsteel_transport', rar:3, lvl:16, source:'drop', cost:{copper_ore:2, cobalt_ore:3, carbon_weave:3, signal_cord:2, battery:6, cog:4, tech_parts:2, crafting_kit:7}},
+  {id:'me_e2', prof:'mechanic', name:'Genesis Lens', item:'genesis_relic', rar:3, lvl:16, source:'drop', cost:{circuit_root:10, wire:4, lens:6, tech_parts:2, crafting_kit:7}},
+  {id:'me_e3', prof:'mechanic', name:'Phase Drone', item:'genesis_offhand', rar:3, lvl:16, source:'drop', cost:{iron_ore:3, cobalt_ore:2, synthetic_fiber:2, polymer_mesh:3, circuit:6, cog:4, tech_parts:2, crafting_kit:7}},
+  {id:'me_e4', prof:'mechanic', name:'Phasecycle', item:'transport_slipstream', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:5, signal_cord:5, wire:4, battery:6, tech_parts:2, crafting_kit:7}},
+  {id:'me_e5', prof:'mechanic', name:'Void Drone', item:'voidsteel_offhand', rar:3, lvl:16, source:'drop', cost:{copper_ore:3, iron_ore:2, polymer_mesh:2, carbon_weave:3, lens:6, cog:4, tech_parts:2, crafting_kit:7}},
 ];
 /* ---------- SATSERNA LAGGS PA RECEPTEN (v4.48.0) ----------
    Regeln ar en enda och behover ingen undantagslista: ger receptet ett
@@ -6572,8 +6624,18 @@ function defItem(key, name, slot, art, rars){
 
    RUNNER'S NYCKLAR AR ORORDA. De sitter ihop med varje pjas som redan finns i
    nagons vaska; att byta dem vore att kasta bort dem. */
+/* TRETTON DELAR PER SET, inte sex. Halsband, balte, tva ringar, andra handen,
+   transport och relik ritas anda i samma bestallning - och utan dem hade de
+   platserna haft alldeles for fa foremal for receptregistret: fjorton
+   relikrecept mot tva reliker.
+   RUNNER'S far bara sina sex: setet har redan egna namngivna smycken sedan
+   tidigare (Runner's Band, Runner's Sleeve, Runner's Belt) och att lagga
+   dubbletter bredvid dem vore bara forvirrande. */
 const GEAR_PIECES = [['cap','Cap',0], ['vest','Vest',1], ['trousers','Trousers',2],
                      ['gloves','Gloves',3], ['boots','Boots',4], ['blade','Blade',5]];
+const GEAR_EXTRAS = [['offhand','Off-hand',9], ['neck','Pendant',6], ['waist','Belt',7],
+                     ['ring','Ring',8], ['band','Band',8],
+                     ['transport','Runner',11], ['relic','Relic',13]];
 const GEAR_SETS = [
   /* RUNNER'S HAR EGEN BILD PER SALLSYNTHET - alla 36 ar redan ritade, och att
      lata trettio av dem ligga oanvanda vore att slanga arbete. Det ar darfor
@@ -6584,15 +6646,25 @@ const GEAR_SETS = [
      och poangen med att seten kommer fran olika spel ar just att de INTE ser ut
      som varandra. En skrotvarld har en rortang, en arkad har en stralpistol.
      Delen heter fortfarande 'blade' inuti, sa nycklar och filnamn ar oforandrade. */
-  {id:'runners',   name:"Runner's",  rars:[0,1,2,3,4,5], perRarity:true, weapon:'Dagger'},
-  {id:'salvage',   name:'Salvage',   rars:[0,1,2],       weapon:'Wrench'},
-  {id:'circuit',   name:'Circuit',   rars:[1,2,3],       weapon:'Beam Rifle'},
-  {id:'phase',     name:'Phase',     rars:[2,3,4],       weapon:'Wand'},
-  {id:'voidsteel', name:'Voidsteel', rars:[3,4,5],       weapon:'Greatsword'},
-  {id:'genesis',   name:'Genesis',   rars:[3,4,5],       weapon:'Hammer'}
+  /* SMAKRADEN sager vilket SPEL i natverket pjasen kommer ifran. Den star
+     kursivt mellan namnet och platsen, precis som melonens rad - en ton, inte
+     en forklaring. Det ar ocksa hela poangen med att seten ser olika ut: man
+     ska kunna se pa nagons utrustning var hen har varit. */
+  {id:'runners',   name:"Runner's",  rars:[0,1,2,3,4,5], perRarity:true, weapon:'Dagger',
+   flavor:'Standard issue on the network. Everyone starts here.'},
+  {id:'salvage',   name:'Salvage',   rars:[0,1,2],       weapon:'Wrench',
+   flavor:'Dragged out of a junkyard world where everything is made of something else.'},
+  {id:'circuit',   name:'Circuit',   rars:[1,2,3],       weapon:'Beam Rifle',
+   flavor:'From an arcade world of black glass and neon lines. It still hums.'},
+  {id:'phase',     name:'Phase',     rars:[2,3,4],       weapon:'Wand',
+   flavor:'From a quiet world with no enemies in it. Nobody knows what it was for.'},
+  {id:'voidsteel', name:'Voidsteel', rars:[3,4,5],       weapon:'Greatsword',
+   flavor:'Carried out of a dark world that does not log you out politely.'},
+  {id:'genesis',   name:'Genesis',   rars:[3,4,5],       weapon:'Hammer',
+   flavor:'Grown, not built, in the brightest world on the network.'}
 ];
 GEAR_SETS.forEach(st => {
-  GEAR_PIECES.forEach(pc => {
+  (st.perRarity ? GEAR_PIECES : GEAR_PIECES.concat(GEAR_EXTRAS)).forEach(pc => {
     /* Runner's behaller sina gamla nycklar: runners_cap, runners_dagger ... */
     const key = st.id === 'runners'
       ? 'runners_' + (pc[0] === 'blade' ? 'dagger' : pc[0])
@@ -6602,6 +6674,7 @@ GEAR_SETS.forEach(st => {
     const label = pc[0] === 'blade' && st.weapon ? st.weapon : pc[1];
     ITEMS[key] = {key: key, name: st.name + ' ' + label, slot: pc[2],
                   set: st.id, rars: st.rars, perRarity: !!st.perRarity, piece: file,
+                  flavor: st.flavor,
                   art: st.perRarity ? null
                      : 'assets/gear/' + st.id + '/' + st.id + '_' + pc[0] + '.png'};
   });
@@ -15216,6 +15289,9 @@ function gearTipHTML(it){
        aldrig efterat. */
     /* Tre rader: namnet, nivan pa egen rad, och platsen sist. Ramen runt nivan
        ar borta - texten racker, och brickan gjorde kortet bredare an det behovde. */
+    /* SMAKRADEN: vilket spel i natverket pjasen kommer ifran. Star kursivt
+       mellan namnet och nivan, samma rad som melonen har. */
+    (ITEMS[it.t] && ITEMS[it.t].flavor ? '<div class="gt-flavor">' + ITEMS[it.t].flavor + '</div>' : '') +
     (it.lv ? '<div class="gt-lvl' + (it.lv > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + '</div>' : '') +
     '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
     /* Tre avgränsade block: plats · talen · förmågor · priset. Strecken
@@ -15383,7 +15459,7 @@ function itemWinHTML(it, worn){
         '<div class="item-head">' +
           '<div class="gt-rar">' + D.bag + ' slot bag</div>' +
           stat('+' + D.bag, 'Slots') +
-          '<div class="iw-affs"><div class="af">Sells for ' + fmtMoney(gearGold(it)) + '</div></div>' +
+          '<div class="iw-affs"><div class="af iw-price">Sells for ' + fmtMoney(gearGold(it)) + '</div></div>' +
         '</div>' +
       '</div>' +
       '<div class="item-actions"></div>';
@@ -15391,6 +15467,7 @@ function itemWinHTML(it, worn){
   return head +
     '<div class="item-top">' + art +
       '<div class="item-head">' +
+        (ITEMS[it.t] && ITEMS[it.t].flavor ? '<div class="gt-flavor">' + ITEMS[it.t].flavor + '</div>' : '') +
         (it.lv ? '<div class="gt-lvl' + (it.lv > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + '</div>' : '') +
         '<div class="gt-rar">' + GEAR_SLOTS[it.s].name + '</div>' +
         stat(fmt(it.hp), 'Health', delta(it.hp - (cur ? cur.hp : 0))) +
@@ -15399,9 +15476,11 @@ function itemWinHTML(it, worn){
             delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
         '<div class="iw-affs">' +
           it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
-          /* Priset sags EN gang, pa sin egen rad. Knapparna handlar bara om
-             handlingen. */
-          '<div class="af">Sells for ' + fmtMoney(gearGold(it)) + '</div>' +
+          /* Priset sags EN gang, pa sin egen rad, med luft over sig sa det inte
+             klibbar ihop med sista egenskapen. Knapparna handlar bara om
+             handlingen - VART saken tar vagen behover inte sta, for allt man
+             tar av hamnar i vaskan anda. */
+          '<div class="af iw-price">Sells for ' + fmtMoney(gearGold(it)) + '</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -15415,13 +15494,13 @@ function itemWinActions(win, uid){
   if (found.where === 'vault'){
     box.innerHTML = '<button class="ia-cancel" data-act="unvault">To backpack</button>';
   } else if (found.where === 'bag'){
-    box.innerHTML = '<button class="ia-cancel" data-act="unbag">Take out<span>→ backpack</span></button>';
+    box.innerHTML = '<button class="ia-cancel" data-act="unbag">Take out</button>';
   } else if (found.where === 'inv' && ITEMS[found.it.t] && ITEMS[found.it.t].bag){
     /* Ingen "sätt i fack"-knapp: en väska sätts i genom att dras till facket eller
        genom att klicka på ett tomt fack. Knappen var en tredje väg till samma sak. */
     box.innerHTML = '<button class="ia-sell" data-act="sell">Sell</button>';
   } else if (found.where === 'equip'){
-    box.innerHTML = '<button class="ia-cancel" data-act="unequip">Unequip<span>→ backpack</span></button>';
+    box.innerHTML = '<button class="ia-cancel" data-act="unequip">Unequip</button>';
   } else {
     box.innerHTML =
       '<button class="ia-equip" data-act="equip">Equip<span>' + GEAR_SLOTS[found.it.s].name + '</span></button>' +
