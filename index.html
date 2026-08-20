@@ -539,6 +539,13 @@ body.dragging *{cursor:grabbing !important}
 /* Prisraden far luft over sig - utan den satt den klistrad mot sista
    egenskapen och de tva sag ut som samma lista. */
 .iw-price{margin-top:8px}
+/* Tuning-knappen ar liten och sitter i egenskapens egen rad - den ska inte
+   aga kortet, den ar ett tillval. */
+.af-tune{margin-left:8px;border:1px solid var(--border-soft);background:transparent;
+  color:var(--text-dim);border-radius:6px;padding:1px 6px;font-size:10px;cursor:pointer}
+.af-tune:hover{color:var(--cyan);border-color:var(--cyan-dim)}
+.af-tune.keep{color:var(--gold);border-color:rgba(255,197,66,.5)}
+.tune-note{margin-top:6px;opacity:.75;font-size:10.5px}
 /* Små knappar i rad, inte breda staplade block: de ska inte äga fönstret. */
 .item-actions button{
   white-space:nowrap;border-radius:9px;padding:8px 14px;font-size:11.5px;font-weight:800;
@@ -4055,7 +4062,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.53.1 — FLASKORNAS TRAPPA VAR TRASIG</div>
+            <div class="desc">GENESIS v4.54.0 — GEAR TUNING</div>
           </div>
         </div>
       </div>
@@ -4066,7 +4073,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.53.1 — FLASKORNAS TRAPPA VAR TRASIG</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.54.0 — GEAR TUNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4366,6 +4373,10 @@ const SRV_ERRORS = {
   insufficient_data:        'Not enough Data.',
   insufficient_fuel:        'Not enough fuel for that trip.',
   cannot_be_sold:           'The vendor does not buy that.',
+  tuning_locked:            'Gear Tuning opens at character level 25.',
+  tuning_exhausted:         'This piece has been tuned five times — that is the limit.',
+  nothing_to_revert:        'There is nothing to go back to.',
+  no_such_affix:            'That bonus is not on this piece.',
   not_enough_items:         'You do not have that many.',
   nothing_to_sell:          'There is nothing there to sell.',
   bad_quantity:             'That amount does not work.',
@@ -5031,7 +5042,10 @@ function netGearFromRow(row){
     dm:   row.damage | 0,      /* Damage - bara vapen och andra handen */
     lv:   row.item_level | 0,  /* nivan pjasen foll pa. Vaxer aldrig efterat */
     g:    +row.gold_value || 0,
-    craft: row.crafted ? 1 : undefined
+    craft: row.crafted ? 1 : undefined,
+    /* Tuning-rakningen sitter pa pjasen och foljer den genom handel. */
+    tune: row.tune_count | 0,
+    tprev: row.tune_prev || null
   };
 }
 
@@ -5039,7 +5053,7 @@ function netGearFromRow(row){
 async function netPullItems(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx');
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,tune_count,tune_prev');
 
   S.equip = {};
   /* VILKEN VASKA SOM SITTER I VILKET FACK KOMMER NU FRAN SERVERN.
@@ -5521,7 +5535,7 @@ async function netClaimExpedition(expId){
 async function netPullVault(){
   if (!SRV.charId) return [];
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level');
+    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,tune_count,tune_prev');
   return (rows || []).map(netGearFromRow);
 }
 
@@ -6917,6 +6931,40 @@ function moneyText(c){
   if (m.s) p.push(m.s + 's');
   if (m.c || !p.length) p.push(m.c + 'c');
   return p.join(' ');
+}
+/* ---------- GEAR TUNING (v4.54.0) ----------
+   Rullar om STYRKAN pa en egenskap. Vilken egenskap det ar ror sig aldrig, och
+   saljvardet ror sig aldrig - annars vore tuning en vag att pumpa upp vad
+   handlaren betalar for en pjas.
+
+   Man ser bada talen och far behalla det gamla. Forsoket ar anda spenderat:
+   man betalade for RULLNINGEN, inte for resultatet.
+
+   Priset stiger 75 % per forsok, och rakningen sitter PA PJASEN sa den foljer
+   med genom handel - annars kunde man salja en uttunad pjas och kopa tillbaka
+   den med noll forsok kvar. */
+const TUNE_MAX = 5, TUNE_MIN_LEVEL = 25;
+const TUNE_BASE = [GOLD(5), GOLD(10), GOLD(25), GOLD(60), GOLD(140), GOLD(300)];
+function tunePrice(rar, done){
+  return Math.round(TUNE_BASE[Math.min(Math.max(rar, 0), 5)] * Math.pow(1.75, Math.max(0, done)));
+}
+function tuneLeft(it){ return TUNE_MAX - (it.tune || 0); }
+function tuneReady(it){
+  return levelInfo().lvl >= TUNE_MIN_LEVEL && tuneLeft(it) > 0 && it.a && it.a.length;
+}
+async function netTune(gear, idx){
+  if (!NET.on) return null;
+  const r = await srvRpc('tune_item', {p_character: SRV.charId, p_item: gear.sid, p_idx: idx});
+  await netPull(); await netPullItems();
+  redrawAll();
+  return r;
+}
+async function netTuneRevert(gear){
+  if (!NET.on) return null;
+  const r = await srvRpc('tune_revert', {p_character: SRV.charId, p_item: gear.sid});
+  await netPull(); await netPullItems();
+  redrawAll();
+  return r;
 }
 function gearGold(it){
   /* Pjasens EGET varde galler, alltid. Forut foll den har tillbaka pa bandets
@@ -14948,7 +14996,33 @@ function spawnPetWin(uid, nearX, nearY){
   bringToFront(win);
   makeDraggable(win, win.querySelector('.iw-head'));
   win.querySelector('.iw-x').addEventListener('click', () => win.remove());
+  /* Tuning: en knapp per egenskap, och en for att behalla det gamla talet.
+     Kortet ritas om ur SERVERNS svar - talet pa skarmen far aldrig vara en
+     gissning om vad rullningen gav. */
   win.addEventListener('click', e => {
+    const tb = e.target.closest('[data-tune]');
+    if (tb){
+      e.stopPropagation();
+      const cur = findByUid(uid); if (!cur) { win.remove(); return; }
+      tb.disabled = true;
+      netTune(cur.it, +tb.dataset.tune)
+        .then(r => {
+          if (r) say('Tuned ' + (AFFIXES[r.affix] ? AFFIXES[r.affix].name : r.affix) +
+                     ': ' + (+r.old).toFixed(2) + ' → ' + (+r.new).toFixed(2) +
+                     (+r.new >= +r.old ? ' ▲' : ' ▼'));
+          refreshItemWin(win, uid);
+        })
+        .catch(err => { say(srvErrText(err)); tb.disabled = false; });
+      return;
+    }
+    if (e.target.closest('[data-tunekeep]')){
+      e.stopPropagation();
+      const cur = findByUid(uid); if (!cur) { win.remove(); return; }
+      netTuneRevert(cur.it)
+        .then(() => { say('Kept the old value.'); refreshItemWin(win, uid); })
+        .catch(err => say(srvErrText(err)));
+      return;
+    }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const cur = petByUid(uid);
@@ -15475,7 +15549,22 @@ function itemWinHTML(it, worn){
         ((it.dm || (cur && cur.dm)) ? stat(fmt(it.dm || 0), 'Damage',
             delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
         '<div class="iw-affs">' +
-          it.a.map(x => '<div class="af' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
+          /* GEAR TUNING: en liten knapp per egenskap. Den syns bara nar den gar
+             att anvanda, sa kortet ser likadant ut som forut anda tills man
+             natt niva 25 - da dyker den upp och forklarar sig sjalv. */
+          it.a.map((x, i) => '<div class="af' + (AFFIXES[x.k] && AFFIXES[x.k].lower ? ' dn' : '') + '">' +
+             affLine(x) +
+             (NET.on && tuneReady(it)
+               ? '<button class="af-tune" data-tune="' + i + '" title="Reroll this number for ' +
+                 moneyText(tunePrice(it.r, it.tune || 0)) + '">⟳</button>' : '') +
+             '</div>').join('') +
+          (NET.on && it.a && it.a.length && levelInfo().lvl >= TUNE_MIN_LEVEL
+            ? '<div class="af tune-note">' +
+                (tuneLeft(it) > 0
+                  ? 'Tuning ' + moneyText(tunePrice(it.r, it.tune || 0)) + ' · ' + tuneLeft(it) + ' left'
+                  : 'Tuned out — no attempts left') +
+                (it.tprev ? '<button class="af-tune keep" data-tunekeep="1">Keep old</button>' : '') +
+              '</div>' : '') +
           /* Priset sags EN gang, pa sin egen rad, med luft over sig sa det inte
              klibbar ihop med sista egenskapen. Knapparna handlar bara om
              handlingen - VART saken tar vagen behover inte sta, for allt man
@@ -15515,6 +15604,18 @@ function salvageSummary(it){
   if (!pv) return '';
   const n = pv.rows.reduce((a, r) => a + r.qty, 0);
   return n + ' mat' + (pv.bonus ? ' +' : '');
+}
+/* Ritar om ett OPPET kort ur den nya sanningen. Utan detta stod gamla talet
+   kvar tills man stangde och oppnade igen - samma familj av bugg som plagat
+   projektet mest. */
+function refreshItemWin(win, uid){
+  const found = findByUid(uid);
+  if (!found){ win.remove(); return; }
+  win.innerHTML = itemWinHTML(found.it, found.where === 'equip');
+  itemWinActions(win, uid);
+  makeDraggable(win, win.querySelector('.iw-head'));
+  const x = win.querySelector('.iw-x');
+  if (x) x.addEventListener('click', () => win.remove());
 }
 function spawnItemWin(uid, nearX, nearY){
   hideGearTip();
