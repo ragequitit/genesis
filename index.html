@@ -429,6 +429,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 .gear-tip.on{display:block}
 .gt-name{font-size:14px;font-weight:900;line-height:1.25}
+.bt-name{font-size:12px;font-weight:800;line-height:1.3;color:var(--text)}
+.bt-line{font-size:11px;font-weight:600;line-height:1.3;color:var(--text-dim);margin-top:1px}
 .gt-rar{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--text);margin-bottom:5px}
 /* Den kursiva raden under namnet: en ton, inte en upplysning. Mindre an namnet
    och dampad, sa den lases som en rost och inte som en regel. */
@@ -546,10 +548,15 @@ body.dragging *{cursor:grabbing !important}
 .buy-fly{position:fixed;z-index:12000;pointer-events:none;font-size:26px;
   line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));
   will-change:transform,opacity}
+/* Malet stots till nar ikonen landar. Vaskknappen ar centrerad med en egen
+   forskjutning i sin transform - den maste behallas, annars hoppar knappen i
+   sidled mitt i stoten. Snabbfackets ruta har ingen sadan och skalas rent. */
 .bag-btn.got{animation:bagGot .45s ease}
 @keyframes bagGot{0%{transform:translateX(-50%) scale(1)}
   40%{transform:translateX(-50%) scale(1.18)}
   100%{transform:translateX(-50%) scale(1)}}
+.qa-btn.got{animation:qaGot .45s ease}
+@keyframes qaGot{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
 /* Tuning-knappen ar liten och sitter i egenskapens egen rad - den ska inte
    aga kortet, den ar ett tillval. */
 .af-tune{margin-left:8px;border:1px solid var(--border-soft);background:transparent;
@@ -4073,7 +4080,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.58.0 — SJU RATTNINGAR UR DIN SPELOMGANG</div>
+            <div class="desc">GENESIS v4.58.2 — KOPET FLYGER RAKT TILL INVENTORY</div>
           </div>
         </div>
       </div>
@@ -4084,7 +4091,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.58.0 — SJU RATTNINGAR UR DIN SPELOMGANG</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.58.2 — KOPET FLYGER RAKT TILL INVENTORY</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -11611,12 +11618,16 @@ function say(text){
   clearTimeout(say._t);
   say._t = setTimeout(() => box.classList.remove('on'), 3200);
 }
-/* Kastar en ikon fran ETT element till vaskknappen. Banan ar en bage - en rak
-   linje ser ut som ett fel, en bage ser ut som nagot man kastat. */
+/* Kastar en ikon fran ETT element till INVENTORY i snabbfacket. Rak linje: man
+   ska kunna folja den med ogat utan att flytta blicken, och malet ar dar man
+   sedan gar for att hitta saken.
+   Falls snabbfacket inte finns (smal skarm) tas vaskknappen i stallet - annars
+   hade animationen tyst uteblivit just dar den behovs mest. */
 function flyToBag(fromEl, ico){
-  const bag = $('bag-btn');
-  if (!fromEl || !bag || !ico) return;
-  const a = fromEl.getBoundingClientRect(), b = bag.getBoundingClientRect();
+  const target = $('qa-inventory') || $('bag-btn');
+  if (!fromEl || !target || !ico) return;
+  const a = fromEl.getBoundingClientRect(), b = target.getBoundingClientRect();
+  if (!a.width || !b.width) return;
   const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;
   const x1 = b.left + b.width / 2, y1 = b.top + b.height / 2;
   const el = document.createElement('div');
@@ -11624,16 +11635,14 @@ function flyToBag(fromEl, ico){
   el.style.left = '0px'; el.style.top = '0px';
   el.style.transform = 'translate(' + (x0 - 13) + 'px,' + (y0 - 13) + 'px)';
   document.body.appendChild(el);
-  const lift = Math.min(160, Math.abs(x1 - x0) * 0.45 + 40);
   const anim = el.animate([
     {transform: 'translate(' + (x0-13) + 'px,' + (y0-13) + 'px) scale(1)',   opacity: 1},
-    {transform: 'translate(' + ((x0+x1)/2-13) + 'px,' + ((y0+y1)/2-lift-13) + 'px) scale(1.25)', opacity: 1, offset: .55},
-    {transform: 'translate(' + (x1-13) + 'px,' + (y1-13) + 'px) scale(.45)', opacity: .2}
-  ], {duration: 620, easing: 'cubic-bezier(.4,.05,.3,1)'});
+    {transform: 'translate(' + (x1-13) + 'px,' + (y1-13) + 'px) scale(.45)', opacity: .25}
+  ], {duration: 520, easing: 'cubic-bezier(.35,0,.25,1)'});
   anim.onfinish = () => {
     el.remove();
-    bag.classList.add('got');
-    setTimeout(() => bag.classList.remove('got'), 460);
+    target.classList.add('got');
+    setTimeout(() => target.classList.remove('got'), 460);
   };
 }
 function spawnFloat(opts){
@@ -14057,10 +14066,11 @@ function hookBoostTips(bar){
     if (!B) return;
     const pct = fb && fb.pct != null ? Math.round(fb.pct) : B.pct;
     const left = fk ? Math.max(0, ((fb && fb.until || 0) - Date.now()) / 1000) : boostLeft(key);
-    showPlainTip('<b>' + B.name + '</b><br>+' + pct + '% ' + B.what +
-                 '<br>' + fmtDur(left) + ' left' +
-                 '<div class="t-hint">' + boostsRunning() + ' of ' + boostSlots() +
-                 ' boost slots in use</div>', e.clientX, e.clientY);
+    /* NAMNET OCH VAD DEN GOR - inget mer. Tiden tickar redan pa brickan man
+       hovrar over, och hur manga platser som ar upptagna ser man pa raden
+       bredvid. En ruta som upprepar det som redan star pa skarmen ar en vagg
+       man slutar lasa. */
+    showBoostTip(B.name, '+' + pct + '% ' + B.what, e.clientX, e.clientY);
   });
   bar.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
   bar.addEventListener('mouseout', e => {
@@ -15532,6 +15542,15 @@ function showStackTip(row, x, y, above){
   moveGearTip(x, y, above);
 }
 /* Ett kort med ren text — för sådant som inte är en pjäs eller en stapel. */
+/* Boostens ruta har egen, mindre text. Den gemensamma rutan ar satt i 14 px
+   fetstil for foremalsnamn, och det ar for tungt for tva korta rader. */
+function showBoostTip(name, line, x, y, above){
+  gearTip.style.setProperty('--rc', 'var(--cyan)');
+  gearTip.innerHTML = '<div class="bt-name">' + name + '</div>' +
+                      '<div class="bt-line">' + line + '</div>';
+  gearTip.classList.add('on');
+  moveGearTip(x, y, above);
+}
 function showPlainTip(html, x, y, above){
   gearTip.style.setProperty('--rc', 'var(--cyan)');
   gearTip.innerHTML = '<div class="gt-name" style="color:var(--text)">' + html + '</div>';
