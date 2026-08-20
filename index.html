@@ -4062,7 +4062,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.54.0 — GEAR TUNING</div>
+            <div class="desc">GENESIS v4.57.1 — HJALPARNA OCH TRADET SVEPTA</div>
           </div>
         </div>
       </div>
@@ -4073,7 +4073,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.54.0 — GEAR TUNING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.57.1 — HJALPARNA OCH TRADET SVEPTA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4882,12 +4882,24 @@ async function netVendorLookInto(regionId){
           price: (s.price == null ? undefined : +s.price)
         })),
         next: Date.now() + (+r.restock_in || 0) * 1000,
+        /* Betald pafyllning: hur manga man redan kopt i den har perioden och
+           vad nasta kostar. Talet kommer fran SERVERN - trappan far inte
+           gissas har, for da visar rutan ett pris och kassan drar ett annat. */
+        paid: +r.paid_refreshes || 0,
+        refreshPrice: (r.refresh_price == null ? null : +r.refresh_price),
         server: true
       };
     }
   } catch (e){ /* ingen uppkoppling: nasta oppning forsoker igen */ }
   vendorFetching[regionId] = false;
   return S.vend && S.vend[regionId];
+}
+async function netVendorRefresh(regionId){
+  if (!NET.on) return null;
+  const r = await srvRpc('vendor_refresh', {p_character: SRV.charId, p_region: regionId});
+  await netPull();
+  await netVendorLookInto(regionId);
+  return r;
 }
 async function netVendorBuyStack(regionId, key, qty){
   if (!NET.on) return null;
@@ -5781,10 +5793,16 @@ function gatherShiftSecs(){ return GATHER_SHIFT_BASE; }
 function gatherCycleSecs(id){
   return Math.max(2, GATHER_DEFS[id].cycle - 0.5 * (NET.on ? perkLvl('shiftFast') : 0));
 }
-const GATHER_RARE_CHANCE = [0.02, 0.05, 0.09, 0.15, 0.24];
+const GATHER_RARE_CHANCE = [0.03, 0.05, 0.09, 0.15, 0.24];
 /* Extractor snubblar ibland over en adelsten (utover det vanliga utfallet) -
    det ar den chansen, aven den lutad av distansen. */
-const GATHER_GEM_CHANCE  = [0.04, 0.05, 0.07, 0.09, 0.12];
+/* ADELSTENARNA VAR FYRA TILL SEX GANGER FOR VANLIGA (rattat v4.57.0).
+   Trappan hade aldrig flyttats fran sina gamla tal. En adelsten ar vard 8
+   silver mot basmaterialets 3, sa vid tolv procent i ytterkanten drog en
+   Extractor in trettio adelstenar i timmen - ett par hundra silver ovanpa allt
+   annat, och bara for att stenarna rullas VID SIDAN AV det vanliga utfallet.
+   Den chansen ska vara en tursam bonus, inte en inkomst. */
+const GATHER_GEM_CHANCE  = [0.01, 0.015, 0.025, 0.04, 0.06];
 /* Framtida servrar kan multiplicera vikten for vissa material har. Tom nu -
    {serverId: {materialKey: mult}}. Gatheringen fragar den redan, sa dagen en
    server laggs till behover bara tabellen fyllas. */
@@ -5987,7 +6005,6 @@ const RECIPES = [
   {id:'fa_s1', prof:'fabricator',   name:'Unravel Scrap',      item:'synthetic_fiber',   rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'bh_s1', prof:'bioharvester', name:'Culture Scrap',      item:'glass_moss',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'me_s1', prof:'mechanic',     name:'Reuse Scrap',        item:'wire',              rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
-  {id:'fa_k1', prof:'fabricator',   name:'Make Spool',         item:'filament_spool',    rar:0, lvl:5, source:'known',  cost:{synthetic_fiber:2, signal_cord:1}},
   {id:'ex_r1', prof:'extractor',    name:'Refine Voidsteel',   item:'refined_voidsteel', rar:2, lvl:10, source:'known', cost:{voidsteel_ore:3, genesis_crystal:2}},
   {id:'fa_r1', prof:'fabricator',   name:'Refine Phaseweave',  item:'refined_phaseweave',rar:2, lvl:10, source:'known', cost:{phase_thread:3, memory_weave:2}},
   {id:'bh_r1', prof:'bioharvester', name:'Refine Bioessence',  item:'refined_bioessence',rar:2, lvl:10, source:'known', cost:{null_orchid:3, genesis_spore:2}},
@@ -8752,14 +8769,14 @@ function openVault(){
    därför på noll här, och det är den ärliga varianten av att inte veta. */
 const ACH = [
   // ---- Första stegen ----
-  {id:'first_hold',   g:'First steps', n:'Hands On',          d:'Hold the core once',                    r:{s:5},   t:() => S.ticks >= 1},
-  {id:'first_build',  g:'First steps', n:'Groundbreaking',     d:'Own your first machine',                r:{s:10},  t:() => BUILDINGS.some(b => S.own[b.id] > 0)},
-  {id:'first_gear',   g:'First steps', n:'Suited Up',          d:'Equip your first piece of gear',        r:{s:25},  t:() => equippedList().some(Boolean)},
-  {id:'first_zone',   g:'First steps', n:'Out the Door',       d:'Set foot in your first zone',           r:{s:25},  t:() => S.world.zonesSeen.length >= 1},
-  {id:'first_region', g:'First steps', n:'Border Crossing',    d:'Travel to a second region',             r:{s:50},  t:() => S.world.visited.length >= 2},
+  {id:'first_hold',   g:'First steps', n:'Hands On',          d:'Hold the core once',                    r:{s:25},   t:() => S.ticks >= 1},
+  {id:'first_build',  g:'First steps', n:'Groundbreaking',     d:'Own your first machine',                r:{s:25},  t:() => BUILDINGS.some(b => S.own[b.id] > 0)},
+  {id:'first_gear',   g:'First steps', n:'Suited Up',          d:'Equip your first piece of gear',        r:{s:50},  t:() => equippedList().some(Boolean)},
+  {id:'first_zone',   g:'First steps', n:'Out the Door',       d:'Set foot in your first zone',           r:{s:50},  t:() => S.world.zonesSeen.length >= 1},
+  {id:'first_region', g:'First steps', n:'Border Crossing',    d:'Travel to a second region',             r:{s:100},  t:() => S.world.visited.length >= 2},
   // ---- Expeditioner ----
-  {id:'exp_1',        g:'Expeditions', n:'First Payday',       d:'Claim one expedition',                  r:{s:25},  t:() => (S.stats.expDone || 0) >= 1},
-  {id:'exp_10',       g:'Expeditions', n:'Regular Runner',     d:'Claim 10 expeditions',                  r:{G:2},   t:() => (S.stats.expDone || 0) >= 10},
+  {id:'exp_1',        g:'Expeditions', n:'First Payday',       d:'Claim one expedition',                  r:{s:50},  t:() => (S.stats.expDone || 0) >= 1},
+  {id:'exp_10',       g:'Expeditions', n:'Regular Runner',     d:'Claim 10 expeditions',                  r:{G:1},   t:() => (S.stats.expDone || 0) >= 10},
   {id:'exp_50',       g:'Expeditions', n:'Old Hand',           d:'Claim 50 expeditions',                  r:{i:1},   t:() => (S.stats.expDone || 0) >= 50},
   {id:'exp_200',      g:'Expeditions', n:'Never Off Duty',     d:'Claim 200 expeditions',                 r:{i:2},   t:() => (S.stats.expDone || 0) >= 200},
   {id:'exp_found_20', g:'Expeditions', n:'Word Gets Around',   d:'Discover 20 expeditions',               r:{G:1},   t:() => S.exp.found.length >= 20},
@@ -8772,11 +8789,11 @@ const ACH = [
   {id:'regions_5',    g:'The world',   n:'Five Points',        d:'Discover 5 regions',                    r:{i:1},   t:() => S.world.known.length >= 5},
   {id:'regions_all',  g:'The world',   n:'Map Complete',       d:'Discover all 15 regions',               r:{i:3},   t:() => S.world.known.length >= Object.keys(REGIONS).length},
   // ---- Maskinerna ----
-  {id:'own_10',       g:'Machines',    n:'Small Operation',    d:'Own 10 machines in total',              r:{s:25},  t:() => ownedTotal() >= 10},
+  {id:'own_10',       g:'Machines',    n:'Small Operation',    d:'Own 10 machines in total',              r:{s:50},  t:() => ownedTotal() >= 10},
   {id:'own_100',      g:'Machines',    n:'Industrialist',      d:'Own 100 machines in total',             r:{G:1},   t:() => ownedTotal() >= 100},
   {id:'own_500',      g:'Machines',    n:'The Grid Hums',      d:'Own 500 machines in total',             r:{i:1},   t:() => ownedTotal() >= 500},
   {id:'own_each',     g:'Machines',    n:'Full Catalogue',     d:'Own at least one of every machine',     r:{G:2},   t:() => BUILDINGS.every(b => S.own[b.id] > 0)},
-  {id:'mil_5',        g:'Machines',    n:'Doubling Down',      d:'Reach 5 machine milestones',            r:{G:1},   t:() => milestoneCount() >= 5},
+  {id:'mil_5',        g:'Machines',    n:'Doubling Down',      d:'Reach 5 machine milestones',            r:{s:100},   t:() => milestoneCount() >= 5},
   {id:'mil_25',       g:'Machines',    n:'Compounding',        d:'Reach 25 machine milestones',           r:{i:2},   t:() => milestoneCount() >= 25},
   // ---- Utrustningen ----
   {id:'rare_first',   g:'Gear',        n:'Something Good',     d:'Own a Rare item',                       r:{G:1},   t:() => ownsRarity(2)},
@@ -8784,18 +8801,18 @@ const ACH = [
   {id:'legend_first', g:'Gear',        n:'Something Legendary',d:'Own a Legendary item',                  r:{i:1},   t:() => ownsRarity(4)},
   {id:'mythic_first', g:'Gear',        n:'Something Impossible',d:'Own a Mythic item',                    r:{i:2},   t:() => ownsRarity(5)},
   {id:'full_kit',     g:'Gear',        n:'Fully Kitted',       d:'Fill all 11 worn slots at once',        r:{G:5},   t:() => wornCount() >= 11},
-  {id:'bag_first',    g:'Gear',        n:'Room to Spare',      d:'Fit your first bag',                    r:{s:50},  t:() => fittedBagCount() >= 1},
+  {id:'bag_first',    g:'Gear',        n:'Room to Spare',      d:'Fit your first bag',                    r:{s:100},  t:() => fittedBagCount() >= 1},
   {id:'bags_all',     g:'Gear',        n:'Pack Mule',          d:'Fit a bag in all five bag slots',       r:{i:1},   t:() => fittedBagCount() >= 5},
-  {id:'mount_first',  g:'Gear',        n:'Wheels',             d:'Equip a transport',                     r:{G:1},   t:() => !!S.equip[11]},
+  {id:'mount_first',  g:'Gear',        n:'Wheels',             d:'Equip a transport',                     r:{s:50},   t:() => !!S.equip[11]},
   // ---- Pengar och handel ----
-  {id:'gold_100',     g:'Money',       n:'Pocket Full',        d:'Hold 100 gold at once',                 r:{G:2},   t:() => S.gold >= GOLD(100)},
+  {id:'gold_100',     g:'Money',       n:'Pocket Full',        d:'Hold 100 gold at once',                 r:{G:1},   t:() => S.gold >= GOLD(100)},
   {id:'gold_1000',    g:'Money',       n:'Deep Pockets',       d:'Hold 1000 gold at once',                r:{i:1},   t:() => S.gold >= GOLD(1000)},
-  {id:'buy_10',       g:'Money',       n:'Regular Customer',   d:'Buy 10 pieces of gear from vendors',    r:{G:5},   t:() => (S.stats.bought || 0) >= 10},
-  {id:'sell_25',      g:'Money',       n:'Clearing House',     d:'Sell 25 pieces of gear',                r:{G:1},   t:() => (S.stats.sold || 0) >= 25},
-  {id:'credits_100',  g:'Money',       n:'Credit Where Due',   d:'Hold 100 credits at once',              r:{G:5},   t:() => S.credits >= 100},
+  {id:'buy_10',       g:'Money',       n:'Regular Customer',   d:'Buy 10 pieces of gear from vendors',    r:{G:2},   t:() => (S.stats.bought || 0) >= 10},
+  {id:'sell_25',      g:'Money',       n:'Clearing House',     d:'Sell 25 pieces of gear',                r:{s:100},   t:() => (S.stats.sold || 0) >= 25},
+  {id:'credits_100',  g:'Money',       n:'Credit Where Due',   d:'Hold 100 credits at once',              r:{G:2},   t:() => S.credits >= 100},
   // ---- Ryktet och rangen ----
-  {id:'rep_1',        g:'Standing',    n:'A Familiar Face',    d:'Reach 1 reputation star anywhere',      r:{s:25},  t:() => Object.keys(REGIONS).some(id => repRank(id) >= 1)},
-  {id:'rep_5',        g:'Standing',    n:'One of Us',          d:'Reach 5 reputation stars in a region',  r:{G:10},  t:() => Object.keys(REGIONS).some(id => repRank(id) >= 5)},
+  {id:'rep_1',        g:'Standing',    n:'A Familiar Face',    d:'Reach 1 reputation star anywhere',      r:{s:50},  t:() => Object.keys(REGIONS).some(id => repRank(id) >= 1)},
+  {id:'rep_5',        g:'Standing',    n:'One of Us',          d:'Reach 5 reputation stars in a region',  r:{G:12},  t:() => Object.keys(REGIONS).some(id => repRank(id) >= 5)},
   {id:'level_10',     g:'Standing',    n:'Seasoned',           d:'Reach level 10',                        r:{G:2},   t:() => levelInfo().lvl >= 10},
   {id:'level_25',     g:'Standing',    n:'Veteran',            d:'Reach level 25',                        r:{i:2},   t:() => levelInfo().lvl >= 25}
 ];
@@ -13394,6 +13411,17 @@ function openZone(regionId, zi, keepNote){
   const gbtn = $('vendor-gift');
   if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); openZone(regionId, zi, true); });
   if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
+  const rfr = $('vendor-refresh');
+  if (rfr) rfr.addEventListener('click', () => {
+    rfr.disabled = true;
+    netVendorRefresh(regionId)
+      .then(r => {
+        if (r) vendorNote = 'New stock — paid ' + moneyText(+r.paid) + '. Next refresh ' +
+                            moneyText(+r.next_price) + '.';
+        openZone(regionId, zi, true);
+      })
+      .catch(e => { say(srvErrText(e)); rfr.disabled = false; });
+  });
   $('region-body').querySelectorAll('[data-buykit]').forEach(b => b.addEventListener('click', () => {
     buyCraftingKit(regionId, +b.dataset.buykit);
     openZone(regionId, zi, true);
@@ -13665,6 +13693,19 @@ function buildTrader(regionId){
     ? '<div class="trader-row sold"><div class="tr-item"><span class="vg-art empty"></span>' +
       '<div><div class="tr-name">Sold out</div><div class="tr-sub">Restocks when the clock runs out</div></div></div></div>'
     : row(s, i)).join('');
+  /* BETALD PAFYLLNING. Hyllan byts anda var femte timme; det har ar for den som
+     inte vill vanta. Priset stiger brant sa det ar en akut losning, inte ett
+     satt att sitta och rulla. Talet kommer fran servern. */
+  const vst = S.vend && S.vend[regionId];
+  if (NET.on && vst && vst.refreshPrice != null){
+    const rp = vst.refreshPrice;
+    gear += '<div class="trader-row"><div class="tr-item"><span class="tr-ico">🔄</span>' +
+      '<div><div class="tr-name">New stock now</div>' +
+      '<div class="tr-sub">Do not wait for the clock' +
+        (vst.paid ? ' · bought ' + vst.paid + ' this period' : '') + '</div></div></div>' +
+      '<div class="tr-buy">' + btn('Refresh — ' + fmtMoney(rp), ' id="vendor-refresh"', S.gold >= rp) +
+      '</div></div>';
+  }
   /* Beskedet hör till HELA boden, inte till en flik, så det står ovanför bådas
      innehåll — annars kunde man köpa fel och få svaret på en flik man inte tittar på. */
   const note = (here ? '' : '<div class="vg-note warn">' + vendorAwayText(regionId) + '</div>') +
