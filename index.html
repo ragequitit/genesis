@@ -4080,7 +4080,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.58.2 — KOPET FLYGER RAKT TILL INVENTORY</div>
+            <div class="desc">GENESIS v4.58.3 — LJUDVALET OVERLEVER EN OMLADDNING</div>
           </div>
         </div>
       </div>
@@ -4091,7 +4091,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.58.2 — KOPET FLYGER RAKT TILL INVENTORY</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.58.3 — LJUDVALET OVERLEVER EN OMLADDNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5654,6 +5654,29 @@ function tapGain(lvl){ return tapBase() * (1 + lvl * TAP_POWER_PCT) * (1 + gearB
 
 /* ---------- STATE ---------- */
 const SAVE_KEY = 'genesis-save-v1';
+/* ---------- LJUDET AR EN INSTALLNING FOR ENHETEN, INTE FOR KARAKTAREN ----------
+   [BUGG] Den lag i sparfilen. I serverlage lases sparfilen aldrig - den RADERAS
+   till och med, sa att en ny karaktar inte arver den forras maskiner - och da
+   foll ljudvalet bort med den. Stangde man av musiken och tryckte F5 kom den
+   tillbaka, varje gang.
+
+   Ljudet hor inte hemma pa servern heller: det ar valt for DEN HAR datorn och
+   de har horlurarna, inte for en karaktar. Darfor en egen nyckel som lever helt
+   utanfor sparfilen och aldrig raderas med den. */
+const SND_KEY = 'genesis.sound';
+function loadSoundPrefs(){
+  try {
+    const d = JSON.parse(localStorage.getItem(SND_KEY) || 'null');
+    if (!d || typeof d !== 'object') return;
+    if (typeof d.sfx === 'boolean')   S.snd.sfx = d.sfx;
+    if (typeof d.music === 'boolean') S.snd.music = d.music;
+    if (isFinite(+d.sv)) S.snd.sv = Math.min(1, Math.max(0, +d.sv));
+    if (isFinite(+d.mv)) S.snd.mv = Math.min(1, Math.max(0, +d.mv));
+  } catch (e){}
+}
+function saveSoundPrefs(){
+  try { localStorage.setItem(SND_KEY, JSON.stringify(S.snd)); } catch (e){}
+}
 /* ================= PENGARNA =================
    Guld behåller sitt värde; silver och koppar ligger UNDER det som finare valörer,
    så små belöningar kan uttryckas — 85s 15c för ett lätt uppdrag. Internt räknas
@@ -17236,7 +17259,7 @@ $('nav-music').addEventListener('click', () => {
   S.snd.music = !S.snd.music;
   Sound.setMusicEnabled(S.snd.music);
   $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
-  renderNavSound(); save();
+  renderNavSound(); saveSoundPrefs();
 });
 $('nav-sfx').addEventListener('click', () => {
   S.snd.sfx = !S.snd.sfx;
@@ -17244,28 +17267,34 @@ $('nav-sfx').addEventListener('click', () => {
   /* Ett litet klick tillbaka, sa man HOR att ljudet kom pa igen. */
   if (S.snd.sfx) Sound.resume().then(() => Sound.play('ding'));
   $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
-  renderNavSound(); save();
+  renderNavSound(); saveSoundPrefs();
 });
 $('snd-sfx').addEventListener('click', () => {
   S.snd.sfx = !S.snd.sfx;
   Sound.setEnabled(S.snd.sfx);
   $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
-  renderNavSound(); save();
+  renderNavSound(); saveSoundPrefs();
 });
 $('snd-music').addEventListener('click', () => {
   S.snd.music = !S.snd.music;
   Sound.setMusicEnabled(S.snd.music);
   $('snd-music').textContent = S.snd.music ? 'On' : 'Off';
-  renderNavSound(); save();
+  renderNavSound(); saveSoundPrefs();
 });
+/* [BUGG] VOLYMERNA SPARADES INTE ALLS - varken i sparfilen eller nagon
+   annanstans. De atergick till 70 och 35 procent vid varje omladdning aven i
+   lokalt lage, och ingen hade markt det for musiken var anda pastartad.
+   'change' i stallet for varje pixel man drar: en skrivning per justering. */
 $('vol-sfx').addEventListener('input', () => {
   S.snd.sv = (+$('vol-sfx').value) / 100;
   Sound.setSfxVolume(S.snd.sv);
 });
+$('vol-sfx').addEventListener('change', saveSoundPrefs);
 $('vol-music').addEventListener('input', () => {
   S.snd.mv = (+$('vol-music').value) / 100;
   Sound.setMusicVolume(S.snd.mv);
 });
+$('vol-music').addEventListener('change', saveSoundPrefs);
 $('layout-toggle').addEventListener('click', () => setEditMode(!editMode));
 $('layout-reset').addEventListener('click', () => {
   try { localStorage.removeItem(LAYOUT_KEY); } catch(e){}
@@ -17623,6 +17652,9 @@ async function gateFromLink(link){
 const SERVER_MODE = srvHasStoredSession();
 if (!SERVER_MODE) load();
 else { try { localStorage.removeItem(SAVE_KEY); } catch (e){} }
+/* Efter load(), sa den egna nyckeln alltid vinner over en gammal sparfil - och
+   FORE applySoundPrefs, som ar det som faktiskt startar eller tystar musiken. */
+loadSoundPrefs();
 applySoundPrefs();
 const offlinePending = SERVER_MODE ? null : computeOffline();
 applyLayout();
