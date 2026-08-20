@@ -3280,7 +3280,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <div class="gate-card">
         <span class="qi qi-auction gate-ico"></span>
         <b>Trade with players</b>
-        <p>The Auction House is a real market. List what you make, buy what you can't, pay the market fee when it sells.</p>
+        <p>The Auction House is a real market. List what you make, buy what you can't. Listing costs almost nothing; the tax is taken when it sells.</p>
       </div>
       <div class="gate-card">
         <span class="qi qi-inventory gate-ico"></span>
@@ -4052,7 +4052,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.47.0 — SANKORNA OCH MARKNADEN</div>
+            <div class="desc">GENESIS v4.51.2 — VARJE SET HAR SITT EGET VAPEN</div>
           </div>
         </div>
       </div>
@@ -4063,7 +4063,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.47.0 — SANKORNA OCH MARKNADEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.51.2 — VARJE SET HAR SITT EGET VAPEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4118,7 +4118,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span class="ah-b-val" id="ah-balance"></span>
         </div>
       </div>
-      <div class="ah-note">All transactions are subject to a market fee — 5% (24h) · 10% (48h) · 15% (72h)</div>
+      <div class="ah-note">8% sale tax when something sells</div>
     </div>
   </div>
 
@@ -4875,10 +4875,10 @@ async function netVendorLookInto(regionId){
   vendorFetching[regionId] = false;
   return S.vend && S.vend[regionId];
 }
-async function netVendorBuyStack(regionId, key){
+async function netVendorBuyStack(regionId, key, qty){
   if (!NET.on) return null;
   const r = await srvRpc('vendor_buy_stack',
-    {p_character: SRV.charId, p_region: regionId, p_key: key});
+    {p_character: SRV.charId, p_region: regionId, p_key: key, p_qty: Math.max(1, qty | 0) || 1});
   await netPull(); await netPullItems();
   renderInventory(); updateUI(true);
   return r;
@@ -5629,6 +5629,20 @@ const MATERIALS = {
   voidsteel_ore: {name:'Voidsteel', ico:'⚫', tier:1, bop:true,  prof:'extractor'},
   genesis_crystal:{name:'Genesis Crystal',ico:'✨', tier:1, bop:true, prof:'extractor'},
   refined_voidsteel:{name:'Refined Voidsteel',ico:'🔳', tier:1, bop:false, prof:'extractor', refined:true},
+  cobalt_ore:    {name:'Cobalt',        ico:'🔵', tier:0, bop:false, prof:'extractor'},
+  /* --- Mechanic: delar man plockar isar och bygger om (v4.49.0) ---
+     Fjarde samlaryrket. Dess material ar TILLVERKADE saker man hittar - i en
+     varld byggd av det folk lamnat efter sig ar en spole kabel lika mycket en
+     ravara som en malm. Namnen ar med flit ett ord styck; det var forebilden
+     nar de andra poolerna kortades ned. */
+  wire:          {name:'Wire',          ico:'🔌', tier:0, bop:false, prof:'mechanic'},
+  circuit:       {name:'Circuit',       ico:'🟩', tier:0, bop:false, prof:'mechanic'},
+  battery:       {name:'Battery',       ico:'🔋', tier:0, bop:false, prof:'mechanic'},
+  lens:          {name:'Lens',          ico:'🔎', tier:0, bop:false, prof:'mechanic'},
+  cog:           {name:'Cog',           ico:'⚙️', tier:0, bop:false, prof:'mechanic'},
+  power_core:    {name:'Power Core',    ico:'🔆', tier:1, bop:true,  prof:'mechanic'},
+  data_chip:     {name:'Data Chip',     ico:'💾', tier:1, bop:true,  prof:'mechanic'},
+  tech_parts:    {name:'Tech Parts',    ico:'🛠️', tier:1, bop:false, prof:'mechanic', refined:true},
   /* --- Fabricator: fibrer, polymer, vav --- */
   synthetic_fiber:{name:'Fiber',ico:'🧵', tier:0, bop:false, prof:'fabricator'},
   polymer_mesh:  {name:'Mesh',  ico:'🕸️', tier:0, bop:false, prof:'fabricator'},
@@ -5667,11 +5681,26 @@ const MATERIALS = {
   junk_keyboard: {name:'Broken Keyboard',    ico:'⌨️', tier:0, bop:false, prof:'junk'},
   junk_hilt:     {name:'Rusty Sword Hilt',   ico:'🗡️', tier:0, bop:false, prof:'junk'},
   /* --- Crafting-yrkenas egna BoP-komponenter (tjanas genom att craft:a) --- */
+  /* ---------- HANTVERKSSATSEN (v4.48.0) ----------
+     Den enda ingrediens man inte kan hitta, bara KOPA. Varje fardig produkt
+     kraver den, i antal efter sallsynthet, och det ar dar craftandets verkliga
+     kostnad ligger: allt annat kan man samla gratis, men satsen kostar guld
+     varje gang. Det ar ocksa hela skalet att den finns - utan en kontant
+     kostnad ar ett craft alltid gratis for den som orkar samla.
+
+     Den ar kontobunden (bop): handlaren kop:er tillbaka den, auktionen nekar
+     den. Kunde man salja satser vidare vore de bara guld i en annan form. */
+  crafting_kit:  {name:'Crafting Kit', ico:'🧰', tier:0, bop:true, prof:'vendor', kit:true},
   masterweave_thread:{name:'Masterweave Thread',ico:'🧵', tier:1, bop:true, prof:'outfitter', comp:true},
   forge_core:    {name:'Forge Core',    ico:'🔥', tier:1, bop:true,  prof:'weaponsmith', comp:true},
   resonance_dust:{name:'Resonance Dust', ico:'💫', tier:1, bop:true,  prof:'jewelcrafter', comp:true},
   catalyst_essence:{name:'Catalyst Essence',ico:'⚗️', tier:1, bop:true, prof:'chemist', comp:true}
 };
+/* Vad handlaren TAR for en sats. Att kopa och salja tillbaka ger alltsa en
+   femtedel igen, precis som allt annat i boden. */
+const KIT_BUY = 2000;
+/* Hur manga satser en fardig produkt kraver, per sallsynthet. */
+const KIT_PER_RARITY = [1, 2, 4, 7, 11, 16];
 function isMaterial(key){ return !!MATERIALS[key]; }
 /* Hur manga av ett material spelaren har i vaskan (staplar summeras). */
 function matCount(key){
@@ -5707,15 +5736,18 @@ function takeMaterial(key, qty){
    nar servrar blir data racker det att fylla den, inget annat behover andras. */
 const GATHER_DEFS = {
   extractor:    {verb:'Mining',    ico:'⛏️', cycle:5.0, nothing:0.65,
-                 core:['copper_ore','iron_ore','gold_ore','crystal_quartz'],
+                 core:['copper_ore','iron_ore','gold_ore','crystal_quartz','cobalt_ore'],
                  rare:['voidsteel_ore','genesis_crystal'],
                  gems:['diamond_shard','ruby','sapphire','amethyst']},
   fabricator:   {verb:'Weaving',   ico:'🧵', cycle:5.0, nothing:0.65,
-                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk','signal_cord','filament_spool'],
+                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk','signal_cord'],
                  rare:['phase_thread','memory_weave']},
   bioharvester: {verb:'Harvesting',ico:'🌿', cycle:5.0, nothing:0.65,
                  core:['neon_bloom','circuit_root','static_cap','glass_moss','prism_sap'],
-                 rare:['null_orchid','genesis_spore']}
+                 rare:['null_orchid','genesis_spore']},
+  mechanic:     {verb:'Salvaging', ico:'🔧', cycle:5.0, nothing:0.65,
+                 core:['wire','circuit','battery','lens','cog'],
+                 rare:['power_core','data_chip']}
 };
 /* Chans pa RART material per region-tier (0 = hemma ... 4 = frontar). Core far
    resten. En liten men verklig chans pa rart redan hemma; klart battre langt ut. */
@@ -5909,7 +5941,13 @@ const PROFESSIONS = [
    mats:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk']},
   {id:'bioharvester',name:'Bioharvester', kind:'gathering', ico:'🌿',
    blurb:'Gathers digital blooms, roots and fungi for chemists.',
-   mats:['neon_bloom','circuit_root','static_cap','glass_moss']}
+   mats:['neon_bloom','circuit_root','static_cap','glass_moss','prism_sap']},
+  /* FJARDE SAMLAREN (v4.49.0). Han plockar isar det andra byggt och lamnat -
+     kabel, kretsar, celler, linser och kugghjul. Alla fyra hantverkare behover
+     nagot fran honom, och han ar den enda vagen till Tech Parts. */
+  {id:'mechanic',    name:'Mechanic',     kind:'gathering', ico:'🔧',
+   blurb:'Salvages wire, circuits, cells, lenses and cogs — the parts everything else needs.',
+   mats:['wire','circuit','battery','lens','cog']}
 ];
 const PROF_BY = {}; PROFESSIONS.forEach(p => PROF_BY[p.id] = p);
 /* Yrkets egen ikon. En fil per yrke (assets/professions/<id>.png), samma princip
@@ -5934,16 +5972,23 @@ const RECIPES = [
   {id:'ex_s1', prof:'extractor',    name:'Smelt Scrap',        item:'copper_ore',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'fa_s1', prof:'fabricator',   name:'Unravel Scrap',      item:'synthetic_fiber',   rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'bh_s1', prof:'bioharvester', name:'Culture Scrap',      item:'glass_moss',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
-  {id:'ex_r1', prof:'extractor',    name:'Refine Voidsteel',   item:'refined_voidsteel', rar:2, lvl:12, source:'known', cost:{voidsteel_ore:3, genesis_crystal:2}},
-  {id:'fa_r1', prof:'fabricator',   name:'Refine Phaseweave',  item:'refined_phaseweave',rar:2, lvl:12, source:'known', cost:{phase_thread:3, memory_weave:2}},
-  {id:'bh_r1', prof:'bioharvester', name:'Refine Bioessence',  item:'refined_bioessence',rar:2, lvl:12, source:'known', cost:{null_orchid:3, genesis_spore:2}},
+  {id:'me_s1', prof:'mechanic',     name:'Reuse Scrap',        item:'wire',              rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
+  /* SPOLEN CRAFTAS NUMERA. Den lag i Fabricators insamlingspool for att jamna
+     ut hur manga fynd yrket hade - men med Mechanic pa plats har alla fyra
+     poolerna fem basmaterial, och en spole ar en TILLVERKAD sak, inte nagot man
+     hittar. Befintliga spolar i vaskan ar oforandrade. */
+  {id:'fa_k1', prof:'fabricator',   name:'Make Spool',         item:'filament_spool',    rar:0, lvl:5, source:'known',  cost:{synthetic_fiber:2, signal_cord:1}},
+  {id:'ex_r1', prof:'extractor',    name:'Refine Voidsteel',   item:'refined_voidsteel', rar:2, lvl:10, source:'known', cost:{voidsteel_ore:3, genesis_crystal:2}},
+  {id:'fa_r1', prof:'fabricator',   name:'Refine Phaseweave',  item:'refined_phaseweave',rar:2, lvl:10, source:'known', cost:{phase_thread:3, memory_weave:2}},
+  {id:'bh_r1', prof:'bioharvester', name:'Refine Bioessence',  item:'refined_bioessence',rar:2, lvl:10, source:'known', cost:{null_orchid:3, genesis_spore:2}},
+  {id:'me_r1', prof:'mechanic',     name:'Build Tech Parts',    item:'tech_parts',        rar:2, lvl:10, source:'known', cost:{power_core:3, data_chip:2}},
   /* ===================== HANTVERKARNAS EGNA KOMPONENTER =====================
      Forut kom de BARA ur skrotning. Nu gor hantverkaren dem sjalv - av
      foradlat material kopt av en samlare, sa kedjan mellan yrkena halls hel. */
-  {id:'of_k1', prof:'outfitter',    name:'Spin Masterweave',   item:'masterweave_thread',rar:2, lvl:12, source:'known', cost:{refined_phaseweave:1, static_silk:4}},
-  {id:'ws_k1', prof:'weaponsmith',  name:'Cast Forge Core',    item:'forge_core',        rar:2, lvl:12, source:'known', cost:{refined_voidsteel:1, iron_ore:4}},
-  {id:'jc_k1', prof:'jewelcrafter', name:'Grind Resonance',    item:'resonance_dust',    rar:2, lvl:12, source:'known', cost:{refined_voidsteel:1, crystal_quartz:4}},
-  {id:'ch_k1', prof:'chemist',      name:'Distil Catalyst',    item:'catalyst_essence',  rar:2, lvl:12, source:'known', cost:{refined_bioessence:1, neon_bloom:4}},
+  {id:'of_k1', prof:'outfitter',    name:'Spin Masterweave',   item:'masterweave_thread',rar:2, lvl:10, source:'known', cost:{refined_phaseweave:1, static_silk:4}},
+  {id:'ws_k1', prof:'weaponsmith',  name:'Cast Forge Core',    item:'forge_core',        rar:2, lvl:10, source:'known', cost:{refined_voidsteel:1, iron_ore:4}},
+  {id:'jc_k1', prof:'jewelcrafter', name:'Grind Resonance',    item:'resonance_dust',    rar:2, lvl:10, source:'known', cost:{refined_voidsteel:1, crystal_quartz:4}},
+  {id:'ch_k1', prof:'chemist',      name:'Distil Catalyst',    item:'catalyst_essence',  rar:2, lvl:10, source:'known', cost:{refined_bioessence:1, neon_bloom:4}},
   /* ===================== OUTFITTER (16) ===================== */
   /* Common - billigt, bara core-fibrer */
   {id:'of_c1', prof:'outfitter', name:"Courier's Gloves", item:'runners_gloves', rar:0, lvl:1, source:'known', cost:{synthetic_fiber:3, carbon_weave:1, signal_cord:2}},
@@ -5958,13 +6003,13 @@ const RECIPES = [
   {id:'of_u4', prof:'outfitter', name:'Woven Courier Vest',  item:'runners_vest',    rar:1, lvl:5, source:'known', cost:{carbon_weave:5, polymer_mesh:2, filament_spool:3}},
   {id:'of_u5', prof:'outfitter', name:'Phasebound Belt',      item:'waist_signal_belt',rar:1, lvl:5, source:'known', cost:{static_silk:3, carbon_weave:2, gold_ore:1}},
   /* Rare - drar in Masterweave Thread (BoP) + dyrare tradeable */
-  {id:'of_r1', prof:'outfitter', name:'Phasewalker Boots',    item:'runners_boots',   rar:2, lvl:12, source:'drop', cost:{carbon_weave:5, static_silk:4, refined_phaseweave:1, masterweave_thread:1}},
-  {id:'of_r2', prof:'outfitter', name:'Staticrunner Gloves',  item:'runners_gloves',  rar:2, lvl:12, source:'drop', cost:{static_silk:5, carbon_weave:4, masterweave_thread:1}},
-  {id:'of_r3', prof:'outfitter', name:'Deep Network Vest',    item:'runners_vest',    rar:2, lvl:12, source:'drop', cost:{carbon_weave:6, static_silk:5, refined_phaseweave:2, masterweave_thread:1}},
-  {id:'of_r4', prof:'outfitter', name:'Memoryweave Trousers', item:'runners_trousers',rar:2, lvl:12, source:'drop', cost:{static_silk:5, refined_phaseweave:1, masterweave_thread:1}},
-  {id:'of_r5', prof:'outfitter', name:'Signalkeeper Belt',    item:'waist_plated_sash',rar:2, lvl:12, source:'drop', cost:{carbon_weave:5, static_silk:3, masterweave_thread:1, gold_ore:2}},
+  {id:'of_r1', prof:'outfitter', name:'Phasewalker Boots',    item:'runners_boots',   rar:2, lvl:10, source:'drop', cost:{carbon_weave:5, static_silk:4, refined_phaseweave:1, masterweave_thread:1}},
+  {id:'of_r2', prof:'outfitter', name:'Staticrunner Gloves',  item:'runners_gloves',  rar:2, lvl:10, source:'drop', cost:{static_silk:5, carbon_weave:4, masterweave_thread:1}},
+  {id:'of_r3', prof:'outfitter', name:'Deep Network Vest',    item:'runners_vest',    rar:2, lvl:10, source:'drop', cost:{carbon_weave:6, static_silk:5, refined_phaseweave:2, masterweave_thread:1}},
+  {id:'of_r4', prof:'outfitter', name:'Memoryweave Trousers', item:'runners_trousers',rar:2, lvl:10, source:'drop', cost:{static_silk:5, refined_phaseweave:1, masterweave_thread:1}},
+  {id:'of_r5', prof:'outfitter', name:'Signalkeeper Belt',    item:'waist_plated_sash',rar:2, lvl:10, source:'drop', cost:{carbon_weave:5, static_silk:3, masterweave_thread:1, gold_ore:2}},
   /* Epic - ett projekt */
-  {id:'of_e1', prof:'outfitter', name:'Nullweave Mantle',     item:'runners_vest',    rar:3, lvl:20, source:'drop', cost:{carbon_weave:8, static_silk:6, refined_phaseweave:3, masterweave_thread:2, gold_ore:4}},
+  {id:'of_e1', prof:'outfitter', name:'Nullweave Mantle',     item:'runners_vest',    rar:3, lvl:16, source:'drop', cost:{carbon_weave:8, static_silk:6, refined_phaseweave:3, masterweave_thread:2, gold_ore:4}},
 
   /* ===================== WEAPONSMITH (16) ===================== */
   {id:'ws_c1', prof:'weaponsmith', name:'Ironcut Blade',   item:'runners_dagger',      rar:0, lvl:1, source:'known', cost:{iron_ore:4, carbon_weave:1}},
@@ -5977,12 +6022,12 @@ const RECIPES = [
   {id:'ws_u3', prof:'weaponsmith', name:'Longwave Rifle',  item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:5, gold_ore:2, carbon_weave:2}},
   {id:'ws_u4', prof:'weaponsmith', name:'Gavelfall Maul',  item:'runners_dagger',      rar:1, lvl:5, source:'known', cost:{iron_ore:6, crystal_quartz:2}},
   {id:'ws_u5', prof:'weaponsmith', name:'Skyrail Drifter', item:'transport_hoverdeck', rar:1, lvl:5, source:'known', cost:{iron_ore:5, carbon_weave:4, prism_sap:2, gold_ore:2}},
-  {id:'ws_r1', prof:'weaponsmith', name:'Quartzcut Blade',item:'runners_dagger',      rar:2, lvl:12, source:'drop', cost:{iron_ore:6, crystal_quartz:4, forge_core:1}},
-  {id:'ws_r2', prof:'weaponsmith', name:'Arcshield',       item:'offhand_arc_torch',   rar:2, lvl:12, source:'drop', cost:{iron_ore:5, gold_ore:3, forge_core:1}},
-  {id:'ws_r3', prof:'weaponsmith', name:'Fusecoil Staff',  item:'runners_dagger',      rar:2, lvl:12, source:'drop', cost:{iron_ore:6, crystal_quartz:4, refined_voidsteel:1, forge_core:1}},
-  {id:'ws_r4', prof:'weaponsmith', name:'Longwave Marksman',item:'runners_dagger',     rar:2, lvl:12, source:'drop', cost:{iron_ore:7, gold_ore:3, forge_core:1}},
-  {id:'ws_r5', prof:'weaponsmith', name:'Phase Drifter',   item:'transport_sky_lance', rar:2, lvl:12, source:'drop', cost:{iron_ore:6, carbon_weave:5, refined_voidsteel:1, forge_core:1}},
-  {id:'ws_e1', prof:'weaponsmith', name:'Voidrunner Bike', item:'transport_prowler',   rar:3, lvl:20, source:'drop', cost:{iron_ore:10, carbon_weave:6, refined_voidsteel:2, forge_core:2, gold_ore:5}},
+  {id:'ws_r1', prof:'weaponsmith', name:'Quartzcut Blade',item:'runners_dagger',      rar:2, lvl:10, source:'drop', cost:{iron_ore:6, crystal_quartz:4, forge_core:1}},
+  {id:'ws_r2', prof:'weaponsmith', name:'Arcshield',       item:'offhand_arc_torch',   rar:2, lvl:10, source:'drop', cost:{iron_ore:5, gold_ore:3, forge_core:1}},
+  {id:'ws_r3', prof:'weaponsmith', name:'Fusecoil Staff',  item:'runners_dagger',      rar:2, lvl:10, source:'drop', cost:{iron_ore:6, crystal_quartz:4, refined_voidsteel:1, forge_core:1}},
+  {id:'ws_r4', prof:'weaponsmith', name:'Longwave Marksman',item:'runners_dagger',     rar:2, lvl:10, source:'drop', cost:{iron_ore:7, gold_ore:3, forge_core:1}},
+  {id:'ws_r5', prof:'weaponsmith', name:'Phase Drifter',   item:'transport_sky_lance', rar:2, lvl:10, source:'drop', cost:{iron_ore:6, carbon_weave:5, refined_voidsteel:1, forge_core:1}},
+  {id:'ws_e1', prof:'weaponsmith', name:'Voidrunner Bike', item:'transport_prowler',   rar:3, lvl:16, source:'drop', cost:{iron_ore:10, carbon_weave:6, refined_voidsteel:2, forge_core:2, gold_ore:5}},
 
   /* ===================== JEWELCRAFTER (16) ===================== */
   {id:'jc_c1', prof:'jewelcrafter', name:'Tin Signal Ring',item:'ring_copper_band', rar:0, lvl:1, source:'known', cost:{copper_ore:3, crystal_quartz:1}},
@@ -5995,16 +6040,16 @@ const RECIPES = [
   {id:'jc_u3', prof:'jewelcrafter', name:'Quartz Loop',     item:'ring_crystal_ring', rar:1, lvl:5, source:'known', cost:{crystal_quartz:4, gold_ore:2}},
   {id:'jc_u4', prof:'jewelcrafter', name:'Network Charm',    item:'neck_signal_tag',   rar:1, lvl:5, source:'known', cost:{gold_ore:3, amethyst:1}},
   {id:'jc_u5', prof:'jewelcrafter', name:'Cut Amethyst',     item:'ring_circuit_band', rar:1, lvl:5, source:'known', cost:{amethyst:2, crystal_quartz:2, prism_sap:2}},
-  {id:'jc_r1', prof:'jewelcrafter', name:'Resonance Ring',   item:'ring_crystal_ring', rar:2, lvl:12, source:'drop', cost:{gold_ore:4, ruby:2, resonance_dust:1}},
-  {id:'jc_r2', prof:'jewelcrafter', name:'Glassheart Pendant',item:'neck_crystal_amulet',rar:2, lvl:12, source:'drop', cost:{crystal_quartz:5, sapphire:2, resonance_dust:1}},
-  {id:'jc_r3', prof:'jewelcrafter', name:'Phase Loop',       item:'ring_signal_ring',  rar:2, lvl:12, source:'drop', cost:{gold_ore:4, amethyst:2, resonance_dust:1}},
-  {id:'jc_r4', prof:'jewelcrafter', name:'Signal Relic',     item:'neck_signal_tag',   rar:2, lvl:12, source:'drop', cost:{gold_ore:5, crystal_quartz:6, ruby:1, resonance_dust:1}},
-  {id:'jc_r5', prof:'jewelcrafter', name:'Perfect Sapphire', item:'ring_crystal_ring', rar:2, lvl:12, source:'drop', cost:{sapphire:3, crystal_quartz:4, resonance_dust:1}},
-  {id:'jc_e1', prof:'jewelcrafter', name:'Heart of the Network',item:'neck_crystal_amulet',rar:3, lvl:20, source:'drop', cost:{gold_ore:6, ruby:2, sapphire:2, diamond_shard:1, resonance_dust:2}},
+  {id:'jc_r1', prof:'jewelcrafter', name:'Resonance Ring',   item:'ring_crystal_ring', rar:2, lvl:10, source:'drop', cost:{gold_ore:4, ruby:2, resonance_dust:1}},
+  {id:'jc_r2', prof:'jewelcrafter', name:'Glassheart Pendant',item:'neck_crystal_amulet',rar:2, lvl:10, source:'drop', cost:{crystal_quartz:5, sapphire:2, resonance_dust:1}},
+  {id:'jc_r3', prof:'jewelcrafter', name:'Phase Loop',       item:'ring_signal_ring',  rar:2, lvl:10, source:'drop', cost:{gold_ore:4, amethyst:2, resonance_dust:1}},
+  {id:'jc_r4', prof:'jewelcrafter', name:'Signal Relic',     item:'neck_signal_tag',   rar:2, lvl:10, source:'drop', cost:{gold_ore:5, crystal_quartz:6, ruby:1, resonance_dust:1}},
+  {id:'jc_r5', prof:'jewelcrafter', name:'Perfect Sapphire', item:'ring_crystal_ring', rar:2, lvl:10, source:'drop', cost:{sapphire:3, crystal_quartz:4, resonance_dust:1}},
+  {id:'jc_e1', prof:'jewelcrafter', name:'Heart of the Network',item:'neck_crystal_amulet',rar:3, lvl:16, source:'drop', cost:{gold_ore:6, ruby:2, sapphire:2, diamond_shard:1, resonance_dust:2}},
   /* JUVELERARENS RELIK. Kristallkvarts fran gruvan bar den, precis som spelaren
      bad om. Receptet faller som de andra sallsynta - det star inte i boken fran
      borjan. */
-  {id:'jc_rel1',prof:'jewelcrafter', name:'Everfrost Cut',    item:'relic_shard_of_everfrost', rar:2, lvl:12, source:'drop', cost:{diamond_shard:1, crystal_quartz:6, gold_ore:4, resonance_dust:1}},
+  {id:'jc_rel1',prof:'jewelcrafter', name:'Everfrost Cut',    item:'relic_shard_of_everfrost', rar:2, lvl:10, source:'drop', cost:{diamond_shard:1, crystal_quartz:6, gold_ore:4, resonance_dust:1}},
 
   /* ===================== CHEMIST (16) - consumables ===================== */
   /* Chemistens produkter ar forbrukningsvaror; de anvander flask-foremal (byggs nedan)
@@ -6019,15 +6064,29 @@ const RECIPES = [
   {id:'ch_u3', prof:'chemist', name:'Impact Catalyst',  item:'flask_impact',  rar:1, lvl:5, source:'known', cost:{static_cap:3, gold_ore:1}, consumable:'critdmg'},
   {id:'ch_u4', prof:'chemist', name:'Slipstream Tonic',  item:'flask_trail',   rar:1, lvl:5, source:'known', cost:{glass_moss:3, circuit_root:2}, consumable:'travel'},
   {id:'ch_u5', prof:'chemist', name:'Learning Compound', item:'flask_learning',rar:1, lvl:5, source:'known', cost:{neon_bloom:3, circuit_root:3}, consumable:'xp'},
-  {id:'ch_r1', prof:'chemist', name:'Echo Growth Serum',   item:'flask_echo',    rar:2, lvl:12, source:'drop', cost:{neon_bloom:4, refined_bioessence:1, catalyst_essence:1}, consumable:'petxp'},
-  {id:'ch_r2', prof:'chemist', name:'Expedition Catalyst', item:'flask_expedition',rar:2, lvl:12, source:'drop', cost:{circuit_root:4, static_cap:3, catalyst_essence:1}, consumable:'expedspeed'},
-  {id:'ch_r3', prof:'chemist', name:'Deep Focus Serum',    item:'flask_focus',   rar:2, lvl:12, source:'drop', cost:{circuit_root:4, crystal_quartz:3, catalyst_essence:1}, consumable:'crit'},
-  {id:'ch_r4', prof:'chemist', name:'Network Overclock',   item:'flask_data',    rar:2, lvl:12, source:'drop', cost:{neon_bloom:5, glass_moss:3, catalyst_essence:1}, consumable:'idle'},
-  {id:'ch_r5', prof:'chemist', name:'Pathfinder Compound', item:'flask_trail',   rar:2, lvl:12, source:'drop', cost:{glass_moss:4, refined_bioessence:1, catalyst_essence:1}, consumable:'travel'},
+  {id:'ch_r1', prof:'chemist', name:'Echo Growth Serum',   item:'flask_echo',    rar:2, lvl:10, source:'drop', cost:{neon_bloom:4, refined_bioessence:1, catalyst_essence:1}, consumable:'petxp'},
+  {id:'ch_r2', prof:'chemist', name:'Expedition Catalyst', item:'flask_expedition',rar:2, lvl:10, source:'drop', cost:{circuit_root:4, static_cap:3, catalyst_essence:1}, consumable:'expedspeed'},
+  {id:'ch_r3', prof:'chemist', name:'Deep Focus Serum',    item:'flask_focus',   rar:2, lvl:10, source:'drop', cost:{circuit_root:4, crystal_quartz:3, catalyst_essence:1}, consumable:'crit'},
+  {id:'ch_r4', prof:'chemist', name:'Network Overclock',   item:'flask_data',    rar:2, lvl:10, source:'drop', cost:{neon_bloom:5, glass_moss:3, catalyst_essence:1}, consumable:'idle'},
+  {id:'ch_r5', prof:'chemist', name:'Pathfinder Compound', item:'flask_trail',   rar:2, lvl:10, source:'drop', cost:{glass_moss:4, refined_bioessence:1, catalyst_essence:1}, consumable:'travel'},
   {id:'ch_c6', prof:'chemist', name:'Fortune Flask',    item:'flask_fortune', rar:0, lvl:1, source:'known', cost:{glass_moss:2, crystal_quartz:1}, consumable:'luck'},
   {id:'ch_u6', prof:'chemist', name:'Fortune Compound', item:'flask_fortune', rar:1, lvl:5, source:'known', cost:{glass_moss:3, prism_sap:2}, consumable:'luck'},
-  {id:'ch_e1', prof:'chemist', name:'Genesis Compound',    item:'flask_genesis', rar:3, lvl:20, source:'drop', cost:{refined_bioessence:3, neon_bloom:6, catalyst_essence:2}, consumable:'idle'}
+  {id:'ch_e1', prof:'chemist', name:'Genesis Compound',    item:'flask_genesis', rar:3, lvl:16, source:'drop', cost:{refined_bioessence:3, neon_bloom:6, catalyst_essence:2}, consumable:'idle'}
 ];
+/* ---------- SATSERNA LAGGS PA RECEPTEN (v4.48.0) ----------
+   Regeln ar en enda och behover ingen undantagslista: ger receptet ett
+   MATERIAL kravs ingen sats, ger det en fardig produkt kravs de. Det tacker
+   av sig sjalvt bade skrotforadlingen, de tre foradlade, spolen och
+   hantverkarnas fyra komponenter - alla ar material.
+   Talen ligger pa recepten fran start, sa det finns bara EN receptlista och
+   ingen andra sanning att halla i takt. */
+(function addCraftingKits(){
+  RECIPES.forEach(r => {
+    if (MATERIALS[r.item]) return;                 /* material: ingen sats */
+    r.cost = Object.assign({}, r.cost);
+    r.cost.crafting_kit = KIT_PER_RARITY[Math.min(r.rar, KIT_PER_RARITY.length - 1)];
+  });
+})();
 const RECIPE_BY = {}; RECIPES.forEach(r => RECIPE_BY[r.id] = r);
 
 /* Chemistens produkter: stackbara flaskor med en boost. Namn och ikon per nyckel;
@@ -6239,10 +6298,7 @@ function craftRecipe(rid){
   /* En flaska staplar - behovs bara en ledig ruta OM den inte redan finns i vaskan. */
   if (!flask && invFirstFree() < 0) return false;     // gear: full vaska craftar inte bort i intet
   Object.keys(r.cost).forEach(k => takeMaterial(k, r.cost[k]));
-  /* Samma trappa som servern: 25 + 15 per sallsynthetssteg. Ett craft ska vara
-     vart ungefar vad materialet kostade i insamlad tid - forut gav det 8 XP
-     medan materialet det at var vart runt 68. */
-  grantProfXP(r.prof, 25 + r.rar * 15);
+  grantProfXP(r.prof, craftXP(r));
   S.stats = S.stats || {};
   S.stats.crafted = (S.stats.crafted || 0) + 1;
   let out;
@@ -6264,6 +6320,22 @@ function craftRecipe(rid){
   }
   renderInventory(); updateUI(true); save();
   return out;
+}
+/* ---------- VAD ETT CRAFT GER I YRKES-XP (v4.50.0) ----------
+   Forut 25 + 15 per sallsynthetssteg, alltsa bara efter HUR FIN pjasen ar. Men
+   det som kostar ar hur MYCKET receptet at: ett recept pa fjorton material ar
+   fjorton insamlade fynd, oavsett om det ger en common eller en rare. Nu:
+
+       20 + 8 per forbrukad enhet + ett pasla per sallsynthet
+
+   HANTVERKSSATSER RAKNAS INTE. De kops for guld, inte samlas - gav de XP vore
+   det att kopa yrkesnivaer for pengar, och det ar precis den sortens genvag
+   trader och tokens redan ar skyddade fran. */
+const CRAFT_XP_RARITY = [0, 20, 50, 100, 175, 275];
+function craftXP(r){
+  let units = 0;
+  Object.keys(r.cost || {}).forEach(k => { if (k !== 'crafting_kit') units += r.cost[k]; });
+  return 20 + 8 * units + CRAFT_XP_RARITY[Math.min(r.rar, CRAFT_XP_RARITY.length - 1)];
 }
 const PROF_MAX = 2;              // max larda samtidigt (last)
 const PROF_LEARN_COST = GOLD(5);   // fast pris, varje gang
@@ -6484,9 +6556,56 @@ const ITEMS = {};
 function defItem(key, name, slot, art, rars){
   ITEMS[key] = {key: key, name: name, slot: slot, art: art, rars: rars};
 }
-[['cap','Cap',0], ['vest','Vest',1], ['trousers','Trousers',2],
- ['gloves','Gloves',3], ['boots','Boots',4], ['dagger','Dagger',5]]
-  .forEach(p => { ITEMS['runners_' + p[0]] = {key:'runners_' + p[0], name:"Runner's " + p[1], slot:p[2], piece:p[0], rars:ALL_RAR}; });
+/* ---------- DE SEX SETEN (v4.51.0) ----------
+   SEX SET OM SEX DELAR = 36 foremal, ett per plats och set. Sallsyntheten har
+   INGEN egen bild langre - den syns i ramens och skenets farg, precis som pa
+   varje ring, halsband och transport i spelet. Det var Runner's som var
+   undantaget, med sex bilder per plats.
+
+   Varfor det ar ratt: en bild per raritet betyder 216 bilder for sex set. En
+   bild per del betyder 36. Och ramen sager redan vilken raritet det ar, sa den
+   andra bilden bar ingen information - den kostade bara arbete.
+
+   VARJE SET TACKER ETT BAND av tre sallsyntheter, forskjutet ett steg. Da ar
+   ett Voidsteel-plagg alltid finare an ett Salvage-plagg, och man ser pa nagon
+   var hen har varit - vilket ar hela poangen med att ha set alls.
+
+   RUNNER'S NYCKLAR AR ORORDA. De sitter ihop med varje pjas som redan finns i
+   nagons vaska; att byta dem vore att kasta bort dem. */
+const GEAR_PIECES = [['cap','Cap',0], ['vest','Vest',1], ['trousers','Trousers',2],
+                     ['gloves','Gloves',3], ['boots','Boots',4], ['blade','Blade',5]];
+const GEAR_SETS = [
+  /* RUNNER'S HAR EGEN BILD PER SALLSYNTHET - alla 36 ar redan ritade, och att
+     lata trettio av dem ligga oanvanda vore att slanga arbete. Det ar darfor
+     inte ett undantag utan en egenskap: ett set BAR ha en bild per steg om
+     nagon orkar rita dem, och en enda bild annars. Runner's spanner darfor ocksa
+     hela vagen fran common till mythic. */
+  /* VARJE SET HAR SITT EGET VAPEN. Sex set med var sin dolk vore sex kopior -
+     och poangen med att seten kommer fran olika spel ar just att de INTE ser ut
+     som varandra. En skrotvarld har en rortang, en arkad har en stralpistol.
+     Delen heter fortfarande 'blade' inuti, sa nycklar och filnamn ar oforandrade. */
+  {id:'runners',   name:"Runner's",  rars:[0,1,2,3,4,5], perRarity:true, weapon:'Dagger'},
+  {id:'salvage',   name:'Salvage',   rars:[0,1,2],       weapon:'Wrench'},
+  {id:'circuit',   name:'Circuit',   rars:[1,2,3],       weapon:'Beam Rifle'},
+  {id:'phase',     name:'Phase',     rars:[2,3,4],       weapon:'Wand'},
+  {id:'voidsteel', name:'Voidsteel', rars:[3,4,5],       weapon:'Greatsword'},
+  {id:'genesis',   name:'Genesis',   rars:[3,4,5],       weapon:'Hammer'}
+];
+GEAR_SETS.forEach(st => {
+  GEAR_PIECES.forEach(pc => {
+    /* Runner's behaller sina gamla nycklar: runners_cap, runners_dagger ... */
+    const key = st.id === 'runners'
+      ? 'runners_' + (pc[0] === 'blade' ? 'dagger' : pc[0])
+      : st.id + '_' + pc[0];
+    /* Runner's filnamn anvander 'dagger', inte 'blade'. */
+    const file = st.id === 'runners' && pc[0] === 'blade' ? 'dagger' : pc[0];
+    const label = pc[0] === 'blade' && st.weapon ? st.weapon : pc[1];
+    ITEMS[key] = {key: key, name: st.name + ' ' + label, slot: pc[2],
+                  set: st.id, rars: st.rars, perRarity: !!st.perRarity, piece: file,
+                  art: st.perRarity ? null
+                     : 'assets/gear/' + st.id + '/' + st.id + '_' + pc[0] + '.png'};
+  });
+});
 /* Ringar */
 defItem('ring_signal_ring',   'Signal Ring',   8, 'assets/gear/rings/ring_signal_ring.png',   ALL_RAR);
 defItem('ring_circuit_band',  'Circuit Band',  8, 'assets/gear/rings/ring_circuit_band.png',  ALL_RAR);
@@ -6586,7 +6705,11 @@ function pickItemKey(rarIdx){
 function itemArtFor(key, rarIdx){
   const D = ITEMS[key];
   if (!D) return '';
-  if (D.piece) return 'assets/gear/runners_set/runners_' + D.piece + '_' + GEAR_RAR[rarIdx].file + '.png';
+  /* Ett set med EGEN bild per sallsynthet (Runner's) laser sitt raritetsnamn ur
+     filnamnet. Alla andra har EN bild - da sager ramens farg vilken raritet det
+     ar, precis som for ringar och halsband. */
+  if (D.perRarity)
+    return 'assets/gear/' + D.set + '_set/' + D.set + '_' + D.piece + '_' + GEAR_RAR[rarIdx].file + '.png';
   return D.art;
 }
 function gearArt(it){ return itemArtFor(it.t, it.r); }
@@ -9120,7 +9243,7 @@ const EXPEDITIONS = {
       {id:'bv_dh_vault',  name:'Deephold Descent',      mins:40, lvl:7, base:3600}
     ],
     'Undervault': [
-      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:10, base:12000},
+      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:12, base:12000},
       {id:'bv_uv_count',  name:'Vault Inventory',       mins:12, lvl:5,  base:600}
     ]
   },
@@ -9139,7 +9262,7 @@ const EXPEDITIONS = {
       {id:'ff_sm_cool',  name:'Cooling Watch',     mins:25, lvl:15, base:17000}
     ],
     'The Crucible':[ {id:'ff_cr_shift', name:'The Last Shift',   mins:20, lvl:15, base:13500} ],
-    'Ashfall':    [ {id:'ff_af_ember', name:'Ember Harvest',     mins:45, lvl:16, base:32000} ],
+    'Ashfall':    [ {id:'ff_af_ember', name:'Ember Harvest',     mins:45, lvl:20, base:32000} ],
     'Cinderholm': [ {id:'ff_ch_walk',  name:'Cinder Walk',       mins:6,  lvl:12, base:3200} ]
   },
   novabazaar: {
@@ -9149,23 +9272,23 @@ const EXPEDITIONS = {
     ],
     'Gavelhall':  [ {id:'nb_gh_snipe', name:'Auction Sniping',   mins:12, lvl:14, base:7500} ],
     'Lanternside':[ {id:'nb_ls_route', name:'Lantern Route',     mins:25, lvl:15, base:17000} ],
-    'Coinreach':  [ {id:'nb_cr_count', name:'The Long Count',    mins:40, lvl:16, base:29000} ]
+    'Coinreach':  [ {id:'nb_cr_count', name:'The Long Count',    mins:40, lvl:20, base:29000} ]
   },
   pixelgardens: {
     'Bloomvale':  [
       {id:'pg_bv_pollen', name:'Pollen Run',       mins:6,  lvl:12, base:3200},
-      {id:'pg_bv_night',  name:'Night Bloom',      mins:35, lvl:16, base:25000}
+      {id:'pg_bv_night',  name:'Night Bloom',      mins:35, lvl:20, base:25000}
     ],
     'Thornmesh':  [ {id:'pg_tm_patrol', name:'Thorn Patrol',     mins:18, lvl:14, base:11000} ],
-    'Rootworks':  [ {id:'pg_rw_access', name:'Root Access',      mins:40, lvl:16, base:29000} ],
+    'Rootworks':  [ {id:'pg_rw_access', name:'Root Access',      mins:40, lvl:20, base:29000} ],
     'Mosslight':  [ {id:'pg_ml_glow',   name:'Moss Glow Survey', mins:10, lvl:13, base:5800} ]
   },
   skyarray: {
     'Spirecrest': [
       {id:'sa_sc_climb', name:'Dish Climb',        mins:7,  lvl:13, base:4100},
-      {id:'sa_sc_storm', name:'Storm Anchoring',   mins:30, lvl:16, base:22000}
+      {id:'sa_sc_storm', name:'Storm Anchoring',   mins:30, lvl:20, base:22000}
     ],
-    'Cloudrack':  [ {id:'sa_cr_sweep', name:'Cloudrack Sweep',   mins:35, lvl:16, base:25000} ],
+    'Cloudrack':  [ {id:'sa_cr_sweep', name:'Cloudrack Sweep',   mins:35, lvl:20, base:25000} ],
     'Uplink':     [ {id:'sa_ul_hand',  name:'Handshake Protocol',mins:12, lvl:14, base:7500} ],
     'Echomast':   [ {id:'sa_em_chase', name:'Echo Chase',        mins:20, lvl:15, base:13500} ]
   },
@@ -12199,12 +12322,17 @@ const MAT_SELL = {
   gem:      800,     /* 8 silver  */
   rare:    1500,     /* 15 silver - sjalsbundet, handlaren kop:er det anda */
   refined: 7500,     /* 75 silver = 5 x 15, vardeneutralt */
-  comp:    1500      /* 15 silver - hantverkarens egen bundna komponent */
+  comp:    1500,     /* 15 silver - hantverkarens egen bundna komponent */
+  kit:      400,     /* 4 silver tillbaka - men 20 silver att kopa, se KIT_BUY */
+  spool:    900      /* CRAFTAT basmaterial: vart sina delar, 3 x 3 silver */
 };
+
 function matSellValue(key){
   if (key === 'salvaged_scrap') return MAT_SELL.scrap;
   const m = MATERIALS[key];
   if (!m) return 0;
+  if (key === 'filament_spool') return MAT_SELL.spool;
+  if (m.kit)     return MAT_SELL.kit;
   if (m.gem)     return MAT_SELL.gem;
   if (m.refined) return MAT_SELL.refined;
   if (m.comp)    return MAT_SELL.comp;
@@ -12504,6 +12632,10 @@ function itemDef(row){
 const CRAFT_VALUE_FRAC = 0.20;
 /* Vad EN enhet av en ingrediens ar vard nar receptets kostnad raknas. */
 function ingredientValue(key){
+  /* SATSEN RAKNAS TILL VAD DEN KOSTADE, inte till vad handlaren ger for den.
+     Den ar det enda man betalat kontant for; raknades den till aterkopet skulle
+     craftandet se billigare ut an det var. */
+  if (key === 'crafting_kit') return KIT_BUY;
   if (MATERIALS[key]) return matSellValue(key);
   return 0;
 }
@@ -13141,6 +13273,10 @@ function openZone(regionId, zi, keepNote){
   const gbtn = $('vendor-gift');
   if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); openZone(regionId, zi, true); });
   if (tbuy) tbuy.addEventListener('click', () => { buyCell(regionId); openZone(regionId, zi, true); });
+  $('region-body').querySelectorAll('[data-buykit]').forEach(b => b.addEventListener('click', () => {
+    buyCraftingKit(regionId, +b.dataset.buykit);
+    openZone(regionId, zi, true);
+  }));
   $('region-body').querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
     buyBoost(regionId, b.dataset.buyboost);
     openZone(regionId, zi, true);
@@ -13345,7 +13481,19 @@ function buildTrader(regionId){
   /* Kortet är delat i två flikar: GEAR är handlarens rullande lager, SUPPLIES är
      det som alltid finns att köpa. Odelat blev rutan så lång att lagret hamnade
      långt under skärmkanten så fort flaskorna kom in. */
+  /* HANTVERKSSATSEN. Alltid i lager, aldrig slutsald, och kopbar tio at gangen
+     - en episk pjas behover sju stycken och da ar ett tryck per sats bara
+     tjat. Priset foljer samma stjarnrabatt som allt annat i boden. */
+  const kitPrice = kitBuyPrice(regionId);
   let sup = '<div class="trader-row">' +
+    '<div class="tr-item"><span class="tr-ico">🧰</span><div><div class="tr-name">Crafting Kit</div>' +
+    '<div class="tr-sub">Every finished recipe needs these · you have ' + matCount('crafting_kit') + '</div></div></div>' +
+    '<div class="tr-buy">' +
+    (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
+    btn('Buy 1 — ' + fmtMoney(kitPrice), ' data-buykit="1"', S.gold >= kitPrice) +
+    btn('Buy 10 — ' + fmtMoney(kitPrice * 10), ' data-buykit="10"', S.gold >= kitPrice * 10) +
+    '</div></div>';
+  sup += '<div class="trader-row">' +
     '<div class="tr-item"><span class="tr-ico">⛽</span><div><div class="tr-name">Warp Fuel Cell</div>' +
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
@@ -13420,6 +13568,27 @@ const VENDOR_BUY_PRICE = {
 /* Golvet: kopet far aldrig hamna under 125 % av aterkopet, hur manga stjarnor
    man an har. Da kan man aldrig kopa billigt och salja tillbaka med vinst. */
 function vendorBuyFloor(key){ return Math.ceil(ITEM_DEFS[key].sell * 1.25); }
+/* Satsens pris i en region. Samma golv som allt annat i boden: kopet far aldrig
+   ga under 125 % av vad handlaren betalar tillbaka. */
+function kitBuyPrice(regionId){
+  return Math.max(Math.ceil(MAT_SELL.kit * 1.25),
+                  Math.round(KIT_BUY * (1 - 0.03 * repRank(regionId))));
+}
+function buyCraftingKit(regionId, qty){
+  const n = Math.max(1, qty | 0);
+  const price = kitBuyPrice(regionId) * n;
+  if (!atVendor(regionId)){ vendorNote = vendorAwayText(regionId); return false; }
+  if (S.gold < price){ vendorNote = 'Not enough money — you need ' + moneyText(price - S.gold) + ' more.'; return false; }
+  if (NET.on){
+    netVendorBuyStack(regionId, 'crafting_kit', n).catch(e => say(srvErrText(e)));
+    return true;
+  }
+  S.gold -= price;
+  giveMaterial('crafting_kit', n);
+  vendorNote = 'Bought ' + n + ' Crafting Kit' + (n > 1 ? 's' : '') + '.';
+  renderInventory(); updateUI(true); save();
+  return true;
+}
 function boostPrice(key, regionId){
   const base = VENDOR_BUY_PRICE[key] != null ? VENDOR_BUY_PRICE[key] : ITEM_DEFS[key].sell * 4;
   const stars = repRank(regionId);
@@ -14273,24 +14442,27 @@ function renderProfessions(){
     h += '<button class="pf-back">\u2190 Back</button>';
     h += '<div class="pf-head"><div class="pf-h1">ALL PROFESSIONS</div>' +
          '<div class="pf-sub">What every profession does. You keep ' + PROF_MAX + ' at a time.</div></div>';
-    const top = PROFESSIONS.filter(p => p.kind === 'crafting' && p.id !== 'chemist');
-    const bot = PROFESSIONS.filter(p => p.kind !== 'crafting' || p.id === 'chemist');
+    /* Fyra hantverkare overst, fyra samlare under. Forut lag Chemist nedflyttad
+       for att fylla en rad om fyra - med Mechanic pa plats gar det jamnt ut av
+       sig sjalvt, och uppdelningen sager nu vad den faktiskt ar. */
+    const top = PROFESSIONS.filter(p => p.kind === 'crafting');
+    const bot = PROFESSIONS.filter(p => p.kind !== 'crafting');
     h += '<div class="pf-pick">';
-    if (top.length) h += '<div class="pf-grid">' + top.map(p => profCardHTML(p, false, true)).join('') + '</div>';
+    if (top.length) h += '<div class="pf-grid four">' + top.map(p => profCardHTML(p, false, true)).join('') + '</div>';
     if (bot.length) h += '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, false, true)).join('') + '</div>';
     h += '</div>';
   } else if (profScene === 'pick'){
-    /* SCEN 2: valet. Alla sju, fyra crafting overst och tre gathering under. */
+    /* SCEN 2: valet. Alla atta - fyra hantverkare overst, fyra samlare under. */
     h += '<button class="pf-back">\u2190 Back</button>';
     h += '<div class="pf-head"><div class="pf-h1">CHOOSE YOUR PROFESSION</div>' +
          '<div class="pf-sub">Select a profession to learn.</div></div>';
     /* Tre overst, fyra under - alla sju pa skarmen samtidigt, som i skissen.
        Chemist flyttas ned till den undre raden for att fylla den. */
     const free = PROFESSIONS.filter(p => !profLearned(p.id));
-    const top = free.filter(p => p.kind === 'crafting' && p.id !== 'chemist');
-    const bot = free.filter(p => p.kind !== 'crafting' || p.id === 'chemist');
+    const top = free.filter(p => p.kind === 'crafting');
+    const bot = free.filter(p => p.kind !== 'crafting');
     h += '<div class="pf-pick">';
-    if (top.length) h += '<div class="pf-grid">' + top.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
+    if (top.length) h += '<div class="pf-grid four">' + top.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
     if (bot.length) h += '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
     h += '</div>';
   } else {
@@ -15070,8 +15242,11 @@ function stackTipHTML(row){
      ar samma tal en gang till. Och skrap skrivs GRATT: fargen sager vad det ar
      innan man laser ordet. */
   const junk = !!(d && d.junk);
+  /* Namnet tas ur KATALOGEN forst och ur raden bara som reserv. Raden kan bara
+     ett gammalt namn (eller en ra nyckel, som staplar fran servern gjorde en
+     gang), och da sag kortet annorlunda ut an vaskan bredvid. */
   return '<div class="gt-name"' + (junk ? ' style="color:var(--text-faint)"' : '') + '>' +
-      row.name + '</div>' +
+      ((d && d.name) || row.name || 'Item') + '</div>' +
     /* En kursiv rad MELLAN namnet och sorten, for det som behover en ton snarare
        an en forklaring. Melonen bar den; ingenting annat gor det an. */
     (d && d.flavor ? '<div class="gt-flavor">' + d.flavor + '</div>' : '') +
@@ -17246,8 +17421,11 @@ document.querySelectorAll('.tabs').forEach(tabs => {
    Marknaden ar HELT serverstyrd: klienten visar, fragar och ritar om.
    Kopet ar en kapplopning mellan spelare och avgors av EN raduppdatering
    pa servern - forloraren far 'listing_gone' och ingenting har hant.
-   Avgiftstrappan (spelarens beslut): 24h = 5 %, 48h = 10 %, 72h = 15 %,
-   dragen ur kopeskillingen NAR varan saljs. Osald annons kostar inget. */
+   AVGIFTEN AR DELAD SEDAN v4.47.0: en liten annonsavgift (0,5 / 1 / 1,5 %,
+   minst ett silver) betalas nar annonsen laggs upp, och 8 % skatt dras BARA
+   nar nagot faktiskt saljs. Har stod tidigare den gamla trappan 5/10/15 % - ett
+   dott tal som ser levande ut ar en falla for den som oppnar filen om ett
+   halvar, precis som uppdragens egna XP-siffror var. */
 const AH = {
   view: 'buy', cat: 'all', q: '', rarity: null, sort: 'time', page: 1,
   counts: null, res: null, my: null,
@@ -17336,6 +17514,9 @@ async function netAhList(){
     p_stack_key: s.kind === 'stack' ? s.key : null,
     p_stack_rarity: s.kind === 'stack' && s.rar != null ? s.rar : null,
     p_qty: AH.qty,
+    /* KOPPAR, inte guld. Servern rakar aldrig om detta - gjorde den det blev en
+       annons pa hundra guld till en miljon, och avgiften omojlig att betala.
+       (Det var precis buggen i v4.47.0.) */
     p_unit_price: AH.price * COPPER_PER_GOLD,
     p_hours: AH.hours
   });
@@ -17586,17 +17767,22 @@ function ahRenderPicker(){
     if (!it) return;
     if (it.gear && it.gear.sid){
       const g = it.gear, D = ITEMS[g.t];
-      rows.push({kind: 'item', sid: g.sid, name: gearName(g), rar: g.r,
+      rows.push({kind: 'item', sid: g.sid, name: gearName(g), rar: g.r, gear: g,
         type: D && GEAR_SLOTS[D.slot] ? GEAR_SLOTS[D.slot].name : 'Gear',
         art: itemArtFor(g.t, g.r), avail: 1});
     } else if (it.stack && !it.bop){
       /* En stapel kan bara en BILD i stallet for ett tecken, och sorten star i
          katalogen nar den finns dar - annars hade melonen kallats "Material". */
-      const D = ITEM_DEFS[it.key];
+      /* [BUGG, v4.47.2] Sorten slogs upp i ITEM_DEFS, som bara kanner nagra fa
+         saker - branslecellen, boostarna, melonen. Skrot, skrap och allt
+         material foll igenom och fick reservordet "Material", sa en Dead
+         Battery och en Warp Fuel Cell bada stod som material. itemDef kanner
+         ALLA sorter och ar samma uppslagning som vaskan anvander. */
+      const D = itemDef(it);
       rows.push({kind: 'stack', key: it.key, rar: it.rar == null ? null : it.rar,
-        name: it.name, ico: it.ico, art: D && D.art ? D.art : null, avail: it.qty,
-        type: it.flask ? 'Consumable'
-            : (it.recipe ? 'Recipe' : (D && D.kind ? D.kind : 'Material'))});
+        name: (D && D.name) || it.name, ico: (D && D.ico) || it.ico,
+        art: (D && D.art) || null, avail: it.qty, row: it,
+        type: (D && D.kind) || (it.flask ? 'Consumable' : it.recipe ? 'Recipe' : 'Item')});
     }
   });
   let h = '<div class="ah-pick-title">Your backpack — pick something to sell</div><div class="ah-rows ah-pick">';
@@ -17617,10 +17803,28 @@ function ahRenderPicker(){
   h += '</div>';
   mid.innerHTML = h;
   const picks = rows;
-  mid.querySelectorAll('.ah-prow').forEach(el => el.addEventListener('click', () => {
-    AH.sel = picks[+el.dataset.i]; AH.qty = 1; AH.price = 0;
-    ahRenderSellPanel();
-  }));
+  mid.querySelectorAll('.ah-prow').forEach(el => {
+    const r = picks[+el.dataset.i];
+    el.addEventListener('click', () => {
+      AH.sel = r; AH.qty = 1; AH.price = 0;
+      ahRenderSellPanel();
+    });
+    /* HOVRINGEN. Samma kort som i vaskan, samma uppslagning - man ska kunna se
+       vad en sak ar och vad handlaren ger for den INNAN man satter ett pris.
+       Utan det maste man stanga rutan, hovra i vaskan och komma tillbaka. */
+    el.addEventListener('mouseenter', ev => {
+      const b = el.getBoundingClientRect();
+      const above = b.top > window.innerHeight / 2;
+      if (r.kind === 'item' && r.gear) showGearTip(r.gear, b.right, above ? b.top : b.bottom, above);
+      else if (r.row) showStackTip(r.row, b.right, above ? b.top : b.bottom, above);
+    });
+    el.addEventListener('mousemove', ev => {
+      const b = el.getBoundingClientRect();
+      moveGearTip(b.right, b.top > window.innerHeight / 2 ? b.top : b.bottom,
+                  b.top > window.innerHeight / 2);
+    });
+    el.addEventListener('mouseleave', () => hideGearTip());
+  });
 }
 
 /* ---------- hogerspalten: SELL ITEM ---------- */
@@ -17632,11 +17836,11 @@ function ahRenderSellPanel(){
     h += '<div class="ah-sel-empty">Pick something from your backpack under the SELL tab.</div>';
     p.innerHTML = h; return;
   }
-  const fee = ahFeePct(AH.hours);
   const total = AH.qty * AH.price;
-  /* Avgiften rakans i KOPPAR, precis som servern gor det. Rundades den av till
-     hela guld har sa sa rutan 1 guld medan kassan drog ett halvt. */
-  const feeCu = Math.ceil(total * COPPER_PER_GOLD * fee / 100);
+  /* EN uträkning av avgiften, samma som live-omritningen anvander. Forut stod
+     uttrycket har OCH i ahRefreshMoneyRows, och da rakade golvet pa ett silver
+     bara finnas pa det ena stallet. */
+  const feeCu = ahListingFeeCopper(total);
   h +=
     '<div class="ah-sel-card">' +
       (s.kind === 'item'
@@ -17656,18 +17860,21 @@ function ahRenderSellPanel(){
     '<div class="ah-pricebox"><span class="ah-coin">🪙</span><input id="ah-price" inputmode="numeric" value="' + (AH.price || '') + '" placeholder="0"><span class="ah-pen">✎</span></div>' +
     /* Avgiften betalas NAR annonsen laggs upp, inte nar nagot saljs. Da maste
        den sta som en kostnad har, inte som ett avdrag langre fram. */
-    '<div class="ah-feerow"><span>Listing fee (' + fee + '%) — paid now</span>' +
+    /* KORT TEXT. Procenten star redan i varaktighetsvaljaren nedanfor, och
+       "only if it sells" star redan i raden bredvid - samma sak tva ganger blir
+       en vagg man inte laser. Tre rader, tre tal. */
+    '<div class="ah-feerow"><span>Listing fee</span>' +
       '<span id="ah-feeval">' + moneyText(feeCu) + '</span></div>' +
-    '<div class="ah-feerow"><span>Sale tax (' + ahSaleTaxPct() + '%) — only if it sells</span>' +
+    '<div class="ah-feerow"><span>Sale tax if sold</span>' +
       '<span id="ah-taxval">' + moneyText(Math.ceil(total * COPPER_PER_GOLD * ahSaleTaxPct() / 100)) + '</span></div>' +
     '<div class="ah-total"><span>You ask</span><span id="ah-totalval">' + ahCoin(total) + '</span></div>' +
-    '<div class="ah-feerow"><span>You receive if it sells</span>' +
+    '<div class="ah-feerow"><span>Received if sold</span>' +
       '<span id="ah-payval">' + moneyText(Math.floor(total * COPPER_PER_GOLD * (1 - ahSaleTaxPct() / 100))) + '</span></div>' +
-    '<div class="ah-lbl">Duration</div>' +
+    '<div class="ah-lbl">Duration &amp; listing fee</div>' +
     '<select id="ah-dur" class="ah-dur">' +
-      '<option value="24"' + (AH.hours === 24 ? ' selected' : '') + '>24 HOURS — 0.5% listing fee</option>' +
-      '<option value="48"' + (AH.hours === 48 ? ' selected' : '') + '>48 HOURS — 1% listing fee</option>' +
-      '<option value="72"' + (AH.hours === 72 ? ' selected' : '') + '>72 HOURS — 1.5% listing fee</option>' +
+      '<option value="24"' + (AH.hours === 24 ? ' selected' : '') + '>24 HOURS — 0.5% fee</option>' +
+      '<option value="48"' + (AH.hours === 48 ? ' selected' : '') + '>48 HOURS — 1% fee</option>' +
+      '<option value="72"' + (AH.hours === 72 ? ' selected' : '') + '>72 HOURS — 1.5% fee</option>' +
     '</select>' +
     '<button class="ah-listbtn" id="ah-listbtn"' +
       (S.gold < feeCu ? ' disabled' : '') + '>' +
