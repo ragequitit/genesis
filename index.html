@@ -431,6 +431,14 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gt-name{font-size:14px;font-weight:900;line-height:1.25}
 .bt-name{font-size:12px;font-weight:800;line-height:1.3;color:var(--text)}
 .bt-line{font-size:11px;font-weight:600;line-height:1.3;color:var(--text-dim);margin-top:1px}
+/* Slingvaljaren: fyra knappar pa en rad, den valda lyser. */
+.track-pick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.track-pick button{flex:1 1 auto;min-width:88px;padding:6px 10px;border-radius:8px;
+  border:1px solid var(--border-soft);background:var(--bg-inset);color:var(--text-dim);
+  font-size:11.5px;font-weight:700;cursor:pointer;transition:.12s}
+.track-pick button:hover{color:var(--text);border-color:var(--cyan-dim)}
+.track-pick button.on{color:var(--cyan);border-color:var(--cyan);
+  box-shadow:0 0 10px -3px var(--cyan);background:rgba(0,229,255,.07)}
 .gt-rar{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--text);margin-bottom:5px}
 /* Den kursiva raden under namnet: en ton, inte en upplysning. Mindre an namnet
    och dampad, sa den lases som en rost och inte som en regel. */
@@ -4060,6 +4068,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           </div>
         </div>
         <div class="settings-row">
+          <div style="flex:1">
+            <div>Background Track</div>
+            <div class="desc" id="track-blurb"></div>
+            <div class="track-pick" id="track-pick"></div>
+          </div>
+        </div>
+        <div class="settings-row">
           <div>
             <div>Layout Edit Mode</div>
             <div class="desc">Drag panels to move them, pull the bottom grip to resize. PC only.</div>
@@ -4080,7 +4095,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.58.3 — LJUDVALET OVERLEVER EN OMLADDNING</div>
+            <div class="desc">GENESIS v4.59.0 — FYRA BAKGRUNDSSLINGOR ATT VALJA MELLAN</div>
           </div>
         </div>
       </div>
@@ -4091,7 +4106,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.58.3 — LJUDVALET OVERLEVER EN OMLADDNING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.59.0 — FYRA BAKGRUNDSSLINGOR ATT VALJA MELLAN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5672,6 +5687,7 @@ function loadSoundPrefs(){
     if (typeof d.music === 'boolean') S.snd.music = d.music;
     if (isFinite(+d.sv)) S.snd.sv = Math.min(1, Math.max(0, +d.sv));
     if (isFinite(+d.mv)) S.snd.mv = Math.min(1, Math.max(0, +d.mv));
+    if (typeof d.track === 'string') S.snd.track = d.track;
   } catch (e){}
 }
 function saveSoundPrefs(){
@@ -7596,7 +7612,7 @@ let S = {
   zoneScan: null,
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
   premium: {offlineHours: 0},   // 0-4 -> 6/12/16/20/24h offlinetak
-  snd: {sfx: true, music: true, sv: 0.7, mv: 0.35},
+  snd: {sfx: true, music: true, sv: 0.7, mv: 0.35, track: 'neon'},
   frags: 0,
   gold: 0,
   /* Yrken: known ar {id: {xp}} for de hogst tva larda. Tomt fran start. */
@@ -11304,16 +11320,75 @@ function noteFreq(name){
   const midi = NOTE_SEMI[m[1]] + (parseInt(m[2],10) + 1) * 12;
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
-const MUSIC = {
-  bpm: 72, stepsPerBar: 8, barsPerChord: 2,
-  progression: [
-    {bass:'A1', pad:['A3','C4','E4','G4','B4'], arp:['A4','C5','E5','B4','G4','E5'], lead:['E5','G5','A5','B5','A5','G5','E5','D5']},
-    {bass:'F1', pad:['F3','A3','C4','E4'],      arp:['F4','A4','C5','E5','C5','A4'], lead:['F5','A5','C6','A5','G5','F5','E5','F5']},
-    {bass:'C2', pad:['C4','E4','G4','B4','D5'], arp:['G4','C5','E5','D5','B4','G4'], lead:['G5','B5','D6','C6','B5','G5','E5','G5']},
-    {bass:'G1', pad:['G3','B3','D4','E4'],      arp:['D5','B4','G4','B4','E5','D5'], lead:['D5','E5','G5','B5','A5','G5','E5','D5']}
-  ],
-  arpPattern:[1,0,1,1,0,1,0,1], hatPattern:[0,1,0,1,0,1,0,1], kickPattern:[1,0,0,0,1,0,0,0]
-};
+/* ---------- BAKGRUNDSSLINGORNA (v4.59.0) ----------
+   FYRA slingor i stallet for en. Efter manga timmar blir en enda slinga en
+   plagoande, hur bra den an ar.
+
+   VARJE ACKORD BAR SIN EGEN 'lead'. Det ar den raden tapp-ljudet spelar nar
+   musiken ar igang, sa en ny slinga far sin matchande tappmelodi automatiskt -
+   den behover inte kopplas nagonstans. Utan lead faller tappen tillbaka pa
+   TAP_SCALE, och da later den plotsligt fel mot musiken.
+
+   Alla fyra ar byggda ur samma delar: pad, bas, arpeggio, kick och hihat. Det
+   som skiljer dem ar takt, tonart och hur tata monstren ar. */
+const MUSIC_TRACKS = [
+  {
+    id:'neon', name:'Neon Drift',
+    blurb:'Lugn cyberpunk. Den slinga spelet alltid haft.',
+    bpm: 72, stepsPerBar: 8, barsPerChord: 2,
+    progression: [
+      {bass:'A1', pad:['A3','C4','E4','G4','B4'], arp:['A4','C5','E5','B4','G4','E5'], lead:['E5','G5','A5','B5','A5','G5','E5','D5']},
+      {bass:'F1', pad:['F3','A3','C4','E4'],      arp:['F4','A4','C5','E5','C5','A4'], lead:['F5','A5','C6','A5','G5','F5','E5','F5']},
+      {bass:'C2', pad:['C4','E4','G4','B4','D5'], arp:['G4','C5','E5','D5','B4','G4'], lead:['G5','B5','D6','C6','B5','G5','E5','G5']},
+      {bass:'G1', pad:['G3','B3','D4','E4'],      arp:['D5','B4','G4','B4','E5','D5'], lead:['D5','E5','G5','B5','A5','G5','E5','D5']}
+    ],
+    arpPattern:[1,0,1,1,0,1,0,1], hatPattern:[0,1,0,1,0,1,0,1], kickPattern:[1,0,0,0,1,0,0,0]
+  },
+  {
+    id:'deep', name:'Deep Space',
+    blurb:'Langsam och gles. Nastan ingen puls - for langa pass.',
+    bpm: 54, stepsPerBar: 8, barsPerChord: 2,
+    progression: [
+      {bass:'D1',  pad:['D3','F3','A3','C4'],  arp:['D4','A4','F4','C5','A4','F4'], lead:['D5','F5','A5','G5','F5','D5','C5','D5']},
+      {bass:'A#0', pad:['A#2','D3','F3','A3'], arp:['A#3','F4','D4','A4','F4','D4'], lead:['A#4','D5','F5','D5','C5','A#4','A4','A#4']},
+      {bass:'F1',  pad:['F3','A3','C4','E4'],  arp:['F4','C5','A4','E5','C5','A4'],  lead:['F5','A5','C6','A5','G5','F5','E5','F5']},
+      {bass:'C1',  pad:['C3','E3','G3','A#3'], arp:['C4','G4','E4','A#4','G4','E4'], lead:['C5','E5','G5','A#5','G5','E5','D5','C5']}
+    ],
+    /* Ingen kick alls, och hihat bara pa var fjarde - rymden ska kannas tom. */
+    arpPattern:[1,0,0,0,1,0,0,0], hatPattern:[0,0,0,1,0,0,0,0], kickPattern:[0,0,0,0,0,0,0,0]
+  },
+  {
+    id:'arcade', name:'Arcade Run',
+    blurb:'Snabb 8-bitars puls. Driver pa - for korta, aktiva pass.',
+    bpm: 132, stepsPerBar: 8, barsPerChord: 1,
+    progression: [
+      {bass:'E1', pad:['E3','G3','B3','D4'], arp:['E4','B4','G4','E5','B4','G4'], lead:['E5','G5','B5','E6','D6','B5','G5','A5']},
+      {bass:'C1', pad:['C3','E3','G3','B3'], arp:['C4','G4','E4','C5','G4','E5'], lead:['C6','B5','G5','E5','G5','A5','B5','C6']},
+      {bass:'D1', pad:['D3','F#3','A3','C4'],arp:['D4','A4','F#4','D5','A4','F#5'],lead:['D6','C6','A5','F#5','A5','B5','C6','D6']},
+      {bass:'G1', pad:['G2','B2','D3','G3'], arp:['G3','D4','B3','G4','D4','B4'],  lead:['G5','B5','D6','G6','F#6','D6','B5','D6']}
+    ],
+    /* Tat kick och hihat pa varje steg - det ar det som gor den arkadig. */
+    arpPattern:[1,1,0,1,1,0,1,1], hatPattern:[1,1,1,1,1,1,1,1], kickPattern:[1,0,0,1,1,0,0,0]
+  },
+  {
+    id:'frontier', name:'Frontier',
+    blurb:'Oppen och aventyrlig. Dur i stallet for moll.',
+    bpm: 96, stepsPerBar: 8, barsPerChord: 2,
+    progression: [
+      {bass:'C1', pad:['C3','E3','G3','C4','E4'], arp:['C4','G4','E4','C5','G4','E5'], lead:['E5','G5','C6','B5','G5','E5','D5','E5']},
+      {bass:'G1', pad:['G2','B2','D3','G3','B3'], arp:['G3','D4','B3','G4','D4','B4'], lead:['D5','G5','B5','D6','B5','G5','F#5','G5']},
+      {bass:'A1', pad:['A2','C3','E3','A3','C4'], arp:['A3','E4','C4','A4','E4','C5'], lead:['C6','A5','E5','A5','C6','E6','C6','A5']},
+      {bass:'F1', pad:['F2','A2','C3','F3','A3'], arp:['F3','C4','A3','F4','C4','A4'], lead:['A5','C6','F6','E6','C6','A5','G5','F5']}
+    ],
+    arpPattern:[1,0,1,0,1,0,1,1], hatPattern:[0,1,0,1,0,1,0,1], kickPattern:[1,0,0,0,1,0,1,0]
+  }
+];
+/* Den valda slingan. Bytet byter INNEHALLET i MUSIC, inte referensen - allt
+   annat i ljudmotorn laser MUSIC direkt och behover inte roras. */
+let MUSIC = Object.assign({}, MUSIC_TRACKS[0]);
+function musicTrackById(id){
+  return MUSIC_TRACKS.find(t => t.id === id) || MUSIC_TRACKS[0];
+}
 const TAP_SCALE = ['A4','C5','D5','E5','G5','A5','G5','E5','D5','C5'];
 
 const Sound = {
@@ -11525,6 +11600,19 @@ const Sound = {
       Sound._step += 1;
       Sound._nextTime = t + stepDur;
     }
+  },
+  /* Byter slinga mitt i spelet. Musiken maste STANNAS forst - noterna ar redan
+     schemalagda 350 ms in i framtiden, och byter man ackorden under dem kommer
+     de gamla noterna ut i den nya tonarten. Steget nollstalls sa den nya
+     slingan borjar pa sitt forsta ackord i stallet for mitt i. */
+  setTrack(id){
+    const t = musicTrackById(id);
+    const was = Sound._playing;
+    if (was) Sound.stopMusic();
+    Object.keys(MUSIC).forEach(k => { delete MUSIC[k]; });
+    Object.assign(MUSIC, t);
+    Sound._step = 0; Sound._chordIdx = 0; Sound._leadStep = 0;
+    if (was && Sound.musicEnabled) Sound.startMusic();
   },
   startMusic(){
     if (!Sound.musicEnabled || Sound._playing) return;
@@ -17235,6 +17323,7 @@ $('char-signout').addEventListener('click', async () => {
 function applySoundPrefs(){
   Sound.setEnabled(S.snd.sfx);
   Sound.musicEnabled = S.snd.music;
+  Sound.setTrack(S.snd.track || 'neon');
   Sound.setSfxVolume(S.snd.sv);
   Sound.setMusicVolume(S.snd.mv);
   $('snd-sfx').textContent = S.snd.sfx ? 'On' : 'Off';
@@ -17242,9 +17331,33 @@ function applySoundPrefs(){
   $('vol-sfx').value = Math.round(S.snd.sv * 100);
   $('vol-music').value = Math.round(S.snd.mv * 100);
   renderNavSound();
+  renderTrackPick();
 }
 /* Knapparna i naven visar samma tillstand som Settings. Byter man i det ena
    stallet foljer det andra med - det finns bara EN installning. */
+/* Ritar valjaren och haller den i takt med installningen. Ett enda stalle -
+   knapparna byggs ur listan, sa en femte slinga behover ingen ny knapp. */
+function renderTrackPick(){
+  const box = $('track-pick'); if (!box) return;
+  box.innerHTML = MUSIC_TRACKS.map(t =>
+    '<button data-track="' + t.id + '"' + (S.snd.track === t.id ? ' class="on"' : '') + '>' +
+    t.name + '</button>').join('');
+  const b = $('track-blurb');
+  if (b) b.textContent = musicTrackById(S.snd.track).blurb;
+  box.querySelectorAll('[data-track]').forEach(btn => btn.addEventListener('click', () => {
+    S.snd.track = btn.dataset.track;
+    Sound.setTrack(S.snd.track);
+    /* Hor man den inte kan man inte valja den: sla pa musiken om den var av. */
+    if (!S.snd.music){
+      S.snd.music = true;
+      Sound.setMusicEnabled(true);
+      $('snd-music').textContent = 'On';
+      renderNavSound();
+    }
+    Sound.resume();
+    saveSoundPrefs(); renderTrackPick();
+  }));
+}
 function renderNavSound(){
   const set = (id, on, txt) => {
     const el = $(id); if (!el) return;
