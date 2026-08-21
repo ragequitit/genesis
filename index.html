@@ -4137,7 +4137,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.70.0 — AUKTIONSHUSET SVARAR</div>
+            <div class="desc">GENESIS v4.71.0 — RYKTET PÅ RÄTT REGION</div>
           </div>
         </div>
       </div>
@@ -4148,7 +4148,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.70.0 — AUKTIONSHUSET SVARAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.71.0 — RYKTET PÅ RÄTT REGION</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -12098,14 +12098,23 @@ function updateUI(force){
 
   const rank = repRank();
   el.repStars.textContent = '★'.repeat(rank) + '☆'.repeat(5 - rank);
+  /* [BUGG] MATAREN OCH KLOCKAN LAG PA FEL REGION. Stjarnorna raknades pa den
+     region man STAR i, men baren och "Next rank in" lastes ur hemmaregionen -
+     regionsnyckeln var inskriven i klartext. Star man nagon annanstans jamfordes
+     alltsa hemmaregionens uppsamlade timmar mot den har regionens trosklar, och
+     ut kom en full bar och "Next rank in 0m 0s" bredvid noll stjarnor och
+     +0 % bonus. Ratt data, fel falt.
+     Tiden hamtas nu ur samma region som stjarnorna. */
+  const here = S.world.current;
+  const mine = S.rep[here] || 0;
   if (rank >= 5){
     el.repFill.style.width = '100%';
     el.repNext.textContent = 'Max rank reached';
   } else {
     const prev = rank === 0 ? 0 : REP_THRESH[rank - 1];
     const next = REP_THRESH[rank];
-    el.repFill.style.width = Math.min(100, ((S.rep.neonhub - prev) / (next - prev)) * 100) + '%';
-    el.repNext.textContent = 'Next rank in ' + fmtDur(next - S.rep.neonhub);
+    el.repFill.style.width = Math.min(100, Math.max(0, (mine - prev) / (next - prev)) * 100) + '%';
+    el.repNext.textContent = 'Next rank in ' + fmtDur(Math.max(0, next - mine));
   }
   el.repBonus.textContent = '+' + (rank * 2) + '%';
 
