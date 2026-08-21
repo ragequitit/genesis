@@ -346,8 +346,16 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .cs-rows::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
 .cs-row{display:flex;justify-content:space-between;align-items:center;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}
 .cs-row:last-child{border-bottom:none}
-.cs-row .k{color:var(--text);font-weight:600}
-.cs-row .v{font-family:var(--font-mono);font-weight:800;color:var(--cyan)}
+.cs-row .k{color:var(--text);font-weight:600;min-width:0}
+/* [BUGG] TRAVEL SPEED LAG I FEL KANT. Dess varde ar det enda som har ett ord
+   efter procenten ("-20,68% time"), sa det blev for brett, brots i tva rader och
+   la sig i vansterkanten av sin egen ruta - medan alla andra tal, som ryms pa en
+   rad, stod hogerstallda. Talet fick alltsa sin plats av sin langd.
+   Vardet hogerstalls nu uttalat och bryts aldrig: da star hoger kant lika for
+   alla rader, oavsett hur langt talet ar, och det ar etiketten till vanster som
+   far ge vika. */
+.cs-row .v{font-family:var(--font-mono);font-weight:800;color:var(--cyan);
+  text-align:right;white-space:nowrap;flex:0 0 auto;margin-left:8px}
 .cs-none{font-size:10px;color:var(--text-faint);text-align:center;padding:6px 2px}
 .char-stats-btn{
   position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
@@ -1990,6 +1998,15 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .inv-x:hover{color:var(--text);border-color:var(--border-glow)}
 /* Tiden och kopet star bredvid varandra och delar bredden lika. Den vanstra ar
    ingen knapp - den ser ut som en ruta man laser, inte en man trycker pa. */
+.tune-choice{width:auto;min-width:238px;padding-bottom:10px}
+.tune-choice .iw-head{justify-content:center}
+.tc-pair{display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 14px 4px}
+.tc-side{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px}
+.tc-lbl{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+.tc-val{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text-dim)}
+.tc-val.up{color:var(--green)} .tc-val.dn{color:#ff8a8a}
+.tc-arrow{font-size:13px;opacity:.85} .tc-arrow.up{color:var(--green)} .tc-arrow.dn{color:#ff8a8a}
+.tc-left{text-align:center;font-size:10px;color:var(--text-faint);padding-bottom:8px}
 .survey-skip-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .survey-skip-row > *{min-width:0;box-sizing:border-box;margin:0}
 .survey-clockbox{
@@ -2500,6 +2517,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .pm-item:hover{background:var(--bg-row)}
 .pm-item.on{color:var(--cyan)}
 .pm-item.danger{color:#ff8a8a}
+/* Dampad rad: gar att trycka pa, men sager att den inte gor det man hoppas. */
+.pm-item.off{color:var(--text-faint)}
+.pm-item.off:hover{color:var(--text-dim)}
 .pm-item.danger:hover{background:rgba(255,90,90,.12)}
 .pm-input{
   width:100%;box-sizing:border-box;margin:2px 0 4px;
@@ -2729,8 +2749,6 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 @media (prefers-reduced-motion:reduce){
   .m-helper.drop-target{animation:none;box-shadow:0 0 14px rgba(74,222,128,.6)}
 }
-/* Platsen i listan man ar pa vag att slappa pa. */
-.pet-cell.drop-here{outline:2px dashed var(--cyan);outline-offset:-2px}
 body.dragging-pet .m-helper.empty{border-style:solid;opacity:1}
 /* LAST, INTE BORTA. 25 % var sa nara osynligt att platsen lastes som att den
    inte fanns. Nu syns den som en stangd dorr: dampad men lasbar, med ett las i. */
@@ -4119,7 +4137,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.64.0 — HÖGERKLICKET OCH TUNINGEN</div>
+            <div class="desc">GENESIS v4.68.0 — VALET ÄR SLUTGILTIGT</div>
           </div>
         </div>
       </div>
@@ -4130,7 +4148,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.64.0 — HÖGERKLICKET OCH TUNINGEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.68.0 — VALET ÄR SLUTGILTIGT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5494,6 +5512,16 @@ async function netArrive(){
   if (!NET.on) return null;
   const r = await srvRpc('arrive', {p_character: SRV.charId});
   if (r && r.region && REGIONS[r.region]) S.world.current = r.region;
+  /* [BUGG] MAN FASTNADE I WARPRUTAN EFTER ETT SKIP. Servern gjorde allt ratt -
+     den tog krediterna, satte resan som avslutad och flyttade karaktaren - men
+     KLIENTEN glomde att lagga undan sin egen resa. Rutan ritas ur just den, sa
+     den stod kvar pa 0m 0s for evigt med tva knappar som inte langre kunde gora
+     nagot. Vanliga framkomsten stangde den for att den ROJDE resan pa sitt eget
+     stalle; skip gick en annan vag och kom aldrig forbi den raden.
+     Resan rojs nu HAR, dar svaret kommer, sa bada vagarna far det gratis.
+     Zonen nollas ocksa - servern gor det, och gjorde inte klienten det stod man
+     kvar i en zon som hor till regionen man just lamnade. */
+  if (r && r.arrived){ S.world.travel = null; S.world.zone = null; }
   return r;
 }
 
@@ -7117,6 +7145,16 @@ function tuneReady(it){
 async function netTune(gear, idx){
   if (!NET.on) return null;
   const r = await srvRpc('tune_item', {p_character: SRV.charId, p_item: gear.sid, p_idx: idx});
+  await netPull(); await netPullItems();
+  redrawAll();
+  return r;
+}
+/* Valet i rullningsrutan ar SLUTGILTIGT (spelarens beslut). "Keep new" kastar
+   det gamla talet pa servern, sa det inte gar att aterta en kvart senare -
+   annars vore valet bara ett forslag. */
+async function netTuneKeep(gear){
+  if (!NET.on) return null;
+  const r = await srvRpc('tune_keep', {p_character: SRV.charId, p_item: gear.sid});
   await netPull(); await netPullItems();
   redrawAll();
   return r;
@@ -10276,7 +10314,10 @@ function charStatRows(){
   r.push(['HP', fmt(totalHP())]);
   if (totalDamage() > 0) r.push(['Damage', fmt(totalDamage())]);
   /* r.push(['Hit', fmt(totalHit())]);  <- vantar pa PvE */
-  if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '% time']);
+  /* Bara talet, som alla andra rader. Ordet "time" sa att lagre ar battre, men
+     kostade en radbrytning i varje karaktarsruta - och minustecknet sager redan
+     att nagot gar ned. */
+  if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '%']);
   up('Crit Chance', gearBonus('crit'));
   up('Idle Data', gearBonus('idle'));
   up('Tap Power', gearBonus('tap'));
@@ -10820,7 +10861,7 @@ function setBagOpen(socket, open){
    flyttats av servern. */
 function closeDeadItemWindows(){
   document.querySelectorAll('.item-win[data-uid]').forEach(w => {
-    if (!findByUid(+w.dataset.uid)) w.remove();
+    if (!findForWin(w)){ w.remove(); closeTuneChoice(); }
   });
 }
 function renderInventory(){
@@ -14460,7 +14501,9 @@ function skipTravel(){
   if (NET.on){
     netSkipTravel()
       .then(() => netArrive())
-      .then(() => { refreshTravelBar(); renderMap(); updateUI(true); })
+      /* Hela skarmen ritas om, inte tre utvalda delar. Warprutan stod inte i den
+         gamla listan - och det ar den man ser. */
+      .then(() => redrawAll())
       .catch(e => spawnFloat({text: 'Could not skip the warp'}));
     return;
   }
@@ -14663,7 +14706,13 @@ function renderPets(){
     const on = false;
     const sel = petSel.has(p.uid);
     cells += '<div class="pet-cell filled idle-helper' + (on ? ' active' : '') +
-      (sel ? ' sel' : '') + '" data-pet="' + i + '" data-petuid="' + p.uid + '" draggable="true"' +
+      /* [BUGG] RUTAN VAR WEBBLASARENS DRAGOBJEKT (draggable). Sa fort en ruta ar
+         det tar webblasaren over musen och SLUTAR skicka rorelser till sidan -
+         och spelets eget dragsystem, det som kan flytta hjalpare och lysa upp
+         ratt produktion, vaknade darfor aldrig. Det enda som fungerade var
+         webblasarens egen slappning, och den kunde bara satta in en hjalpare.
+         Rutan ar inte langre webblasarens; hela draget ar spelets. */
+      (sel ? ' sel' : '') + '" data-pet="' + i + '" data-petuid="' + p.uid + '"' +
       ' style="--rc:' + rarCol(p.rar) + '">' +
       '<div class="pet-sprite" style="' + petSpriteVars(p.sp, 42) + ';border:0;background:transparent"></div>' +
       '<span class="pc-lvl' + (max ? ' max' : '') + '">' + (max ? 'MAX' : li.lvl) + '</span>' +
@@ -15830,6 +15879,35 @@ function hideGearTip(){ gearTip.classList.remove('on'); }
    dras undan, och det man rör hamnar överst — så två svärd kan ligga sida vid sida.
    Pjäsen hittas via sitt id vid varje knapptryck, aldrig via ett sparat index —
    index förskjuts när väskan ändras, id gör det inte. */
+/* [BUGG] KORTET STANGDE SIG SJALVT EFTER NAGRA SEKUNDER. Varje hamtning fran
+   servern ger pjaserna NYA lokala loptal - det ar sa listan byggs om. Kortet
+   kom ihag sitt loptal, och nasta bakgrundssynk gjorde det till ett tal som
+   inte fanns langre, varpa stadningen tog bort kortet som "borta". Samma sak
+   hande direkt nar man tunade, for tuning hamtar om allt.
+   Servern ger varje pjas ett id som ALDRIG byts. Kortet hallder sig till det i
+   forsta hand och till loptalet bara offline. */
+function findBySid(sid){
+  if (!sid) return null;
+  for (let i = 0; i < S.inv.length; i++)
+    if (S.inv[i] && S.inv[i].gear && S.inv[i].gear.sid === sid) return {where: 'inv', idx: i, it: S.inv[i].gear};
+  for (const k in S.equip)
+    if (S.equip[k] && S.equip[k].sid === sid) return {where: 'equip', idx: +k, it: S.equip[k]};
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    const b = bagIn(i);
+    if (b && b.sid === sid) return {where: 'bag', idx: i, it: b};
+  }
+  for (let i = 0; i < S.vault.inv.length; i++)
+    if (S.vault.inv[i] && S.vault.inv[i].gear && S.vault.inv[i].gear.sid === sid)
+      return {where: 'vault', idx: i, it: S.vault.inv[i].gear};
+  return null;
+}
+/* Vilken pjas ett OPPET kort handlar om. Hittas den pa serverns id skrivs det
+   fardska loptalet tillbaka pa kortet, sa allt annat i kortet fortsatter fungera. */
+function findForWin(win){
+  const bySid = findBySid(win.dataset.sid);
+  if (bySid){ win.dataset.uid = bySid.it.uid; return bySid; }
+  return findByUid(+win.dataset.uid);
+}
 function findByUid(uid){
   for (let i = 0; i < S.inv.length; i++)
     if (S.inv[i] && S.inv[i].gear && S.inv[i].gear.uid === uid) return {where: 'inv', idx: i, it: S.inv[i].gear};
@@ -15902,7 +15980,9 @@ function itemWinHTML(it, worn){
                 (tuneLeft(it) > 0
                   ? 'Tuning ' + moneyText(tunePrice(it.r, it.tune || 0)) + ' · ' + tuneLeft(it) + ' left'
                   : 'Tuned out — no attempts left') +
-                (it.tprev ? '<button class="af-tune keep" data-tunekeep="1">Keep old</button>' : '') +
+                /* Ingen "Keep old" har langre: valet gors i rullningsrutan och
+                   ar slutgiltigt nar den stangs. En knapp kvar pa kortet hade
+                   betytt att man kunde andra sig lange efterat. */
               '</div>' : '') +
           /* Priset sags EN gang, pa sin egen rad, med luft over sig sa det inte
              klibbar ihop med sista egenskapen. Knapparna handlar bara om
@@ -15916,7 +15996,7 @@ function itemWinHTML(it, worn){
 }
 function itemWinActions(win, uid){
   const box = win.querySelector('.item-actions');
-  const found = findByUid(uid);
+  const found = findForWin(win);
   /* Finns pjasen inte langre finns det inget att gora med den - stang. */
   if (!found){ win.remove(); return; }
   if (found.where === 'vault'){
@@ -15947,11 +16027,76 @@ function salvageSummary(it){
 /* Ritar om ett OPPET kort ur den nya sanningen. Utan detta stod gamla talet
    kvar tills man stangde och oppnade igen - samma familj av bugg som plagat
    projektet mest. */
+/* ---------- VALET EFTER EN TUNING ----------
+   Kortet ska STA KVAR - man vill se pjasen medan man bestammer sig. Rullningen
+   far darfor en egen liten ruta ovanpa kortet med bada talen bredvid varandra
+   och de tva knapparna. Nar man valt stangs bara den lilla rutan och kortet
+   ligger kvar som det var.
+   Servern har redan lagt det NYA talet pa pjasen och sparat det gamla vid
+   sidan om, sa "Keep new" behover inte fraga servern om nagot - det ar bara
+   att stanga. "Keep old" ber servern lagga tillbaka det gamla. Forsoket ar
+   spenderat i bada fallen: man betalade for rullningen, inte for resultatet. */
+let tuneChoiceEl = null;
+function closeTuneChoice(){
+  if (tuneChoiceEl){ tuneChoiceEl.remove(); tuneChoiceEl = null; }
+}
+function openTuneChoice(win, r){
+  closeTuneChoice();
+  const nm = AFFIXES[r.affix] ? AFFIXES[r.affix].name : r.affix;
+  const oldV = +r.old, newV = +r.new;
+  const better = newV >= oldV;
+  const box = document.createElement('div');
+  box.className = 'item-win tune-choice';
+  box.innerHTML =
+    '<div class="iw-head"><span class="iw-title">' + nm + '</span></div>' +
+    '<div class="tc-pair">' +
+      '<div class="tc-side"><span class="tc-lbl">Old</span><b class="tc-val">' + oldV.toFixed(2) + '</b></div>' +
+      '<div class="tc-arrow ' + (better ? 'up' : 'dn') + '">' + (better ? '\u25b2' : '\u25bc') + '</div>' +
+      '<div class="tc-side"><span class="tc-lbl">New</span><b class="tc-val ' +
+        (better ? 'up' : 'dn') + '">' + newV.toFixed(2) + '</b></div>' +
+    '</div>' +
+    '<div class="tc-left">' + (r.left != null ? r.left + ' attempts left' : '') + '</div>' +
+    '<div class="item-actions">' +
+      '<button class="ia-equip" data-tc="new">Keep new</button>' +
+      '<button class="ia-cancel" data-tc="old">Keep old</button>' +
+    '</div>';
+  document.body.appendChild(box);
+  /* Rutan laggs mitt over kortet den hor till, sa blicken inte behover flytta. */
+  const wr = win.getBoundingClientRect();
+  const w = box.offsetWidth, h = box.offsetHeight;
+  let x = wr.left + (wr.width - w) / 2, y = wr.top + (wr.height - h) / 2;
+  x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+  y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
+  box.style.left = x + 'px'; box.style.top = y + 'px';
+  bringToFront(box);
+  tuneChoiceEl = box;
+  box.addEventListener('click', e => {
+    const b = e.target.closest('[data-tc]');
+    if (!b || b.disabled) return;
+    tuneChoiceDecide(win, b.dataset.tc === 'old', b);
+  });
+}
+/* BADA VALEN AR SLUTGILTIGA. "Keep new" kastar det gamla talet pa servern,
+   "Keep old" lagger tillbaka det. Nar rutan stangts finns inget att angra -
+   vill man prova igen far man betala for en ny rullning, och den ar dyrare.
+   Stanger man rutan utan att trycka (Escape) galler det nya talet: det ligger
+   redan pa pjasen, sa att gora nagot annat vore att lata en flykt vara ett val. */
+function tuneChoiceDecide(win, keepOld, btn){
+  const cur = findForWin(win);
+  if (!cur){ closeTuneChoice(); return; }
+  if (btn) btn.disabled = true;
+  const done = () => { closeTuneChoice(); refreshItemWin(win, +win.dataset.uid);
+                       renderEquip(); renderInventory(); renderCharStats(); };
+  (keepOld ? netTuneRevert(cur.it) : netTuneKeep(cur.it))
+    .then(done)
+    .catch(err => { say(srvErrText(err)); if (btn) btn.disabled = false; });
+}
 function refreshItemWin(win, uid){
-  const found = findByUid(uid);
+  const found = findForWin(win);
   if (!found){ win.remove(); return; }
+  if (found.it.sid) win.dataset.sid = found.it.sid;
   win.innerHTML = itemWinHTML(found.it, found.where === 'equip');
-  itemWinActions(win, uid);
+  itemWinActions(win, +win.dataset.uid);
   makeDraggable(win, win.querySelector('.iw-head'));
   const x = win.querySelector('.iw-x');
   if (x) x.addEventListener('click', () => win.remove());
@@ -15966,6 +16111,7 @@ function spawnItemWin(uid, nearX, nearY){
   /* Kortet bar pjasens id, sa det gar att stanga automatiskt nar pjasen
      forsvinner - salt, sankt eller flyttat av servern. */
   win.dataset.uid = uid;
+  if (it.sid) win.dataset.sid = it.sid;
   win.style.setProperty('--rc', gearRarCol(it));
   win.innerHTML = itemWinHTML(it, found.where === 'equip');
   itemWinActions(win, uid);
@@ -15987,33 +16133,23 @@ function spawnItemWin(uid, nearX, nearY){
     const tb = e.target.closest('[data-tune]');
     if (tb){
       e.stopPropagation();
-      const c0 = findByUid(uid);
+      const c0 = findForWin(win);
       if (!c0){ win.remove(); return; }
       tb.disabled = true;
       netTune(c0.it, +tb.dataset.tune)
         .then(r => {
-          if (r) say('Tuned ' + (AFFIXES[r.affix] ? AFFIXES[r.affix].name : r.affix) +
-                     ': ' + (+r.old).toFixed(2) + ' \u2192 ' + (+r.new).toFixed(2) +
-                     (+r.new >= +r.old ? ' \u25b2' : ' \u25bc'));
           refreshItemWin(win, uid);
           renderEquip(); renderInventory(); renderCharStats();
+          /* Kortet star kvar och rullningen visas i en egen liten ruta ovanpa
+             det, med bada talen bredvid varandra och valet mellan dem. */
+          if (r) openTuneChoice(win, r);
         })
         .catch(err => { say(srvErrText(err)); tb.disabled = false; });
       return;
     }
-    if (e.target.closest('[data-tunekeep]')){
-      e.stopPropagation();
-      const c0 = findByUid(uid);
-      if (!c0){ win.remove(); return; }
-      netTuneRevert(c0.it)
-        .then(() => { say('Kept the old value.'); refreshItemWin(win, uid);
-                      renderEquip(); renderInventory(); renderCharStats(); })
-        .catch(err => say(srvErrText(err)));
-      return;
-    }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
-    const cur = findByUid(uid);
+    const cur = findForWin(win);
     /* AR PJASEN BORTA AR KORTET FARDIGT. Forut byttes knappraden mot texten
        "This item is gone" och rutan blev staende kvar och pratade om nagot som
        inte langre finns. Ett kort utan foremal ska stanga sig. */
@@ -16153,6 +16289,15 @@ function openGearMenu(uid, x, y){
     if (NET.on && tuneReady(it)){
       h += '<button class="pm-item" data-act="tune">Tune \u00b7 ' +
            moneyText(tunePrice(it.r, it.tune || 0)) + ' \u00b7 ' + tuneLeft(it) + ' left</button>';
+    } else if (NET.on && it.a && it.a.length && levelInfo().lvl < TUNE_MIN_LEVEL){
+      /* UNDER NIVA 25 STAR RADEN GRA I STALLET FOR ATT SAKNAS. Tune ar enda
+         vagen in till gearkortet, sa utan raden skulle en ny spelare aldrig se
+         kortet alls - och inte heller veta att tuning finns. Den ar dampad men
+         gar att trycka pa: kortet oppnas, det bara saknar tuningknappar an. */
+      h += '<button class="pm-item off" data-act="tune">Tune \u2014 opens at level ' +
+           TUNE_MIN_LEVEL + '</button>';
+    } else if (NET.on && it.a && it.a.length && tuneLeft(it) <= 0){
+      h += '<button class="pm-item off" data-act="tune">Tuned out \u2014 no attempts left</button>';
     }
     if (f.where === 'inv'){
       h += '<button class="pm-item" data-act="sell">Sell \u00b7 ' + fmtMoney(gearGold(it)) + '</button>';
@@ -16769,6 +16914,15 @@ function dragTargetsFor(d){
   if (d.from === 'inv' && d.gear)
     return slotsForGear(d.gear).flatMap(sl =>
       Array.from(document.querySelectorAll('#panel-character [data-slot="' + sl + '"]')));
+  /* DRAR MAN EN HJALPARE lyser den produktion hen hor hemma i. Forut fanns inget
+     mal alls for hjalpare, sa man fick sikta i blindo pa ratt ruta. En hjalpare
+     hor hemma i exakt en produktion, sa listan har alltid noll eller en post. */
+  if (d.from === 'pet'){
+    const p = petByUid(d.uid), chk = p ? petSeatCheck(p) : null;
+    if (!chk || !chk.b || chk.why) return [];
+    const slot = document.querySelector('.m-helper[data-helper="' + chk.b.id + '"]');
+    return slot ? [slot] : [];
+  }
   return [];
 }
 function beginDrag(d, x, y){
@@ -16778,6 +16932,14 @@ function beginDrag(d, x, y){
      hovring, men nu när det spelar som mest roll. */
   if (d.from === 'bagslot') highlightBagSlots(d.socket, true);
   if (d.from === 'vaultbagslot') highlightVaultBagSlots(d.socket, true);
+  /* Drar man en hjalpare tonas alla lediga platser fram, och den ratta lyser
+     gront via d.targets. Klassen sattes forut av webblasarens drag, som ar
+     borttaget. */
+  if (d.from === 'pet' || d.from === 'helperslot') document.body.classList.add('dragging-pet');
+  if (d.from === 'pet'){
+    const p0 = petByUid(d.uid), c0 = p0 ? petSeatCheck(p0) : null;
+    setHelperDropTarget(c0 && c0.b && !c0.why ? c0.b.id : null);
+  }
   const g = document.createElement('div');
   g.className = 'drag-ghost';
   if (d.from === 'pet' || d.from === 'petslot'){
@@ -16824,17 +16986,31 @@ function endDrag(d, x, y){
   if (d.cell) d.cell.classList.remove('drop-cell');
   document.querySelectorAll('.drop-cell').forEach(c => c.classList.remove('drop-cell'));
   document.body.classList.remove('dragging');
+  document.body.classList.remove('dragging-pet');
+  if (helperDropTarget) setHelperDropTarget(null);
   const under = document.elementFromPoint(x, y);
   if (!under) return;
   /* Husdjuren har sitt eget rutnat och blandas aldrig med vaskan: ett husdjur ar
      inte ett foremal och far inte kunna hamna i ryggsacken. */
   if (d.from === 'pet'){
-    /* Slappt pa lagplatsen: husdjuret blir aktivt. Slappt i rutnatet: det byter
-       ruta. Slappt nagon annanstans: ingenting - ett husdjur kan inte tappas bort. */
-    if (under.closest('#pet-team-grid')){
-      const sl = under.closest('[data-teamslot]');
-        return;
+    /* Slappt pa en PRODUKTIONSPLATS: hjalparen borjar arbeta dar. Slappt i
+       rutnatet: den byter ruta med den som lag dar. Slappt nagon annanstans:
+       ingenting - en hjalpare kan inte tappas bort. */
+    const hs = under.closest('.m-helper');
+    if (hs && hs.dataset.helper){
+      const p = petByUid(d.uid), chk = p ? petSeatCheck(p) : null;
+      if (p && chk){
+        if (chk.why) say(chk.why);
+        else if (chk.b.id === hs.dataset.helper){
+          seatHelper(chk.b.id, p.uid);
+          say(petName(p) + ' is working in ' + chk.b.name + '.');
+        } else {
+          say(petName(p) + ' belongs in ' + chk.b.name + '.');
+        }
+      }
+      return;
     }
+    if (under.closest('#pet-team-grid')) return;
     const pc = under.closest('#pet-grid [data-pet]');
     if (pc) movePet(d.idx, +pc.dataset.pet);
     return;
@@ -16993,6 +17169,14 @@ document.addEventListener('keydown', e => {
   /* Sma menyer stangs FORST och avbryter dar - annars skulle ett tryck bade
      stanga menyn och hela fonstret bakom den. */
   if (petMenuEl){ closePetMenu(); return; }
+  /* Rullningsrutan star overst och maste sluta i ett VAL. Escape rakans som
+     "Keep new": det talet ligger redan pa pjasen, och att lata en flykt lamna
+     valet oppet vore att smyga tillbaka angerknappen bakvagen. */
+  if (tuneChoiceEl){
+    const w = document.querySelector('.item-win[data-uid]');
+    if (w) tuneChoiceDecide(w, false, null); else closeTuneChoice();
+    return;
+  }
   if (petSortOpen){ petSortOpen = false; renderPetTools(); return; }
   /* Skriver man i ett fält ska ESC tillhöra fältet, inte fönstren. */
   const t = e.target;
@@ -18937,6 +19121,16 @@ function helperBonus(ability){
   });
   return sum;
 }
+/* [BUGG] MARKERINGEN SLOCKNADE EFTER EN SEKUND. Platsen fick sin grona ram nar
+   draget borjade - men hjalparplatserna ritas om flera ganger i sekunden av den
+   vanliga uppdateringen, och omritningen satter om rutans klass fran grunden.
+   Ramen fanns alltsa bara tills nasta ritning. Nu kommer den ihag VILKEN plats
+   som ar malet, sa varje omritning satter tillbaka den. */
+let helperDropTarget = null;
+function setHelperDropTarget(bid){
+  helperDropTarget = bid || null;
+  renderHelperSlots();
+}
 function renderHelperSlots(){
   BUILDINGS.forEach(b => {
     const ref = rowRefs[b.id];
@@ -18957,8 +19151,10 @@ function renderHelperSlots(){
     }
     if (p){
       const a = helperAbilityOf(p);
-      ref.helper.className = 'm-helper filled';
-      ref.helper.setAttribute('draggable', 'true');
+      ref.helper.className = 'm-helper filled' + (helperDropTarget === b.id ? ' drop-ok' : '');
+      /* Samma sak har: platsen ar en dragkalla i SPELETS system (machine-list),
+         inte i webblasarens. Tva system pa samma ruta blir noll system. */
+      ref.helper.removeAttribute('draggable');
       ref.helper.dataset.helper = b.id;
       ref.helper.style.setProperty('--rc', rarCol(p.rar));
       /* SLUTLIG REGEL (spelarens): en FYLLD plats har heldragen ram i
@@ -18983,7 +19179,7 @@ function renderHelperSlots(){
          en blick i stallet for att hovra. En UPPTAGEN plats ar heldragen i
          hjalparens egen farg: streckat = vad som FAR sattas har, heldraget =
          vem som SITTER har. De kan aldrig krocka. */
-      ref.helper.className = 'm-helper empty';
+      ref.helper.className = 'm-helper empty' + (helperDropTarget === b.id ? ' drop-ok' : '');
       ref.helper.removeAttribute('draggable');
       ref.helper.dataset.helper = b.id;
       /* TOM plats: streckad ram i takets farg, och ingen prick - strecken sager
@@ -18998,116 +19194,12 @@ function renderHelperSlots(){
   });
 }
 /* ---------- DRA OCH SLAPP EN HJALPARE ----------
-   Fran listan till en produktion, och fran produktionen tillbaka. Samma regler
-   som klicket: ratt formaga, ratt sallsynthet, en plats per husdjur. Det ar
-   bara ett annat satt att sага samma sak. */
-let dragPetUid = null;
-/* Flytta en hjalpare i listan: de tva BYTER PLATS (spelarens beslut). Slapper
-   man pa en tom ruta flyttar hjalparen dit och lamnar sin gamla tom - det ar
-   samma regel, tomrummet ar bara den andra parten. */
-function movePetInList(uid, toIdx){
-  const arr = S.pets.owned;
-  const from = arr.findIndex(x => x && x.uid === uid);
-  if (from < 0 || !(toIdx >= 0) || from === toIdx) return false;
-  while (arr.length <= toIdx) arr.push(null);
-  const tmp = arr[toIdx];
-  arr[toIdx] = arr[from];
-  arr[from] = tmp || null;
-  while (arr.length && arr[arr.length - 1] == null) arr.pop();
-  petOrderSave();
-  renderPetPanel();
-  return true;
-}
-/* [SAKNADES] MAN FICK SIKTA I BLINDO. En hjalpare hor hemma i EN produktion, men
-   det syntes forst nar man rakade halla musen precis over ratt ruta. Nu tands
-   den ratta platsen i samma ogonblick man borjar dra, sa man ser vart den ska
-   innan man siktar. */
-function markHelperTarget(on){
-  document.querySelectorAll('.m-helper.drop-target')
-    .forEach(x => x.classList.remove('drop-target'));
-  if (!on || !dragPetUid) return;
-  const p = petByUid(dragPetUid);
-  const chk = p ? petSeatCheck(p) : null;
-  if (!chk || !chk.b || chk.why) return;
-  const slot = document.querySelector('.m-helper[data-helper="' + chk.b.id + '"]');
-  if (slot) slot.classList.add('drop-target');
-}
-document.addEventListener('dragstart', e => {
-  const cell = e.target.closest && e.target.closest('[data-petuid]');
-  const slot = e.target.closest && e.target.closest('.m-helper.filled');
-  if (cell){ dragPetUid = +cell.dataset.petuid; }
-  else if (slot){
-    const cur = seatedPet(slot.dataset.helper);
-    dragPetUid = cur ? cur.uid : null;
-  } else return;
-  if (e.dataTransfer){ e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragPetUid)); }
-  document.body.classList.add('dragging-pet');
-  markHelperTarget(true);
-});
-document.addEventListener('dragend', () => {
-  dragPetUid = null;
-  document.body.classList.remove('dragging-pet');
-  markHelperTarget(false);
-  document.querySelectorAll('.m-helper.drop-ok').forEach(el => el.classList.remove('drop-ok'));
-  document.querySelectorAll('.pet-cell.drop-here').forEach(el => el.classList.remove('drop-here'));
-});
-document.addEventListener('dragover', e => {
-  const slot = e.target.closest && e.target.closest('.m-helper');
-  const grid = e.target.closest && e.target.closest('#pet-grid');
-  if (!dragPetUid) return;
-  if (slot){
-    const p = petByUid(dragPetUid), chk = p ? petSeatCheck(p) : null;
-    if (chk && chk.b && chk.b.id === slot.dataset.helper && !chk.why){
-      e.preventDefault(); slot.classList.add('drop-ok');
-    }
-  } else if (grid){
-    e.preventDefault();
-    document.querySelectorAll('.pet-cell.drop-here').forEach(x => x.classList.remove('drop-here'));
-    const cell = e.target.closest && e.target.closest('.pet-cell');
-    if (cell) cell.classList.add('drop-here');
-  }
-});
-document.addEventListener('dragleave', e => {
-  const slot = e.target.closest && e.target.closest('.m-helper');
-  if (slot) slot.classList.remove('drop-ok');
-});
-document.addEventListener('drop', e => {
-  if (!dragPetUid) return;
-  const slot = e.target.closest && e.target.closest('.m-helper');
-  const grid = e.target.closest && e.target.closest('#pet-grid');
-  const p = petByUid(dragPetUid);
-  if (slot && p){
-    e.preventDefault();
-    const chk = petSeatCheck(p);
-    if (chk.why){ say(chk.why); }
-    else if (chk.b.id === slot.dataset.helper){
-      seatHelper(chk.b.id, p.uid);
-      say(petName(p) + ' is working in ' + chk.b.name + '.');
-    } else {
-      say(petName(p) + ' belongs in ' + chk.b.name + '.');
-    }
-  } else if (grid && p){
-    e.preventDefault();
-    const chk = petSeatCheck(p);
-    if (chk.b && seatedPet(chk.b.id) && seatedPet(chk.b.id).uid === p.uid){
-      /* Slapp i listan = ta ut ur arbetet. */
-      seatHelper(chk.b.id, null);
-      say(petName(p) + ' is back in your companions.');
-    } else {
-      /* [SAKNADES] ORDNINGEN GICK INTE ATT ANDRA. Drog man i en hjalpare inne i
-         listan hande ingenting - den for tillbaka dit den lag. Nu flyttas den
-         dit man slapper den och resten skjuts undan, som i en lista.
-         Ordningen sparas redan lokalt sedan tidigare, sa den overlever en
-         omladdning utan att servern behover veta nagot nytt. */
-      const cell = e.target.closest && e.target.closest('.pet-cell');
-      if (cell && cell.dataset.pet != null) movePetInList(p.uid, +cell.dataset.pet);
-    }
-  }
-  dragPetUid = null;
-  document.querySelectorAll('.m-helper.drop-ok').forEach(el => el.classList.remove('drop-ok'));
-  document.querySelectorAll('.pet-cell.drop-here').forEach(el => el.classList.remove('drop-here'));
-});
-
+   Allt draget - ut ur listan, in i en produktion, och omflyttning inuti listan -
+   gors av SPELETS eget pekarbaserade dragsystem, samma som vaskan anvander.
+   Har lag tidigare en andra uppsattning hanterare byggda pa webblasarens egen
+   dra-och-slapp. Tva system pa samma rutor gjorde att det ena slog ut det andra:
+   webblasaren tog musen och spelets system fick aldrig veta att nagot drogs.
+   Se dragTargetsFor och endDrag for det som galler. */
 /* Valjaren: bara husdjur vars sallsynthet ryms i platsen, och som inte redan
    sitter nagon annanstans. */
 let helperPickerEl = null;
