@@ -4119,7 +4119,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.63.0 — FIXLISTA NIO</div>
+            <div class="desc">GENESIS v4.64.0 — HÖGERKLICKET OCH TUNINGEN</div>
           </div>
         </div>
       </div>
@@ -4130,7 +4130,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.63.0 — FIXLISTA NIO</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.64.0 — HÖGERKLICKET OCH TUNINGEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -8502,7 +8502,7 @@ function hookVaultCells(root){
     if (!cell) return;
     e.preventDefault();
     const row = S.vault.inv[+cell.dataset.vault];
-    if (row && row.gear){ hideGearTip(); spawnItemWin(row.gear.uid, e.clientX, e.clientY); }
+    if (row && row.gear){ hideGearTip(); openGearMenu(row.gear.uid, e.clientX, e.clientY); }
   });
   grid.addEventListener('mouseover', e => {
     const cell = e.target.closest('[data-vault]');
@@ -8532,7 +8532,7 @@ function hookVaultBagSlots(){
     el.addEventListener('contextmenu', e => {
       e.preventDefault();
       const b = vaultBagIn(i);
-      if (b){ hideBagTip(); spawnItemWin(b.uid, e.clientX, e.clientY); }
+      if (b){ hideBagTip(); openGearMenu(b.uid, e.clientX, e.clientY); }
     });
     el.addEventListener('mouseenter', e => {
       const b = vaultBagIn(i);
@@ -15340,33 +15340,9 @@ function spawnPetWin(uid, nearX, nearY){
   bringToFront(win);
   makeDraggable(win, win.querySelector('.iw-head'));
   win.querySelector('.iw-x').addEventListener('click', () => win.remove());
-  /* Tuning: en knapp per egenskap, och en for att behalla det gamla talet.
-     Kortet ritas om ur SERVERNS svar - talet pa skarmen far aldrig vara en
-     gissning om vad rullningen gav. */
+  /* Har satt tuninghanteringen forut, i HUSDJURSKORTET - ett kort som aldrig far
+     en tuningknapp. Den ligger nu i gearkortet, dar knapparna faktiskt finns. */
   win.addEventListener('click', e => {
-    const tb = e.target.closest('[data-tune]');
-    if (tb){
-      e.stopPropagation();
-      const cur = findByUid(uid); if (!cur) { win.remove(); return; }
-      tb.disabled = true;
-      netTune(cur.it, +tb.dataset.tune)
-        .then(r => {
-          if (r) say('Tuned ' + (AFFIXES[r.affix] ? AFFIXES[r.affix].name : r.affix) +
-                     ': ' + (+r.old).toFixed(2) + ' → ' + (+r.new).toFixed(2) +
-                     (+r.new >= +r.old ? ' ▲' : ' ▼'));
-          refreshItemWin(win, uid);
-        })
-        .catch(err => { say(srvErrText(err)); tb.disabled = false; });
-      return;
-    }
-    if (e.target.closest('[data-tunekeep]')){
-      e.stopPropagation();
-      const cur = findByUid(uid); if (!cur) { win.remove(); return; }
-      netTuneRevert(cur.it)
-        .then(() => { say('Kept the old value.'); refreshItemWin(win, uid); })
-        .catch(err => say(srvErrText(err)));
-      return;
-    }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const cur = petByUid(uid);
@@ -16002,6 +15978,39 @@ function spawnItemWin(uid, nearX, nearY){
   makeDraggable(win, win.querySelector('.iw-head'));
   win.querySelector('.iw-x').addEventListener('click', () => win.remove());
   win.addEventListener('click', e => {
+    /* [BUGG] TUNING GJORDE INGENTING. Knapparna sitter i det HAR kortet, men
+       lyssnaren som tog hand om dem satt i HUSDJURSKORTET - ett kort som aldrig
+       far en tuningknapp att trycka pa. Man kunde alltsa trycka hur mycket man
+       ville: ingen bad servern om nagot. Nu ligger den dar knapparna ar.
+       Kortet ritas om ur SERVERNS svar, sa talet pa skarmen aldrig ar en
+       gissning om vad rullningen gav. */
+    const tb = e.target.closest('[data-tune]');
+    if (tb){
+      e.stopPropagation();
+      const c0 = findByUid(uid);
+      if (!c0){ win.remove(); return; }
+      tb.disabled = true;
+      netTune(c0.it, +tb.dataset.tune)
+        .then(r => {
+          if (r) say('Tuned ' + (AFFIXES[r.affix] ? AFFIXES[r.affix].name : r.affix) +
+                     ': ' + (+r.old).toFixed(2) + ' \u2192 ' + (+r.new).toFixed(2) +
+                     (+r.new >= +r.old ? ' \u25b2' : ' \u25bc'));
+          refreshItemWin(win, uid);
+          renderEquip(); renderInventory(); renderCharStats();
+        })
+        .catch(err => { say(srvErrText(err)); tb.disabled = false; });
+      return;
+    }
+    if (e.target.closest('[data-tunekeep]')){
+      e.stopPropagation();
+      const c0 = findByUid(uid);
+      if (!c0){ win.remove(); return; }
+      netTuneRevert(c0.it)
+        .then(() => { say('Kept the old value.'); refreshItemWin(win, uid);
+                      renderEquip(); renderInventory(); renderCharStats(); })
+        .catch(err => say(srvErrText(err)));
+      return;
+    }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const cur = findByUid(uid);
@@ -16105,6 +16114,75 @@ function stackWinActions(win, key){
    med val i text. Inget fonster som blir kvar over vaskan. */
 let stackMenuEl = null;
 function closeStackMenu(){ if (stackMenuEl){ stackMenuEl.remove(); stackMenuEl = null; } }
+/* ---------- HOGERKLICK PA EN PJAS ----------
+   Forut oppnade ett hogerklick hela gearkortet - nastan samma ruta som den man
+   redan fick av att hovra, bara storre. Nu kommer samma lilla meny som staplar
+   och skrap ger: bara det man kan GORA. Namnet star inte i menyn, for man har
+   just hogerklickat pa saken och vet vad den heter, och hovringen har redan
+   berattat vad den gor.
+   TUNE ar vagen in till kortet: det ar dar man ser vad rullningen gjorde med
+   egenskapen, och det gar inte att visa i en knapprad. */
+function openGearMenu(uid, x, y){
+  closeStackMenu(); closePetMenu();
+  const found = findByUid(uid);
+  if (!found) return;
+  const m = document.createElement('div');
+  m.className = 'pet-menu ctx';
+  let confirming = false;
+  const draw = () => {
+    const f = findByUid(uid);
+    if (!f){ closeStackMenu(); return; }
+    const it = f.it, isBag = !!(ITEMS[it.t] && ITEMS[it.t].bag);
+    let h = '';
+    if (confirming){
+      m.innerHTML =
+        '<button class="pm-item danger" data-act="sell-yes">Yes, sell it \u00b7 ' + fmtMoney(gearGold(it)) + '</button>' +
+        '<button class="pm-item" data-act="sell-no">Keep it</button>';
+      return;
+    }
+    if (f.where === 'equip'){
+      h += '<button class="pm-item" data-act="unequip">Unequip</button>';
+    } else if (f.where === 'vault'){
+      h += '<button class="pm-item" data-act="unvault">To backpack</button>';
+    } else if (f.where === 'bag'){
+      h += '<button class="pm-item" data-act="unbag">Take out</button>';
+    } else if (!isBag){
+      h += '<button class="pm-item" data-act="equip">Equip \u00b7 ' + GEAR_SLOTS[it.s].name + '</button>';
+    }
+    /* Tuning oppnar kortet - dar syns bade det gamla och det nya talet. */
+    if (NET.on && tuneReady(it)){
+      h += '<button class="pm-item" data-act="tune">Tune \u00b7 ' +
+           moneyText(tunePrice(it.r, it.tune || 0)) + ' \u00b7 ' + tuneLeft(it) + ' left</button>';
+    }
+    if (f.where === 'inv'){
+      h += '<button class="pm-item" data-act="sell">Sell \u00b7 ' + fmtMoney(gearGold(it)) + '</button>';
+    }
+    m.innerHTML = h;
+  };
+  draw();
+  document.body.appendChild(m);
+  const w = m.offsetWidth, hh = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+  m.style.top  = Math.max(8, Math.min(y, window.innerHeight - hh - 8)) + 'px';
+  stackMenuEl = m;
+  m.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]');
+    if (!b || b.disabled) return;
+    const f = findByUid(uid);
+    if (!f){ closeStackMenu(); return; }
+    const act = b.dataset.act;
+    if (act === 'equip'){ equipGear(f.idx); closeStackMenu(); }
+    else if (act === 'unequip'){ unequipGear(f.idx); closeStackMenu(); }
+    else if (act === 'unvault'){ fromVault(f.idx); closeStackMenu(); }
+    else if (act === 'unbag'){ unequipBag(f.idx); closeStackMenu(); }
+    else if (act === 'tune'){ closeStackMenu(); spawnItemWin(uid, x, y); }
+    /* Att salja en pjas gar inte att angra och pjasen ar unik, sa fragan stalls
+       en gang - i samma lilla meny, inte i en ny ruta. */
+    else if (act === 'sell'){ confirming = true; draw(); }
+    else if (act === 'sell-no'){ confirming = false; draw(); }
+    else if (act === 'sell-yes'){ hideGearTip(); closeStackMenu(); sellGear(f.idx); }
+  });
+}
 function openStackMenu(key, x, y){
   closeStackMenu(); closePetMenu();
   const idx = findStackIdx(key);
@@ -16285,7 +16363,7 @@ function hookInvCells(root){
     const row = S.inv[+cell.dataset.inv];
     if (!row) return;
     hideGearTip();
-    if (row.gear) spawnItemWin(row.gear.uid, e.clientX, e.clientY);
+    if (row.gear) openGearMenu(row.gear.uid, e.clientX, e.clientY);
     else openStackMenu(row.key, e.clientX, e.clientY);
   });
   root.addEventListener('mouseover', e => {
@@ -16361,7 +16439,7 @@ document.querySelectorAll('#panel-character [data-slot]').forEach(elm => {
   elm.addEventListener('contextmenu', e => {
     e.preventDefault();
     const it = S.equip[+elm.dataset.slot];
-    if (it){ hideGearTip(); spawnItemWin(it.uid, e.clientX, e.clientY); }
+    if (it){ hideGearTip(); openGearMenu(it.uid, e.clientX, e.clientY); }
   });
   /* Hovring på buren pjäs visar förhandskortet — samma som i väskan. */
   elm.addEventListener('mouseenter', e => {
@@ -17010,7 +17088,7 @@ document.querySelectorAll('[data-bag]').forEach(el => {
   el.addEventListener('contextmenu', e => {
     e.preventDefault();
     const b = bagIn(i);
-    if (b){ hideBagTip(); spawnItemWin(b.uid, e.clientX, e.clientY); }
+    if (b){ hideBagTip(); openGearMenu(b.uid, e.clientX, e.clientY); }
   });
   el.addEventListener('mouseenter', e => {
     const b = bagIn(i);
@@ -18924,15 +19002,17 @@ function renderHelperSlots(){
    som klicket: ratt formaga, ratt sallsynthet, en plats per husdjur. Det ar
    bara ett annat satt att sага samma sak. */
 let dragPetUid = null;
-/* Flytta en hjalpare till en annan plats i listan. Den plockas ur sin gamla
-   plats och stoppas in pa den nya; allt mellan skjuts ett steg. Tomma rutor pa
-   slutet klipps bort sa listan inte vaxer for varje flytt. */
+/* Flytta en hjalpare i listan: de tva BYTER PLATS (spelarens beslut). Slapper
+   man pa en tom ruta flyttar hjalparen dit och lamnar sin gamla tom - det ar
+   samma regel, tomrummet ar bara den andra parten. */
 function movePetInList(uid, toIdx){
   const arr = S.pets.owned;
   const from = arr.findIndex(x => x && x.uid === uid);
   if (from < 0 || !(toIdx >= 0) || from === toIdx) return false;
-  const moved = arr.splice(from, 1)[0];
-  arr.splice(Math.max(0, Math.min(toIdx, arr.length)), 0, moved);
+  while (arr.length <= toIdx) arr.push(null);
+  const tmp = arr[toIdx];
+  arr[toIdx] = arr[from];
+  arr[from] = tmp || null;
   while (arr.length && arr[arr.length - 1] == null) arr.pop();
   petOrderSave();
   renderPetPanel();
