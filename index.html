@@ -4137,7 +4137,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.71.0 — RYKTET PÅ RÄTT REGION</div>
+            <div class="desc">GENESIS v4.72.0 — VÄSKORNA FALLER ÖVERALLT</div>
           </div>
         </div>
       </div>
@@ -4148,7 +4148,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.71.0 — RYKTET PÅ RÄTT REGION</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.72.0 — VÄSKORNA FALLER ÖVERALLT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -6967,7 +6967,18 @@ const LIGHT_SLOTS = {bag: 1 / 3, transport: 1 / 3};
 function pickItemKey(rarIdx){
   const slots = [], weights = [];
   for (let s = 0; s < GEAR_SLOTS.length; s++){
-    if (!ITEMS_BY[s][rarIdx].length) continue;
+    /* [BUGG] VASKOR SLUTADE FALLA JU BATTRE MAN SPELADE. Storleken sitter i
+       vaskan - en fyrafacks ar alltid common, en attafacks alltid rare - sa
+       ingen vaska finns pa episk eller battre. Lottningen kravde att platsen
+       hade ett foremal PA DEN RULLADE rariteten, sa i det ogonblick en dropp
+       rullade episk foll vaskplatsen bort helt. I ytterringen ar 37 % av alla
+       droppar episka eller finare, sa den som spelat sig langst fick vaskor
+       SALLAST - tvartemot allt annat i spelet.
+       Vaskplatsen ar nu med i lottningen pa alla rariteter. Rullas den tar
+       vaskan sitt EGET steg, precis som regeln alltid sagt. Vikten pa en
+       tredjedel star kvar; det behovs fortfarande inte femton vaskor. */
+    const isBag = GEAR_SLOTS[s].id === 'bag';
+    if (!isBag && !ITEMS_BY[s][rarIdx].length) continue;
     /* RELIKEN AR UTANFOR DEN VANLIGA LOTTNINGEN. Den ska falla ur uppdrag och
        ingenting annat - inte ur handelsboden, inte ur lador, inte ur tomgangen.
        Samma undantag star pa servern, och de tva maste alltid vara overens. */
@@ -6976,7 +6987,12 @@ function pickItemKey(rarIdx){
     weights.push(LIGHT_SLOTS[GEAR_SLOTS[s].id] || 1);
   }
   const s = slots[rollRarity(weights, Math.random())];
-  const list = ITEMS_BY[s][rarIdx];
+  let list = ITEMS_BY[s][rarIdx];
+  if (!list.length && GEAR_SLOTS[s].id === 'bag'){
+    /* Ingen vaska pa det har steget: ta vilken vaska som helst. Anroparen
+       laser vaskans egen raritet ur foremalet, se rollItem. */
+    list = Object.keys(ITEMS).filter(k => ITEMS[k].bag);
+  }
   return list[Math.floor(Math.random() * list.length)];
 }
 function itemArtFor(key, rarIdx){
@@ -7013,14 +7029,21 @@ function addExtraAffix(g){
   return g;
 }
 function rollItem(key, rarIdx, capFrac){
-  const D = ITEMS[key], R = GEAR_RAR[rarIdx];
+  const D = ITEMS[key];
   if (!D) return null;
   /* En väska rullar bara sitt pris. Inga egenskaper, ingen hälsa, ingen combat
-     power — den bär saker, den slåss inte. */
+     power — den bär saker, den slåss inte.
+     OCH DEN TAR SITT EGET STEG. Storleken sitter i vaskan, sa en fyrafacks ar
+     alltid common aven nar den faller ur en episk rullning. Utan den har raden
+     skulle den nya lottningen fodа en "mytisk Field Pouch" med fyra platser och
+     mytiskt pris - ett foremal som ljuger om sig sjalvt. */
   if (D.bag){
-    return {uid: S.gearSeq++, t: key, s: D.slot, r: rarIdx, a: [], hp: 0,
-            g: Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]))};
+    const br = D.rars.indexOf(rarIdx) >= 0 ? rarIdx : D.rars[0];
+    const BR = GEAR_RAR[br];
+    return {uid: S.gearSeq++, t: key, s: D.slot, r: br, a: [], hp: 0,
+            g: Math.round(BR.gold[0] + Math.random() * (BR.gold[1] - BR.gold[0]))};
   }
+  const R = GEAR_RAR[rarIdx];
   const affs = [];
   /* capFrac (0..1) skar av toppen av rullningen. Droppat gear har capFrac=1 och
      rullar hela bandet; CRAFTAT skickar 0.5 och rullar darfor bara mellan golvet
