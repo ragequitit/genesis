@@ -208,12 +208,11 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 /* --- CHARACTER --- */
 /* Karaktärsbladet: gubben i mitten, utrustning flankerar, stats under */
 .char-layout{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center}
-/* Panelens egen fond — bilden överst, panelens vanliga toning kvar under som reserv */
+/* Panelens egen fond — den ritade bilden överst, panelens vanliga toning kvar under
+   som reserv. Ett dämpande lager LÄGGS ÖVER bilden så den träder tillbaka med 20%.
+   (Kretskortsmönstret i de tre andra panelerna togs bort i v4.82.0 — den HÄR bilden
+   är spelarens egen ritade och ska vara kvar. Rör den inte.) */
 #panel-character{
-  /* Ett dämpande lager LÄGGS ÖVER bilden: kretskortet syns kvar men träder tillbaka
-     med 20%. Att sänka bildens egen opacity hade krävt ett extra element, eftersom
-     background-image inte kan tonas för sig — den här gradienten är ett jämnt
-     halvgenomskinligt täcke i panelens egen färg. */
   background:linear-gradient(rgba(10,14,32,.20), rgba(10,14,32,.20)),
              url('assets/bg/bg_character_2.png') center/cover no-repeat,
              linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
@@ -232,58 +231,6 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-split > .char-layout{transform:translateX(4px)}
 .char-split > .transport-row{transform:translateX(4px)}
 #panel-character > .panel-title{padding-left:5px}
-/* ==================== KRETSKORT SOM FOND (v4.40.0) ====================
-   Karaktarsrutan bar ett kretskort som BILDFIL. De har tre panelerna far samma
-   kansla ritad i ren CSS i stallet - inga nya filer att ladda, och monstret kan
-   bara sin egen farg per panel.
-   Fonden ar fyra lager, uppifran och ner:
-     1) ett dampande tacke i panelens egen farg, sa monstret trader tillbaka,
-     2) LODPUNKTER - sma runda prickar i ett rutnat, som hal i ett kort,
-     3) LEDNINGSBANOR - tunna linjer, en uppsattning lodrat och en vagrat,
-        plus ett par diagonaler sa det inte blir ett rutigt papper,
-     4) panelens vanliga toning underst.
-   Fargen sitter i --ct (circuit tint) och satts per panel. Styrkan ar med flit
-   lag: fonden ska kannas, inte lasas. */
-.panel.circuit{
-  --ct: var(--violet);
-  --ct-line: color-mix(in srgb, var(--ct) 26%, transparent);
-  --ct-dot:  color-mix(in srgb, var(--ct) 34%, transparent);
-  --ct-bus:  color-mix(in srgb, var(--ct) 34%, transparent);
-  --ct-pad:  color-mix(in srgb, var(--ct) 40%, transparent);
-  background:
-    /* 1 - tacket */
-    linear-gradient(rgba(10,14,32,.66), rgba(10,14,32,.66)),
-    /* 2 - LODOGON: en tunn ring, som en genomkontakt pa ett riktigt kort */
-    radial-gradient(circle at 48px 48px,
-      transparent 0 2.6px, var(--ct-pad) 2.6px 3.6px, transparent 3.7px),
-    /* 3 - GENOMKONTAKTER: sma fyllda prickar, tatare an ogonen */
-    radial-gradient(circle at 16px 16px, var(--ct-dot) 0 1.5px, transparent 1.6px),
-    /* 4 - BUSSARNA: de kraftigare banorna, glest lagda */
-    repeating-linear-gradient(90deg, var(--ct-bus) 0 1px, transparent 1px 96px),
-    repeating-linear-gradient(0deg,  var(--ct-bus) 0 1px, transparent 1px 96px),
-    /* 5 - SPAREN: tunna banor i ett tatare, forskjutet natverk */
-    repeating-linear-gradient(90deg, var(--ct-line) 0 1px, transparent 1px 32px),
-    repeating-linear-gradient(0deg,  var(--ct-line) 0 1px, transparent 1px 32px),
-    /* 6 - panelens egen ton */
-    linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
-  background-size: auto, 96px 96px, 32px 32px, auto, auto, auto, auto, auto;
-  background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 16px 16px, 16px 16px, 0 0;
-}
-/* En svag glod i ovre hornet, som ljuset i karaktarsrutan - den ger djup och
-   hindrar att monstret ser ut som ett rutat papper. */
-.panel.circuit::before{
-  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:radial-gradient(120% 80% at 12% 0%,
-    color-mix(in srgb, var(--ct) 12%, transparent) 0%, transparent 62%);
-}
-.panel.circuit{position:relative}
-.panel.circuit > *{position:relative;z-index:1}
-/* En panel, en farg. Tonerna ar hamtade ur spelets egen palett och halls
-   dampade - produktionen cyan (samma som talen den visar), snabbaccessen
-   violett, expeditionerna gron (samma som en klar korning). */
-#panel-production{--ct:var(--cyan-dim)}
-#panel-quick-access{--ct:var(--violet)}
-#panel-expeditions{--ct:var(--green)}
 .transport-row{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:8px;flex:0 0 auto}
 .transport-slot{
   width:96px;height:52px;font-size:23px;
@@ -1045,13 +992,9 @@ body.dragging *{cursor:grabbing !important}
    sa den lases som "ej oppnad an" och inte som "trasig". */
 .map-node.zone-fog .map-dot{border-style:dashed;opacity:.45}
 .map-node.zone-fog .map-name{opacity:.5;font-style:italic}
-.map-node.zone-pvp .map-dot{border-color:var(--red)}
-.map-node.zone-pvp .map-name{color:var(--red)}
 .map-node.core .map-dot{width:46px;height:46px;font-size:20px}
-.desig-note{
-  border:1px dashed;border-radius:8px;padding:7px 10px;margin-bottom:10px;
-  font-size:9.5px;letter-spacing:.05em;font-weight:700;
-}
+/* [BORTTAGET v4.85.0] Har lag rod stil for PvP-zoner och rutan for
+   markningens varningstext. Markningen finns inte langre; allt ar PvE. */
 .map-node.fog .map-dot{border-color:var(--text-faint);border-style:dashed;opacity:.75}
 .map-node.fog .map-name{color:var(--text-faint);font-style:italic}
 .map-node.visited .map-dot{border-color:var(--green)}
@@ -1343,8 +1286,50 @@ body.dragging *{cursor:grabbing !important}
 /* Fast höjd på flikinnehållet i maskinramen: panelen står stilla oavsett flik */
 /* En enda rullyta: panelen rullar, flikytan är sitt innehåll. Två kapslade
    rullytor gav kedjad rullning som kastade en genom hela listan i ett steg. */
-#panel-production .tab-pane{height:auto;overflow:visible}
+#panel-professions{overflow:visible}
 /* Rullhjulet i maskinrutan tar mindre steg. Bara mushjul — pekrullning rörs inte. */
+/* ===== YRKESKORTEN (v4.93.0) =====
+   KLASSERNA HETER jc- och inte pc-: pc- var redan taget av husdjurskorten, och
+   de reglerna slog igenom har - nivan hamnade langst ner i kortet och matarna
+   syntes inte alls. Tva olika kort med samma klassnamn ar samma buggfamilj som
+   tva funktioner med samma namn.
+   UPPRATTSTAENDE och bredvid varandra. De far INTE bli ytterligare en lang
+   liggande lista av byggnader - det var precis det som produktionsrutan var,
+   och det ar den formen vi lamnar. */
+.prof-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.prof-card{
+  background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;
+  padding:11px 10px;display:flex;flex-direction:column;gap:7px;min-height:150px;
+  position:relative;overflow:hidden;
+}
+/* Det LANKADE yrket - det noden hjalper - lyser. Bara ett i taget. */
+.prof-card.linked{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(56,232,255,.35), inset 0 0 22px rgba(56,232,255,.06)}
+.prof-card .jc-top{display:flex;align-items:center;gap:8px}
+.prof-card .jc-ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-size:17px;background:rgba(255,255,255,.04);border:1px solid var(--border)}
+.prof-card .jc-name{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1.15}
+.prof-card .jc-lvl{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+.prof-card .jc-bar{height:6px;flex:0 0 6px;border-radius:4px;background:rgba(255,255,255,.10);overflow:hidden}
+.prof-card .jc-fill{height:100%;border-radius:4px;transition:width .3s}
+.prof-card .jc-xp{font-size:9px;color:var(--text-faint);letter-spacing:.04em}
+.prof-card .jc-status{font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:5px;margin-top:auto}
+.prof-card .jc-btn{
+  margin-top:6px;padding:7px;border-radius:7px;text-align:center;cursor:pointer;
+  font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text)
+}
+.prof-card .jc-btn:hover{background:rgba(56,232,255,.12);border-color:var(--cyan-dim)}
+.prof-card.empty{border-style:dashed;justify-content:center;align-items:center;color:var(--text-faint);font-size:10.5px;text-align:center;letter-spacing:.05em}
+/* SIDOYRKET ar smalare och har en egen ton, sa det lases som ett annat slags
+   kort och inte som ett tredje huvudyrke. */
+.station-cards{display:grid;grid-template-columns:1fr;gap:10px}
+.station-card{background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center}
+.station-card .sc-tag{position:absolute;top:8px;right:9px;font-size:8px;letter-spacing:.14em;color:var(--text-faint)}
+.station-card .sc-ico{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:15px;background:rgba(255,255,255,.04);border:1px solid var(--border)}
+.station-card .sc-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.station-card .sc-bar{height:6px;flex:0 0 6px;border-radius:4px;background:rgba(255,255,255,.10);overflow:hidden}
+.station-card .sc-fill{height:100%;border-radius:4px}
+.station-card.empty{border-style:dashed;justify-content:center;color:var(--text-faint);font-size:10.5px;letter-spacing:.05em}
+@media (max-width:520px){ .prof-cards{grid-template-columns:1fr} }
 .tab{padding:7px;text-align:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;background:var(--bg-inset)}
 .tab.active{background:rgba(56,232,255,.1);color:var(--cyan);font-weight:800}
 .upgrade-list{display:flex;flex-direction:column;gap:6px}
@@ -1492,6 +1477,7 @@ body.dragging *{cursor:grabbing !important}
 /* Fet i stallet for morkt filter (v0.80.1): texten star mot piedestalens ljusa
    parti, och tyngden racker for att halla den lasbar utan att lagga en slöja
    over hela bilden. */
+.hold-shift{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;min-height:11px}
 .hold-hint{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text);font-weight:900}
 .hold-hint.full{color:var(--gold)}
 .machine-row.cant{opacity:.55}
@@ -1595,8 +1581,7 @@ body.dragging *{cursor:grabbing !important}
   #panel-current-region, #panel-active-buffs{height:275px;overflow-y:auto;overflow-x:hidden}
   #panel-home-server{height:397px;min-height:0}
   #panel-network-map{height:516px;overflow-y:auto;overflow-x:hidden}
-  #panel-production{height:396px;overflow-y:auto;overflow-x:hidden}
-  #panel-production .tab-pane{height:auto;min-height:0}
+  #panel-professions{height:396px;overflow-y:auto;overflow-x:hidden}
   #panel-expeditions{height:242px;overflow-y:auto;overflow-x:hidden}
   #panel-expeditions .tab-pane{height:auto;min-height:0}
   #panel-quick-access{height:264px;overflow-y:auto;overflow-x:hidden}
@@ -1785,7 +1770,7 @@ body.modal-open{overflow:hidden}
   html, body{overflow-x:hidden;max-width:100vw}
   .topbar .hpanel{flex:1 1 100%;max-width:100%;justify-content:center}
   #panel-nav{margin-left:0}
-  #panel-production .tab-pane{height:auto;min-height:480px}
+  #panel-professions{min-height:480px}
   .layout{grid-template-columns:1fr}
 }
 
@@ -2329,8 +2314,8 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   border:1px solid var(--border-soft);border-radius:9px;padding:8px 10px}
 .gl-scene{width:46px;height:46px;border-radius:8px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
   position:relative;overflow:hidden;border:1px solid var(--border-glow)}
-.gl-extractor{background:radial-gradient(circle at 50% 120%, #3a2f22, #14100a)}
-.gl-fabricator{background:radial-gradient(circle at 50% 120%, #223243, #0c1119)}
+.gl-mining{background:radial-gradient(circle at 50% 120%, #3a2f22, #14100a)}
+.gl-synthetics{background:radial-gradient(circle at 50% 120%, #223243, #0c1119)}
 .gl-bioharvester{background:radial-gradient(circle at 50% 120%, #1f3a24, #0a140c)}
 .gl-tool{
   width:30px;height:30px;
@@ -3292,11 +3277,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         for data, and it keeps paying while you sleep. Come back to spend what
         it earned: better gear, a trade to learn, a region to cross.
       </p>
+      <!-- Talen fylls i av gateFacts() ur spelets egna listor. Skriv dem ALDRIG
+           for hand har - de blev gamla forra gangen (sa 65 recept nar det var 203). -->
       <div class="gate-facts">
-        <div><b>7</b><span>Professions</span></div>
-        <div><b>16</b><span>Regions</span></div>
-        <div><b>49</b><span>Companions</span></div>
-        <div><b>65</b><span>Recipes</span></div>
+        <div><b id="gf-prof">—</b><span>Professions</span></div>
+        <div><b id="gf-reg">—</b><span>Regions</span></div>
+        <div><b id="gf-pet">—</b><span>Companions</span></div>
+        <div><b id="gf-rec">—</b><span>Recipes</span></div>
       </div>
       <a class="gate-scroll" href="#gate-tour">See what you'll be doing <i>↓</i></a>
     </div>
@@ -3436,7 +3423,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <div class="nav-btn" id="nav-ach"><span class="ico"><span class="qi qi-achievements"></span></span><span class="lbl">Achievements</span><span class="notif" id="ach-badge" style="display:none">0</span></div>
       <div class="nav-btn"><span class="ico"><span class="qi qi-events"></span></span><span class="lbl">Events<small>2d 14h</small></span></div>
       <div class="nav-btn glow-gold"><span class="ico"><span class="qi qi-daily"></span></span><span class="lbl">Daily Rewards</span></div>
-      <div class="nav-btn"><span class="ico"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
+      <div class="nav-btn" id="nav-shop"><span class="ico"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
       <div class="nav-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
       <div class="nav-btn" id="nav-settings"><span class="ico"><span class="qi qi-settings"></span></span><span class="lbl">Settings</span></div>
 
@@ -3580,7 +3567,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
         <div class="tap-block">
           <div class="hold-meter" id="hold-meter"><div class="hold-meter-fill" id="hold-meter-fill"></div></div>
-          <div class="hold-hint" id="hold-hint">HOLD CORE TO COLLECT DATA</div>
+          <div class="hold-shift" id="hold-shift"></div>
+          <div class="hold-hint" id="hold-hint">HOLD CORE TO ASSIST</div>
         </div>
       </section>
 
@@ -3633,43 +3621,19 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     <div class="col col-right">
 
       <!-- MACHINES / UPGRADES / PREMIUM (flikram) -->
-      <section class="panel circuit" id="panel-production">
-        <div class="tabs three" id="production-tabs">
-          <div class="tab active" data-pane="pane-machines">Production</div>
-          <div class="tab" data-pane="pane-upgrades">Upgrades</div>
-          <div class="tab" data-pane="pane-premium">Premium</div>
-        </div>
-
-        <!-- FLIK 1: MACHINES -->
-        <div class="tab-pane" id="pane-machines">
-          <div class="machines-controls" style="justify-content:flex-end;display:flex;margin-bottom:8px">Buy amount
-            <span class="chip active" data-amount="1">1</span><span class="chip" data-amount="10">10</span><span class="chip" data-amount="max">MAX</span>
-          </div>
-          <div class="machine-list" id="machine-list"></div>
-          <div class="m-tip" id="machine-tip"></div>
-        </div>
-
-        <!-- FLIK 2: UPGRADES -->
-        <div class="tab-pane" id="pane-upgrades" style="display:none">
-          <div class="section-label">Available Upgrades</div>
-          <div class="upgrade-list" id="milestone-shelf"></div>
-          <div class="section-label" style="margin-top:12px">Core Upgrades</div>
-          <div class="upgrade-list" id="core-upgrades"></div>
-        </div>
-
-        <!-- FLIK 3: PREMIUM -->
-        <div class="tab-pane" id="pane-premium" style="display:none">
-          <div class="section-label">Offline Cap</div>
-          <div class="kv" style="margin-bottom:8px"><span class="k">Current offline cap</span><span class="v" id="prem-cap" style="color:var(--cyan)">6h</span></div>
-          <div class="upgrade-list" id="premium-offline"></div>
-          <div class="section-label" style="margin-top:14px">Extra Bag Slots</div>
-          <div class="upgrade-list" id="premium-bags"></div>
-          <div class="shelf-empty" style="margin-top:12px">More premium upgrades will arrive with pets and quests.</div>
-        </div>
+      <!-- ===== YRKESRUTAN (v4.93.0) =====
+           Har stod produktionsrutan med tio maskiner och tre flikar. Den ar
+           borta ur skarmen. Pa dess plats: tva upprattstaende huvudyrkeskort
+           och en servicestation under. Inga flikar - allt syns pa en gang. -->
+      <section class="panel" id="panel-professions">
+        <div class="panel-title">Professions</div>
+        <div class="prof-cards" id="prof-cards"></div>
+        <div class="panel-title" style="margin-top:14px">Service Station</div>
+        <div class="station-cards" id="station-cards"></div>
       </section>
 
       <!-- EXPEDITIONS -->
-      <section class="panel circuit" id="panel-expeditions">
+      <section class="panel" id="panel-expeditions">
         <!-- Meddelandet sitter OVANFOR flikarna. Det lag inne i Active, sa den
              som tryckte Start i Discovered fick svaret renderat i en dold ruta -
              knappen sag ut att inte gora nagonting alls. -->
@@ -3689,7 +3653,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </section>
 
       <!-- QUICK ACCESS -->
-      <section class="panel circuit" id="panel-quick-access">
+      <section class="panel" id="panel-quick-access">
         <div class="panel-title">Quick Access</div>
         <div class="qa-grid">
           <div class="qa-btn" id="qa-inventory"><span class="ico"><span class="qi qi-inventory"></span></span><span class="lbl">Inventory</span></div>
@@ -3934,6 +3898,30 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     </div>
   </div>
 
+  <!-- ===== BUTIKEN (v4.94.0) =====
+       Premiumkopen - offlinetaket och extra vaskplatser - satt i
+       produktionsrutans tredje flik. Nar den rutan togs bort blev de hemlosa:
+       kopen rakans fortfarande men det fanns ingen knapp. De bor har tills
+       vidare, med SAMMA id:n som forut, sa koden som bygger dem hittar hem
+       utan att en rad av den behover andras. -->
+  <div class="float-win" id="shop-overlay">
+    <div class="modal inv-modal prof-modal">
+      <div class="inv-emblem"><span class="qi qi-shop"></span></div>
+      <div class="inv-titlebar">
+        <span class="inv-title">Shop</span>
+        <button class="inv-x" id="shop-close">✕</button>
+      </div>
+      <div class="pets-scroll" style="padding:12px">
+        <div class="section-label">Offline Cap</div>
+        <div class="kv" style="margin-bottom:8px"><span class="k">Current offline cap</span><span class="v" id="prem-cap" style="color:var(--cyan)">6h</span></div>
+        <div class="upgrade-list" id="premium-offline"></div>
+        <div class="section-label" style="margin-top:14px">Extra Bag Slots</div>
+        <div class="upgrade-list" id="premium-bags"></div>
+        <div class="shelf-empty" style="margin-top:12px">More will arrive with pets and quests.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="float-win" id="prof-overlay">
     <div class="modal inv-modal prof-modal">
       <div class="inv-emblem"><span class="qi qi-professions"></span></div>
@@ -4142,7 +4130,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v4.81.0 — TVÅHANDSVAPEN</div>
+            <div class="desc">GENESIS v4.98.0 — UPPDRAGEN GER SKROT</div>
           </div>
         </div>
       </div>
@@ -4153,7 +4141,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.81.0 — TVÅHANDSVAPEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v4.98.0 — UPPDRAGEN GER SKROT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4443,6 +4431,14 @@ async function srvRpc(fn, args){
    Ordlistan ar ett stalle, sa samma kod aldrig kan fa tva olika texter. */
 const SRV_ERRORS = {
   boost_slots_full:  'All your boost slots are in use — wait for one to run out, or open another in the Reboot tree.',
+  /* Yrkesvalets skal (v4.97.0). Servern har haft dem sedan den fick regeln -
+     utan de har raderna hade spelaren bara sett "The server said no". */
+  professions_unlock_at_level_5: 'Professions unlock at character level 5.',
+  two_professions_max:      'You can keep 2 main professions.',
+  one_secondary_max:        'You can keep one secondary profession.',
+  profession_resting:       'That profession is resting — it will return later.',
+  already_learned:          'You already know that profession.',
+  unknown_profession:       'No such profession.',
   backpack_full:            'Your backpack is full.',
   vault_full:               'The vault is full.',
   insufficient_gold:        'Not enough gold.',
@@ -4680,6 +4676,13 @@ function netPredictedData(){
   return NET.serverData + (NET.tapCredit || 0) + totalDps() * Math.max(0, secs);
 }
 
+/* KARNANS HJALP (v4.95.0). Skickar arbetssekunder till det lankade yrket.
+   Svaret behovs inte - klockan star pa servern och lases vid nasta synk. */
+function netCoreAssist(prof, secs){
+  if (!NET.on) return;
+  srvRpc('core_assist', {p_character: SRV.charId, p_prof: prof, p_secs: secs})
+    .catch(() => {});
+}
 /* Ett hack. Visas direkt lokalt for kanslan, men rakans av servern vid nasta
    synk - och det ar serverns tal som blir kvar. */
 function netTap(count, heldSecs){
@@ -5765,18 +5768,18 @@ const COPPER_PER_GOLD = COPPER_PER_SILVER * SILVER_PER_GOLD;
    material via 'prof'. Detta ar KATALOGEN; sjalva gatheringen byggs i nasta lager. */
 const MATERIALS = {
   /* --- Extractor: metaller, mineral, adelstenar --- */
-  copper_ore:    {name:'Tin',    ico:'🪵', tier:0, bop:false, prof:'extractor'},
-  iron_ore:      {name:'Iron',      ico:'⛏️', tier:0, bop:false, prof:'extractor'},
-  gold_ore:      {name:'Platinum',      ico:'🟡', tier:0, bop:false, prof:'extractor'},
-  crystal_quartz:{name:'Quartz',ico:'💎', tier:0, bop:false, prof:'extractor'},
-  diamond_shard: {name:'Diamond', ico:'💠', tier:0, bop:false, prof:'extractor', gem:true},
-  ruby:          {name:'Ruby',          ico:'🟥', tier:0, bop:false, prof:'extractor', gem:true},
-  sapphire:      {name:'Sapphire',      ico:'🔷', tier:0, bop:false, prof:'extractor', gem:true},
-  amethyst:      {name:'Amethyst',      ico:'🟪', tier:0, bop:false, prof:'extractor', gem:true},
-  voidsteel_ore: {name:'Voidsteel', ico:'⚫', tier:1, bop:true,  prof:'extractor'},
-  genesis_crystal:{name:'Genesis Crystal',ico:'✨', tier:1, bop:true, prof:'extractor'},
-  refined_voidsteel:{name:'Refined Voidsteel',ico:'🔳', tier:1, bop:false, prof:'extractor', refined:true},
-  cobalt_ore:    {name:'Cobalt',        ico:'🔵', tier:0, bop:false, prof:'extractor'},
+  copper_ore:    {name:'Tin',    ico:'🪵', tier:0, bop:false, prof:'mining', rank:1, sub:'metal'},
+  iron_ore:      {name:'Iron',      ico:'⛏️', tier:0, bop:false, prof:'mining', rank:2, sub:'metal'},
+  gold_ore:      {name:'Platinum',      ico:'🟡', tier:0, bop:false, prof:'mining', rank:3, sub:'metal'},
+  crystal_quartz:{name:'Quartz',ico:'💎', tier:0, bop:false, prof:'mining', rank:1, sub:'crystal'},
+  diamond_shard: {name:'Diamond', ico:'💠', tier:0, bop:false, prof:'mining', gem:true},
+  ruby:          {name:'Ruby',          ico:'🟥', tier:0, bop:false, prof:'mining', gem:true},
+  sapphire:      {name:'Sapphire',      ico:'🔷', tier:0, bop:false, prof:'mining', gem:true},
+  amethyst:      {name:'Amethyst',      ico:'🟪', tier:0, bop:false, prof:'mining', gem:true},
+  voidsteel_ore: {name:'Voidsteel', ico:'⚫', tier:1, bop:true,  prof:'mining'},
+  genesis_crystal:{name:'Genesis Crystal',ico:'✨', tier:1, bop:true, prof:'mining'},
+  refined_voidsteel:{name:'Refined Voidsteel',ico:'🔳', tier:1, bop:false, prof:'mining', refined:true},
+  cobalt_ore:    {name:'Cobalt',        ico:'🔵', tier:0, bop:false, prof:'mining', rank:4, sub:'metal'},
   /* --- Mechanic: delar man plockar isar och bygger om (v4.49.0) ---
      Fjarde samlaryrket. Dess material ar TILLVERKADE saker man hittar - i en
      varld byggd av det folk lamnat efter sig ar en spole kabel lika mycket en
@@ -5791,13 +5794,13 @@ const MATERIALS = {
   data_chip:     {name:'Data Chip',     ico:'💾', tier:1, bop:true,  prof:'mechanic'},
   tech_parts:    {name:'Tech Parts',    ico:'🛠️', tier:1, bop:false, prof:'mechanic', refined:true},
   /* --- Fabricator: fibrer, polymer, vav --- */
-  synthetic_fiber:{name:'Fiber',ico:'🧵', tier:0, bop:false, prof:'fabricator'},
-  polymer_mesh:  {name:'Mesh',  ico:'🕸️', tier:0, bop:false, prof:'fabricator'},
-  carbon_weave:  {name:'Weave',  ico:'🧿', tier:0, bop:false, prof:'fabricator'},
-  static_silk:   {name:'Silk',   ico:'🪢', tier:0, bop:false, prof:'fabricator'},
-  phase_thread:  {name:'Phase Thread',  ico:'🧵', tier:1, bop:true,  prof:'fabricator'},
-  memory_weave:  {name:'Memory Weave',  ico:'🧠', tier:1, bop:true,  prof:'fabricator'},
-  refined_phaseweave:{name:'Refined Phaseweave',ico:'🧶', tier:1, bop:false, prof:'fabricator', refined:true},
+  synthetic_fiber:{name:'Fiber',ico:'🧵', tier:0, bop:false, prof:'synthetics', rank:1},
+  polymer_mesh:  {name:'Mesh',  ico:'🕸️', tier:0, bop:false, prof:'synthetics', rank:2},
+  carbon_weave:  {name:'Weave',  ico:'🧿', tier:0, bop:false, prof:'synthetics', rank:3},
+  static_silk:   {name:'Silk',   ico:'🪢', tier:0, bop:false, prof:'synthetics', rank:4},
+  phase_thread:  {name:'Phase Thread',  ico:'🧵', tier:1, bop:true,  prof:'synthetics'},
+  memory_weave:  {name:'Memory Weave',  ico:'🧠', tier:1, bop:true,  prof:'synthetics'},
+  refined_phaseweave:{name:'Refined Phaseweave',ico:'🧶', tier:1, bop:false, prof:'synthetics', refined:true},
   /* --- Bioharvester: digitala vaxter, svampar, rotter --- */
   neon_bloom:    {name:'Bloom',    ico:'🌸', tier:0, bop:false, prof:'bioharvester'},
   circuit_root:  {name:'Root',  ico:'🪴', tier:0, bop:false, prof:'bioharvester'},
@@ -5808,12 +5811,41 @@ const MATERIALS = {
   refined_bioessence:{name:'Refined Bioessence',ico:'🧪', tier:1, bop:false, prof:'bioharvester', refined:true},
   prism_sap:     {name:'Sap',    ico:'🔶', tier:0, bop:false, prof:'bioharvester'},
   /* Fabricatorn hade far fynd mot de andra tva - dessa jamnar ut det. */
-  signal_cord:   {name:'Cord',   ico:'🪢', tier:0, bop:false, prof:'fabricator'},
-  filament_spool:{name:'Spool',ico:'🧶', tier:0, bop:false, prof:'fabricator'},
+  signal_cord:   {name:'Cord',   ico:'🪢', tier:0, bop:false, prof:'synthetics'},
+  filament_spool:{name:'Spool',ico:'🧶', tier:0, bop:false, prof:'synthetics'},
   /* --- Skrot: det ENDA alla kan hitta, oavsett yrke (spelarens beslut).
          Kommer fran expeditioner och cacher, saljs till handlare eller pa
          auktionen, och forads av vilket samlaryrke som helst. --- */
-  salvaged_scrap:{name:'Scrap',ico:'🔩', tier:0, bop:false, prof:'any'},
+  salvaged_scrap:{name:'Scrap',ico:'🔩', tier:0, bop:false, prof:'any', rank:1},
+
+  /* ===== NYA MATERIAL v4.86.0 - grunden for det nya yrkessystemet =====
+     RANK ar det nya faltet: I till IV. Det ar INTE samma sak som tier, som
+     betyder finhet - vanligt eller sallsynt. Rank sager vilket steg i
+     yrkesbanan materialet hor till, och vilken region det faller i.
+     GRUVAN saknade bara tre stenar. Tin, Iron, Platinum, Cobalt och Quartz
+     fanns redan under aldre nycklar och ligger redan i spelares vaskor - de
+     rors INTE, bara de tre som fattades laggs till. */
+  prism_shard:   {name:'Prism Shard',    ico:'🔶', tier:0, bop:false, prof:'mining', rank:2, sub:'crystal'},
+  signal_crystal:{name:'Signal Crystal', ico:'🔹', tier:0, bop:false, prof:'mining', rank:3, sub:'crystal'},
+  phase_crystal: {name:'Phase Crystal',  ico:'🟣', tier:0, bop:false, prof:'mining', rank:4, sub:'crystal'},
+
+  /* SKROTET blir fyra kvaliteter. Fem av en blir en av nasta, aldrig nedat.
+     Varje steg ar darfor exakt fem ganger sa mycket vart som steget under -
+     att forvandla uppat far aldrig vara ett satt att tjana eller tappa pengar,
+     bara ett satt att slippa resa. */
+  scrap_reinforced:{name:'Reinforced Scrap', ico:'🔩', tier:0, bop:false, prof:'any', rank:2},
+  scrap_charged:   {name:'Charged Scrap',    ico:'⚙️', tier:0, bop:false, prof:'any', rank:3},
+  scrap_phase:     {name:'Phase Scrap',      ico:'🌀', tier:0, bop:false, prof:'any', rank:4},
+
+  /* ===== STATIONSRESURSER (v4.90.0) - sidoyrkenas bundna ravara =====
+     De gors av TID, inte av material: stationen tickar fram dem sa lange yrket
+     ar igang. Darfor ar de BUNDNA - de kan varken saljas eller handlas - och
+     de har ett LAGRINGSTAK. Utan taket hade en spelare som var borta en vecka
+     kommit hem till obegransat med fardiga varor.
+     For att bli nagot maste de blandas med HANDELSBART skrot. Det ar spaken
+     som gor att ett sidoyrke aldrig kan trycka gratis produkter. */
+  medical_supplies:{name:'Medical Supplies', ico:'🧷', tier:0, bop:true, prof:'medic',   cap:200},
+  crude_fuel:      {name:'Crude Fuel',       ico:'🛢️', tier:0, bop:true, prof:'refiner', cap:200},
   /* --- SKRAPET: nio vardelosa saker som droppar medan man idlar. De finns for
          kanslan av ett fynd, aldrig for inkomsten - hela hogen ger ett par
          koppar i timmen. Fast pris per sak, annars kan tva av samma inte
@@ -5882,12 +5914,13 @@ function takeMaterial(key, qty){
    distansen lutar oddsen, och SERVER_MODS ar en TOM krok for framtida servrar -
    nar servrar blir data racker det att fylla den, inget annat behover andras. */
 const GATHER_DEFS = {
-  extractor:    {verb:'Mining',    ico:'⛏️', cycle:5.0, nothing:0.65,
-                 core:['copper_ore','iron_ore','gold_ore','crystal_quartz','cobalt_ore'],
+  mining:       {verb:'Mining',    ico:'⛏️', cycle:5.0, nothing:0.65,
+                 core:['copper_ore','crystal_quartz','iron_ore','prism_shard',
+                       'gold_ore','signal_crystal','cobalt_ore','phase_crystal'],
                  rare:['voidsteel_ore','genesis_crystal'],
                  gems:['diamond_shard','ruby','sapphire','amethyst']},
-  fabricator:   {verb:'Weaving',   ico:'🧵', cycle:5.0, nothing:0.65,
-                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk','signal_cord'],
+  synthetics:   {verb:'Weaving',   ico:'🧵', cycle:5.0, nothing:0.65,
+                 core:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk'],
                  rare:['phase_thread','memory_weave']},
   bioharvester: {verb:'Harvesting',ico:'🌿', cycle:5.0, nothing:0.65,
                  core:['neon_bloom','circuit_root','static_cap','glass_moss','prism_sap'],
@@ -5911,6 +5944,20 @@ function gatherShiftSecs(){ return GATHER_SHIFT_BASE; }
 function gatherCycleSecs(id){
   return Math.max(2, GATHER_DEFS[id].cycle - 0.5 * (NET.on ? perkLvl('shiftFast') : 0));
 }
+/* VILKEN RANK EN VARLD GER (v4.91.0). Ren data - samma tabell som servern.
+   Hemma i Voxholm ar nastan allt Rank I; langst ut i The Quarantine bara Rank
+   IV. Gammalt material fortsatter droppa i mindre mangd langre ut, det ar
+   meningen: man ska kunna fylla pa en gammal hog utan att resa hem. */
+const RANK_WEIGHTS = [
+  [[1,85],[2,15]],
+  [[1,30],[2,70]],
+  [[2,30],[3,70]],
+  [[3,30],[4,70]],
+  [[4,100]]
+];
+/* Gruvan delar 75/25 mellan metall och kristall, sa att vapensmed OCH
+   juvelerare forsorjs ur ett och samma samlaryrke. */
+const MINING_CRYSTAL_SHARE = 0.25;
 const GATHER_RARE_CHANCE = [0.03, 0.05, 0.09, 0.15, 0.24];
 /* Extractor snubblar ibland over en adelsten (utover det vanliga utfallet) -
    det ar den chansen, aven den lutad av distansen. */
@@ -5939,7 +5986,26 @@ function gatherRoll(profId){
   /* Extractors adelsten ligger vid sidan om kärnutfallet. */
   if (def.gems && Math.random() < GATHER_GEM_CHANCE[tier])
     return weightedMat(def.gems);
-  const pool = (Math.random() < GATHER_RARE_CHANCE[tier]) ? def.rare : def.core;
+  if (Math.random() < GATHER_RARE_CHANCE[tier]) return weightedMat(def.rare);
+  return pickCoreMat(profId, tier);
+}
+/* Karnutfallet. Forut valdes det jamnt ur hela poolen, sa en spelare hemma
+   kunde fa Rank IV-material direkt. Nu bestammer VARLDEN ranken. Samma regel
+   som servern kor - andras den ena maste den andra folja med. */
+function pickCoreMat(profId, tier){
+  const def = GATHER_DEFS[profId];
+  const table = RANK_WEIGHTS[Math.min(tier, RANK_WEIGHTS.length - 1)];
+  let roll = Math.random() * 100, rank = table[0][0];
+  for (const [r, pct] of table){ roll -= pct; if (roll < 0){ rank = r; break; } }
+  const wantCrystal = Math.random() < MINING_CRYSTAL_SHARE;
+  const inRank = def.core.filter(k => MATERIALS[k] && MATERIALS[k].rank === rank);
+  let pool = inRank.filter(k => !MATERIALS[k].sub
+                              || MATERIALS[k].sub === (wantCrystal ? 'crystal' : 'metal'));
+  if (!pool.length) pool = inRank;
+  /* Ingen rank tom: faller allt bort tas narmaste lagre, sa handerna aldrig
+     blir tomma bara for att ett yrke saknar material i just den ranken. */
+  if (!pool.length) pool = def.core.filter(k => MATERIALS[k] && MATERIALS[k].rank <= rank);
+  if (!pool.length) pool = def.core;
   return weightedMat(pool);
 }
 /* Val inom en pool, med serverns vikt inrakad. */
@@ -6076,37 +6142,68 @@ function salvageGear(idx){
    10 guld styck. Modellen ar DATADRIVEN: XP och niva bokfors per yrke, sa
    specialiseringar och fler yrken kan laggas till utan att rora grunden. */
 const PROFESSIONS = [
-  {id:'outfitter',   name:'Outfitter',    kind:'crafting', ico:'🧥',
+  /* ===== YRKESLISTAN v4.89.0 =====
+     FEM HUVUDYRKEN och TVA SIDOYRKEN. Spelaren valjer tva huvudyrken fritt -
+     tva samlare, tva hantverkare eller ett av varje - och exakt ett sidoyrke.
+     Ingen kombination tvingas fram; auktionshuset finns for det man inte kan
+     samla sjalv. Niva 20 ar taket vid slapp.
+     NAMNBYTEN: Extractor heter nu Mining, Fabricator heter Synthetics. Det ar
+     samma yrke - niva och XP foljde med - bara ett arligare namn.
+     GAMLA YRKEN: Bioharvester, Chemist och Mechanic star kvar langst ner med
+     active:false. De gar INTE att valja och deras recept gar INTE att gora,
+     men de raderas inte: en spelare kan ha niva och XP i dem, och den siffran
+     ska inte forsvinna bara for att yrket vilar. */
+  {id:'mining',      name:'Mining',       kind:'gathering', ico:'⛏️', active:true, cap:20,
+   blurb:'Mines metal and crystal — everything a weaponsmith or jewelcrafter needs.',
+   mats:['copper_ore','crystal_quartz','iron_ore','prism_shard',
+         'gold_ore','signal_crystal','cobalt_ore','phase_crystal']},
+  {id:'synthetics',  name:'Synthetics',   kind:'gathering', ico:'🧵', active:true, cap:20,
+   blurb:'Harvests fiber, mesh, weave and silk for outfitters.',
+   mats:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk']},
+
+  {id:'outfitter',   name:'Outfitter',    kind:'crafting', ico:'🧥', active:true, cap:20,
    blurb:'Crafts armour: head, chest, hands, waist, legs and boots.',
    slots:['Head','Chest','Hands','Waist','Legs','Boots'], comp:'masterweave_thread'},
-  {id:'weaponsmith', name:'Weaponsmith',  kind:'crafting', ico:'⚔️',
-   blurb:'Forges weapons, off-hands and — uniquely — transports.',
-   slots:['Main-hand','Off-hand','Transport'], comp:'forge_core'},
-  {id:'jewelcrafter',name:'Jewelcrafter', kind:'crafting', ico:'💍',
-   /* EN RING, EN GANG. "Ring I" och "Ring II" var tva brickor for samma sak -
-      det ar samma ring, den passar bara bada fingrarna. Beskrivningen sager
-      redan att man kan bara tva. */
-   blurb:'Cuts gems and crafts neck, rings and relics.',
-   slots:['Neck','Ring','Relic','Gems'], comp:'resonance_dust'},
-  {id:'chemist',     name:'Chemist',      kind:'crafting', ico:'⚗️',
-   blurb:'Brews flasks, serums and tonics — consumable boosts.',
+  {id:'weaponsmith', name:'Weaponsmith',  kind:'crafting', ico:'⚔️', active:true, cap:20,
+   blurb:'Forges main-hands, two-handers and off-hands.',
+   slots:['Main-hand','Two-hand','Off-hand'], comp:'forge_core'},
+  {id:'jewelcrafter',name:'Jewelcrafter', kind:'crafting', ico:'💍', active:true, cap:20,
+   blurb:'Cuts stone into rings, pendants and relics.',
+   slots:['Ring','Neck','Relic'], comp:'resonance_dust'},
+
+  /* SIDOYRKEN. De arbetar med TIDEN, inte med material: stationen producerar en
+     bunden resurs som varken kan saljas eller handlas, och den maste blandas
+     med handelsbart skrot for att bli en fardig produkt. Darfor kan ett
+     sidoyrke aldrig trycka gratis varor. */
+  /* STATIONERNAS TAKT OCH TAK. Samma tal som servern - andras det ena maste det
+     andra folja med. En enhet i minuten, tak 200. Det ger ett bandage var
+     attonde minut, och ett fullt lager pa dryga tre timmar.
+     Klockan ar en TIDSSTAMPEL pa servern, inte nagot som tickar i webblasaren:
+     stationen jobbar vidare medan spelaren ar utloggad, kapat mot offlinetaket
+     precis som allt annat idle. */
+  {id:'medic',       name:'Medic',        kind:'secondary', ico:'🩹', active:true, cap:20,
+   stationSecs:60, storageCap:200,
+   station:'Medical Bay',   bound:'medical_supplies',
+   blurb:'Runs the Medical Bay. Turns time and scrap into bandages.'},
+  {id:'refiner',     name:'Refiner',      kind:'secondary', ico:'⛽', active:true, cap:20,
+   stationSecs:60, storageCap:200,
+   station:'Fuel Refinery', bound:'crude_fuel',
+   blurb:'Runs the Fuel Refinery. Turns time and scrap into fuel cells.'},
+
+  /* ---- GAMLA. Sparade, inte valbara, recepten gar inte att gora. ---- */
+  {id:'chemist',     name:'Chemist',      kind:'crafting', ico:'⚗️', active:false,
+   blurb:'Resting. A broader consumables profession will take its place later.',
    slots:['Flasks','Serums','Tonics'], comp:'catalyst_essence'},
-  {id:'extractor',   name:'Extractor',    kind:'gathering', ico:'⛏️',
-   blurb:'Mines ore, minerals and the gems jewelcrafters need.',
-   mats:['copper_ore','iron_ore','gold_ore','crystal_quartz']},
-  {id:'fabricator',  name:'Fabricator',   kind:'gathering', ico:'🧵',
-   blurb:'Harvests fibers, polymer and weaves for outfitters.',
-   mats:['synthetic_fiber','polymer_mesh','carbon_weave','static_silk']},
-  {id:'bioharvester',name:'Bioharvester', kind:'gathering', ico:'🌿',
-   blurb:'Gathers digital blooms, roots and fungi for chemists.',
+  {id:'bioharvester',name:'Bioharvester', kind:'gathering', ico:'🌿', active:false,
+   blurb:'Resting.',
    mats:['neon_bloom','circuit_root','static_cap','glass_moss','prism_sap']},
-  /* FJARDE SAMLAREN (v4.49.0). Han plockar isar det andra byggt och lamnat -
-     kabel, kretsar, celler, linser och kugghjul. Alla fyra hantverkare behover
-     nagot fran honom, och han ar den enda vagen till Tech Parts. */
-  {id:'mechanic',    name:'Mechanic',     kind:'gathering', ico:'🔧',
-   blurb:'Salvages wire, circuits, cells, lenses and cogs — the parts everything else needs.',
+  {id:'mechanic',    name:'Mechanic',     kind:'gathering', ico:'🔧', active:false,
+   blurb:'Resting.',
    mats:['wire','circuit','battery','lens','cog']}
 ];
+/* Bara de aktiva ar valbara. Allt som ritar en lista over yrken ska ga genom
+   den har - annars dyker de vilande upp igen dar de inte hor hemma. */
+const ACTIVE_PROFS = PROFESSIONS.filter(p => p.active);
 const PROF_BY = {}; PROFESSIONS.forEach(p => PROF_BY[p.id] = p);
 /* Yrkets egen ikon. En fil per yrke (assets/professions/<id>.png), samma princip
    som gear och husdjuren: ska en ikon ritas om byter man EN fil. Emojin i
@@ -6140,12 +6237,12 @@ const RECIPES = [
    har projektet. "Masterwork Iron Ring" kan inte ljuga.
    Trappan ar densamma som forut - 5, 9, 12 och 20 enheter, 1, 2, 4 och 7
    hantverkssatser - och de fyra balansreglerna ar grona pa alla 164. */
-  {id:'ex_s1', prof:'extractor',    name:'Smelt Scrap',        item:'copper_ore',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
-  {id:'fa_s1', prof:'fabricator',   name:'Unravel Scrap',      item:'synthetic_fiber',   rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
+  {id:'ex_s1', prof:'mining',    name:'Smelt Scrap',        item:'copper_ore',        rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
+  {id:'fa_s1', prof:'synthetics',   name:'Unravel Scrap',      item:'synthetic_fiber',   rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
   {id:'bh_s1', prof:'bioharvester', name:'Culture Scrap', item:'glass_moss', rar:0, lvl:1, source:'known', cost:{salvaged_scrap:3}},
   {id:'me_s1', prof:'mechanic',     name:'Reuse Scrap',        item:'wire',              rar:0, lvl:1, source:'known',  cost:{salvaged_scrap:3}},
-  {id:'ex_r1', prof:'extractor',    name:'Refine Voidsteel',   item:'refined_voidsteel', rar:2, lvl:10, source:'known', cost:{voidsteel_ore:3, genesis_crystal:2}},
-  {id:'fa_r1', prof:'fabricator',   name:'Refine Phaseweave',  item:'refined_phaseweave',rar:2, lvl:10, source:'known', cost:{phase_thread:3, memory_weave:2}},
+  {id:'ex_r1', prof:'mining',    name:'Refine Voidsteel',   item:'refined_voidsteel', rar:2, lvl:10, source:'known', cost:{voidsteel_ore:3, genesis_crystal:2}},
+  {id:'fa_r1', prof:'synthetics',   name:'Refine Phaseweave',  item:'refined_phaseweave',rar:2, lvl:10, source:'known', cost:{phase_thread:3, memory_weave:2}},
   {id:'bh_r1', prof:'bioharvester', name:'Refine Bioessence',  item:'refined_bioessence',rar:2, lvl:10, source:'known', cost:{null_orchid:3, genesis_spore:2}},
   {id:'me_r1', prof:'mechanic',     name:'Build Tech Parts',    item:'tech_parts',        rar:2, lvl:10, source:'known', cost:{power_core:3, data_chip:2}},
   {id:'of_k1', prof:'outfitter',    name:'Spin Masterweave',   item:'masterweave_thread',rar:2, lvl:10, source:'known', cost:{refined_phaseweave:1, static_silk:4}},
@@ -6275,47 +6372,47 @@ const RECIPES = [
   {id:'me_c1', prof:'mechanic', name:'Basic Brass Lens', item:'relic_brass_lens', rar:0, lvl:1, source:'known', cost:{wire:3, circuit:2, crafting_kit:1}},
   {id:'me_u2', prof:'mechanic', name:'Reinforced Brass Lens', item:'relic_brass_lens', rar:1, lvl:5, source:'known', cost:{circuit:3, battery:3, lens:3, crafting_kit:2}},
   {id:'me_r3', prof:'mechanic', name:'Masterwork Brass Lens', item:'relic_brass_lens', rar:2, lvl:10, source:'drop', cost:{carbon_weave:3, static_silk:2, wire:4, circuit:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e4', prof:'mechanic', name:'Prime Brass Lens', item:'relic_brass_lens', rar:3, lvl:16, source:'drop', cost:{crystal_quartz:5, cobalt_ore:4, wire:6, circuit:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e4', prof:'mechanic', name:'Prime Brass Lens', item:'relic_brass_lens', rar:3, lvl:16, source:'drop', cost:{crystal_quartz:5, cobalt_ore:4, wire:6, circuit:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c5', prof:'mechanic', name:'Basic Cobalt Solitaire', item:'relic_cobalt_solitaire', rar:0, lvl:1, source:'known', cost:{battery:3, lens:2, crafting_kit:1}},
   {id:'me_u6', prof:'mechanic', name:'Reinforced Cobalt Solitaire', item:'relic_cobalt_solitaire', rar:1, lvl:5, source:'known', cost:{wire:3, lens:3, cog:3, crafting_kit:2}},
   {id:'me_r7', prof:'mechanic', name:'Masterwork Cobalt Solitaire', item:'relic_cobalt_solitaire', rar:2, lvl:10, source:'drop', cost:{crystal_quartz:3, cobalt_ore:2, circuit:4, battery:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e8', prof:'mechanic', name:'Prime Cobalt Solitaire', item:'relic_cobalt_solitaire', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:4, signal_cord:5, circuit:6, battery:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e8', prof:'mechanic', name:'Prime Cobalt Solitaire', item:'relic_cobalt_solitaire', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:4, signal_cord:5, circuit:6, battery:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c9', prof:'mechanic', name:'Basic Iron Beacon', item:'relic_iron_beacon', rar:0, lvl:1, source:'known', cost:{wire:2, cog:3, crafting_kit:1}},
   {id:'me_u10', prof:'mechanic', name:'Reinforced Iron Beacon', item:'relic_iron_beacon', rar:1, lvl:5, source:'known', cost:{wire:3, circuit:3, battery:3, crafting_kit:2}},
   {id:'me_r11', prof:'mechanic', name:'Masterwork Iron Beacon', item:'relic_iron_beacon', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:2, signal_cord:3, battery:4, lens:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e12', prof:'mechanic', name:'Prime Iron Beacon', item:'relic_iron_beacon', rar:3, lvl:16, source:'drop', cost:{copper_ore:5, iron_ore:4, battery:6, lens:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e12', prof:'mechanic', name:'Prime Iron Beacon', item:'relic_iron_beacon', rar:3, lvl:16, source:'drop', cost:{copper_ore:5, iron_ore:4, battery:6, lens:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c13', prof:'mechanic', name:'Basic Rust Compass', item:'relic_rust_compass', rar:0, lvl:1, source:'known', cost:{circuit:3, battery:2, crafting_kit:1}},
   {id:'me_u14', prof:'mechanic', name:'Reinforced Rust Compass', item:'relic_rust_compass', rar:1, lvl:5, source:'known', cost:{battery:3, lens:3, cog:3, crafting_kit:2}},
   {id:'me_r15', prof:'mechanic', name:'Masterwork Rust Compass', item:'relic_rust_compass', rar:2, lvl:10, source:'drop', cost:{copper_ore:3, iron_ore:2, lens:4, cog:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e16', prof:'mechanic', name:'Prime Rust Compass', item:'relic_rust_compass', rar:3, lvl:16, source:'drop', cost:{polymer_mesh:5, carbon_weave:4, lens:6, cog:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e16', prof:'mechanic', name:'Prime Rust Compass', item:'relic_rust_compass', rar:3, lvl:16, source:'drop', cost:{polymer_mesh:5, carbon_weave:4, lens:6, cog:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c17', prof:'mechanic', name:'Basic Steel Core', item:'relic_steel_core', rar:0, lvl:1, source:'known', cost:{lens:3, cog:2, crafting_kit:1}},
   {id:'me_u18', prof:'mechanic', name:'Reinforced Steel Core', item:'relic_steel_core', rar:1, lvl:5, source:'known', cost:{wire:3, circuit:3, cog:3, crafting_kit:2}},
   {id:'me_r19', prof:'mechanic', name:'Masterwork Steel Core', item:'relic_steel_core', rar:2, lvl:10, source:'drop', cost:{polymer_mesh:3, carbon_weave:2, wire:3, cog:4, tech_parts:1, crafting_kit:4}},
-  {id:'me_e20', prof:'mechanic', name:'Prime Steel Core', item:'relic_steel_core', rar:3, lvl:16, source:'drop', cost:{gold_ore:5, crystal_quartz:4, wire:5, cog:6, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e20', prof:'mechanic', name:'Prime Steel Core', item:'relic_steel_core', rar:3, lvl:16, source:'drop', cost:{gold_ore:5, crystal_quartz:4, wire:5, cog:6, tech_parts:3, crafting_kit:7}},
   {id:'me_c21', prof:'mechanic', name:'Basic Hoverdeck', item:'transport_hoverdeck', rar:0, lvl:1, source:'known', cost:{wire:3, circuit:2, crafting_kit:1}},
   {id:'me_u22', prof:'mechanic', name:'Reinforced Hoverdeck', item:'transport_hoverdeck', rar:1, lvl:5, source:'known', cost:{circuit:3, battery:3, lens:3, crafting_kit:2}},
   {id:'me_r23', prof:'mechanic', name:'Masterwork Hoverdeck', item:'transport_hoverdeck', rar:2, lvl:10, source:'drop', cost:{gold_ore:3, crystal_quartz:2, wire:4, circuit:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e24', prof:'mechanic', name:'Prime Hoverdeck', item:'transport_hoverdeck', rar:3, lvl:16, source:'drop', cost:{static_silk:5, signal_cord:4, wire:6, circuit:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e24', prof:'mechanic', name:'Prime Hoverdeck', item:'transport_hoverdeck', rar:3, lvl:16, source:'drop', cost:{static_silk:5, signal_cord:4, wire:6, circuit:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c25', prof:'mechanic', name:'Basic Prowler', item:'transport_prowler', rar:0, lvl:1, source:'known', cost:{battery:3, lens:2, crafting_kit:1}},
   {id:'me_u26', prof:'mechanic', name:'Reinforced Prowler', item:'transport_prowler', rar:1, lvl:5, source:'known', cost:{wire:3, lens:3, cog:3, crafting_kit:2}},
   {id:'me_r27', prof:'mechanic', name:'Masterwork Prowler', item:'transport_prowler', rar:2, lvl:10, source:'drop', cost:{static_silk:3, signal_cord:2, circuit:4, battery:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e28', prof:'mechanic', name:'Prime Prowler', item:'transport_prowler', rar:3, lvl:16, source:'drop', cost:{copper_ore:4, cobalt_ore:5, circuit:6, battery:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e28', prof:'mechanic', name:'Prime Prowler', item:'transport_prowler', rar:3, lvl:16, source:'drop', cost:{copper_ore:4, cobalt_ore:5, circuit:6, battery:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c29', prof:'mechanic', name:'Basic Sky Lance', item:'transport_sky_lance', rar:0, lvl:1, source:'known', cost:{wire:2, cog:3, crafting_kit:1}},
   {id:'me_u30', prof:'mechanic', name:'Reinforced Sky Lance', item:'transport_sky_lance', rar:1, lvl:5, source:'known', cost:{wire:3, circuit:3, battery:3, crafting_kit:2}},
   {id:'me_r31', prof:'mechanic', name:'Masterwork Sky Lance', item:'transport_sky_lance', rar:2, lvl:10, source:'drop', cost:{copper_ore:2, cobalt_ore:3, battery:4, lens:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e32', prof:'mechanic', name:'Prime Sky Lance', item:'transport_sky_lance', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:5, polymer_mesh:4, battery:6, lens:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e32', prof:'mechanic', name:'Prime Sky Lance', item:'transport_sky_lance', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:5, polymer_mesh:4, battery:6, lens:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c33', prof:'mechanic', name:'Basic Slipstream', item:'transport_slipstream', rar:0, lvl:1, source:'known', cost:{circuit:3, battery:2, crafting_kit:1}},
   {id:'me_u34', prof:'mechanic', name:'Reinforced Slipstream', item:'transport_slipstream', rar:1, lvl:5, source:'known', cost:{battery:3, lens:3, cog:3, crafting_kit:2}},
   {id:'me_r35', prof:'mechanic', name:'Masterwork Slipstream', item:'transport_slipstream', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:3, polymer_mesh:2, lens:4, cog:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e36', prof:'mechanic', name:'Prime Slipstream', item:'transport_slipstream', rar:3, lvl:16, source:'drop', cost:{iron_ore:5, gold_ore:4, lens:6, cog:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e36', prof:'mechanic', name:'Prime Slipstream', item:'transport_slipstream', rar:3, lvl:16, source:'drop', cost:{iron_ore:5, gold_ore:4, lens:6, cog:5, tech_parts:3, crafting_kit:7}},
   {id:'me_c37', prof:'mechanic', name:'Basic Streetblade', item:'transport_streetblade', rar:0, lvl:1, source:'known', cost:{lens:3, cog:2, crafting_kit:1}},
   {id:'me_u38', prof:'mechanic', name:'Reinforced Streetblade', item:'transport_streetblade', rar:1, lvl:5, source:'known', cost:{wire:3, circuit:3, cog:3, crafting_kit:2}},
   {id:'me_r39', prof:'mechanic', name:'Masterwork Streetblade', item:'transport_streetblade', rar:2, lvl:10, source:'drop', cost:{iron_ore:3, gold_ore:2, wire:3, cog:4, tech_parts:1, crafting_kit:4}},
-  {id:'me_e40', prof:'mechanic', name:'Prime Streetblade', item:'transport_streetblade', rar:3, lvl:16, source:'drop', cost:{carbon_weave:5, static_silk:4, wire:5, cog:6, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e40', prof:'mechanic', name:'Prime Streetblade', item:'transport_streetblade', rar:3, lvl:16, source:'drop', cost:{carbon_weave:5, static_silk:4, wire:5, cog:6, tech_parts:3, crafting_kit:7}},
   {id:'me_c41', prof:'mechanic', name:'Basic Wavecutter', item:'transport_wavecutter', rar:0, lvl:1, source:'known', cost:{wire:3, circuit:2, crafting_kit:1}},
   {id:'me_u42', prof:'mechanic', name:'Reinforced Wavecutter', item:'transport_wavecutter', rar:1, lvl:5, source:'known', cost:{circuit:3, battery:3, lens:3, crafting_kit:2}},
   {id:'me_r43', prof:'mechanic', name:'Masterwork Wavecutter', item:'transport_wavecutter', rar:2, lvl:10, source:'drop', cost:{carbon_weave:3, static_silk:2, wire:4, circuit:3, tech_parts:1, crafting_kit:4}},
-  {id:'me_e44', prof:'mechanic', name:'Prime Wavecutter', item:'transport_wavecutter', rar:3, lvl:16, source:'drop', cost:{crystal_quartz:5, cobalt_ore:4, wire:6, circuit:5, refined_bioessence:1, tech_parts:2, crafting_kit:7}},
+  {id:'me_e44', prof:'mechanic', name:'Prime Wavecutter', item:'transport_wavecutter', rar:3, lvl:16, source:'drop', cost:{crystal_quartz:5, cobalt_ore:4, wire:6, circuit:5, tech_parts:3, crafting_kit:7}},
   {id:'ch_c1', prof:'chemist', name:'Data Flask', item:'flask_data', rar:0, lvl:1, source:'known', cost:{neon_bloom:2, static_cap:3, crafting_kit:1}},
   {id:'ch_c2', prof:'chemist', name:'Focus Flask', item:'flask_focus', rar:0, lvl:1, source:'known', cost:{circuit_root:4, prism_sap:1, crafting_kit:1}},
   {id:'ch_c3', prof:'chemist', name:'Impact Flask', item:'flask_impact', rar:0, lvl:1, source:'known', cost:{static_cap:3, prism_sap:2, crafting_kit:1}},
@@ -6342,7 +6439,83 @@ const RECIPES = [
   {id:'ch_r8', prof:'chemist', name:'Learning Serum', item:'flask_learning', rar:2, lvl:10, source:'drop', cost:{synthetic_fiber:5, polymer_mesh:1, circuit_root:6, refined_bioessence:1, catalyst_essence:1, crafting_kit:4}},
   {id:'ch_r9', prof:'chemist', name:'Shatterpoint Serum', item:'flask_impact', rar:2, lvl:10, source:'drop', cost:{static_cap:8, prism_sap:4, refined_bioessence:1, catalyst_essence:1, crafting_kit:4}},
   {id:'ch_e1', prof:'chemist', name:'Genesis Compound', item:'flask_genesis', rar:3, lvl:16, source:'drop', cost:{synthetic_fiber:7, polymer_mesh:3, static_cap:10, refined_bioessence:2, catalyst_essence:2, crafting_kit:7}},
-  {id:'ch_e2', prof:'chemist', name:'Genesis Serum', item:'flask_echo', rar:3, lvl:16, source:'drop', cost:{neon_bloom:6, glass_moss:4, wire:5, circuit:5, refined_bioessence:2, catalyst_essence:2, crafting_kit:7}}
+  {id:'ch_e2', prof:'chemist', name:'Genesis Serum', item:'flask_echo', rar:3, lvl:16, source:'drop', cost:{neon_bloom:6, glass_moss:4, wire:5, circuit:5, refined_bioessence:2, catalyst_essence:2, crafting_kit:7}},
+
+  /* ===== DE 48 NYA GRUNDRECEPTEN (v4.88.0) =====
+     Yrkessystemets nya botten. Fyra rankar per hantverkare, alla larda
+     AUTOMATISKT vid ratt yrkesniva - 1, 5, 10 och 15. Inga droppade recept.
+     TVA NAMN PER RECEPT: name ar vad som star i receptboken (ett monster, ett
+     schema, en ritning), item ar vad du far i handen. De ar med flit olika
+     saker: du lar dig ett monster, du barr en Scavenger Hood.
+     TRE MATERIAL, ALDRIG FLER: eget samlaryrke + skrot av samma rank + satsen.
+     Juveleraren tar metall OCH kristall - men ur SAMMA gruva. Inget grundrecept
+     kraver nagonsin tva olika samlaryrken. Det ar hela poangen med formen.
+     SATSEN foljer RANK har, inte sallsynthet: 1, 2, 3, 4. Se addCraftingKits. */
+  /* ---- SKROTFORADLINGEN. Fem av ett steg blir ett av nasta, aldrig nedat.
+     De ligger hos MINING for att de maste ligga nagonstans - varje recept
+     behover ett yrke for att synas i boken. Men de kraver INGET material ur
+     gruvan, bara skrot, sa vem som helst med Mining kan gora dem. Skrot ar
+     allas material och priset ar vardeneutralt: fem gangers vardet per steg,
+     sa forvandlingen ar ett satt att slippa resa, inte ett satt att tjana. */
+  {id:'cr_scrap_2', prof:'mining', name:'Reinforce Scrap', item:'scrap_reinforced', rank:1, rar:0, lvl:1,  source:'known', cost:{salvaged_scrap:5}},
+  {id:'cr_scrap_3', prof:'mining', name:'Charge Scrap',    item:'scrap_charged',    rank:2, rar:0, lvl:5,  source:'known', cost:{scrap_reinforced:5}},
+  {id:'cr_scrap_4', prof:'mining', name:'Phase Scrap',     item:'scrap_phase',      rank:3, rar:0, lvl:10, source:'known', cost:{scrap_charged:5}},
+
+  /* ---- SIDOYRKENAS FYRA RECEPT. Bunden ravara + handelsbart skrot. Ingen
+     hantverkssats: stationen ar verktyget. ---- */
+  {id:'cr_md_bandage',   prof:'medic',   name:'Field Dressing',      item:'bandage',             rank:1, rar:0, lvl:1, source:'known', cost:{medical_supplies:8,  salvaged_scrap:6}},
+  {id:'cr_md_firstaid',  prof:'medic',   name:'First Aid Assembly',  item:'first_aid_kit',       rank:2, rar:0, lvl:5, source:'known', cost:{medical_supplies:18, scrap_reinforced:10}},
+  {id:'cr_rf_warpcell',  prof:'refiner', name:'Warp Cell Casing',    item:'fuelcell',            rank:1, rar:0, lvl:1, source:'known', cost:{crude_fuel:10,       salvaged_scrap:5}},
+  {id:'cr_rf_reincell',  prof:'refiner', name:'Reinforced Casing',   item:'fuelcell_reinforced', rank:2, rar:0, lvl:5, source:'known', cost:{crude_fuel:24,       scrap_reinforced:10}},
+
+  {id:'cr_ou_scavenger_hood', prof:'outfitter', name:'Salvaged Headwear Pattern', item:'craft_scavenger_hood', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:18, salvaged_scrap:8}},
+  {id:'cr_ou_scavenger_vest', prof:'outfitter', name:'Salvaged Torso Pattern', item:'craft_scavenger_vest', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:30, salvaged_scrap:14}},
+  {id:'cr_ou_scavenger_gloves', prof:'outfitter', name:'Handwrap Pattern', item:'craft_scavenger_gloves', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:14, salvaged_scrap:6}},
+  {id:'cr_ou_scavenger_belt', prof:'outfitter', name:'Utility Strap Pattern', item:'craft_scavenger_belt', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:12, salvaged_scrap:6}},
+  {id:'cr_ou_scavenger_trousers', prof:'outfitter', name:'Salvaged Legwear Pattern', item:'craft_scavenger_trousers', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:26, salvaged_scrap:12}},
+  {id:'cr_ou_scavenger_boots', prof:'outfitter', name:'Field Footwear Pattern', item:'craft_scavenger_boots', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:18, salvaged_scrap:8}},
+  {id:'cr_ou_gridwalker_cap', prof:'outfitter', name:'Polymer Headguard Pattern', item:'craft_gridwalker_cap', rank:2, rar:0, lvl:5, source:'known', cost:{polymer_mesh:30, scrap_reinforced:14}},
+  {id:'cr_ou_gridwalker_jacket', prof:'outfitter', name:'Polymer Jacket Pattern', item:'craft_gridwalker_jacket', rank:2, rar:0, lvl:5, source:'known', cost:{polymer_mesh:50, scrap_reinforced:24}},
+  {id:'cr_ou_gridwalker_grips', prof:'outfitter', name:'Polymer Grip Pattern', item:'craft_gridwalker_grips', rank:2, rar:0, lvl:5, source:'known', cost:{polymer_mesh:24, scrap_reinforced:11}},
+  {id:'cr_ou_gridwalker_belt', prof:'outfitter', name:'Reinforced Utility Pattern', item:'craft_gridwalker_belt', rank:2, rar:0, lvl:5, source:'known', cost:{polymer_mesh:22, scrap_reinforced:10}},
+  {id:'cr_ou_gridwalker_legguards', prof:'outfitter', name:'Polymer Legguard Pattern', item:'craft_gridwalker_legguards', rank:2, rar:0, lvl:5, source:'known', cost:{polymer_mesh:44, scrap_reinforced:20}},
+  {id:'cr_ou_gridwalker_boots', prof:'outfitter', name:'Polymer Boot Pattern', item:'craft_gridwalker_boots', rank:2, rar:0, lvl:5, source:'known', cost:{polymer_mesh:30, scrap_reinforced:14}},
+  {id:'cr_ou_arcweave_visor', prof:'outfitter', name:'Carbon Visor Pattern', item:'craft_arcweave_visor', rank:3, rar:0, lvl:10, source:'known', cost:{carbon_weave:48, scrap_charged:22}},
+  {id:'cr_ou_arcweave_vest', prof:'outfitter', name:'Carbon Vest Pattern', item:'craft_arcweave_vest', rank:3, rar:0, lvl:10, source:'known', cost:{carbon_weave:80, scrap_charged:36}},
+  {id:'cr_ou_arcweave_gloves', prof:'outfitter', name:'Carbon Glove Pattern', item:'craft_arcweave_gloves', rank:3, rar:0, lvl:10, source:'known', cost:{carbon_weave:38, scrap_charged:17}},
+  {id:'cr_ou_arcweave_harness', prof:'outfitter', name:'Carbon Harness Pattern', item:'craft_arcweave_harness', rank:3, rar:0, lvl:10, source:'known', cost:{carbon_weave:34, scrap_charged:16}},
+  {id:'cr_ou_arcweave_trousers', prof:'outfitter', name:'Carbon Legwear Pattern', item:'craft_arcweave_trousers', rank:3, rar:0, lvl:10, source:'known', cost:{carbon_weave:70, scrap_charged:32}},
+  {id:'cr_ou_arcweave_boots', prof:'outfitter', name:'Carbon Boot Pattern', item:'craft_arcweave_boots', rank:3, rar:0, lvl:10, source:'known', cost:{carbon_weave:48, scrap_charged:22}},
+  {id:'cr_ou_phaseweave_hood', prof:'outfitter', name:'Phase Hood Pattern', item:'craft_phaseweave_hood', rank:4, rar:1, lvl:15, source:'known', cost:{static_silk:70, scrap_phase:32}},
+  {id:'cr_ou_phaseweave_coat', prof:'outfitter', name:'Phase Coat Pattern', item:'craft_phaseweave_coat', rank:4, rar:1, lvl:15, source:'known', cost:{static_silk:115, scrap_phase:52}},
+  {id:'cr_ou_phaseweave_gauntlets', prof:'outfitter', name:'Phase Gauntlet Pattern', item:'craft_phaseweave_gauntlets', rank:4, rar:1, lvl:15, source:'known', cost:{static_silk:55, scrap_phase:25}},
+  {id:'cr_ou_phaseweave_belt', prof:'outfitter', name:'Phase Utility Pattern', item:'craft_phaseweave_belt', rank:4, rar:1, lvl:15, source:'known', cost:{static_silk:50, scrap_phase:23}},
+  {id:'cr_ou_phaseweave_legguards', prof:'outfitter', name:'Phase Legguard Pattern', item:'craft_phaseweave_legguards', rank:4, rar:1, lvl:15, source:'known', cost:{static_silk:100, scrap_phase:45}},
+  {id:'cr_ou_phaseweave_boots', prof:'outfitter', name:'Phase Boot Pattern', item:'craft_phaseweave_boots', rank:4, rar:1, lvl:15, source:'known', cost:{static_silk:70, scrap_phase:32}},
+  {id:'cr_ws_salvage_cutter', prof:'weaponsmith', name:'Improvised Blade Schematic', item:'craft_ws_salvage_cutter', rank:1, rar:0, lvl:1, source:'known', cost:{copper_ore:24, salvaged_scrap:10}},
+  {id:'cr_ws_pipe_carbine', prof:'weaponsmith', name:'Pipe Weapon Schematic', item:'craft_ws_pipe_carbine', rank:1, rar:0, lvl:1, source:'known', cost:{copper_ore:38, salvaged_scrap:16}},
+  {id:'cr_ws_scrap_guard', prof:'weaponsmith', name:'Field Guard Schematic', item:'craft_ws_scrap_guard', rank:1, rar:0, lvl:1, source:'known', cost:{copper_ore:20, salvaged_scrap:10}},
+  {id:'cr_ws_iron_cleaver', prof:'weaponsmith', name:'Refined Cutter Schematic', item:'craft_ws_iron_cleaver', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:40, scrap_reinforced:18}},
+  {id:'cr_ws_iron_longarm', prof:'weaponsmith', name:'Longarm Frame Schematic', item:'craft_ws_iron_longarm', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:65, scrap_reinforced:28}},
+  {id:'cr_ws_iron_guard', prof:'weaponsmith', name:'Reinforced Guard Schematic', item:'craft_ws_iron_guard', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:34, scrap_reinforced:16}},
+  {id:'cr_ws_arc_blade', prof:'weaponsmith', name:'Charged Edge Schematic', item:'craft_ws_arc_blade', rank:3, rar:0, lvl:10, source:'known', cost:{gold_ore:65, scrap_charged:30}},
+  {id:'cr_ws_arc_rifle', prof:'weaponsmith', name:'Charged Rifle Schematic', item:'craft_ws_arc_rifle', rank:3, rar:0, lvl:10, source:'known', cost:{gold_ore:105, scrap_charged:45}},
+  {id:'cr_ws_arc_shield', prof:'weaponsmith', name:'Arc Guard Schematic', item:'craft_ws_arc_shield', rank:3, rar:0, lvl:10, source:'known', cost:{gold_ore:55, scrap_charged:26}},
+  {id:'cr_ws_phase_edge', prof:'weaponsmith', name:'Phase Edge Schematic', item:'craft_ws_phase_edge', rank:4, rar:1, lvl:15, source:'known', cost:{cobalt_ore:95, scrap_phase:44}},
+  {id:'cr_ws_phase_cannon', prof:'weaponsmith', name:'Phase Cannon Schematic', item:'craft_ws_phase_cannon', rank:4, rar:1, lvl:15, source:'known', cost:{cobalt_ore:155, scrap_phase:68}},
+  {id:'cr_ws_phase_bulwark', prof:'weaponsmith', name:'Phase Bulwark Schematic', item:'craft_ws_phase_bulwark', rank:4, rar:1, lvl:15, source:'known', cost:{cobalt_ore:80, scrap_phase:38}},
+  {id:'cr_jc_tin_circuit_ring', prof:'jewelcrafter', name:'Basic Circuit Design', item:'craft_jc_tin_circuit_ring', rank:1, rar:0, lvl:1, source:'known', cost:{copper_ore:10, crystal_quartz:4, salvaged_scrap:5}},
+  {id:'cr_jc_quartz_signal_charm', prof:'jewelcrafter', name:'Quartz Charm Design', item:'craft_jc_quartz_signal_charm', rank:1, rar:0, lvl:1, source:'known', cost:{copper_ore:14, crystal_quartz:6, salvaged_scrap:7}},
+  {id:'cr_jc_pocket_relay', prof:'jewelcrafter', name:'Pocket Relay Design', item:'craft_jc_pocket_relay', rank:1, rar:0, lvl:1, source:'known', cost:{copper_ore:18, crystal_quartz:8, salvaged_scrap:9}},
+  {id:'cr_jc_iron_signal_ring', prof:'jewelcrafter', name:'Signal Ring Design', item:'craft_jc_iron_signal_ring', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:16, prism_shard:7, scrap_reinforced:9}},
+  {id:'cr_jc_prism_pendant', prof:'jewelcrafter', name:'Prism Pendant Design', item:'craft_jc_prism_pendant', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:22, prism_shard:10, scrap_reinforced:12}},
+  {id:'cr_jc_signal_relay', prof:'jewelcrafter', name:'Signal Relic Design', item:'craft_jc_signal_relay', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:28, prism_shard:13, scrap_reinforced:15}},
+  {id:'cr_jc_platinum_circuit', prof:'jewelcrafter', name:'Platinum Circuit Design', item:'craft_jc_platinum_circuit', rank:3, rar:0, lvl:10, source:'known', cost:{gold_ore:26, signal_crystal:11, scrap_charged:14}},
+  {id:'cr_jc_signal_necklace', prof:'jewelcrafter', name:'Crystal Necklace Design', item:'craft_jc_signal_necklace', rank:3, rar:0, lvl:10, source:'known', cost:{gold_ore:36, signal_crystal:15, scrap_charged:19}},
+  {id:'cr_jc_charged_relay', prof:'jewelcrafter', name:'Charged Relic Design', item:'craft_jc_charged_relay', rank:3, rar:0, lvl:10, source:'known', cost:{gold_ore:46, signal_crystal:20, scrap_charged:24}},
+  {id:'cr_jc_cobalt_phase_ring', prof:'jewelcrafter', name:'Phase Ring Design', item:'craft_jc_cobalt_phase_ring', rank:4, rar:1, lvl:15, source:'known', cost:{cobalt_ore:40, phase_crystal:16, scrap_phase:22}},
+  {id:'cr_jc_phase_pendant', prof:'jewelcrafter', name:'Phase Pendant Design', item:'craft_jc_phase_pendant', rank:4, rar:1, lvl:15, source:'known', cost:{cobalt_ore:55, phase_crystal:22, scrap_phase:29}},
+  {id:'cr_jc_phase_relay', prof:'jewelcrafter', name:'Phase Relic Design', item:'craft_jc_phase_relay', rank:4, rar:1, lvl:15, source:'known', cost:{cobalt_ore:70, phase_crystal:28, scrap_phase:36}}
 ];
 /* ---------- SATSERNA LAGGS PA RECEPTEN (v4.48.0) ----------
    Regeln ar en enda och behover ingen undantagslista: ger receptet ett
@@ -6354,8 +6527,19 @@ const RECIPES = [
 (function addCraftingKits(){
   RECIPES.forEach(r => {
     if (MATERIALS[r.item]) return;                 /* material: ingen sats */
+    /* [TILLAGT v4.90.0] Sidoyrkena har ingen sats heller. Deras verktyg AR
+       stationen - Medical Bay och Fuel Refinery - och den kostar ingenting per
+       tillverkning. Utan den har raden fick ett bandage en hantverkssats fran
+       handlaren, vilket bade var fel och gjorde det dyrare an det skulle. */
+    if (r.prof === 'medic' || r.prof === 'refiner') return;
     r.cost = Object.assign({}, r.cost);
-    r.cost.crafting_kit = KIT_PER_RARITY[Math.min(r.rar, KIT_PER_RARITY.length - 1)];
+    /* [ANDRAT v4.88.0] Bar receptet en RANK styr den. Skalet: Rank I, II och
+       III ar alla Common, sa sallsyntheten kunde inte skilja dem at - alla tre
+       hade fatt en enda sats. Rank sager 1, 2, 3, 4 och gor stegen olika dyra,
+       vilket var meningen. Allt gammalt saknar rank och gar den gamla vagen. */
+    r.cost.crafting_kit = r.rank
+      ? r.rank
+      : KIT_PER_RARITY[Math.min(r.rar, KIT_PER_RARITY.length - 1)];
   });
 })();
 const RECIPE_BY = {}; RECIPES.forEach(r => RECIPE_BY[r.id] = r);
@@ -6620,7 +6804,17 @@ function craftXP(r){
   Object.keys(r.cost || {}).forEach(k => { if (k !== 'crafting_kit') units += r.cost[k]; });
   return 20 + 8 * units + CRAFT_XP_RARITY[Math.min(r.rar, CRAFT_XP_RARITY.length - 1)];
 }
-const PROF_MAX = 2;              // max larda samtidigt (last)
+/* ===== HUR MANGA YRKEN (v4.96.0) =====
+   TVA HUVUDYRKEN och ETT sidoyrke. De raknas var for sig - ett sidoyrke tar
+   inte en huvudplats, och tvartom.
+   Huvudyrkena far kombineras HUR SOM HELST: tva samlare, tva hantverkare eller
+   ett av varje. Ingen kombination tvingas fram. Det man inte kan samla sjalv
+   kops pa auktionen - det ar hela skalet till att auktionshuset finns.
+   YRKESVALET OPPNAS VID NIVA 5, sa en ny spelare forst far lara sig spelet och
+   inte behover valja innan hen vet vad valen betyder. */
+const PROF_MAX = 2;                 // huvudyrken samtidigt
+const PROF_SECONDARY_MAX = 1;       // sidoyrken samtidigt
+const PROF_UNLOCK_LEVEL = 5;        // karaktarsniva som oppnar valet
 const PROF_LEARN_COST = GOLD(5);   // fast pris, varje gang
 /* ETT FAST PRIS, ALLTID (spelarens beslut). Trappan 1-5-25-125 gjorde det dyrt
    att andra sig, och att byta yrke kostar redan det som verkligen svider: hela
@@ -6635,15 +6829,38 @@ function profLevelInfo(xp){
   return {lvl: lvl, into: rem, need: profXpToNext(lvl)};
 }
 function profLearned(id){ return !!(S.prof && S.prof.known && S.prof.known[id]); }
-function profCount(){ return S.prof ? Object.keys(S.prof.known).length : 0; }
+/* Tva rakningar, inte en. Forut fanns bara profCount, och da hade ett sidoyrke
+   atit upp en huvudplats. */
+function isSecondaryProf(id){ return !!(PROF_BY[id] && PROF_BY[id].kind === 'secondary'); }
+function profCount(){
+  if (!S.prof || !S.prof.known) return 0;
+  return Object.keys(S.prof.known).filter(id => !isSecondaryProf(id)).length;
+}
+function secondaryCount(){
+  if (!S.prof || !S.prof.known) return 0;
+  return Object.keys(S.prof.known).filter(id => isSecondaryProf(id)).length;
+}
+function profSlotsOpen(){ return levelInfo().lvl >= PROF_UNLOCK_LEVEL; }
+/* Varfor ett yrke inte gar att lara just nu - i ord, inte som ett tyst nej.
+   Returnerar null nar det gar bra. */
+function profBlockReason(id){
+  if (!PROF_BY[id] || !PROF_BY[id].active) return 'That profession is resting.';
+  if (profLearned(id)) return 'You already know it.';
+  if (!profSlotsOpen()) return 'Professions unlock at character level ' + PROF_UNLOCK_LEVEL + '.';
+  if (isSecondaryProf(id)){
+    if (secondaryCount() >= PROF_SECONDARY_MAX) return 'You can keep one secondary profession.';
+  } else if (profCount() >= PROF_MAX){
+    return 'You can keep ' + PROF_MAX + ' main professions.';
+  }
+  if (S.gold < profLearnCost()) return 'Not enough gold.';
+  return null;
+}
 function profLvl(id){ return S.prof && S.prof.known[id] ? profLevelInfo(S.prof.known[id].xp).lvl : 0; }
 function learnProfession(id){
   if (NET.on){ netLearnProfession(id).catch(e => say(srvErrText(e))); return true; }
-  if (!PROF_BY[id]) return false;
-  if (profLearned(id)) return false;
-  if (profCount() >= PROF_MAX) return false;
+  const why = profBlockReason(id);
+  if (why){ say(why); return false; }
   const cost = profLearnCost();
-  if (S.gold < cost) return false;
   S.gold -= cost;
   S.prof.learns = ((S.prof.learns || 0) + 1);
   S.prof.known[id] = {xp: 0};
@@ -6960,6 +7177,79 @@ GEAR_SETS.forEach(st => {
   });
 });
 /* Ringar */
+/* ===== DE 48 CRAFTADE FOREMALEN (v4.87.0) =====
+   Det nya yrkessystemets grundgear. Fyra rankar per hantverkare.
+   TRE SAKER SOM SKILJER DEM FRAN ALLT ANNAT I SPELET:
+     1. De FALLER ALDRIG. Tom lista. Bara verkstaden gor dem.
+     2. De har EN sallsynthet var, inte sex. Rank I-III ar Common, Rank IV ar
+        Uncommon. Rank ar inte samma sak som sallsynthet - rank sager var i
+        yrkesbanan receptet sitter, sallsyntheten sager hur bra pjasen ar.
+     3. De ska vara SAMRE an ett bra varldsfynd pa samma niva. Det ar meningen.
+        Craftat grundgear ar en trygg botten nar en plats star tom - inte malet.
+   RUNNER'S ROR VI INTE. Inte bilderna, inte marken, inte namnen. Spelarens
+   uttryckliga beslut: nya foremal ska vara nya foremal.
+   BILDERNA finns inte an. Varje familj har en egen mapp under
+   assets/gear/crafted/ sa att nya bilder kan laggas in utan att koden rors:
+     crafted/scavenger/  crafted/gridwalker/  crafted/arcweave/
+     crafted/phaseweave/ crafted/weaponsmith/ crafted/jewelcrafter/
+   Familjenamnen ar VISUELLA familjer. De ger INGEN setbonus. */
+function defCrafted(key, name, slot, rank, rar, twoHand){
+  const fam = key.split('_')[1] === 'ws' ? 'weaponsmith'
+            : key.split('_')[1] === 'jc' ? 'jewelcrafter' : key.split('_')[1];
+  ITEMS[key] = {key: key, name: name, slot: slot, rank: rank,
+                art: 'assets/gear/crafted/' + fam + '/' + key.replace('craft_','') + '.png',
+                rars: [rar], dropRars: [], crafted: true,
+                twoHand: !!twoHand};
+}
+defCrafted('craft_scavenger_hood', "Scavenger Hood", 0, 1, 0);
+defCrafted('craft_scavenger_vest', "Scavenger Vest", 1, 1, 0);
+defCrafted('craft_scavenger_gloves', "Scavenger Gloves", 3, 1, 0);
+defCrafted('craft_scavenger_belt', "Scavenger Belt", 7, 1, 0);
+defCrafted('craft_scavenger_trousers', "Scavenger Trousers", 2, 1, 0);
+defCrafted('craft_scavenger_boots', "Scavenger Boots", 4, 1, 0);
+defCrafted('craft_gridwalker_cap', "Gridwalker Cap", 0, 2, 0);
+defCrafted('craft_gridwalker_jacket', "Gridwalker Jacket", 1, 2, 0);
+defCrafted('craft_gridwalker_grips', "Gridwalker Grips", 3, 2, 0);
+defCrafted('craft_gridwalker_belt', "Gridwalker Belt", 7, 2, 0);
+defCrafted('craft_gridwalker_legguards', "Gridwalker Legguards", 2, 2, 0);
+defCrafted('craft_gridwalker_boots', "Gridwalker Boots", 4, 2, 0);
+defCrafted('craft_arcweave_visor', "Arcweave Visor", 0, 3, 0);
+defCrafted('craft_arcweave_vest', "Arcweave Vest", 1, 3, 0);
+defCrafted('craft_arcweave_gloves', "Arcweave Gloves", 3, 3, 0);
+defCrafted('craft_arcweave_harness', "Arcweave Harness", 7, 3, 0);
+defCrafted('craft_arcweave_trousers', "Arcweave Trousers", 2, 3, 0);
+defCrafted('craft_arcweave_boots', "Arcweave Boots", 4, 3, 0);
+defCrafted('craft_phaseweave_hood', "Phaseweave Hood", 0, 4, 1);
+defCrafted('craft_phaseweave_coat', "Phaseweave Coat", 1, 4, 1);
+defCrafted('craft_phaseweave_gauntlets', "Phaseweave Gauntlets", 3, 4, 1);
+defCrafted('craft_phaseweave_belt', "Phaseweave Belt", 7, 4, 1);
+defCrafted('craft_phaseweave_legguards', "Phaseweave Legguards", 2, 4, 1);
+defCrafted('craft_phaseweave_boots', "Phaseweave Boots", 4, 4, 1);
+defCrafted('craft_ws_salvage_cutter', "Salvage Cutter", 5, 1, 0);
+defCrafted('craft_ws_pipe_carbine', "Pipe Carbine", 5, 1, 0, true);
+defCrafted('craft_ws_scrap_guard', "Scrap Guard", 9, 1, 0);
+defCrafted('craft_ws_iron_cleaver', "Iron Cleaver", 5, 2, 0);
+defCrafted('craft_ws_iron_longarm', "Iron Longarm", 5, 2, 0, true);
+defCrafted('craft_ws_iron_guard', "Iron Guard", 9, 2, 0);
+defCrafted('craft_ws_arc_blade', "Arc Blade", 5, 3, 0);
+defCrafted('craft_ws_arc_rifle', "Arc Rifle", 5, 3, 0, true);
+defCrafted('craft_ws_arc_shield', "Arc Shield", 9, 3, 0);
+defCrafted('craft_ws_phase_edge', "Phase Edge", 5, 4, 1);
+defCrafted('craft_ws_phase_cannon', "Phase Cannon", 5, 4, 1, true);
+defCrafted('craft_ws_phase_bulwark', "Phase Bulwark", 9, 4, 1);
+defCrafted('craft_jc_tin_circuit_ring', "Tin Circuit Ring", 8, 1, 0);
+defCrafted('craft_jc_quartz_signal_charm', "Quartz Signal Charm", 6, 1, 0);
+defCrafted('craft_jc_pocket_relay', "Pocket Relay", 13, 1, 0);
+defCrafted('craft_jc_iron_signal_ring', "Iron Signal Ring", 8, 2, 0);
+defCrafted('craft_jc_prism_pendant', "Prism Pendant", 6, 2, 0);
+defCrafted('craft_jc_signal_relay', "Signal Relay", 13, 2, 0);
+defCrafted('craft_jc_platinum_circuit', "Platinum Circuit", 8, 3, 0);
+defCrafted('craft_jc_signal_necklace', "Signal Necklace", 6, 3, 0);
+defCrafted('craft_jc_charged_relay', "Charged Relay", 13, 3, 0);
+defCrafted('craft_jc_cobalt_phase_ring', "Cobalt Phase Ring", 8, 4, 1);
+defCrafted('craft_jc_phase_pendant', "Phase Pendant", 6, 4, 1);
+defCrafted('craft_jc_phase_relay', "Phase Relay", 13, 4, 1);
+
 defItem('ring_signal_ring', 'Signal Ring', 8, 'assets/gear/rings/ring_signal_ring.png', ALL_RAR, []);
 defItem('ring_circuit_band', 'Circuit Band', 8, 'assets/gear/rings/ring_circuit_band.png', ALL_RAR, []);
 defItem('ring_runners_band', "Runner's Band", 8, 'assets/gear/rings/ring_runners_band.png', ALL_RAR, []);
@@ -7539,21 +7829,15 @@ function petAffixes(p){
    listan har bara sager vad som ar unikt for platsen - da kan en art aldrig rakna
    som bade egen och universell av misstag. */
 const REGION_OWN_PETS = {
-  neonhub:      ['glint', 'zipp', 'dot'],
-  arcade87:     ['p1x', 'cubey', 'bit'],
-  blockvaults:  ['hive', 'cryst', 'prism'],
-  glassocean:   ['aquo', 'drip', 'scuba'],
-  voltrath:     ['stormi', 'pulse', 'vector'],
-  forgefall:    ['ember', 'lava', 'geo'],
-  novabazaar:   ['nova', 'sync', 'meowd'],
-  pixelgardens: ['sprout', 'bloom', 'root'],
-  skyarray:     ['wisp', 'orbit', 'aeris'],
-  undergrid:    ['crawl', 'moss', 'morrow'],
-  rustharbor:   ['buzz', 'watcher', 'sway'],
-  staticwastes: ['specter', 'phase', 'drift'],
-  coldreach:    ['frost', 'lume', 'nix'],
-  crystalrelay: ['shard', 'triad', 'halo'],
-  nullgate:     ['void', 'kage', 'vexa']
+  /* NIO EGNA ARTER PER VARLD (v4.84.0). Forut tre per region, femton regioner.
+     Med fem varldar hade 30 av de 45 arterna blivit omojliga att fa - trettio
+     ritade bilder som ingen kan hitta. Alla 45 ar darfor omfordelade, nio per
+     varld, och ingen art tappades. Med de tva universella ger varje varld elva. */
+  voxholm:     ['glint', 'zipp', 'dot', 'cubey', 'bit', 'p1x', 'hive', 'sprout', 'root'],
+  drakemark:   ['ember', 'lava', 'bloom', 'cryst', 'prism', 'shard', 'wisp', 'morrow', 'kage'],
+  cutlassbay:  ['aquo', 'drip', 'scuba', 'sway', 'buzz', 'watcher', 'meowd', 'triad', 'halo'],
+  novacommand: ['nova', 'sync', 'orbit', 'aeris', 'vector', 'pulse', 'stormi', 'vexa', 'lume'],
+  quarantine:  ['frost', 'nix', 'specter', 'phase', 'drift', 'void', 'moss', 'crawl', 'geo']
 };
 /* Vad en regions cache kan ge: de tva universella plus regionens egna tre.
    Fem arter, overallt - samma lofte i hela varlden. */
@@ -7877,8 +8161,8 @@ let S = {
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
   bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
   vend: {},                     // handlarnas lager per region + deras klockor
-  rep: {neonhub: 0},    // sekunder av närvaro per region-id
-  world: {current: 'neonhub', known: ['neonhub'], visited: ['neonhub'], zonesSeen: [], zone: null, travel: null},
+  rep: {voxholm: 0},    // sekunder av närvaro per region-id
+  world: {current: 'voxholm', known: ['voxholm'], visited: ['voxholm'], zonesSeen: [], zone: null, travel: null},
   /* Dronaren som kartlagger EN zon at gangen. null = ingen ute. */
   zoneScan: null,
   own: {}, up: {tapPower:0, holdRate:0, network:0, offlinePct:0},
@@ -7952,8 +8236,8 @@ function load(){
           if (tz && rz && rz.zones.includes(tz)) S.world.travel.zone = tz;
         }
       }
-      if (!S.world.known.includes('neonhub')) S.world.known.push('neonhub');
-      if (!S.world.visited.includes('neonhub')) S.world.visited.push('neonhub');
+      if (!S.world.known.includes('voxholm')) S.world.known.push('voxholm');
+      if (!S.world.visited.includes('voxholm')) S.world.visited.push('voxholm');
       BUILDINGS.forEach(b => S.own[b.id] = Math.max(0, Math.floor(+((d.own||{})[b.id]) || 0)));
       UPGRADES.forEach(u => S.up[u.id] = Math.min(u.max, Math.max(0, Math.floor(+((d.up||{})[u.id]) || 0))));
       S.mil = (d.mil && typeof d.mil === 'object') ? d.mil : {};
@@ -9132,11 +9416,11 @@ const ACH = [
   {id:'exp_found_all',g:'Expeditions', n:'The Whole Board',    d:'Discover every expedition in the world',r:{i:3},   t:() => S.exp.found.length >= totalExpeditionCount()},
   // ---- Världen ----
   {id:'zones_5',      g:'The world',   n:'Getting Around',     d:'See 5 zones',                           r:{s:50},  t:() => S.world.zonesSeen.length >= 5},
-  {id:'zones_home',   g:'The world',   n:'Know Your Block',    d:'See every zone in Neon Hub',            r:{G:1},   t:() => REGIONS.neonhub.zones.every(z => S.world.zonesSeen.includes('neonhub|' + z))},
-  {id:'zones_30',     g:'The world',   n:'Well Travelled',     d:'See 30 zones',                          r:{G:2},   t:() => S.world.zonesSeen.length >= 30},
+  {id:'zones_home',   g:'The world',   n:'Know Your Block',    d:'See every zone in Voxholm',             r:{G:1},   t:() => REGIONS.voxholm.zones.every(z => S.world.zonesSeen.includes('voxholm|' + z))},
+  {id:'zones_30',     g:'The world',   n:'Well Travelled',     d:'See 15 zones',                          r:{G:2},   t:() => S.world.zonesSeen.length >= 15},
   {id:'zones_all',    g:'The world',   n:'Every Corner',       d:'See every zone in the world',           r:{i:3},   t:() => S.world.zonesSeen.length >= totalZoneCount()},
-  {id:'regions_5',    g:'The world',   n:'Five Points',        d:'Discover 5 regions',                    r:{i:1},   t:() => S.world.known.length >= 5},
-  {id:'regions_all',  g:'The world',   n:'Map Complete',       d:'Discover all 15 regions',               r:{i:3},   t:() => S.world.known.length >= Object.keys(REGIONS).length},
+  {id:'regions_5',    g:'The world',   n:'Halfway Out',        d:'Discover 3 regions',                    r:{i:1},   t:() => S.world.known.length >= 3},
+  {id:'regions_all',  g:'The world',   n:'Map Complete',       d:'Discover all 5 regions',                r:{i:3},   t:() => S.world.known.length >= Object.keys(REGIONS).length},
   // ---- Maskinerna ----
   {id:'own_10',       g:'Machines',    n:'Small Operation',    d:'Own 10 machines in total',              r:{s:50},  t:() => ownedTotal() >= 10},
   {id:'own_100',      g:'Machines',    n:'Industrialist',      d:'Own 100 machines in total',             r:{G:1},   t:() => ownedTotal() >= 100},
@@ -9241,6 +9525,9 @@ let buyAmount = 1;
 /* Bygg maskinraderna en gång, uppdatera siffrorna löpande */
 const rowRefs = {};
 function buildRows(){
+  /* [v4.93.0] Rutan finns inte langre - produktionsrutan ar ersatt av
+     yrkesrutan. Koden ligger kvar tills maskinerna rivs helt. */
+  if (!el.list) return;
   el.list.innerHTML = '';
   BUILDINGS.forEach(b => {
     /* RADEN ar tva saker: hjalparens ruta FORST, fristaende, och sjalva
@@ -9463,6 +9750,9 @@ const upRefs = {};
 function buildCoreUpgrades(){
   buildPremiumBags();
   renderPremiumBags(); renderPremiumVaultBags();
+  /* [v4.93.0] Rutan finns inte langre - produktionsrutan ar ersatt av
+     yrkesrutan. Koden ligger kvar tills maskinerna rivs helt. */
+  if (!el.core) return;
   el.core.innerHTML = '';
   refreshShelf();
 
@@ -9524,6 +9814,7 @@ function refreshShelf(){
   if (sig !== shelfSig){
     shelfSig = sig;
     shelfRefs = [];
+    if (!el.shelf) return;
     el.shelf.innerHTML = '';
     if (!items.length){
       el.shelf.innerHTML = '<div class="shelf-empty">Buy more machines to unlock upgrades</div>';
@@ -9568,6 +9859,7 @@ function refreshShelf(){
   // Nedtoning när man inte har råd (uppdateras även utan ombyggnad)
   shelfRefs.forEach(r => r.buy.classList.toggle('cant', S.data < r.cost));
   // Prick på fliken när hyllan har varor
+  if (!el.upgTab) return;   /* [v4.93.0] fliken finns inte langre */
   const old = el.upgTab.querySelector('.dot');
   if (items.length && !old) el.upgTab.insertAdjacentHTML('beforeend','<span class="dot"></span>');
   if (!items.length && old) old.remove();
@@ -9615,6 +9907,36 @@ function machineCritRoll(dps, dt){
 function critMultNow(){
   return HOLD.critMult * (1 + gearBonus('critdmg') / 100);
 }
+/* Hur mycket ARBETE ett hack ar vart. Basen ar tva sekunder; rampen langs
+   matarens 30 sekunder dubblar den, och ett krit femdubblar. Ett fullt hall
+   ger darfor grovt raknat sex minuter av ett timslangt pass - markbart, men
+   langt ifran ett satt att hoppa over tiden. */
+const CORE_ASSIST_SECS = 2;
+let assistAcc = 0, assistSent = 0;
+function assistLinked(secs){
+  const id = (typeof linkedProf === 'function') ? linkedProf() : null;
+  if (!id) return;
+  const p = PROF_BY[id];
+  if (!p || p.kind === 'crafting') return;   /* hantverk ar receptdrivet */
+  if (p.kind === 'gathering'){
+    /* Offlinelage: passets klocka flyttas lokalt. I serverlage ar servern den
+       som raknar - klienten samlar bara ihop och skickar i klump, precis som
+       hacken gjorde forut. */
+    const sh = S.prof && S.prof.shift && S.prof.shift[id];
+    if (!sh || !sh.ends) return;
+    if (!NET.on) sh.ends = Math.max(Date.now(), sh.ends - secs * 1000);
+  }
+  if (NET.on){
+    assistAcc += secs;
+    /* Skicka i klump, inte per hack: fyra anrop i sekunden vore ett anrop for
+       mycket, och servern kapar anda till 120 sekunder per anrop. */
+    if (assistAcc >= 10 && performance.now() - assistSent > 1500){
+      const send = Math.min(120, assistAcc);
+      assistAcc -= send; assistSent = performance.now();
+      netCoreAssist(id, send);
+    }
+  }
+}
 function collectTick(){
   /* I serverlage samlas hacken och skickas i klump vid synken. Den lokala
      siffran ar en forutsagelse tills servern svarat. */
@@ -9631,15 +9953,20 @@ function collectTick(){
     el.coreSpark.getBoundingClientRect();
     el.coreSpark.classList.add('core-spark-anim');
   }
-  S.data += gain; S.totalData += gain; S.ticks++;
-  /* I serverlage ar S.data inte det som visas - darfor laggs hacket ocksa i
-     forutsagelsen, annars sag man siffran fran servern sta stilla. */
-  if (NET.on) NET.tapCredit = (NET.tapCredit || 0) + gain;
+  /* [ANDRAT v4.95.0] HAR LADES DATA TILL. Noden gor inte langre Data - den
+     hjalper det LANKADE yrket i stallet. Varje hack ar ett antal SEKUNDER
+     arbete som skjuts in i yrkets egen klocka, samma klocka som gar av sig
+     sjalv. Handen kan alltsa aldrig skapa nagot tiden inte redan kunde skapa;
+     den kortar bara vantan. Rampen och kritet rakans pa exakt samma satt som
+     forut, sa kanslan i hallet ar oforandrad - bara mottagaren ar en annan. */
+  const secs = CORE_ASSIST_SECS * mult * (crit ? critMultNow() : 1);
+  assistLinked(secs);
+  S.ticks++;
   grantXP(0.20 * ringMult());
   if (!crit) Sound.play('tap', {holding: true});
   if (crit || performance.now() - floatGate > 180){
     floatGate = performance.now();
-    spawnFloat({ text: '+' + fmt(gain), crit: crit });
+    spawnFloat({ text: '+' + fmtDur(secs) + ' work', crit: crit });
     if (crit && !reduceMotion) critBurst();
   }
 }
@@ -9655,182 +9982,170 @@ function collectTick(){
      formel ligger pa servern. Talen togs bort helt (v4.2.2) sa att ingen om ett
      halvar andrar en siffra som inte gor nagot. Ett stalle, en sanning. */
 const EXPEDITIONS = {
-  neonhub: {
-    'Firstlight':  [
-      {id:'nh_fl_sweep',  name:'First Sweep',           mins:2,  lvl:1, base:60},
-      {id:'nh_fl_echo',   name:'Echoes of the Landing', mins:20, lvl:4, base:900}
+  /* Tre uppdrag per zon: ett kort, ett medellangt, ett riktigt langt.
+     Datalonen ar RAKNAD ur langd och niva, inte satt for hand - langre uppdrag
+     och hogre niva ger mer per minut. XP star inte har; den raknas ur langd och
+     ring pa bada sidor. */
+  voxholm: {
+    'The Grasslands': [
+      {id:'vox_grasslan_1', name:'Break the First Cube', mins:4, lvl:1, base:130},
+      {id:'vox_grasslan_2', name:'Herd the Cube Cattle', mins:18, lvl:1, base:720},
+      {id:'vox_grasslan_3', name:'Flatten the Whole Field', mins:50, lvl:1, base:2950}
     ],
-    'Kaito Row':   [
-      {id:'nh_kr_trail',  name:"Builder's Trail",       mins:8,  lvl:2, base:320}
+    'The Village': [
+      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:6, lvl:3, base:240},
+      {id:'vox_village_2', name:'Market Day Run', mins:20, lvl:3, base:980},
+      {id:'vox_village_3', name:'Raise a House by Dusk', mins:55, lvl:3, base:3850}
     ],
-    'The Fuse':    [
-      {id:'nh_tf_wire',   name:'Live Wire Run',         mins:5,  lvl:2, base:200},
-      {id:'nh_tf_black',  name:'Blackout Salvage',      mins:45, lvl:7, base:3200}
+    'The Mineshaft': [
+      {id:'vox_mineshaf_1', name:'Follow the Pickaxes Down', mins:7, lvl:5, base:340},
+      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:22, lvl:5, base:1280},
+      {id:'vox_mineshaf_3', name:'Bottom of the Shaft', mins:60, lvl:5, base:4860}
     ],
-    'Skyrail':     [
-      {id:'nh_sr_drift',  name:'Rail Drift',            mins:10, lvl:3, base:450}
+    'The Lava Layer': [
+      {id:'vox_lavalaye_1', name:'Bridge the Hot Gap', mins:8, lvl:7, base:460},
+      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:25, lvl:7, base:1700},
+      {id:'vox_lavalaye_3', name:'Build Where Nobody Builds', mins:65, lvl:7, base:5980}
     ],
-    'Palegate':    [
-      {id:'nh_pg_rounds', name:"Gatekeeper's Rounds",   mins:15, lvl:4, base:700}
+    'The Skybuild': [
+      {id:'vox_skybuild_1', name:'Climb the Half Bridge', mins:8, lvl:9, base:530},
+      {id:'vox_skybuild_2', name:'Haul Blocks to the Clouds', mins:26, lvl:9, base:1990},
+      {id:'vox_skybuild_3', name:'Finish Somebody\'s Dream', mins:70, lvl:9, base:7210}
     ],
-    'Brightfall':  [
-      {id:'nh_bf_harv',   name:'Lightfall Harvest',     mins:8,  lvl:3, base:340},
-      {id:'nh_bf_glow',   name:'The Long Glow',         mins:60, lvl:9, base:6500}
+    'The Deepshaft': [
+      {id:'vox_deepshaf_1', name:'Scout the Torn Entrance', mins:9, lvl:10, base:630},
+      {id:'vox_deepshaf_2', name:'Down Through Every Layer', mins:28, lvl:10, base:2290},
+      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:75, lvl:10, base:8250}
     ]
   },
-  /* Grannringen: samma nivåband (1-10) men något högre XP per minut —
-     spelarens princip: längre ut = mer XP. */
-  arcade87: {
-    'Tilt': [
-      {id:'a87_tl_free',  name:'Free Play Raid',        mins:6,  lvl:2, base:260},
-      {id:'a87_tl_high',  name:'Highscore Heist',       mins:30, lvl:6, base:2200}
+  drakemark: {
+    'Gnome Square': [
+      {id:'dra_gnomesqu_1', name:'Catch a Runaway Invention', mins:6, lvl:11, base:440},
+      {id:'dra_gnomesqu_2', name:'Translate the Whole Market', mins:22, lvl:11, base:1810},
+      {id:'dra_gnomesqu_3', name:'The Contraption Contest', mins:58, lvl:11, base:6020}
     ],
-    'The Midway': [
-      {id:'a87_mw_lights',name:'Midway Lights',         mins:10, lvl:3, base:520}
+    'Troll Mire': [
+      {id:'dra_trollmir_1', name:'Pay the Crossing Toll', mins:7, lvl:13, base:570},
+      {id:'dra_trollmir_2', name:'Wade the Knee-Deep Fog', mins:24, lvl:13, base:2190},
+      {id:'dra_trollmir_3', name:'Argue With a Troll', mins:62, lvl:13, base:7080}
     ],
-    'Glitchmore': [
-      {id:'a87_gm_patch', name:'Patch the Unpatchable', mins:25, lvl:5, base:1500}
+    'Sand Valley': [
+      {id:'dra_sandvall_1', name:'Ride With the Caravan', mins:8, lvl:15, base:720},
+      {id:'dra_sandvall_2', name:'Bandit Country', mins:26, lvl:15, base:2620},
+      {id:'dra_sandvall_3', name:'Something Under the Sand', mins:68, lvl:15, base:8550}
     ],
-    'Coinfall': [
-      {id:'a87_cf_rain',  name:'Coin Rain Recovery',    mins:8,  lvl:3, base:430}
+    'The Black Keep': [
+      {id:'dra_blackkee_1', name:'Accept the Invitation', mins:8, lvl:17, base:780},
+      {id:'dra_blackkee_2', name:'Dine at the Long Table', mins:28, lvl:17, base:3070},
+      {id:'dra_blackkee_3', name:'Every Floor of the Keep', mins:72, lvl:17, base:9810}
     ],
-    'Pixelgeist': [
-      {id:'a87_pg_ghost', name:'Ghost in the Cabinet',  mins:45, lvl:8, base:4200}
+    'The Spine': [
+      {id:'dra_spine_1', name:'Take the Mountain Pass', mins:9, lvl:19, base:960},
+      {id:'dra_spine_2', name:'Watch Her Flight Path', mins:30, lvl:19, base:3570},
+      {id:'dra_spine_3', name:'Cross the Ridge at Night', mins:76, lvl:19, base:11140}
+    ],
+    'The Dragon Nest': [
+      {id:'dra_dragonne_1', name:'Approach the Summit', mins:10, lvl:20, base:1110},
+      {id:'dra_dragonne_2', name:'She Already Knows', mins:32, lvl:20, base:3970},
+      {id:'dra_dragonne_3', name:'The Nest Itself', mins:80, lvl:20, base:12240}
     ]
   },
-  glassocean: {
+  cutlassbay: {
+    'Port Town': [
+      {id:'cut_porttown_1', name:'Buy the Same Map Twice', mins:7, lvl:21, base:790},
+      {id:'cut_porttown_2', name:'A Night at the Docks', mins:24, lvl:21, base:2960},
+      {id:'cut_porttown_3', name:'Outfit a Whole Crew', mins:64, lvl:21, base:9430}
+    ],
     'The Shallows': [
-      {id:'go_sh_wade',   name:'Wade the Shallows',     mins:5,  lvl:2, base:240}
+      {id:'cut_shallows_1', name:'Wade the Clear Water', mins:8, lvl:23, base:970},
+      {id:'cut_shallows_2', name:'The Sharks Know the Boats', mins:26, lvl:23, base:3450},
+      {id:'cut_shallows_3', name:'Dive the Bright Bottom', mins:70, lvl:23, base:11130}
     ],
-    'Mirrordeep': [
-      {id:'go_md_dive',   name:'Mirror Dive',           mins:15, lvl:4, base:950},
-      {id:'go_md_orig',   name:'Hunt the Original',     mins:60, lvl:9, base:7800}
+    'Jungle Climb': [
+      {id:'cut_junglecl_1', name:'Learn the Gorilla Rules', mins:8, lvl:25, base:1040},
+      {id:'cut_junglecl_2', name:'Take the Canopy Road', mins:28, lvl:25, base:3970},
+      {id:'cut_junglecl_3', name:'Over the Green Ridge', mins:74, lvl:25, base:12540}
     ],
-    'Shalebreak': [
-      {id:'go_sb_crack',  name:'Crack the Shale',       mins:12, lvl:3, base:640}
+    'Wreck Reef': [
+      {id:'cut_wreckree_1', name:'Knock on Fifty Hulls', mins:9, lvl:27, base:1250},
+      {id:'cut_wreckree_2', name:'The People Living Below', mins:30, lvl:27, base:4530},
+      {id:'cut_wreckree_3', name:'Strip the Deepest Wreck', mins:78, lvl:27, base:14020}
     ],
-    'Tidelock': [
-      {id:'go_tl_gate',   name:'Open the Tidegate',     mins:20, lvl:5, base:1300}
+    'Smuggler\'s Cove': [
+      {id:'cut_smuggler_1', name:'Deals the Port Won\'t Hold', mins:9, lvl:29, base:1320},
+      {id:'cut_smuggler_2', name:'Move the Quiet Cargo', mins:32, lvl:29, base:5130},
+      {id:'cut_smuggler_3', name:'Nobody Leaves Empty', mins:82, lvl:29, base:15600}
     ],
-    'Glasswake': [
-      {id:'go_gw_wake',   name:'Ride the Glasswake',    mins:35, lvl:7, base:2900}
+    'The Black Hull': [
+      {id:'cut_blackhul_1', name:'Board the Silent Ship', mins:10, lvl:30, base:1510},
+      {id:'cut_blackhul_2', name:'Below the Waterline', mins:34, lvl:30, base:5620},
+      {id:'cut_blackhul_3', name:'Nobody Comes Back', mins:86, lvl:30, base:16910}
     ]
   },
-  blockvaults: {
-    'The Ledgers': [
-      {id:'bv_lg_audit',  name:'The Great Audit',       mins:10, lvl:3, base:560}
+  novacommand: {
+    'The Dock Ring': [
+      {id:'nov_dockring_1', name:'Find a Berth in the Chaos', mins:8, lvl:31, base:1230},
+      {id:'nov_dockring_2', name:'A Thousand Ships, No Queue', mins:28, lvl:31, base:4640},
+      {id:'nov_dockring_3', name:'Run the Whole Ring', mins:76, lvl:31, base:14790}
     ],
-    'Goldgrave': [
-      {id:'bv_gg_dig',    name:'Goldgrave Dig',         mins:18, lvl:4, base:1150}
+    'The Garrison': [
+      {id:'nov_garrison_1', name:'Watch the Drills', mins:9, lvl:33, base:1460},
+      {id:'nov_garrison_2', name:'They Are Recruiting', mins:30, lvl:33, base:5250},
+      {id:'nov_garrison_3', name:'Full Training Rotation', mins:80, lvl:33, base:16400}
     ],
-    'Brasslock': [
-      {id:'bv_bl_pick',   name:'Pick the Brasslock',    mins:8,  lvl:3, base:420}
+    'Alien Bazaar': [
+      {id:'nov_alienbaz_1', name:'Nine Languages, No Translator', mins:9, lvl:35, base:1530},
+      {id:'nov_alienbaz_2', name:'Trade Without Words', mins:32, lvl:35, base:5890},
+      {id:'nov_alienbaz_3', name:'Every Stall on the Strip', mins:84, lvl:35, base:18090}
     ],
-    'Deephold': [
-      {id:'bv_dh_vault',  name:'Deephold Descent',      mins:40, lvl:7, base:3600}
+    'Asteroid Field': [
+      {id:'nov_asteroid_1', name:'Mine in Zero Gravity', mins:10, lvl:37, base:1790},
+      {id:'nov_asteroid_2', name:'The Rocks Are Moving', mins:34, lvl:37, base:6580},
+      {id:'nov_asteroid_3', name:'Deep Field Survey', mins:88, lvl:37, base:19870}
     ],
-    'Undervault': [
-      {id:'bv_uv_below',  name:'What Lies Below',       mins:90, lvl:12, base:12000},
-      {id:'bv_uv_count',  name:'Vault Inventory',       mins:12, lvl:5,  base:600}
+    'The Silent Cruiser': [
+      {id:'nov_silentcr_1', name:'It Answers the Hail', mins:10, lvl:39, base:1870},
+      {id:'nov_silentcr_2', name:'It Will Not Give a Name', mins:36, lvl:39, base:7290},
+      {id:'nov_silentcr_3', name:'Walk the Whole Hull', mins:92, lvl:39, base:21730}
+    ],
+    'The Flagship': [
+      {id:'nov_flagship_1', name:'Get Past the Airlock', mins:11, lvl:40, base:2110},
+      {id:'nov_flagship_2', name:'Deck by Deck', mins:38, lvl:40, base:7900},
+      {id:'nov_flagship_3', name:'All the Way to the Bridge', mins:96, lvl:40, base:23290}
     ]
   },
-  voltrath: {
-    'Coppervein': [
-      {id:'vt_cv_surge', name:'Grid Surge',        mins:5,  lvl:12, base:2700},
-      {id:'vt_cv_tap',   name:'Copper Tap',        mins:12, lvl:13, base:7000}
+  quarantine: {
+    'The Wall': [
+      {id:'qua_wall_1', name:'Trade Under the Guns', mins:9, lvl:41, base:1750},
+      {id:'qua_wall_2', name:'The Station Broadcasts All Night', mins:34, lvl:41, base:7120},
+      {id:'qua_wall_3', name:'A Full Watch on the Wall', mins:90, lvl:41, base:21870}
     ],
-    'Dustwatt':   [ {id:'vt_dw_sift',  name:'Dustwatt Sifting',  mins:8,  lvl:12, base:4300} ],
-    'Hollowline': [ {id:'vt_hl_brown', name:'The Brownout',      mins:30, lvl:15, base:20000} ],
-    'Wattmire':   [ {id:'vt_wm_dive',  name:'Wattmire Dive',     mins:15, lvl:14, base:9500} ]
+    'The Suburbs': [
+      {id:'qua_suburbs_1', name:'Walk the Quiet Street', mins:10, lvl:43, base:2030},
+      {id:'qua_suburbs_2', name:'They Hear You Walking', mins:36, lvl:43, base:7870},
+      {id:'qua_suburbs_3', name:'House by House', mins:94, lvl:43, base:23820}
+    ],
+    'The Mall': [
+      {id:'qua_mall_1', name:'Pay the Holder\'s Rent', mins:10, lvl:45, base:2110},
+      {id:'qua_mall_2', name:'The Biggest Find in the Zone', mins:38, lvl:45, base:8660},
+      {id:'qua_mall_3', name:'Take the Whole Floor', mins:98, lvl:45, base:25850}
+    ],
+    'The Overpass': [
+      {id:'qua_overpass_1', name:'Between the Dead Cars', mins:11, lvl:47, base:2420},
+      {id:'qua_overpass_2', name:'Run a Looter Route', mins:40, lvl:47, base:9480},
+      {id:'qua_overpass_3', name:'The Bridge, End to End', mins:104, lvl:47, base:28640}
+    ],
+    'The Farm': [
+      {id:'qua_farm_1', name:'Somebody Grows Real Food', mins:11, lvl:49, base:2500},
+      {id:'qua_farm_2', name:'They Defend It Hard', mins:42, lvl:49, base:10340},
+      {id:'qua_farm_3', name:'A Season\'s Harvest', mins:110, lvl:49, base:31570}
+    ],
+    'Patient Zero': [
+      {id:'qua_patientz_1', name:'Through the Front Doors', mins:12, lvl:50, base:2790},
+      {id:'qua_patientz_2', name:'Down Through the Hospital', mins:44, lvl:50, base:11060},
+      {id:'qua_patientz_3', name:'The Floor Where It Started', mins:115, lvl:50, base:33810}
+    ]
   },
-  forgefall: {
-    'Slagmoor':   [
-      {id:'ff_sm_run',   name:'Slag Run',          mins:8,  lvl:13, base:4700},
-      {id:'ff_sm_cool',  name:'Cooling Watch',     mins:25, lvl:15, base:17000}
-    ],
-    'The Crucible':[ {id:'ff_cr_shift', name:'The Last Shift',   mins:20, lvl:15, base:13500} ],
-    'Ashfall':    [ {id:'ff_af_ember', name:'Ember Harvest',     mins:45, lvl:20, base:32000} ],
-    'Cinderholm': [ {id:'ff_ch_walk',  name:'Cinder Walk',       mins:6,  lvl:12, base:3200} ]
-  },
-  novabazaar: {
-    'Silkrow':    [
-      {id:'nb_sr_cut',   name:"Courier's Cut",     mins:5,  lvl:12, base:2700},
-      {id:'nb_sr_silk',  name:'Silk Ledger',       mins:18, lvl:14, base:11000}
-    ],
-    'Gavelhall':  [ {id:'nb_gh_snipe', name:'Auction Sniping',   mins:12, lvl:14, base:7500} ],
-    'Lanternside':[ {id:'nb_ls_route', name:'Lantern Route',     mins:25, lvl:15, base:17000} ],
-    'Coinreach':  [ {id:'nb_cr_count', name:'The Long Count',    mins:40, lvl:20, base:29000} ]
-  },
-  pixelgardens: {
-    'Bloomvale':  [
-      {id:'pg_bv_pollen', name:'Pollen Run',       mins:6,  lvl:12, base:3200},
-      {id:'pg_bv_night',  name:'Night Bloom',      mins:35, lvl:20, base:25000}
-    ],
-    'Thornmesh':  [ {id:'pg_tm_patrol', name:'Thorn Patrol',     mins:18, lvl:14, base:11000} ],
-    'Rootworks':  [ {id:'pg_rw_access', name:'Root Access',      mins:40, lvl:20, base:29000} ],
-    'Mosslight':  [ {id:'pg_ml_glow',   name:'Moss Glow Survey', mins:10, lvl:13, base:5800} ]
-  },
-  skyarray: {
-    'Spirecrest': [
-      {id:'sa_sc_climb', name:'Dish Climb',        mins:7,  lvl:13, base:4100},
-      {id:'sa_sc_storm', name:'Storm Anchoring',   mins:30, lvl:20, base:22000}
-    ],
-    'Cloudrack':  [ {id:'sa_cr_sweep', name:'Cloudrack Sweep',   mins:35, lvl:20, base:25000} ],
-    'Uplink':     [ {id:'sa_ul_hand',  name:'Handshake Protocol',mins:12, lvl:14, base:7500} ],
-    'Echomast':   [ {id:'sa_em_chase', name:'Echo Chase',        mins:20, lvl:15, base:13500} ]
-  },
-  undergrid: {
-    'Darkloop':   [
-      {id:'ug_dl_rail',  name:'Third Rail',        mins:10, lvl:18, base:32000},
-      {id:'ug_dl_map',   name:'Mapping the Loop',  mins:25, lvl:20, base:90000}
-    ],
-    'Wyrmwire':   [ {id:'ug_ww_desc',  name:'Wyrmwire Descent',  mins:30, lvl:20, base:110000} ],
-    'Substation Nine':[ {id:'ug_s9_down', name:'Substation Nine', mins:60, lvl:22, base:240000} ],
-    'Blackmain':  [ {id:'ug_bm_walk',  name:'Blackmain Crossing',mins:15, lvl:19, base:51000} ]
-  },
-  rustharbor: {
-    'Drydock':    [
-      {id:'rh_dd_strip', name:'Hull Stripping',    mins:12, lvl:18, base:39000},
-      {id:'rh_dd_crane', name:'Crane Duty',        mins:35, lvl:21, base:130000}
-    ],
-    'Anchorfall': [ {id:'rh_af_dive',  name:'Anchor Dive',       mins:25, lvl:20, base:90000} ],
-    'Breakwall':  [ {id:'rh_bw_tide',  name:'Tide Ledger',       mins:8,  lvl:17, base:24000} ],
-    'Keelrest':   [ {id:'rh_kr_ghost', name:'Ghost Freighter',   mins:90, lvl:22, base:360000} ]
-  },
-  staticwastes: {
-    'Deadband':   [
-      {id:'sw_db_air',   name:'Dead Air',          mins:15, lvl:19, base:51000},
-      {id:'sw_db_mark',  name:'Marking the Band',  mins:40, lvl:21, base:150000}
-    ],
-    'The Hiss':   [ {id:'sw_th_walk',  name:'The Hiss',          mins:35, lvl:21, base:130000} ],
-    'Whitefield': [ {id:'sw_wf_ghost', name:'Signal Ghosts',     mins:60, lvl:22, base:240000} ],
-    'Hushfall':   [ {id:'sw_hf_quiet', name:'Quiet Cartography', mins:10, lvl:18, base:32000} ]
-  },
-  coldreach: {
-    'Glacierbank':[
-      {id:'cd_gb_sprk',  name:'Sprinkle Storm',    mins:8,  lvl:18, base:26000},
-      {id:'cd_gb_cone',  name:'The Cone Convoy',   mins:30, lvl:20, base:110000}
-    ],
-    'Permafrost': [ {id:'cd_pf_scoop', name:'The Big Scoop',     mins:20, lvl:20, base:72000} ],
-    'Whiteout':   [ {id:'cd_wo_freeze',name:'Brain Freeze',      mins:45, lvl:21, base:170000} ],
-    'Winterstill':[ {id:'cd_ws_still', name:'Stillness Survey',  mins:12, lvl:19, base:41000} ]
-  },
-  crystalrelay: {
-    'Prismfall':  [
-      {id:'cy_pf_cal',   name:'Prism Calibration', mins:20, lvl:24, base:1600000},
-      {id:'cy_pf_shard', name:'Shard Gathering',   mins:45, lvl:26, base:3900000}
-    ],
-    'Longwave':   [ {id:'cy_lw_vigil', name:'Longwave Vigil',    mins:60, lvl:26, base:5300000} ],
-    'The Lattice':[ {id:'cy_lt_walk',  name:'Lattice Walk',      mins:90, lvl:27, base:8200000} ]
-  },
-  nullgate: {
-    'Threshold':  [
-      {id:'ng_th_watch', name:'Threshold Watch',   mins:30, lvl:27, base:2700000},
-      {id:'ng_th_key',   name:'The Unmade Key',    mins:75, lvl:29, base:7400000}
-    ],
-    'Lastlight':  [ {id:'ng_ll_run',   name:'Lastlight Run',     mins:60, lvl:28, base:5700000} ],
-    'The Hollow': [ {id:'ng_hw_in',    name:'The Hollow',        mins:120, lvl:30, base:12200000} ]
-  }
 };
 const EXP_SLOTS_BASE = 2;
 /* Antalet platser ar inte langre en konstant: omstartsformånen hojer det.
@@ -9852,10 +10167,21 @@ function expDefById(id){
         if (d.id === id) return Object.assign({region: rid, zone: zone}, d);
   return null;
 }
-function expDataReward(def){
-  // Kontraktet: golv + 35% av produktionens värde över expeditionens längd
-  return Math.ceil(def.base + totalDps() * def.mins * 60 * 0.35);
+/* [ANDRAT v4.98.0] UPPDRAGEN BETALAR SKROT, INTE DATA.
+   Mangden foljer LANGDEN - ett halvt skrot per minut - och kvaliteten foljer
+   VARLDEN. Det gamla kontraktet var golv plus en andel av produktionen, och
+   produktionen finns inte langre. Samma regel som servern raknar. */
+function expScrapReward(def){ return Math.max(1, Math.round(def.mins * 0.5)); }
+function expScrapKey(regionId){
+  const tier = REGIONS[regionId] ? (REGIONS[regionId].tier | 0) : 0;
+  const table = RANK_WEIGHTS[Math.min(tier, RANK_WEIGHTS.length - 1)];
+  /* Visningen sager den VANLIGASTE kvaliteten i varlden - lottningen sker pa
+     servern, och den kan ge grannranken ibland. */
+  let best = table[0];
+  table.forEach(r => { if (r[1] > best[1]) best = r; });
+  return SCRAP_BY_RANK[best[0]];
 }
+const SCRAP_BY_RANK = {1:'salvaged_scrap', 2:'scrap_reinforced', 3:'scrap_charged', 4:'scrap_phase'};
 function expIsRunning(id){ return S.exp.runs.some(r => r.id === id); }
 function expIsFound(id){ return S.exp.found.includes(id); }
 
@@ -9922,7 +10248,8 @@ function startExpedition(id){
     id: id,
     total: expRunSeconds(def),
     endsAt: Date.now() + expRunSeconds(def) * 1000,
-    data: expDataReward(def),
+    scrap: expScrapReward(def),
+    scrapKey: expScrapKey(def.region || S.world.current),
     /* Samma form som guldet: tid och ring, avtagande per minut. Forut lag talet
        i uppdragets egen rad och vaxte 850 ganger mellan hemma och ytterkanten. */
     xp: expXpReward(def)
@@ -11350,7 +11677,10 @@ function showRewards(run, alreadyPaid){
     : '<span class="rw-chev">\u00bb</span> Claim Rewards <span class="rw-chev">\u00ab</span>';
   $('reward-sub').textContent = def.name + ' — ' + def.zone;
   $('reward-cards').innerHTML =
-    '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">Data</span><span class="cd-ico">💠</span><span class="cd-v">+' + fmt(run.data) + '</span></div>' +
+    '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">' +
+      (MATERIALS[run.scrapKey || 'salvaged_scrap'].name) + '</span><span class="cd-ico">' +
+      (MATERIALS[run.scrapKey || 'salvaged_scrap'].ico) + '</span><span class="cd-v">+' +
+      fmt(run.scrap || 0) + '</span></div>' +
     '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
     '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span><span class="cd-ico">🪙</span><span class="cd-v">+' +
       fmtMoney(alreadyPaid ? run.loot.gold : goldAfterTax(run.loot.gold)) + '</span>' +
@@ -11406,8 +11736,9 @@ function confirmClaim(){
   if (i < 0) return;
   const run = S.exp.runs.splice(i, 1)[0];
   S.stats.expDone = (S.stats.expDone || 0) + 1;
-  S.data += run.data;
-  S.totalData += run.data;
+  /* [ANDRAT v4.98.0] Har lades Data till. Offlinelaget betalar nu skrot, samma
+     sort och mangd som servern skulle ha gett. */
+  giveMaterial(run.scrapKey || 'salvaged_scrap', run.scrap || 0);
   grantXP(run.xp);
   S.gold += goldAfterTax(run.loot.gold);
   S.frags += run.loot.frags;
@@ -11477,7 +11808,7 @@ function confirmClaim(){
       spawnFloat({ text: 'Backpack full — sent to Inbox' });
     }
   }
-  spawnFloat({ text: '+' + fmt(run.data) });
+  spawnFloat({ text: '+' + fmt(run.scrap || 0) + ' ' + MATERIALS[run.scrapKey || 'salvaged_scrap'].name });
   renderExpPanel();
   save();
 }
@@ -11548,7 +11879,8 @@ function renderExpPanel(){
       '<div class="er-bar"><div class="er-fill" style="width:' + pct + '%"></div></div>' +
       (done
         ? '<button class="er-claim" data-claim="' + run.id + '">Claim</button>'
-        : '<div class="er-meta"><span>⏱ ' + fmtDur(left) + '</span><span>💠 ' + fmt(run.data) + '</span></div>') +
+        : '<div class="er-meta"><span>⏱ ' + fmtDur(left) + '</span><span>' +
+            MATERIALS[run.scrapKey || 'salvaged_scrap'].ico + ' ' + fmt(run.scrap || 0) + '</span></div>') +
       '</div>';
   }
   /* Grundorsaken till att hämtknappen ibland inte reagerade: listan byggdes om varje
@@ -12240,6 +12572,7 @@ function redrawAll(){
   call(renderPetPanel);
   call(renderHelperSlots);
   call(renderProfessions);
+  call(renderProfCards);
   /* [BUGG] RECEPTBOKEN STOD INTE HAR. Den ritades bara om av craftandet sjalvt,
      sa allt ANNAT som andrar materialet - ett kop hos handlaren, ett uppdrag
      som landar, en vara fran auktionen - lamnade raderna kvar i sitt gamla
@@ -12276,6 +12609,10 @@ function redrawAll(){
   call(() => updateUI(true));
 }
 function updateUI(force){
+  /* [v4.93.0] Yrkeskorten ritas har OCKSA, inte bara i redrawAll. Skalet: i
+     offlinelage svarar ingen server, sa redrawAll kordes aldrig - och rutan
+     stod tom i stallet for att visa de tre lediga platserna. */
+  try { renderProfCards(); } catch (e){}
   el.data.textContent = fmt(S.data);
   el.dps.textContent = fmt(totalDps()) + '/s';
   el.resCredits.textContent = fmt(S.credits);
@@ -12339,11 +12676,21 @@ function updateUI(force){
   const p = holding ? Math.min(1, holdT / HOLD.duration) : 0;
   el.fill.style.width = (p * 100) + '%';
   const full = holding && holdT >= HOLD.duration;
-  el.hint.textContent = full ? 'RELEASE & HOLD AGAIN' : 'HOLD CORE TO COLLECT DATA';
+  /* [ANDRAT v4.95.0] Noden ger inte langre Data. Den hjalper det LANKADE
+     yrket, och texten sager vilket - annars vore det ett hall utan mottagare. */
+  const lp = (typeof linkedProf === 'function') ? linkedProf() : null;
+  const lname = lp && PROF_BY[lp] ? PROF_BY[lp].name.toUpperCase() : null;
+  el.hint.textContent = full ? 'RELEASE & HOLD AGAIN'
+    : (lname ? 'HOLD CORE TO ASSIST ' + lname : 'LINK A PROFESSION TO THE CORE');
+  const shiftLine = $('hold-shift');
+  if (shiftLine) shiftLine.textContent = lname ? 'ACTIVE SHIFT: ' + lname : '';
   el.hint.classList.toggle('full', full);
 
   BUILDINGS.forEach(b => {
     const r = rowRefs[b.id];
+    /* [v4.93.0] Raderna byggs inte langre - maskinrutan ar ersatt av
+       yrkesrutan. Utan den har vakten kastade sidan ett fel varje bildruta. */
+    if (!r) return;
     const n = (buyAmount === 'max') ? Math.max(1, maxAffordable(b)) : buyAmount;
     const c = costOfN(b, n);
     const mm = milMult(b.id);
@@ -12362,6 +12709,7 @@ function updateUI(force){
 
   UPGRADES.forEach(u => {
     const r = upRefs[u.id];
+    if (!r) return;   /* [v4.93.0] karnuppgraderingarnas rader finns inte langre */
     const lvl = S.up[u.id];
     r.lvl.textContent = 'Lv.' + lvl + '/' + u.max;
     r.eff.innerHTML = (lvl >= u.max) ? '<span class="to">Maxed</span>' : '<span class="to">' + u.effect(lvl) + '</span>';
@@ -12556,6 +12904,7 @@ const PREMIUM_OFFLINE = [
 ];
 function buildPremiumOffline(){
   const list = $('premium-offline');
+  if (!list) return;    /* [v4.93.0] rutan finns inte langre - se yrkesrutan */
   list.innerHTML =
     '<div class="upgrade-row">' +
       '<div class="u-ico">🌙</div>' +
@@ -12586,6 +12935,7 @@ function buildPremiumOffline(){
   });
 }
 function refreshPremiumOffline(){
+  if (!$('prem-cap')) return;    /* [v4.93.0] rutan finns inte langre */
   $('prem-cap').textContent = offlineCapHours() + 'h';
   const tier = S.premium.offlineHours;
   const pips = $('prem-off-pips').children;
@@ -12629,58 +12979,36 @@ function showOffline(o){
    avslöjas och resa möjliggörs. Resa (liten Datakostnad + TID per nivå).
    Alla siffror är justerbara. Zonnamnen är FÖRSLAG som väntar på lås. */
 const REGIONS = {
-  /* ===== ATLAS v2.2 — spelarens godkända värld: 16 regioner, 63 zoner ===== */
-  /* CENTRUM */
-  neonhub:      {name:'Neon Hub', ico:'🏠', x:18, y:50, tier:0, band:'1-10', desig:'Friendly',
-                 adj:['arcade87','glassocean','blockvaults'],
-                 zones:['Firstlight','Kaito Row','The Fuse','Skyrail','Palegate','Brightfall']},
-  /* ARM 1 — ARKADEN */
-  arcade87:     {name:'Arcade-87', ico:'🕹️', x:28, y:26, tier:1, band:'1-10', desig:'Friendly',
-                 adj:['neonhub','voltrath'],
-                 zones:['Tilt','The Midway','Glitchmore','Coinfall','Pixelgeist']},
-  voltrath:     {name:'Voltrath', ico:'⚡', x:44, y:14, tier:2, band:'10-20', desig:'Safe',
-                 adj:['arcade87','staticwastes'],
-                 zones:['Coppervein','Dustwatt','Hollowline','Wattmire']},
-  /* ARM 2 — VALVEN */
-  blockvaults:  {name:'Block Vaults', ico:'🧱', x:28, y:76, tier:1, band:'1-10', desig:'Friendly',
-                 adj:['neonhub','forgefall'],
-                 zones:['Goldgrave','The Ledgers','Deephold','Brasslock','Undervault']},
-  forgefall:    {name:'Forgefall', ico:'🔥', x:44, y:88, tier:2, band:'10-20', desig:'Safe',
-                 adj:['blockvaults','undergrid'],
-                 zones:['Slagmoor','The Crucible','Ashfall','Cinderholm']},
-  undergrid:    {name:'The Undergrid', ico:'🕳️', x:62, y:96, tier:3, band:'20-30', desig:'Contested', pvpZones:['Darkloop','Blackmain'],
-                 adj:['forgefall','nullgate'],
-                 zones:['Darkloop','Wyrmwire','Substation Nine','Blackmain']},
-  /* ARM 3 — HAVET */
-  glassocean:   {name:'Glass Ocean', ico:'🌊', x:40, y:50, tier:1, band:'1-10', desig:'Friendly',
-                 adj:['neonhub','pixelgardens','skyarray','novabazaar'],
-                 zones:['Mirrordeep','Shalebreak','The Shallows','Tidelock','Glasswake']},
-  novabazaar:   {name:'Nova Bazaar', ico:'🛒', x:50, y:64, tier:2, band:'10-20', desig:'Friendly',
-                 adj:['glassocean'],
-                 zones:['Lanternside','Gavelhall','Coinreach','Silkrow']},
-  pixelgardens: {name:'Pixel Gardens', ico:'🌸', x:56, y:38, tier:2, band:'10-20', desig:'Safe',
-                 adj:['glassocean','staticwastes'],
-                 zones:['Bloomvale','Thornmesh','Rootworks','Mosslight']},
-  skyarray:     {name:'Sky Array', ico:'📡', x:58, y:56, tier:2, band:'10-20', desig:'Safe',
-                 adj:['glassocean','rustharbor'],
-                 zones:['Spirecrest','Cloudrack','Uplink','Echomast']},
-  /* YTTRE RINGEN */
-  rustharbor:   {name:'Rust Harbor', ico:'⚓', x:76, y:62, tier:3, band:'20-30', desig:'Contested', pvpZones:['Breakwall'],
-                 adj:['skyarray','coldreach','crystalrelay'],
-                 zones:['Anchorfall','Breakwall','Drydock','Keelrest']},
-  staticwastes: {name:'The Static Wastes', ico:'🌫️', x:66, y:18, tier:3, band:'20-30', desig:'Contested', pvpZones:['The Hiss'],
-                 adj:['voltrath','pixelgardens','crystalrelay'],
-                 zones:['Whitefield','Deadband','The Hiss','Hushfall']},
-  coldreach:    {name:'Coldreach', ico:'❄️', x:90, y:74, tier:3, band:'20-30', desig:'Contested', pvpZones:['Whiteout'],
-                 adj:['rustharbor','nullgate'],
-                 zones:['Permafrost','Glacierbank','Whiteout','Winterstill']},
-  /* FRONTIÄREN */
-  crystalrelay: {name:'Crystal Relay', ico:'💠', x:92, y:34, tier:4, band:'30-40', desig:'PvP',
-                 adj:['rustharbor','staticwastes','nullgate'],
-                 zones:['Prismfall','Longwave','The Lattice']},
-  nullgate:     {name:'Nullgate', ico:'🌑', x:108, y:58, tier:4, band:'30-40', desig:'PvP',
-                 adj:['undergrid','coldreach','crystalrelay'],
-                 zones:['Threshold','Lastlight','The Hollow']}
+  /* ===== VARLDEN v4.84.0 - FEM VARLDAR, 30 ZONER, 90 EXPEDITIONER =====
+     Varje region ar en egen SPELVARLD som folk ar inloggade i just nu. Du reser
+     mellan dem som mellan servrar, och du ar samma person i alla fem: din
+     utrustning foljer med och byter aldrig utseende.
+     De gamla 15 regionerna och 63 zonerna ar borta. De var ringar med namn -
+     spelarens dom var 'sa trakigt att man storknar' - och det var ratt.
+     BYGGT FOR ATT VAXA: adj ar en LISTA, sa vagen ar rak nu men behover inte
+     vara det. Fler varldar, fler zoner och genvagar mellan varldar kraver bara
+     rader har - ingen kod. En tutorial-o fore Voxholm ryms pa samma satt.
+     ALLT AR PvE (spelarens beslut 2026-08-24). Markningen - Friendly, Safe,
+     Contested, PvP - ar borttagen ur hela spelet, for den sa samma sak overallt
+     och delade darfor ingenting. Falten desig och band star kvar i raderna
+     nedan: band anvands, desig gor det INTE och vantar pa att PvP ska finnas.
+     Sista zonen i varje varld ar dess DUNGEON. Systemet finns inte an; zonen
+     gor det, sa den star fardig den dagen. */
+  voxholm: {name:'Voxholm', ico:'🧊', x:12, y:56, tier:0, band:'1-10', desig:'Friendly',
+                 adj:['drakemark'],
+                 zones:['The Grasslands', 'The Village', 'The Mineshaft', 'The Lava Layer', 'The Skybuild', 'The Deepshaft']},
+  drakemark: {name:'Drakemark', ico:'🐉', x:31, y:34, tier:1, band:'11-20', desig:'Friendly',
+                 adj:['voxholm','cutlassbay'],
+                 zones:['Gnome Square', 'Troll Mire', 'Sand Valley', 'The Black Keep', 'The Spine', 'The Dragon Nest']},
+  cutlassbay: {name:'Cutlass Bay', ico:'🏴‍☠️', x:51, y:58, tier:2, band:'21-30', desig:'Safe',
+                 adj:['drakemark','novacommand'],
+                 zones:['Port Town', 'The Shallows', 'Jungle Climb', 'Wreck Reef', 'Smuggler\'s Cove', 'The Black Hull']},
+  novacommand: {name:'Nova Command', ico:'🚀', x:71, y:32, tier:3, band:'31-40', desig:'Safe',
+                 adj:['cutlassbay','quarantine'],
+                 zones:['The Dock Ring', 'The Garrison', 'Alien Bazaar', 'Asteroid Field', 'The Silent Cruiser', 'The Flagship']},
+  quarantine: {name:'The Quarantine', ico:'☣️', x:90, y:56, tier:4, band:'41-50', desig:'Safe',
+                 adj:['novacommand'],
+                 zones:['The Wall', 'The Suburbs', 'The Mall', 'The Overpass', 'The Farm', 'Patient Zero']},
 };
 /* Att nå en ny ring kostar totalt lika mycket som förut, men i TVÅ steg:
    halva summan för att upptäcka, halva för att resa. Två delmål i stället för ett. */
@@ -12706,7 +13034,13 @@ function cellPrice(regionId){
    själv är golvet som gör att ingen någonsin kan bli permanent strandad. */
 const FUEL_MAX_BASE = 100;
 const FUEL_REGEN_PER_MIN = 1;
-const FUEL_CELL_RESTORE = 25;
+/* [ANDRAT v4.90.0] Cellen gav 25 och hette Warp Fuel Cell. Planen har TVA
+   celler: Warp pa 10 och Reinforced pa 25. Namnet var alltsa redan taget av fel
+   styrka. Den gamla behaller sitt namn och sanks till 10 - det ar den handlaren
+   saljer dyrt, det dyra skyddsnatet - och Reinforced ar den nya starka som bara
+   en Refiner kan gora. Ett foremal per styrka, inga dubbletter i vaskan. */
+const FUEL_CELL_RESTORE = 10;
+const FUEL_CELL_REINFORCED_RESTORE = 25;
 const ZONE_FUEL_COST = 2;
 /* ---------- FAKTA OM STAPELBARA FÖREMÅL ----------
    Allt som INTE är gear behöver samma tre svar som gear ger: vad är det, vad gör
@@ -12981,7 +13315,11 @@ const MAT_SELL = {
 };
 
 function matSellValue(key){
-  if (key === 'salvaged_scrap') return MAT_SELL.scrap;
+  if (key === 'salvaged_scrap')   return MAT_SELL.scrap;
+  /* Skrotstegen: fem gangers vardet per steg, precis som forvandlingen. */
+  if (key === 'scrap_reinforced') return MAT_SELL.scrap * 5;
+  if (key === 'scrap_charged')    return MAT_SELL.scrap * 25;
+  if (key === 'scrap_phase')      return MAT_SELL.scrap * 125;
   const m = MATERIALS[key];
   if (!m) return 0;
   if (key === 'filament_spool') return MAT_SELL.spool;
@@ -13043,6 +13381,37 @@ const ITEM_DEFS = {
     kind: 'Consumable',
     desc: 'A sealed charge of warp fuel. Use it to restore ' + FUEL_CELL_RESTORE + ' fuel — the tank never overflows, so a full tank refuses the cell instead of wasting it.',
     sell: GOLD(2.5)
+  },
+  /* ===== SIDOYRKENAS PRODUKTER (v4.90.0) =====
+     Handelsbara anda tills de anvands: du kan salja en obruten cell, men inte
+     bransle du redan brant. Det ar med flit - det ar produkterna som ska rora
+     sig pa auktionen, inte den bundna ravaran de gjordes av. */
+  fuelcell_reinforced: {
+    name: 'Reinforced Fuel Cell',
+    ico: '🔋',
+    kind: 'Consumable',
+    desc: 'A Refiner-built charge. Use it to restore ' + FUEL_CELL_REINFORCED_RESTORE +
+          ' fuel — the tank never overflows, so a full tank refuses the cell instead of wasting it.',
+    sell: GOLD(6)
+  },
+  /* BANDAGE och FIRST AID KIT ar fardiga foremal med en fardig effekt - men
+     halsan i spelet SJUNKER inte an, for det finns varken PvE eller PvP. De gor
+     alltsa ingenting i dag. Det ar avsiktligt och star har sa att ingen tror
+     att det ar en bugg: den dag strid finns kopplas effekten in, och da behover
+     varken foremalet, receptet eller yrket goras om. */
+  bandage: {
+    name: 'Bandage',
+    ico: '🩹',
+    kind: 'Consumable',
+    desc: 'Restores 20% of your maximum health. Nothing damages you yet, so it has nothing to heal today.',
+    sell: GOLD(1.5)
+  },
+  first_aid_kit: {
+    name: 'First Aid Kit',
+    ico: '🧰',
+    kind: 'Consumable',
+    desc: 'Restores 50% of your maximum health. Nothing damages you yet, so it has nothing to heal today.',
+    sell: GOLD(4)
   },
   boost_idle: {
     name: BOOSTS.idle.name, ico: BOOSTS.idle.ico, kind: 'Consumable',
@@ -13534,11 +13903,9 @@ function tipForRegion(id){
       '<br>Discovery: ' + fmt(DISCOVER_COST[R.tier] || 0) + ' Data' +
       '<div class="t-hint">Click to decrypt</div>';
   }
-  const di = desigInfo(R.desig);
   const rank = repRank(id);
   return '<b>' + R.name + '</b><br>' +
-    '<span style="color:' + di.color + '">' + R.desig + '</span> · Level ' + R.band +
-    '<br>' +
+    'Level ' + R.band + '<br>' +
     'Rep <span style="color:var(--gold)">' + '★'.repeat(rank) + '☆'.repeat(5 - rank) + '</span>' +
     '<br>Zones: ' + R.zones.length +
     '<div class="t-hint">' + (isVisited(id) ? 'Click to view zones' : 'Click for travel') + '</div>';
@@ -13546,7 +13913,6 @@ function tipForRegion(id){
 function tipForZone(regionId, zi){
   const R = REGIONS[regionId];
   const z = R.zones[zi];
-  const di = desigInfo(zoneDesig(regionId, z));
   const here = (regionId === S.world.current && S.world.zone === z);
   if (!isZoneCharted(regionId, z)){
     const mine = zoneScanHere(regionId, z);
@@ -13707,7 +14073,7 @@ function renderLegend(){
     ? item('var(--cyan)', 'Current') + item('var(--green)', 'Visited') +
       item('var(--violet)', 'Discovered') + item('var(--text-faint)', 'Unknown')
     : item('var(--cyan)', 'You are here') + item('var(--green)', 'Visited') +
-      item('var(--violet)', 'Not yet entered') + item('var(--red)', 'PvP zone');
+      item('var(--violet)', 'Not yet entered');
 }
 function setMapMode(m){
   mapMode = m;
@@ -13784,12 +14150,11 @@ function renderRegionView(){
     const p = zonePos(i, R.zones.length, id, z);
     const here = (id === S.world.current && S.world.zone === z);
     const n = document.createElement('div');
-    const zd = zoneDesig(id, z);
     /* DIMMAN. En okartlagd zon syns som en plats pa kartan men ar inte oppen -
        man vet ATT den finns, inte VAD den ar. Dronaren tar bort dimman. */
     const charted = isZoneCharted(id, z);
     const scanning = !!zoneScanHere(id, z);
-    n.className = 'map-node zone' + (here ? ' zone-here' : '') + (zd === 'PvP' ? ' zone-pvp' : '') +
+    n.className = 'map-node zone' + (here ? ' zone-here' : '') +
       (!here && charted ? ' visited' : '') + (charted ? '' : ' zone-fog');
     n.style.left = p.x + '%'; n.style.top = p.y + '%';
     n.innerHTML = '<div class="map-dot">' + (here ? '📍' : (charted ? '·' : (scanning ? '🛰' : '?'))) + '</div>' +
@@ -13849,8 +14214,7 @@ function openRegion(id){
       if (R.zones.length){
         zonesHtml = '<div class="section-label">Zones — ' + R.zones.length + '</div>' + R.zones.map((z, zi) => {
           const here = (id === S.world.current && S.world.zone === z);
-          const zd = zoneDesig(id, z);
-          return '<div class="region-zone clickable" data-zi="' + zi + '"><span>' + (zd === 'PvP' ? '<span style="color:var(--red)">⚔ </span>' : '') + z + '</span><span class="z-note' + (here ? ' here' : '') + '">' + (here ? '📍 You are here' : 'Enter ›') + '</span></div>';
+          return '<div class="region-zone clickable" data-zi="' + zi + '"><span>' + z + '</span><span class="z-note' + (here ? ' here' : '') + '">' + (here ? '📍 You are here' : 'Enter ›') + '</span></div>';
         }).join('');
       } else {
         zonesHtml = '<div class="shelf-empty">This place does not follow the rules of the network. Its zones refuse to be mapped.</div>';
@@ -13874,7 +14238,6 @@ function openRegion(id){
     }
     body.innerHTML =
       '<div class="region-kv">' +
-      '<div class="kv"><span class="k">Designation</span><span class="v" style="color:' + (desigInfo(R.desig).color) + '">' + R.desig + '</span></div>' +
       '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>' +
       '<div class="kv"><span class="k">Distance</span><span class="v">Tier ' + R.tier + '</span></div>' +
       '<div class="kv"><span class="k">Reputation</span><span class="v" style="color:var(--gold)">' + '★'.repeat(rank) + '☆'.repeat(5 - rank) + '</span></div>' +
@@ -13890,17 +14253,13 @@ function openRegion(id){
 }
 
 /* --- Zonvyn: platsen där expeditionerna kommer bo --- */
-function zoneDesig(regionId, zoneName){
-  const R = REGIONS[regionId];
-  if (R.desig !== 'Contested') return R.desig;
-  return (R.pvpZones && R.pvpZones.includes(zoneName)) ? 'PvP' : 'Safe';
-}
-function desigInfo(d){
-  if (d === 'Friendly') return {color:'var(--green)', note:''};
-  if (d === 'Safe') return {color:'var(--cyan)', note:''};
-  if (d === 'PvP') return {color:'var(--red)', note:'⚠ PvP — entering makes you a valid target, and losing costs you carried resources.'};
-  return {color:'var(--orange)', note:'Contested — some zones here are PvP. Check the zone before you enter.'};
-}
+/* [BORTTAGET v4.85.0] HAR LAG MARKNINGEN - Friendly, Safe, Contested, PvP - och
+   tva funktioner som raknade fram farg, ord och en varningsruta ur den.
+   Den ar borta ur hela skarmen: varje varld och varje zon i spelet ar PvE, sa
+   ordet delade ingenting. En etikett som alltid sager samma sak ar ett dott tal
+   som ser levande ut - den ser ut att bara information och gor det inte.
+   Den dagen PvP finns kommer den tillbaka som en riktig skillnad, inte som ett
+   ord i fyra smaker. */
 /* Rita om den oppna zonrutan pa plats. Behovs nar ett svar kommer fran servern
    EFTER att knappen redan slappt - da finns ingen klickhandlare kvar att rita
    om i. */
@@ -13915,16 +14274,12 @@ function openZone(regionId, zi, keepNote){
   if (!keepNote) vendorNote = '';
   openZoneRef = {region: regionId, zi: zi, zone: zone};
   $('region-title').textContent = zone;
-  const zd = zoneDesig(regionId, zone);
-  const di = desigInfo(zd);
   $('region-body').innerHTML =
     '<div class="zone-crumb" id="zone-back">‹ ' + R.name + '</div>' +
     '<div class="region-kv">' +
     '<div class="kv"><span class="k">Region</span><span class="v">' + R.name + '</span></div>' +
-    '<div class="kv"><span class="k">Designation</span><span class="v" style="color:' + di.color + '">' + zd + '</span></div>' +
     (zone === TRADE_ZONE ? '' : '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>') +
     '</div>' +
-    (di.note ? '<div class="desig-note" style="border-color:' + di.color + ';color:' + di.color + '">' + di.note + '</div>' : '') +
     (zone === TRADE_ZONE
       ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
       : '<div class="section-label">Expeditions</div>' +
@@ -14361,7 +14716,9 @@ function buildZoneExpeditions(regionId, zone){
     else btn = '<button class="zx-btn" data-start="' + def.id + '">Start</button>';
     return '<div class="zx-row"><div class="zx-info">' +
       '<div class="zx-name">' + def.name + '</div>' +
-      '<div class="zx-meta">⏱ ' + expTimeText(def) + ' · Lv ' + def.lvl + ' · 💠 ~' + fmt(expDataReward(def)) + ' · ' + expCoinIco(def) + ' ' + expGoldText(def) + ' · 🔷 ' + expFragRange(def).join('-') + '</div>' +
+      '<div class="zx-meta">⏱ ' + expTimeText(def) + ' · Lv ' + def.lvl + ' · ' +
+        MATERIALS[expScrapKey(openZoneRef.region)].ico + ' ' + fmt(expScrapReward(def)) + ' · ' +
+        expCoinIco(def) + ' ' + expGoldText(def) + ' · 🔷 ' + expFragRange(def).join('-') + '</div>' +
       '<div class="zx-levy">🪙 Tax — ' + Math.round(EXP_TAX * 100) + '% of gold is taken on claim</div>' +
       '</div>' + btn + '</div>';
   }).join('');
@@ -15078,8 +15435,11 @@ function showPetTip(p, x, y){
    ett yrke kanns igen pa avstand utan att man laser namnet. */
 const PROF_COLOR = {
   outfitter:   '#ffc759', weaponsmith: '#b98cff', jewelcrafter: '#38e8ff',
-  chemist:     '#4ade80', extractor:   '#ff9d4d', fabricator:   '#5aa9ff',
-  bioharvester:'#6ee7a8'
+  mining:      '#ff9d4d', synthetics:  '#5aa9ff',
+  /* Sidoyrkena har en EGEN ton, sa kortet syns som ett annat slags kort. */
+  medic:       '#ff6b8a', refiner:     '#ffb347',
+  /* Vilande yrken - fargen behovs bara for gamla foremal och gamla nivaer. */
+  chemist:     '#4ade80', bioharvester:'#6ee7a8', mechanic:    '#9aa4b2'
 };
 /* Vilken scen rutan star pa: null = dina yrken, 'pick' = valet. */
 let profScene = null;
@@ -15093,9 +15453,19 @@ function profIcoHTML(pr, cls){
     'onerror="this.remove()"></div>';
 }
 function profTags(pr){
+  /* [v4.96.0] Sidoyrkena har varken slots eller mats - de har en STATION och en
+     bunden ravara. Utan den har grenen kraschade fonstret sa fort ett sidoyrke
+     lardes: koden last mats pa nagot som inte hade nagra. */
+  if (pr.kind === 'secondary'){
+    const m = MATERIALS[pr.bound];
+    return '<span class="pf-tag">' + pr.station + '</span>' +
+           (m ? '<span class="pf-tag">' + m.ico + ' ' + m.name + '</span>' : '');
+  }
+  const list = pr.kind === 'crafting' ? (pr.slots || []) : (pr.mats || []);
   return (pr.kind === 'crafting'
-    ? pr.slots.map(x => '<span class="pf-tag">' + x + '</span>')
-    : pr.mats.map(k => '<span class="pf-tag">' + MATERIALS[k].ico + ' ' + MATERIALS[k].name + '</span>')
+    ? list.map(x => '<span class="pf-tag">' + x + '</span>')
+    : list.map(k => MATERIALS[k]
+        ? '<span class="pf-tag">' + MATERIALS[k].ico + ' ' + MATERIALS[k].name + '</span>' : '')
   ).join('');
 }
 /* Samma kort i tva lagen. I VALET gar det att kopa - hela kortet ar en knapp och
@@ -15135,11 +15505,15 @@ function profOwnedHTML(pr){
       '<span class="pf-xpbar"><span class="pf-xpfill" style="width:' +
         Math.round(li.into / li.need * 100) + '%"></span></span>' +
       '<span class="pf-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</span></div>' +
-    '<div class="pf-lbl">' + (pr.kind === 'crafting' ? 'CRAFTS & EQUIPS' : 'GATHERS') + '</div>' +
+    '<div class="pf-lbl">' + (pr.kind === 'crafting' ? 'CRAFTS & EQUIPS'
+                            : pr.kind === 'secondary' ? 'PRODUCES OVER TIME' : 'GATHERS') + '</div>' +
     '<div class="pf-tags">' + profTags(pr) + '</div>' +
     /* Mellanrummet vaxer sa knapparna hamnar LANGST NER pa bada korten. Forut
        lag hantverkarens hogre upp an samlarens och korten sag olika ut. */
-    (pr.kind === 'crafting' ? '<div class="pf-grow"></div>' : gatherLoopHTML(pr.id)) +
+    /* [v4.96.0] Bara SAMLARE har en insamlingsloop. Hantverkare och sidoyrken
+       far mellanrummet i stallet - utan den har grenen last koden en samlarpool
+       som sidoyrket inte har, och fonstret kraschade. */
+    (pr.kind === 'gathering' ? gatherLoopHTML(pr.id) : '<div class="pf-grow"></div>') +
     '<div class="pf-act">' +
       (pr.kind === 'crafting'
         ? '<button class="pf-btn wide" data-book="' + pr.id + '">\ud83d\udcd6 RECIPE BOOK</button>'
@@ -15149,13 +15523,102 @@ function profOwnedHTML(pr){
   '</div>';
 }
 
+/* ===== YRKESRUTANS KORT (v4.93.0) =====
+   Ritar de tva huvudyrkeskorten och servicestationen dar produktionsrutan stod.
+   Allt som beror pa serverdata gar genom redrawAll - darfor star anropet dar
+   och ingen annanstans. */
+function linkedProf(){
+  /* Det LANKADE yrket ar det noden hjalper. Bara ett i taget. Star inget valt
+     tas det forsta larda huvudyrket, sa noden aldrig pekar i tomma luften. */
+  const mine = myMainProfs();
+  if (S.prof && S.prof.linked && mine.some(p => p.id === S.prof.linked)) return S.prof.linked;
+  return mine.length ? mine[0].id : null;
+}
+function myMainProfs(){
+  if (!S.prof || !S.prof.known) return [];   /* inga yrken an - tomma platser ritas anda */
+  return PROFESSIONS.filter(p => p.active && p.kind !== 'secondary' && S.prof.known[p.id]);
+}
+function mySecondaryProf(){
+  if (!S.prof || !S.prof.known) return null;
+  return PROFESSIONS.find(p => p.active && p.kind === 'secondary' && S.prof.known[p.id]) || null;
+}
+/* [DOPT OM v4.96.0] Hette profCardHTML - samma namn som yrkesfonstrets egen
+   kortfunktion, som ligger hogre upp. Den senare definitionen vinner i JS, sa
+   MIN funktion tog over BADA stallena: yrkesfonstrets val och uppslag ritade
+   panelkort i stallet for sina egna. Exakt den buggfamilj som star i mina
+   anteckningar - tva funktioner med samma namn - och jag gick rakt i den. */
+function profPanelCardHTML(p, linked){
+  const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
+  const col = PROF_COLOR[p.id] || 'var(--cyan)';
+  const pct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
+  let status;
+  if (p.kind === 'gathering'){
+    /* Passet heter `ends` och ar en tidsstampel i millisekunder. Forsta
+       forsoket last `endsAt`, som inte finns - och da stod det NaN pa kortet. */
+    const sh = S.prof.shift && S.prof.shift[p.id];
+    const left = sh && sh.ends ? Math.max(0, (sh.ends - Date.now()) / 1000) : 0;
+    status = left > 0 ? '⏱ Work shift · ' + fmtDur(left)
+           : (sh && sh.ready ? '✅ Shift ready to collect' : '○ No shift running');
+  } else {
+    const n = RECIPES.filter(r => r.prof === p.id && info.lvl >= r.lvl).length;
+    status = '🔨 ' + n + ' recipe' + (n === 1 ? '' : 's') + ' available';
+  }
+  return '<div class="prof-card' + (linked ? ' linked' : '') + '" data-prof="' + p.id + '">' +
+    '<div class="jc-top">' +
+      '<div class="jc-ico" style="color:' + col + '">' + p.ico + '</div>' +
+      '<div><div class="jc-name" style="color:' + col + '">' + p.name + '</div>' +
+      '<div class="jc-lvl">Level ' + info.lvl + (linked ? ' · linked' : '') + '</div></div>' +
+    '</div>' +
+    '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+    '<div class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</div>' +
+    '<div class="jc-status">' + status + '</div>' +
+    '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>' +
+  '</div>';
+}
+function stationCardHTML(p){
+  const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
+  const col = PROF_COLOR[p.id] || 'var(--cyan)';
+  const have = matCount(p.bound);   /* spelets egen raknare - inte en andra sanning */
+  const pct = Math.min(100, Math.round(100 * have / p.storageCap));
+  return '<div class="station-card" data-prof="' + p.id + '" style="position:relative">' +
+    '<div class="sc-tag">SECONDARY</div>' +
+    '<div class="sc-ico" style="color:' + col + '">' + p.ico + '</div>' +
+    '<div class="sc-body">' +
+      '<div class="jc-name" style="color:' + col + '">' + p.station + '</div>' +
+      '<div class="sc-bar"><div class="sc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+      '<div class="jc-xp">' + MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap +
+        ' · Level ' + info.lvl + '</div>' +
+    '</div>' +
+    '<div class="jc-btn" style="margin:0" data-openprof="' + p.id + '">Manage</div>' +
+  '</div>';
+}
+function renderProfCards(){
+  const wrap = $('prof-cards'), sw = $('station-cards');
+  if (!wrap || !sw) return;
+  /* Inget tidigt avhopp: en spelare UTAN yrken ska se de tomma platserna, inte
+     en tom ruta. Tom ruta ser ut som ett fel; en streckad plats ser ut som ett
+     val man inte gjort an. */
+  const mine = myMainProfs(), link = linkedProf();
+  let h = mine.map(p => profPanelCardHTML(p, p.id === link)).join('');
+  /* Tomma platser ritas som streckade rutor. Utan dem ser rutan trasig ut for
+     en ny spelare - tva kort som saknas ser ut som ett fel, en tom plats ser ut
+     som ett val man inte gjort an. */
+  for (let i = mine.length; i < 2; i++)
+    h += '<div class="prof-card empty" data-pickprof="1">+<br>Choose a<br>main profession</div>';
+  wrap.innerHTML = h;
+  const sec = mySecondaryProf();
+  sw.innerHTML = sec ? stationCardHTML(sec)
+    : '<div class="station-card empty" data-pickprof="1">+ Choose a secondary profession</div>';
+}
 function renderProfessions(){
   const wrap = $('prof-grid'), cnt = $('prof-count');
   if (!wrap) return;
-  const n = profCount();
-  if (cnt) cnt.textContent = n + ' / ' + PROF_MAX;
+  const n = profCount(), sn = secondaryCount();
+  if (cnt) cnt.textContent = n + ' / ' + PROF_MAX + '  ·  ' + sn + ' / ' + PROF_SECONDARY_MAX;
   const cost = profLearnCost();
-  const canBuy = S.gold >= cost && n < PROF_MAX;
+  const open = profSlotsOpen();
+  const canBuy = open && S.gold >= cost && n < PROF_MAX;
+  const canBuySec = open && S.gold >= cost && sn < PROF_SECONDARY_MAX;
   let h = '';
 
   if (profScene === 'browse'){
@@ -15168,10 +15631,14 @@ function renderProfessions(){
     /* Fyra hantverkare overst, fyra samlare under. Forut lag Chemist nedflyttad
        for att fylla en rad om fyra - med Mechanic pa plats gar det jamnt ut av
        sig sjalvt, och uppdelningen sager nu vad den faktiskt ar. */
-    const top = PROFESSIONS.filter(p => p.kind === 'crafting');
-    const bot = PROFESSIONS.filter(p => p.kind !== 'crafting');
+    /* Bara AKTIVA yrken. De vilande - Chemist, Bioharvester, Mechanic - hor
+       inte hemma i ett uppslag over vad man kan valja. */
+    const top = ACTIVE_PROFS.filter(p => p.kind === 'crafting');
+    const mid = ACTIVE_PROFS.filter(p => p.kind === 'gathering');
+    const bot = ACTIVE_PROFS.filter(p => p.kind === 'secondary');
     h += '<div class="pf-pick">';
     if (top.length) h += '<div class="pf-grid four">' + top.map(p => profCardHTML(p, false, true)).join('') + '</div>';
+    if (mid.length) h += '<div class="pf-grid four">' + mid.map(p => profCardHTML(p, false, true)).join('') + '</div>';
     if (bot.length) h += '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, false, true)).join('') + '</div>';
     h += '</div>';
   } else if (profScene === 'pick'){
@@ -15181,12 +15648,18 @@ function renderProfessions(){
          '<div class="pf-sub">Select a profession to learn.</div></div>';
     /* Tre overst, fyra under - alla sju pa skarmen samtidigt, som i skissen.
        Chemist flyttas ned till den undre raden for att fylla den. */
-    const free = PROFESSIONS.filter(p => !profLearned(p.id));
+    const free = ACTIVE_PROFS.filter(p => !profLearned(p.id));
     const top = free.filter(p => p.kind === 'crafting');
-    const bot = free.filter(p => p.kind !== 'crafting');
+    const mid = free.filter(p => p.kind === 'gathering');
+    const bot = free.filter(p => p.kind === 'secondary');
     h += '<div class="pf-pick">';
     if (top.length) h += '<div class="pf-grid four">' + top.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
-    if (bot.length) h += '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
+    if (mid.length) h += '<div class="pf-grid four">' + mid.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
+    /* Sidoyrkena har sin EGEN rad och sin egen rakning - de tar inte en
+       huvudplats, sa de far vara kopbara aven nar bada huvudplatserna ar
+       fyllda. */
+    if (bot.length) h += '<div class="section-label" style="margin-top:10px">Secondary</div>' +
+      '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, canBuySec)).join('') + '</div>';
     h += '</div>';
   } else {
     /* SCEN 1 och 3: dina platser. Tomma platser bjuder in, larda visar arbetet. */
@@ -15196,14 +15669,18 @@ function renderProfessions(){
            : 'Manage your learned professions.') + '</div></div>';
     let cards = '';
     PROFESSIONS.filter(p => profLearned(p.id)).forEach(p => { cards += profOwnedHTML(p); });
-    for (let i = n; i < PROF_MAX; i++){
-      cards += '<div class="pf-empty" data-pick="1">' +
+    /* Tomma platser: tva for huvudyrken, en for sidoyrket. Ar valet annu last
+       sager rutan VARFOR i stallet for att bara sta dar och inte gora nagot -
+       ett plustecken som inte svarar ar det samma som ett tyst nej. */
+    const emptySlot = (label) =>
+      '<div class="pf-empty"' + (open ? ' data-pick="1"' : '') + '>' +
         '<div class="pf-plus">+</div>' +
-        '<b>LEARN A PROFESSION</b>' +
-        (n === 0 ? '' : '<i>Choose a profession<br>to start your journey.</i>') +
-        '<div class="pf-price"><span class="co-g">\u25c9</span> ' + moneyText(cost) + '</div>' +
+        '<b>' + label + '</b>' +
+        (open ? '' : '<i>Unlocks at character<br>level ' + PROF_UNLOCK_LEVEL + '.</i>') +
+        (open ? '<div class="pf-price"><span class="co-g">\u25c9</span> ' + moneyText(cost) + '</div>' : '') +
       '</div>';
-    }
+    for (let i = n; i < PROF_MAX; i++) cards += emptySlot('LEARN A PROFESSION');
+    for (let i = sn; i < PROF_SECONDARY_MAX; i++) cards += emptySlot('LEARN A SECONDARY');
     h += '<div class="pf-slots">' + cards + '</div>';
     /* LANGST NER: en vag in i uppslaget. Man ska kunna se vad de andra yrkena
        gor UTAN att behova gora sig av med ett man redan har - forut var enda
@@ -15545,6 +16022,24 @@ function openProfessions(){
   }
 }
 function closeProfessions(){ $('prof-overlay').classList.remove('open'); }
+/* KORTENS KNAPPAR (v4.93.0). Open och Manage oppnar yrkesfonstret; en tom plats
+   oppnar valet. Att klicka pa sjalva kortet LANKAR yrket till noden - det ar
+   det noden hjalper nar man haller den. Bara huvudyrken gar att lanka. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-openprof]');
+  if (btn){ openProfessions(); return; }
+  if (e.target.closest('[data-pickprof]')){ openProfessions(); return; }
+  const card = e.target.closest('.prof-card[data-prof]');
+  if (card){
+    const id = card.dataset.prof;
+    if (PROF_BY[id] && PROF_BY[id].kind !== 'secondary'){
+      S.prof.linked = id;
+      save();
+      redrawAll();
+      say('Core linked to ' + PROF_BY[id].name + '.');
+    }
+  }
+});
 function petWinHTML(p){
   const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
   const on = inTeam(p.uid);
@@ -15725,6 +16220,19 @@ document.querySelectorAll('.qa-btn .lbl').forEach(l => {
     l.closest('.qa-btn').addEventListener('click', () => toggleWindow('prof-overlay', openProfessions, closeProfessions));
 });
 $('prof-close').addEventListener('click', closeProfessions);
+/* BUTIKEN (v4.94.0). Bygger raderna forsta gangen den oppnas - de kan inte
+   byggas vid start, for fonstret ritas efter att koden redan kort en gang. */
+let shopBuilt = false;
+function openShop(){
+  const w = $('shop-overlay');
+  if (!w) return;
+  if (!shopBuilt){ buildPremiumOffline(); buildPremiumBags(); shopBuilt = true; }
+  renderPremiumBags(); renderPremiumVaultBags(); refreshPremiumOffline();
+  w.classList.add('open');
+  bringToFront(w);
+}
+if ($('nav-shop')) $('nav-shop').addEventListener('click', openShop);
+if ($('shop-close')) $('shop-close').addEventListener('click', () => $('shop-overlay').classList.remove('open'));
 $('recipe-close').addEventListener('click', closeRecipeBook);
 /* Bada sidorna ska ga att flytta precis som vaskan och varlden - det saknades,
    sa de satt fast. Titelraden och emblemet ar draghandtag. */
@@ -17071,7 +17579,11 @@ hookDragSource($('pet-grid'), e => {
    anvander). Vagen ut gick genom det forsta och landningen genom det andra,
    sa slappet togs aldrig emot. Nu ar platsen en dragkalla i SAMMA system som
    listan, och da mots de. */
-hookDragSource($('machine-list'), e => {
+/* [ANDRAT v4.93.0] Hangde pa maskinlistan, som ar borttagen ur skarmen. Utan
+   vakten kastade sidan ett fel vid start och ALLT efter den raden slutade
+   koras. Hjalparstolarna vid maskinerna ar pa vag bort anda - tills de ar det
+   halls den har vid liv men rors bara om listan faktiskt finns. */
+hookDragSource($('machine-list') || document.createElement('div'), e => {
   const slot = e.target.closest && e.target.closest('.m-helper.filled');
   if (!slot) return null;
   const p = seatedPet(slot.dataset.helper);
@@ -17428,7 +17940,7 @@ document.addEventListener('keydown', e => {
 
 const MACHINE_SCROLL_STEP = 88;
 (function tameMachineScroll(){
-  const pane = document.getElementById('panel-production');
+  const pane = document.getElementById('panel-professions');
   if (!pane) return;
   pane.addEventListener('wheel', e => {
     if (e.ctrlKey) return;
@@ -18324,6 +18836,19 @@ async function gateFromLink(link){
 }
 
 /* Vid start: har vi en session sedan tidigare gar vi direkt vidare. */
+/* ---------- TALEN PA FORSTA SKARMEN (v4.83.0) ----------
+   De stod hardskrivna och blev gamla: 65 recept nar registret hade 203, 7 yrken
+   nar det fanns 8, 16 regioner nar det fanns 15, 49 arter nar det fanns 47.
+   Nu raknas de ur listorna sjalva vid varje start, sa de kan inte glida isar
+   igen. Misslyckas nagot star strecket kvar i stallet for ett falskt tal. */
+(function gateFacts(){
+  const put = (id, n) => { const el = $(id); if (el && n > 0) el.textContent = n; };
+  try { put('gf-prof', PROFESSIONS.length); } catch (e){}
+  try { put('gf-reg',  Object.keys(REGIONS).length); } catch (e){}
+  try { put('gf-pet',  Object.keys(PETS).length); } catch (e){}
+  try { put('gf-rec',  RECIPES.length); } catch (e){}
+})();
+
 (async function gateBoot(){
   const link = gateReadLink();
   if (link && await gateFromLink(link)) return;   /* kom hit via mejlet */
