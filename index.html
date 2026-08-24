@@ -4104,7 +4104,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.5.0 — RECEPTRUTAN LAGAD</div>
+            <div class="desc">GENESIS v5.6.0 — WORK SYNC</div>
           </div>
         </div>
       </div>
@@ -4115,7 +4115,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.5.0 — RECEPTRUTAN LAGAD</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.6.0 — WORK SYNC</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -11125,7 +11125,9 @@ function showRewards(run, alreadyPaid){
       '<span class="rwg-txt"><b>' + gearName(g) + '</b><i>' + gearRarName(g) + '</i></span></div>';
   }
   if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
-  if (run.loot.recipe && !recipeKnown(run.loot.recipe)){
+  /* [VAKT v5.6.0] Ett gammalt uppdrag kan bara ett receptfynd vars recept ar
+     rivet. Utan vakten last raden rar och prof pa ingenting. */
+  if (run.loot.recipe && RECIPE_BY[run.loot.recipe] && !recipeKnown(run.loot.recipe)){
     const rr = RECIPE_BY[run.loot.recipe];
     found += '<div class="rw-gear" style="--rc:' + rarCol(rr.rar) + '"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">📜</span>' +
       '<span class="rwg-txt"><b>' + recipeItemName(run.loot.recipe) + '</b><i>' + PROF_BY[rr.prof].name + ' recipe</i></span></div>';
@@ -12737,8 +12739,18 @@ const HELPER_ABILITIES = {
   fuel:      {name:'Coolant Flow',   text: v => '+' + v + '% fuel regen'},
   cacheluck: {name:'Cache Instinct', text: v => '+' + v + '% cache odds'},
   gearrar:   {name:'Prospector',     text: v => '+' + v + '% rarer gear drops'},
-  tokens:    {name:'Echo Reader',    text: v => '+' + v + '% Tokens on reboot'}
+  /* [ANDRAT v5.6.0] Hette 'tokens' / Echo Reader och gav extra Tokens vid en
+     omstart - bada ar rivna. Servern dopte om den till Work Sync och skrev om
+     husdjurens formaga i samma andetag. FILEN GJORDE INTE DET, sa ett husdjur
+     med den nya formagan slog upp ingenting har och punkten efter kastade hela
+     sidan. Klient och server sa olika saker om samma nyckel. */
+  worksync:  {name:'Work Sync',      text: v => '+' + v + '% profession work speed'}
 };
+/* Ingen formaga far sakna text. Slar nagot upp en nyckel som inte star har ska
+   spelet saga det tyst, inte falla. */
+function helperAbilityInfo(f){
+  return HELPER_ABILITIES[f] || {name: 'Unknown', text: v => '+' + v + '%'};
+}
 /* Trappan: hur manga av byggnaden som kravs for varje sallsynthet. */
 const HELPER_TIERS = [1, 5, 15, 30, 60, 100];
 function helperRarityAllowed(bid){
@@ -14605,7 +14617,7 @@ function renderPetPanel(){
     ? list.map(p => {
         const a = helperAbilityOf(p);
         return '<div class="ptb">' + petName(p) +
-               (a ? ' — ' + HELPER_ABILITIES[a.f].text(a.v) : '') + '</div>';
+               (a ? ' — ' + helperAbilityInfo(a.f).text(a.v) : '') + '</div>';
       }).join('')
     : 'No helpers in the team';
 }
