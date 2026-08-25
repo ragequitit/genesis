@@ -4166,7 +4166,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.16.0 — KNAPPARNA SVARAR</div>
+            <div class="desc">GENESIS v5.17.0 — SKRÄP UR UPPDRAG</div>
           </div>
         </div>
       </div>
@@ -4177,7 +4177,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.16.0 — KNAPPARNA SVARAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.17.0 — SKRÄP UR UPPDRAG</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -8393,6 +8393,7 @@ function load(){
                    celler ur en färdig expedition vid omladdning. */
                 if (r.loot.gear){ const g = readGear(r.loot.gear); if (g){ if (typeof r.loot.gear.src === 'string' && r.loot.gear.src.length < 80) g.src = r.loot.gear.src; run.loot.gear = g; } }
                 if (r.loot.cell) run.loot.cell = true;
+                if (r.junk && Object.keys(r.junk).length) run.loot.junk = r.junk;
                 if (typeof r.loot.recipe === 'string' && RECIPE_BY[r.loot.recipe]) run.loot.recipe = r.loot.recipe;
               }
               return run;
@@ -11122,6 +11123,14 @@ function rollExpeditionLoot(def){
     gold: rollIn(expGoldRange(def)),
     frags: expFragBase(def) + petExtraFrags()
   };
+  /* [TILLAGT v5.17.0] SKRAP UR BYTET. En chans pa fyra, 1-3 olika sorter, en av
+     varje. Samma regel som servern. Skrapet droppar inte langre i tomgangen. */
+  if (Math.random() < 0.25){
+    const kinds = Object.keys(JUNK).sort(() => Math.random() - 0.5)
+      .slice(0, 1 + Math.floor(Math.random() * 3));
+    loot.junk = {};
+    kinds.forEach(k => { loot.junk[k] = 1; });
+  }
   /* Bränslecell: en chans, aldrig en garanti. Skalar med längden precis som gear
      men mycket snålare — cellen är ett fynd, inte en inkomst. */
   if (Math.random() < 0.12 * (Math.min(120, Math.max(2, def.mins)) / 120)){
@@ -11256,6 +11265,13 @@ function showRewards(run, alreadyPaid){
       '<span class="rwg-art" style="background-image:url(\'' + gearArt(g) + '\')"></span>' +
       '<span class="rwg-txt"><b>' + gearName(g) + '</b><i>' + gearRarName(g) + '</i></span></div>';
   }
+  if (run.loot.junk) Object.keys(run.loot.junk).forEach(k => {
+    found += '<div class="rw-gear" style="--rc:var(--text-dim)">' +
+      '<span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">' +
+        (MATERIALS[k] ? MATERIALS[k].ico : '\ud83d\udce6') + '</span>' +
+      '<span class="rwg-txt"><b>' + (MATERIALS[k] ? MATERIALS[k].name : k) + '</b>' +
+      '<i>' + (JUNK[k] ? JUNK[k].flavor : 'Junk') + '</i></span></div>';
+  });
   if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
   /* [VAKT v5.6.0] Ett gammalt uppdrag kan bara ett receptfynd vars recept ar
      rivet. Utan vakten last raden rar och prof pa ingenting. */
@@ -11303,6 +11319,7 @@ function confirmClaim(){
   /* [ANDRAT v4.98.0] Har lades Data till. Offlinelaget betalar nu skrot, samma
      sort och mangd som servern skulle ha gett. */
   giveMaterial(run.scrapKey || 'salvaged_scrap', run.scrap || 0);
+  if (run.loot && run.loot.junk) Object.keys(run.loot.junk).forEach(k => giveMaterial(k, 1));
   grantXP(run.xp);
   S.gold += goldAfterTax(run.loot.gold);
   S.frags += run.loot.frags;
