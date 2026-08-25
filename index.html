@@ -4166,7 +4166,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.15.0 — BONUSFYND</div>
+            <div class="desc">GENESIS v5.16.0 — KNAPPARNA SVARAR</div>
           </div>
         </div>
       </div>
@@ -4177,7 +4177,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.15.0 — BONUSFYND</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.16.0 — KNAPPARNA SVARAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -12080,6 +12080,11 @@ function loopBody(now){
   // Craftkon: baren som fyller sig, och craftet nar den ar full
   tickCraft();
   tickSurveyClock();
+  /* [TILLAGT v5.16.0] Yrkesfonstrets siffror stod STILLA. Fonstret ritades bara
+     om nar servern skickat ny data, sa XP-mataren och nivan rorde sig inte
+     medan man tittade. Skrivs pa plats, precis som kortens - inga element byts
+     ut, sa ett pagaende klick overlever. */
+  tickProfWindow();
   renderBoostBar();
 
   /* Bragderna prövas en gång i sekunden. Villkoren är billiga jämförelser, men
@@ -14368,6 +14373,20 @@ function startResearch(id){
 /* Undersökningens nedräkning, uppdaterad i samma loop som handlarens klocka — av
    samma skäl: ingen egen timer som kan leva vidare efter att rutan stängts. Blir
    signalen färdig medan man tittar ritas kortet om av checkResearch. */
+/* Yrkesfonstrets levande siffror. Bara text och bredder - ingen ombyggnad. */
+function tickProfWindow(){
+  const w = $('prof-overlay');
+  if (!w || !w.classList.contains('open') || !S.prof || !S.prof.known) return;
+  w.querySelectorAll('[data-profxp]').forEach(el => {
+    const id = el.dataset.profxp;
+    const info = profLevelInfo((S.prof.known[id] || {}).xp || 0);
+    const lv = el.querySelector('.pf-lvlnum'), tx = el.querySelector('.pf-xptext'),
+          fl = el.querySelector('.pf-xpfill');
+    if (lv) lv.textContent = info.lvl;
+    if (tx) tx.textContent = Math.floor(info.into) + ' / ' + info.need + ' XP';
+    if (fl) fl.style.width = (info.need ? Math.min(100, 100 * info.into / info.need) : 0) + '%';
+  });
+}
 function tickSurveyClock(){
   if (!openSurveyRef || !regionOverlay.classList.contains('open')) return;
   const el = $('survey-clock');
@@ -15052,7 +15071,10 @@ function profOwnedHTML(pr){
         '<div class="pf-blurb">' + pr.blurb + '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="pf-xprow"><b>LEVEL ' + li.lvl + '</b>' +
+    /* data-profxp gor raden levande: tickProfWindow skriver om nivan, mataren
+       och talen pa plats varje bildruta. Utan markningen stod de stilla tills
+       servern rakade skicka ny data. */
+    '<div class="pf-xprow" data-profxp="' + pr.id + '"><b>LEVEL <span class="pf-lvlnum">' + li.lvl + '</span></b>' +
       '<span class="pf-xpbar"><span class="pf-xpfill" style="width:' +
         Math.round(li.into / li.need * 100) + '%"></span></span>' +
       '<span class="pf-xptext">' + Math.floor(li.into) + ' / ' + li.need + ' XP</span></div>' +
@@ -15101,65 +15123,6 @@ function mySecondaryProf(){
    MIN funktion tog over BADA stallena: yrkesfonstrets val och uppslag ritade
    panelkort i stallet for sina egna. Exakt den buggfamilj som star i mina
    anteckningar - tva funktioner med samma namn - och jag gick rakt i den. */
-function profPanelCardHTML(p, linked){
-  const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
-  const col = PROF_COLOR[p.id] || 'var(--cyan)';
-  const pct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
-  const secondary = p.kind === 'secondary';
-  let status;
-  if (p.kind === 'gathering'){
-    const sh = S.prof.shift && S.prof.shift[p.id];
-    const left = sh && sh.ends ? Math.max(0, (sh.ends - Date.now()) / 1000) : 0;
-    status = left > 0 ? '\u23f1 Work shift · ' + fmtDur(left)
-           : (sh && sh.ready ? '\u2705 Shift ready to collect' : '\u25cb No shift running');
-  } else if (secondary){
-    /* Stationens lager ar den bundna ravaran. Den kan varken saljas eller
-       handlas, sa den ligger i vaskan men hor stationen till. */
-    const have = matCount(p.bound);
-    const full = have >= p.storageCap;
-    status = MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap +
-             (full ? ' \u2014 full, production paused' : ' \u00b7 +1 / ' + fmtDur(p.stationSecs));
-  } else {
-    /* [ANDRAT v5.13.0] Hantverkaren visar sin BESTALLNING nar en ar igang -
-       vad den gor och hur lang tid som ar kvar. Utan en bestallning gor ett
-       hantverksyrke ingenting, och da sager kortet det. */
-    const o = S.orders && S.orders[p.id];
-    if (o){
-      status = o.left > 0
-        ? '\ud83d\udd28 ' + craftOutcomeName(o.recipe) + ' \u00b7 ' + fmtDur(o.left)
-        : '\u2705 ' + craftOutcomeName(o.recipe) + ' ready';
-    } else {
-      const n = RECIPES.filter(r => r.prof === p.id && info.lvl >= r.lvl).length;
-      status = '\u25cb Idle \u00b7 ' + n + ' recipe' + (n === 1 ? '' : 's') + ' available';
-    }
-  }
-  /* Hantverk kan inte lankas - noden far aldrig trycka fram fardigt gear ur ett
-     hall. Fliken star kvar men slackt, sa raden ser likadan ut pa alla kort. */
-  const canLink = p.kind !== 'crafting';
-  return '<div class="prof-card' + (linked ? ' linked' : '') + (secondary ? ' is-secondary' : '') +
-    '" data-prof="' + p.id + '">' +
-    '<div class="jc-link' + (linked ? ' on' : (canLink ? '' : ' off')) + '"' +
-      (canLink ? ' data-link="' + p.id + '"' : ' title="Crafting is recipe-driven"') + '>' +
-      'LINK<span class="lamp"></span></div>' +
-    '<div class="jc-ico" style="color:' + col + '">' + p.ico + '</div>' +
-    '<div class="jc-mid">' +
-      '<div><span class="jc-name" style="color:' + col + '">' +
-        (secondary ? p.station : p.name) + '</span>' +
-        (secondary ? '<span class="jc-tag">SECONDARY</span>' : '') + '</div>' +
-      (secondary ? '' : '<div class="jc-lvl">Level ' + info.lvl + '</div>') +
-      '<div class="jc-line"><span class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span>' +
-        '<span class="jc-status">' + status + '</span></div>' +
-      '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
-    '</div>' +
-    (function(){
-      const o = S.orders && S.orders[p.id];
-      if (o && o.left <= 0)
-        return '<div class="jc-btn" style="border-color:var(--green);color:var(--green)" ' +
-               'data-claimorder="' + p.id + '">Collect</div>';
-      return '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>';
-    })() +
-  '</div>';
-}
 /* ===== STATIONSSIDAN (v5.14.0) =====
    Sidoyrkets egen sida. Kortet visade en siffra; har star hela yrket: takten,
    tiden till nasta enhet, recepten och vad som saknas.
@@ -15354,20 +15317,96 @@ function claimBonusFind(kind){
   setTimeout(() => { spawnBonusFind(); bonusFindLoop(); }, wait);
 })();
 
-function renderProfCards(){
-  /* [ANDRAT v5.10.0] Sidoyrket hade en egen ruta under rubriken SERVICE STATION.
-     Nu ar det ett kort i samma lista, markt SECONDARY - spelarens skiss: tre
-     rader under varandra, samma form. */
+/* Statusraden, bruten ur kortet sa att bygget och den lopande uppdateringen
+   laser SAMMA text. Stod den i tva kopior skulle de glida isar. */
+function profCardStatus(p, info){
+  if (p.kind === 'gathering'){
+    const sh = S.prof.shift && S.prof.shift[p.id];
+    const left = sh && sh.ends ? Math.max(0, (sh.ends - Date.now()) / 1000) : 0;
+    return left > 0 ? '\u23f1 Work shift \u00b7 ' + fmtDur(left)
+         : (sh && sh.ready ? '\u2705 Shift ready to collect' : '\u25cb No shift running');
+  }
+  if (p.kind === 'secondary'){
+    const have = matCount(p.bound), full = have >= p.storageCap;
+    return MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap +
+           (full ? ' \u2014 full, production paused' : ' \u00b7 +1 / ' + fmtDur(p.stationSecs));
+  }
+  const o = S.orders && S.orders[p.id];
+  if (o) return o.left > 0
+    ? '\ud83d\udd28 ' + craftOutcomeName(o.recipe) + ' \u00b7 ' + fmtDur(o.left)
+    : '\u2705 ' + craftOutcomeName(o.recipe) + ' ready';
+  const n = RECIPES.filter(r => r.prof === p.id && info.lvl >= r.lvl).length;
+  return '\u25cb Idle \u00b7 ' + n + ' recipe' + (n === 1 ? '' : 's') + ' available';
+}
+function profPanelCardHTML(p, linked){
+  const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
+  const col = PROF_COLOR[p.id] || 'var(--cyan)';
+  const pct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
+  const secondary = p.kind === 'secondary';
+  const canLink = p.kind !== 'crafting';
+  const o = S.orders && S.orders[p.id];
+  return '<div class="prof-card' + (linked ? ' linked' : '') + (secondary ? ' is-secondary' : '') +
+    '" data-prof="' + p.id + '">' +
+    '<div class="jc-link' + (linked ? ' on' : (canLink ? '' : ' off')) + '"' +
+      (canLink ? ' data-link="' + p.id + '"' : ' title="Crafting is recipe-driven"') + '>' +
+      'LINK<span class="lamp"></span></div>' +
+    '<div class="jc-ico" style="color:' + col + '">' + p.ico + '</div>' +
+    '<div class="jc-mid">' +
+      '<div><span class="jc-name" style="color:' + col + '">' +
+        (secondary ? p.station : p.name) + '</span>' +
+        (secondary ? '<span class="jc-tag">SECONDARY</span>' : '') + '</div>' +
+      '<div class="jc-lvl">Level ' + info.lvl + '</div>' +
+      '<div class="jc-line"><span class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span>' +
+        '<span class="jc-status">' + profCardStatus(p, info) + '</span></div>' +
+      '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+    '</div>' +
+    ((o && o.left <= 0)
+      ? '<div class="jc-btn" style="border-color:var(--green);color:var(--green)" data-claimorder="' + p.id + '">Collect</div>'
+      : '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>') +
+  '</div>';
+}
+let profCardSig = '';
+function profCardSignature(){
+  const mine = myMainProfs(), sec = mySecondaryProf();
+  return mine.map(p => p.id).join(',') + '|' + (sec ? sec.id : '-') + '|' + linkedProf() + '|' +
+    (S.orders ? Object.keys(S.orders).map(k => k + ':' + (S.orders[k].left > 0 ? 'run' : 'done')).join(',') : '');
+}
+function renderProfCards(force){
   const wrap = $('prof-cards'), sw = $('station-cards');
   if (!wrap) return;
   if (sw) sw.innerHTML = '';
-  const mine = myMainProfs(), sec = mySecondaryProf(), link = linkedProf();
-  let h = mine.map(p => profPanelCardHTML(p, p.id === link)).join('');
-  for (let i = mine.length; i < 2; i++)
-    h += '<div class="prof-card empty" data-pickprof="1">\uff0b Choose a main profession</div>';
-  h += sec ? profPanelCardHTML(sec, sec.id === link)
-           : '<div class="prof-card empty is-secondary" data-pickprof="1">\uff0b Choose a secondary profession</div>';
-  wrap.innerHTML = h;
+  const sig = profCardSignature();
+  if (force || sig !== profCardSig){
+    profCardSig = sig;
+    const mine = myMainProfs(), sec = mySecondaryProf(), link = linkedProf();
+    let h = mine.map(p => profPanelCardHTML(p, p.id === link)).join('');
+    for (let i = mine.length; i < 2; i++)
+      h += '<div class="prof-card empty" data-pickprof="1">\uff0b Choose a main profession</div>';
+    h += sec ? profPanelCardHTML(sec, sec.id === link)
+             : '<div class="prof-card empty is-secondary" data-pickprof="1">\uff0b Choose a secondary profession</div>';
+    wrap.innerHTML = h;
+  }
+  refreshProfCards();
+}
+/* Siffrorna och matarna, skrivna pa plats. Inga element byts ut har - darfor
+   overlever ett pagaende klick. */
+function refreshProfCards(){
+  const wrap = $('prof-cards');
+  if (!wrap) return;
+  wrap.querySelectorAll('.prof-card[data-prof]').forEach(card => {
+    const p = PROF_BY[card.dataset.prof];
+    if (!p) return;
+    const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
+    const pct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
+    const lvlEl = card.querySelector('.jc-lvl');
+    if (lvlEl) lvlEl.textContent = 'Level ' + info.lvl;
+    const xpEl = card.querySelector('.jc-xp');
+    if (xpEl) xpEl.textContent = fmt(info.into) + ' / ' + fmt(info.need) + ' XP';
+    const fill = card.querySelector('.jc-fill');
+    if (fill) fill.style.width = pct + '%';
+    const st = card.querySelector('.jc-status');
+    if (st) st.innerHTML = profCardStatus(p, info);
+  });
 }
 function renderProfessions(){
   const wrap = $('prof-grid'), cnt = $('prof-count');
