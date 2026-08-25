@@ -4166,7 +4166,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.17.0 — SKRÄP UR UPPDRAG</div>
+            <div class="desc">GENESIS v5.18.0 — HANTVERK GÅR ATT LÄNKA</div>
           </div>
         </div>
       </div>
@@ -4177,7 +4177,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.17.0 — SKRÄP UR UPPDRAG</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.18.0 — HANTVERK GÅR ATT LÄNKA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -9481,7 +9481,15 @@ function assistLinked(secs){
   const id = (typeof linkedProf === 'function') ? linkedProf() : null;
   if (!id) return;
   const p = PROF_BY[id];
-  if (!p || p.kind === 'crafting') return;   /* hantverk ar receptdrivet */
+  if (!p) return;
+  /* [ANDRAT v5.18.0] Hantverk tog emot hjalp forut inte alls. Nu kortar hallet
+     bestallningens tid - men BARA om en bestallning ar igang. Utan en gor noden
+     ingenting, och den skapar aldrig gear ur ingenting. */
+  if (p.kind === 'crafting'){
+    const o = S.orders && S.orders[id];
+    if (!o || o.left <= 0) return;
+    if (!NET.on) o.left = Math.max(0, o.left - secs);
+  }
   if (p.kind === 'gathering'){
     /* Offlinelage: passets klocka flyttas lokalt. I serverlage ar servern den
        som raknar - klienten samlar bara ihop och skickar i klump, precis som
@@ -15124,6 +15132,8 @@ function linkedProf(){
      hantverk ar receptdrivet och far aldrig komma ur ett hall. */
   const mine = myMainProfs().concat(mySecondaryProf() ? [mySecondaryProf()] : []);
   if (S.prof && S.prof.linked && mine.some(p => p.id === S.prof.linked)) return S.prof.linked;
+  /* Star inget valt tas ett samlaryrke forst - det arbetar alltid, medan ett
+     hantverksyrke bara gor nytta med en bestallning igang. */
   const gath = mine.filter(p => p.kind !== 'crafting');
   return gath.length ? gath[0].id : (mine.length ? mine[0].id : null);
 }
@@ -15360,7 +15370,11 @@ function profPanelCardHTML(p, linked){
   const col = PROF_COLOR[p.id] || 'var(--cyan)';
   const pct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
   const secondary = p.kind === 'secondary';
-  const canLink = p.kind !== 'crafting';
+  /* [ANDRAT v5.18.0] Hantverk gick INTE att lanka - fliken var slackt. Fel av
+     mig: planen sager att ett lankat hantverksyrke far 60 sekunder av
+     bestallningen per fullt hall. Servern har kunnat det hela tiden; det var
+     bara skarmen som vagrade. Alla tre sorter far lankas. */
+  const canLink = true;
   const o = S.orders && S.orders[p.id];
   return '<div class="prof-card' + (linked ? ' linked' : '') + (secondary ? ' is-secondary' : '') +
     '" data-prof="' + p.id + '">' +
@@ -15880,10 +15894,7 @@ document.addEventListener('click', e => {
   if (lk){
     const id = lk.dataset.link;
     if (!PROF_BY[id]) return;
-    if (PROF_BY[id].kind === 'crafting'){
-      say('Crafting is recipe-driven — the core cannot speed it up.');
-      return;
-    }
+
     S.prof.linked = id;
     save(); redrawAll(); updateUI(true);
     say('Core linked to ' + PROF_BY[id].name + '.');
