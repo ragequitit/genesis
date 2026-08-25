@@ -1417,8 +1417,29 @@ body.dragging *{cursor:grabbing !important}
    behover korten inte lamna plats at dem. */
 .prof-cards{padding-left:0}
 @media (max-width:760px){
+  /* ===== BREDDEN PA TELEFON (v5.26.0) =====
+     Sidan var 476 px bred pa en 390 px skarm, sa allt till hoger kapades. Skalet
+     stod i layoutens grid: tre kolumner med minsta bredd 320 px. Pa en telefon
+     finns bara en kolumn, och da maste minimibredden bort - annars tvingar den
+     fram en bredd skarmen inte har.
+     Reglerna galler BARA under 760 px. Datorn ror vi inte. */
+  html, body{max-width:100%; overflow-x:hidden}
+  .app{width:100%; max-width:100%; overflow-x:hidden}
+  .layout{grid-template-columns:1fr !important; min-width:0}
+  .layout > .col{min-width:0; max-width:100%}
+  /* min-width:auto ar grid- och flexboxarnas forval, och det ar DEN som vagrar
+     krympa ett barn under sitt innehall. Noll slapper fram krympningen. */
+  .layout *{min-width:0}
+  .topbar{flex-wrap:wrap; row-gap:8px}
   .prof-cards{padding-left:0}
-  .jc-link{position:static;transform:none;margin-right:2px}
+  /* Lankfliken hanger utanfor kanten pa datorn. Pa telefon far den inte gora
+     det - da ar det den som gor sidan for bred. Den star i raden i stallet. */
+  .prof-card{padding-left:12px}
+  .prof-card .jc-link{position:static; transform:none; flex:0 0 auto; padding:6px 7px}
+  .prof-card .jc-btn{padding:10px 13px}
+  /* Namnet fick krypa in under knappen. Mitten maste fa krympa, och langa namn
+     ska brytas i stallet for att svalla ut over grannen. */
+
 }
 .tab{padding:7px;text-align:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;background:var(--bg-inset)}
 .tab.active{background:rgba(56,232,255,.1);color:var(--cyan);font-weight:800}
@@ -1990,6 +2011,9 @@ body.modal-open{overflow:hidden}
 @media (max-width:760px) and (prefers-reduced-motion:reduce){
   .float-win.open{animation:none}
 }
+.off-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.off-row{font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--text)}
+.off-none{font-size:11.5px;color:var(--text-dim);line-height:1.5}
 .float-win{
   position:fixed;z-index:120;display:none;
   /* ingen fond, ingen oskärpa — sidan bakom lever vidare */
@@ -3388,6 +3412,22 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .gate-card:hover{transform:none}
 }
 
+
+/* ===== TELEFON, SIST AV ALLT (v5.26.0) =====
+   De har raderna maste sta EFTER kortens egna, annars vinner kortens - lika
+   stark regel, och den som star sist gar fore. Forsta forsoket lag hogre upp i
+   filen och slogs darfor ut utan att saga nagot.
+   JEWELCRAFTER ar ett enda ord pa tolv tecken. Ett ensamt ord bryts bara om
+   raden omkring far krympa, sa bade mitten och raden i den maste ha noll som
+   minsta bredd - annars sprack namnet ut over OPEN-knappen. */
+@media (max-width:760px){
+  .prof-card{gap:9px}
+  .prof-card .jc-mid{min-width:0; overflow:hidden}
+  .prof-card .jc-mid > div{min-width:0; max-width:100%}
+  .prof-card .jc-name{font-size:12px; display:block; overflow-wrap:anywhere; word-break:break-word}
+  .prof-card .jc-tag{display:block; margin-left:0}
+  .prof-card .jc-status, .prof-card .jc-xp{overflow-wrap:anywhere}
+}
 </style>
 </head>
 <body>
@@ -4269,7 +4309,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.24.0 — FÖNSTREN PÅ TELEFON</div>
+            <div class="desc">GENESIS v5.26.0 — BREDDEN PÅ TELEFON</div>
           </div>
         </div>
       </div>
@@ -4280,7 +4320,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.24.0 — FÖNSTREN PÅ TELEFON</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.26.0 — BREDDEN PÅ TELEFON</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4777,7 +4817,9 @@ async function netSync(){
     /* [ANDRAT v5.7.0] Hette 'tick' och betalade ut Data. Den ar riven; klockan
        heter arbetsklockan nu och mater bara tid. Den svarar med sekunderna, sa
        karaktarens tal hamtas separat direkt efterat. */
-    await srvRpc('work_clock', {p_character: SRV.charId, p_visible_secs: seen});
+    /* Klockans svar bar med sig VAD tiden gav - fynden och yrkesarbetet. Utan
+       det kunde valkomstrutan bara visa en klocka. */
+    const clock = await srvRpc('work_clock', {p_character: SRV.charId, p_visible_secs: seen});
     /* [TILLAGT v5.12.0] STATIONERNA HAMTAS IN. Serverfunktionen fanns, var
        provkord och raknade ratt - men INGENTING i spelet ropade pa den. Darfor
        stod Medical Bay och Fuel Refinery stilla och spelaren fick aldrig en enda
@@ -4785,7 +4827,7 @@ async function netSync(){
        Den lases in vid varje synk och vid varje inloggning. Klockan star pa
        servern, sa den har raknat aven medan man var borta - anropet hamtar bara
        hem det som redan hant. */
-    await netStationCollect();
+    const station = await netStationCollect();
     await netWorkOrders();
     /* [TILLAGT v5.19.0] YRKENAS XP HAMTADES ALDRIG I DEN VANLIGA SYNKEN.
        Den kom bara vid inloggning eller nar man rorde ett yrke - och darfor stod
@@ -4797,7 +4839,14 @@ async function netSync(){
       /* Forsta synken efter inloggning: skillnaden ar exakt det maskinerna
          tjanade medan man var borta - serverns tal, inte klientens gissning. */
       if (firstSync && NET.awaySecs > 120){
-        showOffline({away: NET.awaySecs, capped: NET.awaySecs});
+        showOffline({
+          away: NET.awaySecs,
+          capped: clock ? (+clock.away || NET.awaySecs) : NET.awaySecs,
+          drops: clock ? clock.drops : null,
+          orders: clock ? clock.orders : null,
+          station: station && station.units > 0
+            ? {prof: station.prof, units: station.units} : null
+        });
       }
       NET.synced = true;
       S.gold  = +row.gold_copper || S.gold;
@@ -12661,11 +12710,32 @@ function refreshPremiumOffline(){
 /* ---------- VÄLKOMMEN TILLBAKA ---------- */
 const offlineOverlay = $('offline-overlay');
 function showOffline(o){
+  /* [OMSKRIVET v5.25.0] Rutan sa "28m of work" och ingenting annat. Det ar inte
+     en belening, det ar en klocka - och spelaren sag inte ett enda av de fynd
+     hen faktiskt fatt. Nu star det VAD man fick: fynden, yrkesarbetet och de
+     bestallningar som gatt framat. Har man inget yrke igang star det ocksa, i
+     ord, i stallet for att rutan ser tom och trasig ut. */
+  const lines = [];
+  if (o.drops) Object.keys(o.drops).forEach(k => {
+    const m = MATERIALS[k];
+    lines.push((m ? m.ico + ' ' + m.name : k) + ' \u00d7' + o.drops[k]);
+  });
+  if (o.orders) Object.keys(o.orders).forEach(pr => {
+    const p = PROF_BY[pr];
+    lines.push('\ud83d\udd28 ' + (p ? p.name : pr) + ' \u00b7 ' + fmtDur(o.orders[pr]) + ' of the order done');
+  });
+  if (o.station && o.station.units > 0){
+    const p = PROF_BY[o.station.prof];
+    const m = p ? MATERIALS[p.bound] : null;
+    lines.push((m ? m.ico + ' ' + m.name : 'Supplies') + ' \u00d7' + o.station.units);
+  }
   $('offline-text').innerHTML =
     'You were away for <b>' + fmtDur(o.away) + '</b>' +
-    (o.capped < o.away ? ' (counted: ' + fmtDur(o.capped) + ' — offline cap ' + offlineCapHours() + 'h)' : '') +
-    '<br>Your professions kept working at <b>' + Math.round(offlineRate() * 100) + '%</b> rate.';
-  $('offline-gain').textContent = fmtDur(o.capped) + ' of work';
+    (o.capped < o.away ? ' \u2014 counted ' + fmtDur(o.capped) + ', the offline cap is ' + offlineCapHours() + 'h' : '') +
+    '<br>Your professions worked at <b>' + Math.round(offlineRate() * 100) + '%</b> while you were gone.';
+  $('offline-gain').innerHTML = lines.length
+    ? '<div class="off-list">' + lines.map(t => '<div class="off-row">' + t + '</div>').join('') + '</div>'
+    : '<div class="off-none">Nothing came in \u2014 start a shift or a work order before you leave.</div>';
   offlineOverlay.classList.add('open');
   const collect = () => {
     /* SERVERLAGE: pengarna ar REDAN utbetalda av serverns forsta tick - rutan
