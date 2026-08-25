@@ -1293,6 +1293,29 @@ body.dragging *{cursor:grabbing !important}
 #panel-professions .prof-cards{overflow:visible}
 .prof-card .jc-link{z-index:5}
 /* Rullhjulet i maskinrutan tar mindre steg. Bara mushjul — pekrullning rörs inte. */
+/* ===== BONUSFYND (v5.15.0) =====
+   De flyger ut fran noden eller ett yrkeskort, svavar atta sekunder och maste
+   KLICKAS. Missar man dem forsvinner de - det ar hela poangen, och darfor far
+   de aldrig bara sadant man inte har rad att missa. Vanliga fynd samlas in av
+   sig sjalva och ligger kvar i vaskan; de har ar en bonus ovanpa. */
+.bonus-find{
+  position:fixed;z-index:9000;cursor:pointer;user-select:none;
+  display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;
+  background:linear-gradient(180deg, rgba(20,28,52,.97), rgba(11,16,36,.97));
+  border:1px solid var(--cyan);box-shadow:0 0 20px -4px var(--cyan), 0 6px 18px rgba(0,0,0,.5);
+  font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--text);
+  animation:bfIn .35s ease-out, bfFloat 2.6s ease-in-out .35s infinite;
+}
+.bonus-find .bf-ico{font-size:17px}
+.bonus-find:hover{border-color:#fff}
+.bonus-find.going{animation:bfOut .35s ease-in forwards}
+/* Sista tva sekunderna blinkar den, sa man hinner reagera innan den ar borta. */
+.bonus-find.soon{animation:bfIn .35s ease-out, bfBlink .5s steps(2) .35s infinite}
+@keyframes bfIn{from{opacity:0;transform:scale(.5) translateY(14px)}to{opacity:1;transform:none}}
+@keyframes bfOut{to{opacity:0;transform:scale(.7) translateY(-18px)}}
+@keyframes bfFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes bfBlink{0%{opacity:1}100%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){ .bonus-find{animation:none} }
 /* ===== YRKESKORTEN (v5.10.0) =====
    OMBYGGT efter spelarens skiss: breda rader under varandra, inte tva smala
    kolumner. Varje rad har ikonen till vanster, namn och niva bredvid, XP-mataren
@@ -3901,6 +3924,22 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
        kopen rakans fortfarande men det fanns ingen knapp. De bor har tills
        vidare, med SAMMA id:n som forut, sa koden som bygger dem hittar hem
        utan att en rad av den behover andras. -->
+  <!-- ===== STATIONSSIDAN (v5.14.0) =====
+       Sidoyrkets egen sida: niva, XP, lagret mot taket, takten, tiden till
+       nasta enhet, recepten med vad som saknas, och en knapp som gor varan.
+       Kortet visade bara en siffra; har ar hela yrket. -->
+  <div class="float-win" id="station-overlay">
+    <div class="modal inv-modal prof-modal">
+      <div class="inv-emblem"><span id="station-emblem">&#129657;</span></div>
+      <div class="inv-titlebar">
+        <span class="inv-title" id="station-title">Station</span>
+        <span class="inv-capline" id="station-cap"></span>
+        <button class="inv-x" id="station-close">&#10005;</button>
+      </div>
+      <div class="pets-scroll" style="padding:12px" id="station-body"></div>
+    </div>
+  </div>
+
   <div class="float-win" id="shop-overlay">
     <div class="modal inv-modal prof-modal">
       <div class="inv-emblem"><span class="qi qi-shop"></span></div>
@@ -4127,7 +4166,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.12.0 — STATIONERNA ARBETAR</div>
+            <div class="desc">GENESIS v5.15.0 — BONUSFYND</div>
           </div>
         </div>
       </div>
@@ -4138,7 +4177,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.12.0 — STATIONERNA ARBETAR</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.15.0 — BONUSFYND</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4582,6 +4621,27 @@ async function netPull(){
 /* En synk: servern rullar tiden framat och svarar med sanningen. */
 /* Hamtar in det sidoyrkets station producerat. Tyst: har spelaren inget
    sidoyrke, eller star stationen still, hander ingenting. */
+/* HANTVERKETS BESTALLNINGAR (v5.13.0). En per yrke. Materialet dras nar den
+   startas, produkten hamtas nar tiden gatt. */
+async function netWorkOrders(){
+  if (!NET.on || !SRV.charId) return null;
+  try {
+    const rows = await srvSelect('work_orders',
+      'character_id=eq.' + SRV.charId + '&select=prof,recipe_id,secs_total,secs_left');
+    S.orders = {};
+    (rows || []).forEach(r => { S.orders[r.prof] = {
+      recipe: r.recipe_id, total: +r.secs_total, left: +r.secs_left, at: Date.now()}; });
+    return rows;
+  } catch (e){ return null; }
+}
+async function netClaimOrder(prof){
+  if (!NET.on) return null;
+  return srvRpc('claim_work_order', {p_character: SRV.charId, p_prof: prof});
+}
+async function netCancelOrder(prof){
+  if (!NET.on) return null;
+  return srvRpc('cancel_work_order', {p_character: SRV.charId, p_prof: prof});
+}
 async function netStationCollect(){
   if (!NET.on || !SRV.charId) return null;
   const sec = mySecondaryProf();
@@ -4623,6 +4683,7 @@ async function netSync(){
        servern, sa den har raknat aven medan man var borta - anropet hamtar bara
        hem det som redan hant. */
     await netStationCollect();
+    await netWorkOrders();
     const row = await srvCharacterRow();
     if (row){
       /* Forsta synken efter inloggning: skillnaden ar exakt det maskinerna
@@ -5444,12 +5505,15 @@ async function netRenamePet(pet, name){
 async function netPullProfessions(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('character_professions',
-    'character_id=eq.' + SRV.charId + '&select=prof,xp,gather_since');
+    'character_id=eq.' + SRV.charId + '&select=prof,xp,gather_since,station_at');
   S.prof = S.prof || {};
   S.prof.known = {};
   S.prof.shift = S.prof.shift || {};
   (rows || []).forEach(r => {
     S.prof.known[r.prof] = {xp: +r.xp || 0};
+    /* Stationsklockan (v5.14.0): tidpunkten fram till vilken ravaran ar
+       utbetald. Utan den kan sidan inte saga nar nasta enhet kommer. */
+    if (r.station_at) S.prof.known[r.prof].stationAt = new Date(r.station_at).getTime();
     /* PAGAENDE ARBETSPASS. Servern minns nar det borjade; klienten gjorde det
        inte, sa efter en omladdning stod det "Start working" pa nagot som redan
        var igang - och trycket avvisades tyst av servern. */
@@ -6390,6 +6454,15 @@ function recipeItemName(rid){
   if (!r) return 'Unknown Recipe';
   const nm = r.name || (ITEMS[r.item] ? ITEMS[r.item].name : r.item);
   return 'Recipe: ' + nm;
+}
+/* Vad receptet GOR, med foremalets namn. recipeItemName satter "Recipe:" framfor
+   och beskriver receptrullen - en helt annan sak, och fel pa en stationssida. */
+function craftOutcomeName(rid){
+  const r = RECIPE_BY[rid];
+  if (!r) return '';
+  const D = ITEMS[r.item], C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[r.item]),
+        M = MATERIALS[r.item], F = FLASKS && FLASKS[r.item];
+  return (D && D.name) || (C && C.name) || (M && M.name) || (F && F.name) || r.item;
 }
 function giveRecipeItem(rid){
   const r = RECIPE_BY[rid];
@@ -8000,6 +8073,7 @@ let S = {
   bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
   vend: {},                     // handlarnas lager per region + deras klockor
   rep: {voxholm: 0},    // sekunder av närvaro per region-id
+  orders: {},          /* hantverkets bestallningar, en per yrke (v5.13.0) */
   world: {current: 'voxholm', known: ['voxholm'], visited: ['voxholm'], zonesSeen: [], zone: null, travel: null},
   /* Dronaren som kartlagger EN zon at gangen. null = ingen ute. */
   zoneScan: null,
@@ -11958,6 +12032,12 @@ function loopBody(now){
   /* [BORTTAGET v5.3.0] Har rakans den passiva Data-inkomsten fram, i bada
      lagen. Det finns ingen produktion och ingen Data. Synken behovs anda -
      servern ar fortfarande sanningen om allt annat. */
+  /* Bestallningarna rakans ned lokalt sa mataren ror sig mjukt. Servern ager
+     talet - vid varje synk ersatts det lokala. */
+  if (S.orders) Object.keys(S.orders).forEach(k => {
+    const o = S.orders[k];
+    if (o.left > 0) o.left = Math.max(0, o.left - dt);
+  });
   if (NET.on && Date.now() - NET.lastSync > NET.syncEvery) netSync();
 
   // Närvaro-XP och rykte: räknas medan sidan är synlig
@@ -12046,6 +12126,7 @@ function redrawAll(){
   call(renderHelperSlots);
   call(renderProfessions);
   call(renderProfCards);
+  call(renderStation);
   /* [BUGG] RECEPTBOKEN STOD INTE HAR. Den ritades bara om av craftandet sjalvt,
      sa allt ANNAT som andrar materialet - ett kop hos handlaren, ett uppdrag
      som landar, en vara fran auktionen - lamnade raderna kvar i sitt gamla
@@ -15039,8 +15120,18 @@ function profPanelCardHTML(p, linked){
     status = MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap +
              (full ? ' \u2014 full, production paused' : ' \u00b7 +1 / ' + fmtDur(p.stationSecs));
   } else {
-    const n = RECIPES.filter(r => r.prof === p.id && info.lvl >= r.lvl).length;
-    status = '\ud83d\udd28 ' + n + ' recipe' + (n === 1 ? '' : 's') + ' available';
+    /* [ANDRAT v5.13.0] Hantverkaren visar sin BESTALLNING nar en ar igang -
+       vad den gor och hur lang tid som ar kvar. Utan en bestallning gor ett
+       hantverksyrke ingenting, och da sager kortet det. */
+    const o = S.orders && S.orders[p.id];
+    if (o){
+      status = o.left > 0
+        ? '\ud83d\udd28 ' + craftOutcomeName(o.recipe) + ' \u00b7 ' + fmtDur(o.left)
+        : '\u2705 ' + craftOutcomeName(o.recipe) + ' ready';
+    } else {
+      const n = RECIPES.filter(r => r.prof === p.id && info.lvl >= r.lvl).length;
+      status = '\u25cb Idle \u00b7 ' + n + ' recipe' + (n === 1 ? '' : 's') + ' available';
+    }
   }
   /* Hantverk kan inte lankas - noden far aldrig trycka fram fardigt gear ur ett
      hall. Fliken star kvar men slackt, sa raden ser likadan ut pa alla kort. */
@@ -15060,9 +15151,209 @@ function profPanelCardHTML(p, linked){
         '<span class="jc-status">' + status + '</span></div>' +
       '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
     '</div>' +
-    '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>' +
+    (function(){
+      const o = S.orders && S.orders[p.id];
+      if (o && o.left <= 0)
+        return '<div class="jc-btn" style="border-color:var(--green);color:var(--green)" ' +
+               'data-claimorder="' + p.id + '">Collect</div>';
+      return '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>';
+    })() +
   '</div>';
 }
+/* ===== STATIONSSIDAN (v5.14.0) =====
+   Sidoyrkets egen sida. Kortet visade en siffra; har star hela yrket: takten,
+   tiden till nasta enhet, recepten och vad som saknas.
+   Talen kommer fran SAMMA konfiguration som servern raknar med - takt och tak
+   star i yrkeslistan, inte utspridda har. */
+let stationRef = null;
+function stationNextIn(p){
+  /* Sekunder till nasta enhet. Stationsklockan star pa servern; det klienten
+     har ar tidpunkten fram till vilken ravaran ar utbetald. */
+  const k = (S.prof.known[p.id] || {});
+  if (!k.stationAt) return null;
+  const gone = (Date.now() - k.stationAt) / 1000;
+  const per = p.stationSecs;
+  return Math.max(0, per - (gone % per));
+}
+function stationBodyHTML(p){
+  const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
+  const col = PROF_COLOR[p.id] || 'var(--cyan)';
+  const have = matCount(p.bound), cap = p.storageCap;
+  const full = have >= cap;
+  const next = stationNextIn(p);
+  const pct = Math.min(100, Math.round(100 * have / cap));
+  const xpPct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
+
+  let h = '<div class="kv"><span class="k">Level</span><span class="v" style="color:' + col + '">' + info.lvl + '</span></div>' +
+    '<div class="jc-bar" style="margin:4px 0 3px"><div class="jc-fill" style="width:' + xpPct + '%;background:' + col + '"></div></div>' +
+    '<div class="jc-xp" style="margin-bottom:10px">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</div>';
+
+  h += '<div class="section-label">Store</div>' +
+    '<div class="kv"><span class="k">' + MATERIALS[p.bound].name + '</span><span class="v" style="color:' + col + '">' +
+      have + ' / ' + cap + '</span></div>' +
+    '<div class="jc-bar" style="margin:4px 0 8px"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+    '<div class="kv"><span class="k">Production rate</span><span class="v">1 per ' + fmtDur(p.stationSecs) + '</span></div>' +
+    '<div class="kv"><span class="k">Next unit</span><span class="v">' +
+      (full ? 'Store full — paused' : (next === null ? 'Starts on your next sync' : fmtDur(next))) +
+    '</span></div>' +
+    '<div class="shelf-empty" style="margin:8px 0 2px">Bound to you. It cannot be sold or listed, and it keeps working while you are away.</div>';
+
+  /* RECEPTEN. Vad som saknas star i rott, sa man ser varfor knappen ar slack. */
+  h += '<div class="section-label" style="margin-top:12px">Recipes</div>';
+  const list = RECIPES.filter(r => r.prof === p.id);
+  h += list.map(r => {
+    const locked = info.lvl < r.lvl;
+    const costs = Object.keys(r.cost).map(k => {
+      const need = r.cost[k], got = matCount(k), ok = got >= need;
+      return '<span class="pf-tag" style="' + (ok ? '' : 'color:var(--red);border-color:var(--red)') + '">' +
+        MATERIALS[k].ico + ' ' + need + ' ' + MATERIALS[k].name + (ok ? '' : ' (' + got + ')') + '</span>';
+    }).join('');
+    const canMake = !locked && canAfford(r.id);
+    return '<div class="region-zone" style="display:block;padding:9px 10px;margin-bottom:7px">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<b style="flex:1">' + craftOutcomeName(r.id) + '</b>' +
+        (locked
+          ? '<span class="jc-xp">Level ' + r.lvl + '</span>'
+          : '<button class="jc-btn" style="margin:0;padding:7px 14px' + (canMake ? '' : ';opacity:.4') + '" ' +
+            (canMake ? 'data-stationcraft="' + r.id + '"' : 'disabled') + '>Craft</button>') +
+      '</div>' +
+      '<div class="pf-tags" style="margin-top:6px">' + costs + '</div>' +
+    '</div>';
+  }).join('');
+  return h;
+}
+function openStation(profId){
+  const p = PROF_BY[profId];
+  if (!p || p.kind !== 'secondary') return;
+  stationRef = profId;
+  $('station-emblem').textContent = p.ico;
+  $('station-title').textContent = p.station;
+  $('station-cap').textContent = MATERIALS[p.bound].name + ' ' + matCount(p.bound) + ' / ' + p.storageCap;
+  $('station-body').innerHTML = stationBodyHTML(p);
+  const w = $('station-overlay');
+  w.classList.add('open');
+  bringToFront(w);
+}
+function renderStation(){
+  if (!stationRef) return;
+  const w = $('station-overlay');
+  if (!w || !w.classList.contains('open')) return;
+  openStation(stationRef);
+}
+if ($('station-close')) $('station-close').addEventListener('click', () => {
+  $('station-overlay').classList.remove('open'); stationRef = null;
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-stationcraft]');
+  if (!b) return;
+  const rid = b.dataset.stationcraft;
+  if (NET.on){
+    netCraft(rid).then(() => { netPullItems().then(() => { redrawAll(); renderStation(); }); })
+      .catch(err => say(srvErrText(err, 'Could not make that.')));
+  } else {
+    craftRecipe(rid); redrawAll(); renderStation();
+  }
+});
+
+/* ===== BONUSFYND (v5.15.0) =====
+   Sorterna star pa SERVERN, och den avgor bade om spelaren far fyndet och hur
+   mycket. Klienten valjer bara vilket den VISAR - servern nekar allt som hor
+   till ett yrke karaktaren inte har.
+   Reglerna: bara medan sidan syns, aldrig offline, atta sekunder, maste klickas. */
+const BONUS_FIND_EVERY = [70, 150];      /* sekunder mellan forsok - platshallare */
+const BONUS_FIND_LIFE  = 8000;           /* atta sekunder, spelarens regel */
+const BONUS_FIND_ICONS = {
+  material_mining: {ico:'\u26cf\ufe0f', text:'Mining find'},
+  material_synth:  {ico:'\ud83e\uddf5', text:'Synthetics find'},
+  scrap:           {ico:'\ud83d\udd29', text:'Scrap'},
+  bound_medic:     {ico:'\ud83e\ude79', text:'Medical Supplies'},
+  bound_refiner:   {ico:'\u26fd',        text:'Crude Fuel'},
+  prof_xp:         {ico:'\u2728',        text:'Profession XP'},
+  order_speed:     {ico:'\u23e9',        text:'Order time'}
+};
+/* Vilka sorter som far dyka upp for DEN HAR spelaren. Samma villkor som servern
+   provar - star de pa tva stallen ska de saga samma sak, och det gor de. */
+function bonusFindPool(){
+  const out = [];
+  if (!S.prof || !S.prof.known) return out;
+  if (S.prof.known.mining)     out.push('material_mining');
+  if (S.prof.known.synthetics) out.push('material_synth');
+  if (S.prof.known.medic)      out.push('bound_medic');
+  if (S.prof.known.refiner)    out.push('bound_refiner');
+  if (Object.keys(S.prof.known).length){ out.push('scrap'); out.push('prof_xp'); }
+  if (S.orders && Object.keys(S.orders).some(k => S.orders[k].left > 0)) out.push('order_speed');
+  return out;
+}
+function spawnBonusFind(){
+  if (document.visibilityState !== 'visible') return;
+  const pool = bonusFindPool();
+  if (!pool.length) return;
+  const kind = pool[Math.floor(Math.random() * pool.length)];
+  const def = BONUS_FIND_ICONS[kind];
+  /* Den flyger ut fran noden, eller fran yrkeskortet nar fyndet hor till ett
+     yrke - da ser man VARIFRAN det kom. */
+  let host = document.getElementById('core-wrap');
+  const profOf = {material_mining:'mining', material_synth:'synthetics',
+                  bound_medic:'medic', bound_refiner:'refiner'}[kind];
+  if (profOf){
+    const card = document.querySelector('.prof-card[data-prof="' + profOf + '"]');
+    if (card) host = card;
+  }
+  if (!host) return;
+  const r = host.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'bonus-find';
+  el.innerHTML = '<span class="bf-ico">' + def.ico + '</span>' + def.text;
+  document.body.appendChild(el);
+  const w = el.offsetWidth || 140;
+  el.style.left = Math.max(8, Math.min(window.innerWidth - w - 8,
+                    r.left + r.width / 2 - w / 2 + (Math.random() * 60 - 30))) + 'px';
+  el.style.top  = Math.max(8, r.top + r.height / 2 - 60) + 'px';
+
+  let done = false;
+  const kill = () => { if (done) return; done = true;
+    el.classList.add('going'); setTimeout(() => el.remove(), 350); };
+  /* Blinkar sista tva sekunderna. Ett fynd som bara forsvinner kanns som en bugg;
+     ett som varnar kanns som ett val. */
+  setTimeout(() => { if (!done) el.classList.add('soon'); }, BONUS_FIND_LIFE - 2000);
+  setTimeout(kill, BONUS_FIND_LIFE);
+  el.addEventListener('click', () => {
+    if (done) return;
+    done = true; el.classList.add('going'); setTimeout(() => el.remove(), 350);
+    claimBonusFind(kind);
+  });
+}
+function claimBonusFind(kind){
+  if (NET.on){
+    srvRpc('bonus_find_claim', {p_character: SRV.charId, p_kind: kind})
+      .then(r => {
+        if (!r) return;
+        const name = r.key ? (MATERIALS[r.key] ? MATERIALS[r.key].name : r.key)
+                   : (r.prof && PROF_BY[r.prof] ? PROF_BY[r.prof].name + ' XP' : 'Order time');
+        say('+' + r.amount + ' ' + name + (r.kind === 'order_speed' ? 's off the order' : ''));
+        netPullItems().then(() => redrawAll());
+      })
+      .catch(() => {});
+    return;
+  }
+  /* Offlinelage: samma sorter, enkel utdelning. Servern ar sanningen nar den finns. */
+  const n = 3 + Math.floor(Math.random() * 6);
+  if (kind === 'scrap'){ giveMaterial('salvaged_scrap', n); say('+' + n + ' Scrap'); }
+  else if (kind === 'material_mining'){ const k = pickCoreMat('mining', regionTier()); giveMaterial(k, n); say('+' + n + ' ' + MATERIALS[k].name); }
+  else if (kind === 'material_synth'){ const k = pickCoreMat('synthetics', regionTier()); giveMaterial(k, n); say('+' + n + ' ' + MATERIALS[k].name); }
+  else if (kind === 'bound_medic'){ giveMaterial('medical_supplies', n); say('+' + n + ' Medical Supplies'); }
+  else if (kind === 'bound_refiner'){ giveMaterial('crude_fuel', n); say('+' + n + ' Crude Fuel'); }
+  else say('+' + n);
+  redrawAll();
+}
+/* Slumpad tid mellan forsoken, och BARA medan sidan syns. Timern startas om
+   varje gang, sa den kan inte ligga och lopa i en dold flik. */
+(function bonusFindLoop(){
+  const wait = (BONUS_FIND_EVERY[0] + Math.random() *
+                (BONUS_FIND_EVERY[1] - BONUS_FIND_EVERY[0])) * 1000;
+  setTimeout(() => { spawnBonusFind(); bonusFindLoop(); }, wait);
+})();
+
 function renderProfCards(){
   /* [ANDRAT v5.10.0] Sidoyrket hade en egen ruta under rubriken SERVICE STATION.
      Nu ar det ett kort i samma lista, markt SECONDARY - spelarens skiss: tre
@@ -15501,12 +15792,34 @@ function closeProfessions(){ $('prof-overlay').classList.remove('open'); }
    det noden hjalper nar man haller den. Bara huvudyrken gar att lanka. */
 document.addEventListener('click', e => {
   const btn = e.target.closest('[data-openprof]');
-  if (btn){ openProfessions(); return; }
+  if (btn){
+    /* [ANDRAT v5.14.0] Sidoyrket har en EGEN sida - stationen - i stallet for
+       det gemensamma yrkesfonstret. */
+    const id = btn.dataset.openprof;
+    if (PROF_BY[id] && PROF_BY[id].kind === 'secondary'){ openStation(id); return; }
+    openProfessions(); return;
+  }
   /* [ANDRAT v5.8.0] Plustecknet oppnade bara fonstret, och man fick klicka en
      gang till. Nu gar det rakt till valet - det var det plustecknet lovade. */
   if (e.target.closest('[data-pickprof]')){ openProfessions(); profScene = 'pick'; renderProfessions(); return; }
   /* [ANDRAT v5.8.0] Lankningen satt pa HELA kortet och syntes inte. Nu ar den en
      egen knapp som sager Link, och det lankade kortet sager Linked. */
+  const cl = e.target.closest('[data-claimorder]');
+  if (cl){
+    const prof = cl.dataset.claimorder;
+    if (NET.on){
+      netClaimOrder(prof).then(r => {
+        delete S.orders[prof];
+        say('Collected ' + craftedName(r && r.crafted) + '.');
+        netPullItems().then(() => redrawAll());
+      }).catch(err => say(srvErrText(err, 'Could not collect it.')));
+    } else {
+      /* Offlinelage: samma utfall som servern ger, via den vanliga vagen. */
+      const o = S.orders[prof];
+      if (o){ delete S.orders[prof]; craftRecipe(o.recipe, true); redrawAll(); }
+    }
+    return;
+  }
   const lk = e.target.closest('[data-link]');
   if (lk){
     const id = lk.dataset.link;
