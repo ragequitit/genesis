@@ -1286,7 +1286,12 @@ body.dragging *{cursor:grabbing !important}
 /* Fast höjd på flikinnehållet i maskinramen: panelen står stilla oavsett flik */
 /* En enda rullyta: panelen rullar, flikytan är sitt innehåll. Två kapslade
    rullytor gav kedjad rullning som kastade en genom hela listan i ett steg. */
-#panel-professions{overflow:visible}
+/* [ANDRAT v5.11.0] Panelen klippte allt utanfor sin kant, sa lankflikarna - som
+   ska hanga UTANFOR, over nodens ruta - blev bortskurna. Bada leden maste sta,
+   annars ater den ena den andra. */
+#panel-professions{overflow:visible !important}
+#panel-professions .prof-cards{overflow:visible}
+.prof-card .jc-link{z-index:5}
 /* Rullhjulet i maskinrutan tar mindre steg. Bara mushjul — pekrullning rörs inte. */
 /* ===== YRKESKORTEN (v5.10.0) =====
    OMBYGGT efter spelarens skiss: breda rader under varandra, inte tva smala
@@ -1295,12 +1300,18 @@ body.dragging *{cursor:grabbing !important}
    en lampa som lyser nar yrket ar lankat till noden.
    Klassnamnen borjar med jc- och inte pc-: pc- ar husdjurskortens, och de
    reglerna slog igenom har forra gangen. */
-.prof-cards{display:flex;flex-direction:column;gap:10px}
+.prof-cards{display:flex;flex-direction:column;gap:12px;min-height:330px}
 .prof-card{
   background:var(--bg-inset);border:1px solid var(--border);border-radius:12px;
-  padding:11px 12px 11px 14px;display:flex;align-items:center;gap:11px;
-  position:relative;min-height:74px;
+  padding:16px 16px;display:flex;align-items:center;gap:14px;
+  position:relative;
+  /* HUVUDYRKENA ar de stora - de far vaxa och fylla rutan. Sidoyrket star
+     kvar i sin lagre hojd, sa man ser pa formen vilket som ar vilket. */
+  flex:1 1 0;min-height:104px;
 }
+.prof-card.is-secondary{flex:0 0 auto;min-height:74px;padding:12px 16px}
+.prof-card.is-secondary .jc-ico{width:44px;height:44px;flex:0 0 44px;font-size:22px}
+.prof-card.is-secondary .jc-name{font-size:13px}
 .prof-card.linked{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(56,232,255,.35), inset 0 0 30px rgba(56,232,255,.05)}
 /* LANK-fliken sitter UTANFOR kortet, som en knapp man trycker in. */
 .jc-link{
@@ -1314,10 +1325,10 @@ body.dragging *{cursor:grabbing !important}
 .jc-link.on{color:var(--cyan);border-color:var(--cyan-dim)}
 .jc-link.on .lamp{background:#2ecc71;box-shadow:0 0 8px rgba(46,204,113,.9)}
 .jc-link.off{opacity:.35;cursor:default}
-.prof-card .jc-ico{width:46px;height:46px;flex:0 0 46px;border-radius:10px;display:grid;place-items:center;
-  font-size:23px;background:rgba(255,255,255,.05);border:1px solid var(--border)}
+.prof-card .jc-ico{width:56px;height:56px;flex:0 0 56px;border-radius:12px;display:grid;place-items:center;
+  font-size:28px;background:rgba(255,255,255,.05);border:1px solid var(--border)}
 .prof-card .jc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
-.prof-card .jc-name{font-size:13px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;line-height:1.1}
+.prof-card .jc-name{font-size:15px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;line-height:1.1}
 .prof-card .jc-lvl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
 .prof-card .jc-tag{font-size:8px;letter-spacing:.16em;color:var(--text-faint);margin-left:7px}
 .prof-card .jc-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -1333,7 +1344,10 @@ body.dragging *{cursor:grabbing !important}
 .prof-card .jc-btn:hover{background:rgba(56,232,255,.12);border-color:var(--cyan-dim)}
 .prof-card.empty{border-style:dashed;justify-content:center;color:var(--text-faint);
   font-size:10.5px;letter-spacing:.05em;cursor:pointer;min-height:64px}
-.prof-cards{padding-left:58px}      /* plats at lank-flikarna */
+/* [ANDRAT v5.11.0] Korten tar HELA bredden. Lankflikarna hanger utanfor rutans
+   vanstra kant, over nodens panel - det ar dar spelaren ville ha dem, och da
+   behover korten inte lamna plats at dem. */
+.prof-cards{padding-left:0}
 @media (max-width:760px){
   .prof-cards{padding-left:0}
   .jc-link{position:static;transform:none;margin-right:2px}
@@ -4113,7 +4127,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.10.0 — YRKESKORTEN</div>
+            <div class="desc">GENESIS v5.11.0 — BREDA KORT</div>
           </div>
         </div>
       </div>
@@ -4124,7 +4138,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.10.0 — YRKESKORTEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.11.0 — BREDA KORT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -15000,7 +15014,8 @@ function profPanelCardHTML(p, linked){
   /* Hantverk kan inte lankas - noden far aldrig trycka fram fardigt gear ur ett
      hall. Fliken star kvar men slackt, sa raden ser likadan ut pa alla kort. */
   const canLink = p.kind !== 'crafting';
-  return '<div class="prof-card' + (linked ? ' linked' : '') + '" data-prof="' + p.id + '">' +
+  return '<div class="prof-card' + (linked ? ' linked' : '') + (secondary ? ' is-secondary' : '') +
+    '" data-prof="' + p.id + '">' +
     '<div class="jc-link' + (linked ? ' on' : (canLink ? '' : ' off')) + '"' +
       (canLink ? ' data-link="' + p.id + '"' : ' title="Crafting is recipe-driven"') + '>' +
       'LINK<span class="lamp"></span></div>' +
@@ -15029,7 +15044,7 @@ function renderProfCards(){
   for (let i = mine.length; i < 2; i++)
     h += '<div class="prof-card empty" data-pickprof="1">\uff0b Choose a main profession</div>';
   h += sec ? profPanelCardHTML(sec, sec.id === link)
-           : '<div class="prof-card empty" data-pickprof="1">\uff0b Choose a secondary profession</div>';
+           : '<div class="prof-card empty is-secondary" data-pickprof="1">\uff0b Choose a secondary profession</div>';
   wrap.innerHTML = h;
 }
 function renderProfessions(){
