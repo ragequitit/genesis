@@ -1312,6 +1312,9 @@ body.dragging *{cursor:grabbing !important}
 .prof-card .jc-fill{height:100%;border-radius:4px;transition:width .3s}
 .prof-card .jc-xp{font-size:9px;color:var(--text-faint);letter-spacing:.04em}
 .prof-card .jc-status{font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:5px;margin-top:auto}
+.prof-card .jc-row{display:flex;gap:6px;margin-top:6px}
+.prof-card .jc-row .jc-btn{flex:1;margin-top:0}
+.jc-btn.on{background:rgba(56,232,255,.16);border-color:var(--cyan);color:var(--cyan)}
 .prof-card .jc-btn{
   margin-top:6px;padding:7px;border-radius:7px;text-align:center;cursor:pointer;
   font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
@@ -4104,7 +4107,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.7.0 — KLIENTEN MOT NYA SERVERN</div>
+            <div class="desc">GENESIS v5.8.0 — LÄNKA OCH VÄLJA</div>
           </div>
         </div>
       </div>
@@ -4115,7 +4118,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.7.0 — KLIENTEN MOT NYA SERVERN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.8.0 — LÄNKA OCH VÄLJA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -14604,12 +14607,12 @@ function renderPetPanel(){
     const p = teamAt(i);
     if (p){
       n++;
-      html += '<div class="echo-slot haspet" title="' + petName(p) + '"' +
+      html += '<div class="echo-slot haspet" data-teamslot="' + i + '" data-teampet="' + p.uid + '" title="' + petName(p) + ' — click to change"' +
               ' style="border-color:' + rarCol(p.rar) + ';box-shadow:0 0 12px -4px ' + rarCol(p.rar) + '">' +
               '<div class="pet-sprite" style="' + petSpriteVars(p.sp, 64) + ';border-color:' + rarCol(p.rar) + '">' +
               PETS[p.sp].name[0] + '</div></div>';
     } else {
-      html += '<div class="echo-slot empty" title="Empty helper slot">\uff0b</div>';
+      html += '<div class="echo-slot empty" data-teamslot="' + i + '" title="Choose a helper">\uff0b</div>';
     }
   }
   /* Lasta platser visas, sa man ser att de FINNS och vad som oppnar dem. */
@@ -14936,11 +14939,14 @@ function profOwnedHTML(pr){
    Allt som beror pa serverdata gar genom redrawAll - darfor star anropet dar
    och ingen annanstans. */
 function linkedProf(){
-  /* Det LANKADE yrket ar det noden hjalper. Bara ett i taget. Star inget valt
-     tas det forsta larda huvudyrket, sa noden aldrig pekar i tomma luften. */
-  const mine = myMainProfs();
+  /* Det LANKADE yrket ar det noden hjalper. Bara ett i taget.
+     [ANDRAT v5.8.0] Aven SIDOYRKET gar att lanka - dess station arbetar ocksa
+     med tiden, och servern har alltid tillatit det. Bara hantverk star utanfor:
+     hantverk ar receptdrivet och far aldrig komma ur ett hall. */
+  const mine = myMainProfs().concat(mySecondaryProf() ? [mySecondaryProf()] : []);
   if (S.prof && S.prof.linked && mine.some(p => p.id === S.prof.linked)) return S.prof.linked;
-  return mine.length ? mine[0].id : null;
+  const gath = mine.filter(p => p.kind !== 'crafting');
+  return gath.length ? gath[0].id : (mine.length ? mine[0].id : null);
 }
 function myMainProfs(){
   if (!S.prof || !S.prof.known) return [];   /* inga yrken an - tomma platser ritas anda */
@@ -14980,7 +14986,11 @@ function profPanelCardHTML(p, linked){
     '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
     '<div class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</div>' +
     '<div class="jc-status">' + status + '</div>' +
-    '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>' +
+    '<div class="jc-row">' +
+      '<div class="jc-btn" data-openprof="' + p.id + '">Open</div>' +
+      '<div class="jc-btn' + (linked ? ' on' : '') + '" data-link="' + p.id + '">' +
+        (linked ? '\u25c9 Linked' : 'Link') + '</div>' +
+    '</div>' +
   '</div>';
 }
 function stationCardHTML(p){
@@ -14998,8 +15008,55 @@ function stationCardHTML(p){
         ' · Level ' + info.lvl + '</div>' +
     '</div>' +
     '<div class="jc-btn" style="margin:0" data-openprof="' + p.id + '">Manage</div>' +
+    '<div class="jc-btn' + (linkedProf() === p.id ? ' on' : '') + '" style="margin:0" data-link="' + p.id + '">' +
+      (linkedProf() === p.id ? '\u25c9' : 'Link') + '</div>' +
   '</div>';
 }
+/* HJALPARVALJAREN (v5.8.0). Plustecknet pa en lagplats var dott - man kunde
+   bara satta en hjalpare via listan, och texten talade fortfarande om
+   produktioner som inte finns. Nu oppnar plustecknet en liten lista over de
+   hjalpare man ager, och man klickar den man vill ha. Klickar man en plats som
+   redan ar fylld gar hjalparen ur laget. */
+function openTeamPicker(slot, x, y){
+  closeTeamPicker();
+  const free = (S.pets && S.pets.owned ? S.pets.owned : []).filter(p => !inTeam(p.uid));
+  const box = document.createElement('div');
+  box.className = 'pet-menu on';
+  box.id = 'team-picker';
+  box.innerHTML = '<div class="pm-head">Choose a helper</div>' +
+    (free.length
+      ? free.slice(0, 40).map(p => {
+          const a = helperAbilityOf(p);
+          return '<button class="pm-item" data-pick="' + p.uid + '">' +
+                 '<span style="color:' + rarCol(p.rar) + '">\u25c6</span> ' + petName(p) +
+                 (a ? ' <i style="opacity:.7">' + helperAbilityInfo(a.f).name + '</i>' : '') +
+                 '</button>';
+        }).join('')
+      : '<div class="pm-item off">No helpers left to place.</div>');
+  document.body.appendChild(box);
+  const w = 220;
+  box.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x - w / 2)) + 'px';
+  box.style.top  = Math.max(8, y + 10) + 'px';
+  box.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-pick]');
+    if (!b) return;
+    setTeamPet(+b.dataset.pick, slot);
+    closeTeamPicker();
+  });
+}
+function closeTeamPicker(){
+  const b = document.getElementById('team-picker');
+  if (b) b.remove();
+}
+document.addEventListener('click', e => {
+  const slot = e.target.closest('[data-teamslot]');
+  if (!slot){ if (!e.target.closest('#team-picker')) closeTeamPicker(); return; }
+  const i = +slot.dataset.teamslot;
+  if (slot.dataset.teampet){ removeTeamPet(+slot.dataset.teampet); return; }
+  const r = slot.getBoundingClientRect();
+  openTeamPicker(i, r.left + r.width / 2, r.bottom);
+});
+
 function renderProfCards(){
   const wrap = $('prof-cards'), sw = $('station-cards');
   if (!wrap || !sw) return;
@@ -15440,16 +15497,22 @@ function closeProfessions(){ $('prof-overlay').classList.remove('open'); }
 document.addEventListener('click', e => {
   const btn = e.target.closest('[data-openprof]');
   if (btn){ openProfessions(); return; }
-  if (e.target.closest('[data-pickprof]')){ openProfessions(); return; }
-  const card = e.target.closest('.prof-card[data-prof]');
-  if (card){
-    const id = card.dataset.prof;
-    if (PROF_BY[id] && PROF_BY[id].kind !== 'secondary'){
-      S.prof.linked = id;
-      save();
-      redrawAll();
-      say('Core linked to ' + PROF_BY[id].name + '.');
+  /* [ANDRAT v5.8.0] Plustecknet oppnade bara fonstret, och man fick klicka en
+     gang till. Nu gar det rakt till valet - det var det plustecknet lovade. */
+  if (e.target.closest('[data-pickprof]')){ openProfessions(); profScene = 'pick'; renderProfessions(); return; }
+  /* [ANDRAT v5.8.0] Lankningen satt pa HELA kortet och syntes inte. Nu ar den en
+     egen knapp som sager Link, och det lankade kortet sager Linked. */
+  const lk = e.target.closest('[data-link]');
+  if (lk){
+    const id = lk.dataset.link;
+    if (!PROF_BY[id]) return;
+    if (PROF_BY[id].kind === 'crafting'){
+      say('Crafting is recipe-driven — the core cannot speed it up.');
+      return;
     }
+    S.prof.linked = id;
+    save(); redrawAll(); updateUI(true);
+    say('Core linked to ' + PROF_BY[id].name + '.');
   }
 });
 function petWinHTML(p){
