@@ -1380,6 +1380,14 @@ body.dragging *{cursor:grabbing !important}
 .prof-card.is-secondary{flex:0 0 auto;min-height:74px;padding:12px 16px}
 .prof-card.is-secondary .jc-ico{width:44px;height:44px;flex:0 0 44px;font-size:22px}
 .prof-card.is-secondary .jc-name{font-size:13px}
+.prof-card.shift-done{border-color:var(--green);box-shadow:0 0 0 1px rgba(61,255,158,.4), inset 0 0 26px rgba(61,255,158,.07)}
+.prof-card.shift-done::after{
+  content:'';position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 10px var(--green);animation:doneBlink 1.4s ease-in-out infinite;
+}
+@keyframes doneBlink{0%,100%{opacity:1}50%{opacity:.35}}
+.jc-done{color:var(--green);font-weight:800}
+@media (prefers-reduced-motion:reduce){ .prof-card.shift-done::after{animation:none} }
 .prof-card.linked{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(56,232,255,.35), inset 0 0 30px rgba(56,232,255,.05)}
 /* LANK-fliken sitter UTANFOR kortet, som en knapp man trycker in. */
 .jc-link{
@@ -3413,6 +3421,34 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 }
 
 
+/* ===== LJUSARE PA TELEFON (v5.27.0) =====
+   Pa en telefon i dagsljus forsvinner de morkaste tonerna helt - skarmen ar
+   mindre, ljusare omkring, och ogat har inget morkt rum att vanja sig vid.
+   JAG ANVANDER INTE filter:brightness pa behallaren. Ett filter gor elementet
+   till en ny referensram, och da slutar allt med position:fixed att sitta fast -
+   fonsterbladen hade hoppat. I stallet lyfts PALETTEN: bakgrunderna nagra steg
+   upp, ramarna tydligare, den svaga texten lasbar.
+   Fargerna sjalva - cyan, orange, rosa - rors INTE. Bara det morka.
+   Reglerna galler bara under 760 px. Datorn ar oforandrad. */
+@media (max-width:760px){
+  :root{
+    --bg-page:      #0c0f1c;
+    --bg-panel:     #141a2e;
+    --bg-panel-2:   #18203a;
+    --bg-inset:     #111726;
+    --bg-row:       #171d33;
+    --bg-row-hover: #1e2647;
+
+    --border:       #2b3560;
+    --border-soft:  #222a4c;
+    --border-glow:  #3c4c93;
+
+    --text:         #f2f5ff;
+    --text-dim:     #a8b1d6;
+    --text-faint:   #7c86ab;
+  }
+}
+
 /* ===== TELEFON, SIST AV ALLT (v5.26.0) =====
    De har raderna maste sta EFTER kortens egna, annars vinner kortens - lika
    stark regel, och den som star sist gar fore. Forsta forsoket lag hogre upp i
@@ -4309,7 +4345,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.26.0 — BREDDEN PÅ TELEFON</div>
+            <div class="desc">GENESIS v5.30.0 — PASSET SÄGER TILL</div>
           </div>
         </div>
       </div>
@@ -4320,7 +4356,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.26.0 — BREDDEN PÅ TELEFON</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.30.0 — PASSET SÄGER TILL</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -6151,13 +6187,23 @@ const GATHER_DEFS = {
 };
 /* Chans pa RART material per region-tier (0 = hemma ... 4 = frontar). Core far
    resten. En liten men verklig chans pa rart redan hemma; klart battre langt ut. */
-const GATHER_SHIFT_BASE = 3600; /* ett arbetspass ar en TIMME (spelarens beslut,
-   v4.3.1). Samma takt som forut - en rullning var femte sekund - men man slipper
-   trycka igang det varje minut. Det ar hela poangen med ett idlespel. */
+/* ETT ARBETSPASS ar TRE TIMMAR (v5.29.0, spelarens beslut).
+   Var en timme. Skalet till andringen: det finns ingen avisering nar passet tar
+   slut, sa en timme betydde att man i praktiken maste sitta och passa klockan -
+   och da ar det inte ett idlespel langre.
+   Det ar med FLIT inte oandligt. Ett pass som aldrig tar slut tar bort hela
+   skalet att komma tillbaka. Tre timmar racker over en arbetsdag utan att bli
+   evigt. Takten ar oforandrad - en rullning var femte sekund - sa ett pass ger
+   tre ganger sa mycket som forut. SAMMA TAL SOM SERVERN: se shift_secs. */
+/* Stegen, samma tal som serverns shift_length_config. Poangen ar tankt att
+   kopas i en skill tree; tills den finns har alla EN gratis. */
+const SHIFT_HOURS = [1, 3, 5, 8];
+function shiftPoints(){ return Math.min(SHIFT_HOURS.length - 1, (S.prof && S.prof.shiftPoints != null) ? S.prof.shiftPoints : 1); }
+const GATHER_SHIFT_BASE = 10800;   /* reserv om stegen inte kan lasas */
 /* Shift Rhythm kortar passet med fem sekunder per niva. Utan detta raknade
    klockan ner fran 60 medan servern redan betalat vid 45 - spelaren stod och
    vantade pa nagot som redan var klart. */
-function gatherShiftSecs(){ return GATHER_SHIFT_BASE; }
+function gatherShiftSecs(){ return (SHIFT_HOURS[shiftPoints()] || 1) * 3600; }
 /* Quick Hands kortade forut PASSET, vilket nu vore en forsamring - ett kortare
    pass ger mindre. Den snabbar i stallet upp rullningarna, en halv sekund per
    niva. Samma tanke, ratt riktning. Servern raknar likadant. */
@@ -6238,7 +6284,12 @@ function weightedMat(keys){
    oppen panel tickar - man ska se det som händer. */
 function tickGather(dt){
   if (!S.prof) return;
-  const panelOpen = $('prof-overlay') && $('prof-overlay').classList.contains('open');
+  /* [ANDRAT v5.28.0] Villkoret last BARA det gamla yrkesfonstret. Insamlings-
+     rutan finns numera aven pa yrkessidan - och dar fick START WORKING aldrig
+     nagon funktion, for det ar renderGatherLoops som sätter den. Knappen sag ut
+     att ga att trycka pa och gjorde ingenting.
+     Nu racker det att rutan finns NAGONSTANS pa skarmen. */
+  const panelOpen = !!document.querySelector('.gather-loop');
   let changed = false;
   const now = Date.now();
   for (const id of Object.keys(GATHER_DEFS)){
@@ -6261,7 +6312,8 @@ function tickGather(dt){
      oppnade yrkessidan - for den ritas av renderProfessions, som ingen bad om.
      Samma familj som allt annat den har veckan: ratt sak i minnet, skarmen inte
      omritad. */
-  if (changed && panelOpen){ renderGatherLoops(); renderProfessions(); }
+  if (panelOpen) renderGatherLoops();      /* knapparna maste alltid ha funktion */
+  if (changed && $('prof-overlay') && $('prof-overlay').classList.contains('open')) renderProfessions();
 }
 function matDef(key){ return MATERIALS[key] || null; }
 /* Ger spelaren material - en tunn wrapper over addInvItem sa allt material fods
@@ -12384,7 +12436,12 @@ function updateUI(force){
   /* [v4.93.0] Yrkeskorten ritas har OCKSA, inte bara i redrawAll. Skalet: i
      offlinelage svarar ingen server, sa redrawAll kordes aldrig - och rutan
      stod tom i stallet for att visa de tre lediga platserna. */
+  try { checkShiftDone(); } catch (e){}
   try { renderProfCards(); } catch (e){}
+  /* [TILLAGT v5.28.0] Yrkessidan uppdaterades bara nar serverdata kom in, sa
+     dess XP-matare stod stilla medan kortets rorde sig. Nu skrivs bada varje
+     bildruta - sidan bygger bara om sig sjalv nar nagot faktiskt andrats. */
+  try { renderProfPage(); } catch (e){}
   el.resCredits.textContent = fmt(S.credits);
   el.resFragments.textContent = fmt(S.frags);
   el.resGold.textContent = goldOnlyText(S.gold);
@@ -15681,12 +15738,32 @@ function claimBonusFind(kind){
 
 /* Statusraden, bruten ur kortet sa att bygget och den lopande uppdateringen
    laser SAMMA text. Stod den i tva kopior skulle de glida isar. */
+/* ===== PASSET AR KLART (v5.30.0) =====
+   Det fanns ingen signal alls nar ett pass tog slut - man fick sitta och titta.
+   Nu: kortet lyser och far en prick, och det sager till EN gang per pass. Utan
+   den sista sparren hade det sagt till varje bildruta. */
+const shiftAlerted = {};
+function checkShiftDone(){
+  if (!S.prof || !S.prof.shift) return;
+  Object.keys(S.prof.shift).forEach(id => {
+    const sh = S.prof.shift[id];
+    const done = sh && (sh.ready || (sh.ends && sh.ends <= Date.now() && sh.ends > 0));
+    if (done && !shiftAlerted[id]){
+      shiftAlerted[id] = true;
+      const p = PROF_BY[id];
+      say((p ? p.name : id) + ' shift finished — collect it and start a new one.');
+      Sound.play('ding');
+    }
+    if (!done) shiftAlerted[id] = false;
+  });
+}
 function profCardStatus(p, info){
   if (p.kind === 'gathering'){
     const sh = S.prof.shift && S.prof.shift[p.id];
     const left = sh && sh.ends ? Math.max(0, (sh.ends - Date.now()) / 1000) : 0;
-    return left > 0 ? '\u23f1 Work shift \u00b7 ' + fmtDur(left)
-         : (sh && sh.ready ? '\u2705 Shift ready to collect' : '\u25cb No shift running');
+    if (left > 0) return '\u23f1 Work shift \u00b7 ' + fmtDur(left);
+    if (sh && sh.ready) return '<span class="jc-done">\u2705 Shift done \u2014 collect it</span>';
+    return '\u25cb No shift running';
   }
   if (p.kind === 'secondary'){
     const have = matCount(p.bound), full = have >= p.storageCap;
@@ -15712,7 +15789,7 @@ function profPanelCardHTML(p, linked){
   const canLink = true;
   const o = S.orders && S.orders[p.id];
   return '<div class="prof-card' + (linked ? ' linked' : '') + (secondary ? ' is-secondary' : '') +
-    '" data-prof="' + p.id + '">' +
+    (shiftDone(p.id) ? ' shift-done' : '') + '" data-prof="' + p.id + '">' +
     '<div class="jc-link' + (linked ? ' on' : (canLink ? '' : ' off')) + '"' +
       (canLink ? ' data-link="' + p.id + '"' : ' title="Crafting is recipe-driven"') + '>' +
       'LINK<span class="lamp"></span></div>' +
@@ -15732,9 +15809,13 @@ function profPanelCardHTML(p, linked){
   '</div>';
 }
 let profCardSig = '';
+function shiftDone(id){
+  const sh = S.prof.shift && S.prof.shift[id];
+  return !!(sh && sh.ready);
+}
 function profCardSignature(){
   const mine = myMainProfs(), sec = mySecondaryProf();
-  return mine.map(p => p.id).join(',') + '|' + (sec ? sec.id : '-') + '|' + linkedProf() + '|' +
+  return mine.map(p => p.id + (shiftDone(p.id) ? '!' : '')).join(',') + '|' + (sec ? sec.id : '-') + '|' + linkedProf() + '|' +
     (S.orders ? Object.keys(S.orders).map(k => k + ':' + (S.orders[k].left > 0 ? 'run' : 'done')).join(',') : '');
 }
 function renderProfCards(force){
@@ -16050,11 +16131,9 @@ function renderGatherLoops(){
     /* Mataren tickar NEDAT under passet. */
     if (fill) fill.style.width = (left > 0 ? (left / (gatherShiftSecs() * 1000)) * 100 : 0) + '%';
     if (clock){
-      /* En timme far inte skrivas som "3417s". */
-      const t = Math.ceil(left / 1000);
-      clock.textContent = left > 0
-        ? (t >= 60 ? Math.floor(t / 60) + 'm ' + String(t % 60).padStart(2,'0') + 's' : t + 's')
-        : '';
+      /* [ANDRAT v5.29.0] Skrev "179m 59s" nar passet blev tre timmar. En timme
+         far inte skrivas som 3417s, och tre timmar inte som 179 minuter. */
+      clock.textContent = left > 0 ? fmtDur(left / 1000) : '';
     }
 
     if (sh.ready){
