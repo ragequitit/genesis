@@ -4127,7 +4127,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.11.0 — BREDA KORT</div>
+            <div class="desc">GENESIS v5.12.0 — STATIONERNA ARBETAR</div>
           </div>
         </div>
       </div>
@@ -4138,7 +4138,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.11.0 — BREDA KORT</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.12.0 — STATIONERNA ARBETAR</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4580,6 +4580,21 @@ async function netPull(){
 }
 
 /* En synk: servern rullar tiden framat och svarar med sanningen. */
+/* Hamtar in det sidoyrkets station producerat. Tyst: har spelaren inget
+   sidoyrke, eller star stationen still, hander ingenting. */
+async function netStationCollect(){
+  if (!NET.on || !SRV.charId) return null;
+  const sec = mySecondaryProf();
+  if (!sec) return null;
+  try {
+    const r = await srvRpc('station_collect', {p_character: SRV.charId, p_prof: sec.id});
+    if (r && r.units > 0){
+      await netPullItems();
+      spawnFloat({text: '+' + r.units + ' ' + MATERIALS[sec.bound].name, idle: true});
+    }
+    return r;
+  } catch (e){ return null; }
+}
 async function netSync(){
   if (!NET.on || NET.syncing || !SRV.charId) return;
   NET.syncing = true;
@@ -4600,6 +4615,14 @@ async function netSync(){
        heter arbetsklockan nu och mater bara tid. Den svarar med sekunderna, sa
        karaktarens tal hamtas separat direkt efterat. */
     await srvRpc('work_clock', {p_character: SRV.charId, p_visible_secs: seen});
+    /* [TILLAGT v5.12.0] STATIONERNA HAMTAS IN. Serverfunktionen fanns, var
+       provkord och raknade ratt - men INGENTING i spelet ropade pa den. Darfor
+       stod Medical Bay och Fuel Refinery stilla och spelaren fick aldrig en enda
+       ravara, hur lange hen an vantade.
+       Den lases in vid varje synk och vid varje inloggning. Klockan star pa
+       servern, sa den har raknat aven medan man var borta - anropet hamtar bara
+       hem det som redan hant. */
+    await netStationCollect();
     const row = await srvCharacterRow();
     if (row){
       /* Forsta synken efter inloggning: skillnaden ar exakt det maskinerna
@@ -8315,9 +8338,13 @@ function load(){
 /* ---------- OFFLINEINKOMST ----------
    Bas: 6h tak, 50% takt. Premium höjer taket (12/16/20/24h, Credits).
    Kärnuppgradering höjer takten (+10%/nivå till 100%). Siffror justerbara. */
-const OFFLINE_HOURS = [6, 12, 16, 20, 24];
-function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 6; }
-function offlineRate(){ return Math.min(1, 0.5 + 0.10 * S.up.offlinePct + gearBonus('offline') / 100); }
+/* [ANDRAT v5.12.0] Grundtaket var SEX timmar och takten 50 procent plus en
+   karnuppgradering som inte finns langre. Spelarens regel: ATTA timmar och
+   FYRTIO procent for alla. Premiumkopen hojer taket vidare precis som forut -
+   listan ar bara flyttad ett steg, inget system ar last. Samma tal som servern. */
+const OFFLINE_HOURS = [8, 12, 16, 20, 24];
+function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 8; }
+function offlineRate(){ return Math.min(1, 0.40 + gearBonus('offline') / 100); }
 function computeOffline(){
   /* SERVERLAGE: klienten far INTE rakna ut detta sjalv. Den raknade pa den
      LOKALA sparfilens maskiner och tid, vilket kunde visa biljoner for en
@@ -15005,8 +15032,12 @@ function profPanelCardHTML(p, linked){
     status = left > 0 ? '\u23f1 Work shift · ' + fmtDur(left)
            : (sh && sh.ready ? '\u2705 Shift ready to collect' : '\u25cb No shift running');
   } else if (secondary){
+    /* Stationens lager ar den bundna ravaran. Den kan varken saljas eller
+       handlas, sa den ligger i vaskan men hor stationen till. */
     const have = matCount(p.bound);
-    status = MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap;
+    const full = have >= p.storageCap;
+    status = MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap +
+             (full ? ' \u2014 full, production paused' : ' \u00b7 +1 / ' + fmtDur(p.stationSecs));
   } else {
     const n = RECIPES.filter(r => r.prof === p.id && info.lvl >= r.lvl).length;
     status = '\ud83d\udd28 ' + n + ' recipe' + (n === 1 ? '' : 's') + ' available';
