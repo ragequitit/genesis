@@ -4104,7 +4104,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.6.0 — WORK SYNC</div>
+            <div class="desc">GENESIS v5.7.0 — KLIENTEN MOT NYA SERVERN</div>
           </div>
         </div>
       </div>
@@ -4115,7 +4115,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.6.0 — WORK SYNC</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.7.0 — KLIENTEN MOT NYA SERVERN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4497,6 +4497,12 @@ const NET = {
 
 /* Hamta hela karaktaren fran servern och lagg den i S. Detta ERSATTER den
    lokala sparfilen som sanningskalla nar man ar inloggad. */
+/* Karaktarens rad, ren. Arbetsklockan svarar med sekunder och inte med hela
+   karaktaren, sa synken hamtar raden sjalv efterat. */
+async function srvCharacterRow(){
+  const rows = await srvSelect('characters', 'id=eq.' + SRV.charId + '&select=*');
+  return (rows && rows[0]) || null;
+}
 async function netPull(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('characters', 'id=eq.' + SRV.charId + '&select=*');
@@ -4535,10 +4541,8 @@ async function netPull(){
     ? {region: c.scan_region, zone: c.scan_zone, eta: new Date(c.scan_ends).getTime()}
     : null;
 
-  /* Maskinerna: serverns antal, inte de lokalt sparade. */
-  const mach = await srvSelect('machines', 'character_id=eq.' + SRV.charId + '&select=machine_id,count');
-  BUILDINGS.forEach(b => S.own[b.id] = 0);
-  (mach || []).forEach(m => { if (S.own[m.machine_id] !== undefined) S.own[m.machine_id] = +m.count || 0; });
+  /* [BORTTAGET v5.7.0] Har hamtades maskinernas antal fran servern. Tabellen
+     finns inte langre - anropet gav ett fel som stoppade hela inloggningen. */
 
   /* Uppgraderingarna likasa - och de NOLLAS forst. Utan det blev serverns rader
      bara inlagda ovanpa det som redan stod dar, sa en gammal karaktars kop
@@ -4560,20 +4564,20 @@ async function netSync(){
     /* Skicka in hack som samlats sedan sist. Servern avgor vad de var varda
        och kapar antalet om det ar orimligt. Gissningen vi visat under tiden
        nollas har - fran och med nu ar serverns tal det enda som galler. */
-    if (NET.pendingTaps > 0){
-      const taps = NET.pendingTaps, held = NET.heldSecs;
-      NET.pendingTaps = 0; NET.heldSecs = 0;
-      const r = await srvRpc('tap', {p_character: SRV.charId, p_count: taps, p_held_secs: held});
-      /* Hacken bar XP, och svaret bar den nya summan. Utan den har raden marktes
-         en nivahojning fran hackande forst nasta gang man rakade kopa nagot. */
-      netTakeXp(r);
-    }
+    /* [BORTTAGET v5.7.0] Har skickades HACKEN in for att vaxlas mot Data.
+       Serverfunktionen ar riven med valutan. Noden hjalper yrket i stallet, och
+       de sekunderna skickas direkt av karnans hjalp - inte harifran. */
+    NET.pendingTaps = 0; NET.heldSecs = 0;
     /* Narvarotiden rapporteras in: servern delar ut narvaro-XP:n och kapar
        talet mot den tid som verkligen gatt. Nollas INNAN anropet, sa en
        misslyckad synk inte rapporterar samma sekunder en gang till. */
     const seen = NET.visibleSecs; NET.visibleSecs = 0;
     const firstSync = !NET.synced;
-    const row = await srvRpc('tick', {p_character: SRV.charId, p_visible_secs: seen});
+    /* [ANDRAT v5.7.0] Hette 'tick' och betalade ut Data. Den ar riven; klockan
+       heter arbetsklockan nu och mater bara tid. Den svarar med sekunderna, sa
+       karaktarens tal hamtas separat direkt efterat. */
+    await srvRpc('work_clock', {p_character: SRV.charId, p_visible_secs: seen});
+    const row = await srvCharacterRow();
     if (row){
       /* Forsta synken efter inloggning: skillnaden ar exakt det maskinerna
          tjanade medan man var borta - serverns tal, inte klientens gissning. */
@@ -4666,8 +4670,10 @@ function netTakeXp(r){
   }
   return r;
 }
-async function netBuyMachine(id){
-  if (!NET.on) return null;
+/* [BORTTAGET v5.7.0] netBuyMachine och netBuyMilestone kopte maskiner och
+   milstolpar. Bada ar rivna pa bada sidor. */
+async function _borttaget_netBuyMachine(id){
+  if (true) return null;
   const r = await srvRpc('buy_machine', {p_character: SRV.charId, p_machine: id});
   if (r){
     S.own[id] = +r.owned || S.own[id];
@@ -4966,14 +4972,13 @@ async function netSkipSurvey(){
   await netPull();
   return r;
 }
-async function netPullMilestones(){
-  if (!SRV.charId) return false;
-  const rows = await srvSelect('character_milestones',
-    'character_id=eq.' + SRV.charId + '&select=machine_id,step');
-  S.mil = {};                       /* serverns lista ERSATTER den lokala helt */
-  (rows || []).forEach(r => { S.mil[r.machine_id + ':' + r.step] = true; });
-  return true;
-}
+/* [BORTTAGET v5.7.0] Har hamtades MILSTOLPARNA. Tabellen ar riven; anropet gav
+   ett fel som stoppade inloggningen mitt i. Samma sak galler formanerna och
+   hjalparstolarna - alla tre star kvar som tomma svar sa att raderna som anropar
+   dem inte behover stadas i samma andetag. */
+async function netPullMilestones(){ S.mil = {}; return true; }
+async function netPullPerks(){ return true; }
+async function netPullHelpers(){ S.helpers = {}; return true; }
 /* RAKNARNA. Servern har bokfort dem hela tiden - hur manga expeditioner man
    hamtat, hur mycket man salt, hur manga cacher man oppnat - medan klienten
    holl en egen uppsattning som nollades vid varje omladdning. Namnen skiljer
@@ -5052,6 +5057,9 @@ async function netFinishResearch(){
 
 async function netBuyUpgrade(id){
   if (!NET.on) return null;
+  /* [ANDRAT v5.7.0] Karnuppgraderingarna kostade Data och ar rivna. Offlinetaket
+     och offlineandelen kops med krediter och gar en annan vag. */
+  return null;
   const r = await srvRpc('buy_upgrade', {p_character: SRV.charId, p_upgrade: id});
   if (r){
     S.up[id] = +r.level || S.up[id];
@@ -15317,8 +15325,12 @@ function renderGatherLoops(){
    finns att hitta. */
 let recipeProf = null;
 function openRecipeBook(profId){
+  /* [VAKT v5.7.0] Ett yrke som inte finns - ett vilande, eller ett gammalt marke
+     ur en sparfil - las rakt pa ingenting och kastade sidan. */
+  const bookProf = PROF_BY[profId];
+  if (!bookProf) return;
   recipeProf = profId;
-  $('recipe-title').textContent = PROF_BY[profId].name + ' — Recipe Book';
+  $('recipe-title').textContent = bookProf.name + ' — Recipe Book';
   const w = $('recipe-overlay');
   w.classList.add('open');
   bringToFront(w);                 /* over professionssidan, inte under den */
