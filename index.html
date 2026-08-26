@@ -3499,6 +3499,32 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   background:rgba(255,255,255,.05);color:var(--text)}
 .pve-close:hover{background:rgba(56,232,255,.12);border-color:var(--cyan-dim)}
 
+/* Dungeonen (v5.34.0): stegare, matare och handelselista. Egna klasser. */
+.dg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:10.5px;color:var(--text-dim);flex-wrap:wrap}
+.dg-owned{font-style:normal;color:var(--text-faint);font-size:9.5px}
+.dg-step{display:flex;align-items:center;gap:8px}
+.dg-step b{min-width:18px;text-align:center;font-size:12px}
+.dg-step button{width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:14px;
+  border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text)}
+.dg-step button:hover{background:rgba(56,232,255,.12);border-color:var(--cyan-dim)}
+.dg-opts{display:flex;gap:6px;flex-wrap:wrap}
+.dg-opts button{padding:6px 10px;border-radius:7px;cursor:pointer;font-size:9.5px;
+  font-weight:900;letter-spacing:.08em;border:1px solid var(--border);
+  background:rgba(255,255,255,.05);color:var(--text)}
+.dg-opts button.on{background:rgba(56,232,255,.16);border-color:var(--cyan-dim)}
+.dg-sub{font-size:9.5px;color:var(--text-faint);letter-spacing:.04em}
+.dg-bar{height:8px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.dg-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#38e8ff,#3fd68a);
+  transition:width 1s linear}
+.dg-feed{display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto}
+.dg-ev{font-size:10px;color:var(--text-dim);line-height:1.4}
+.dg-ev.boss{color:var(--text);font-weight:700}
+.dg-ev.dead{color:#ff5964;font-weight:900}
+/* PvE-effektens rad (v5.36.0): guldton, sa den skiljer sig fran formagorna. */
+.gt-pve{font-size:10px;color:#e8c15a;line-height:1.4}
+.dg-fx{color:#e8c15a;font-style:italic;font-size:9.5px}
+
 /* ===== TELEFON, SIST AV ALLT (v5.26.0) =====
    De har raderna maste sta EFTER kortens egna, annars vinner kortens - lika
    stark regel, och den som star sist gar fore. Forsta forsoket lag hogre upp i
@@ -4396,7 +4422,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.33.0 — VITA MÖTEN I VOXHOLM</div>
+            <div class="desc">GENESIS v5.39.0 — THE LAST ARMADA</div>
           </div>
         </div>
       </div>
@@ -4407,7 +4433,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.33.0 — VITA MÖTEN I VOXHOLM</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.39.0 — THE LAST ARMADA</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4750,7 +4776,13 @@ const SRV_ERRORS = {
   pve_not_here:             'Nothing stirs here yet.',
   encounter_cooldown:       'The area is quiet for now — come back in a little while.',
   encounter_gone:           'That encounter is over.',
-  already_full_health:      'You are already at full health.'
+  already_full_health:      'You are already at full health.',
+  /* Dungeonen (v5.34.0). */
+  no_dungeon_here:          'There is no dungeon where you stand.',
+  dungeon_unclaimed:        'Claim your last run first.',
+  dungeon_not_finished:     'The run is still going.',
+  busy_in_dungeon:          'You are inside the dungeon — the run has to end first.',
+  too_many_revives:         'That is more Revive Kits than the dungeon allows.'
 };
 function srvErrText(e, fallback){
   const m = String((e && e.message) || e || '');
@@ -4931,6 +4963,8 @@ async function netSync(){
     /* [TILLAGT v5.33.0] Halsan och motet foljer med varje synk - annars star
        mataren pa gissningen tills nagot annat rakar hamta den. */
     await netPvePull();
+    /* [TILLAGT v5.34.0] Dungeonlaget likasa - loppet gar i verklig tid. */
+    await netPveDungeonPull();
     const row = await srvCharacterRow();
     if (row){
       /* Forsta synken efter inloggning: skillnaden ar exakt det maskinerna
@@ -5317,6 +5351,23 @@ async function netPveUseMedical(key){
   if (r) pveApplyHp(r.hp);
   return r;
 }
+async function netPveDungeonStart(st){
+  return srvRpc('pve_dungeon_start', {p_character: SRV.charId,
+    p_bandage: st.b, p_fak: st.f, p_revive: st.r,
+    p_heal_under: st.under, p_heal_until: st.until}).then(r => {
+      if (r){ PVE.dg = r; PVE.dgAt = Date.now(); PVE.dgPolled = false; }
+      return r;
+    });
+}
+async function netPveDungeonAbandon(){
+  return srvRpc('pve_dungeon_abandon', {p_character: SRV.charId}).then(r => {
+    if (r){ PVE.dg = r; PVE.dgAt = Date.now(); }
+    return r;
+  });
+}
+async function netPveDungeonClaim(){
+  return srvRpc('pve_dungeon_claim', {p_character: SRV.charId});
+}
 /* Fargen pa bedomningen. Egna toner, inte raritetens - en gron fiende ar inte
    en gron pjas. */
 const PVE_RATING = {
@@ -5333,6 +5384,11 @@ function buildZoneEncounter(regionId, zone){
   const enc = PVE.enc && PVE.enc.region === regionId && PVE.enc.zone === zone ? PVE.enc : null;
   if (!NET.on){
     inner = '<div class="shelf-empty">Encounters need a live connection.</div>';
+  } else if (pveDgBusy()){
+    /* [TILLAGT v5.34.0] Mitt i ett dungeonlopp ar det vita stangt - servern
+       vaktar samma grans. */
+    inner = '<div class="shelf-empty">You are inside ' +
+            (PVE.dg && PVE.dg.run ? PVE.dg.run.name : 'the dungeon') + '.</div>';
   } else if (enc){
     const rt = PVE_RATING[enc.rating] || PVE_RATING.normal;
     inner =
@@ -5419,6 +5475,205 @@ function showFightPlayback(enc, r){
       netPullItems().then(() => redrawAll()).catch(() => {});
       netPvePull().then(() => redrawAll()).catch(() => {});
     }
+  });
+}
+/* ================= DUNGEONEN (v5.34.0): The Deepshaft =================
+   Servern slumpade HELA loppet i startogonblicket; klienten visar bara det
+   tiden hunnit avsloja. Darfor finns har ingen stridslogik alls - en klocka,
+   en handelselista och tre knappar. */
+PVE.dg = null;          // serverns svar: {dungeon, run}
+PVE.dgAt = 0;           // nar svaret kom - klockan raknar vidare lokalt
+PVE.dgSetup = null;     // spelarens val infor start
+PVE.dgConfirm = false;  // tvastegsknappen for att ge upp
+PVE.dgPolled = false;   // en enda extra hamtning nar klockan nar noll
+/* Dungeonzonerna som visningstips for TEASERN i andra zoner. Servern ager
+   sanningen om var lopp far startas - den har listan ritar bara text. */
+const DUNGEON_TEASER = {
+  'voxholm|The Deepshaft': 'The Deepshaft',
+  'drakemark|The Dragon Nest': 'The Dragon Nest',
+  'cutlassbay|The Black Hull': 'The Black Hull',
+  'novacommand|The Flagship': 'The Flagship',
+  'quarantine|Patient Zero': 'Patient Zero'
+};
+function pveDgBusy(){
+  return !!(NET.on && PVE.dg && PVE.dg.run && !pveDgDone());
+}
+function pveDgLeft(){
+  if (!PVE.dg || !PVE.dg.run) return 0;
+  return Math.max(0, PVE.dg.run.secs_left - (Date.now() - PVE.dgAt) / 1000);
+}
+function pveDgDone(){ return !!(PVE.dg && PVE.dg.run) && pveDgLeft() <= 0; }
+async function netPveDungeonPull(){
+  if (!NET.on || !SRV.charId) return null;
+  const r = await srvRpc('pve_dungeon_state', {p_character: SRV.charId});
+  if (r){ PVE.dg = r; PVE.dgAt = Date.now(); PVE.dgPolled = false; }
+  return r;
+}
+function pveOwned(key){
+  let n = 0;
+  for (const row of S.inv) if (row && row.key === key) n += row.qty || 0;
+  return n;
+}
+/* Klockan i loppet skrivs PA PLATS varje sekund - rutan byggs aldrig om av
+   pulsen (buggfamilj 7). Nar tiden gar ut hamtas laget EN gang och zonen
+   ritas om till hamtningsvyn. */
+function pveDungeonTick(){
+  if (!PVE.dg || !PVE.dg.run) return;
+  const el = $('dg-left');
+  if (el) el.textContent = fmtDur(pveDgLeft());
+  const bar = $('dg-fill');
+  if (bar){
+    const total = PVE.dg.run.minutes * 60;
+    bar.style.width = Math.min(100, 100 * (total - pveDgLeft()) / total) + '%';
+  }
+  if (pveDgDone() && !PVE.dgPolled){
+    PVE.dgPolled = true;
+    netPveDungeonPull().then(() => { redrawZone(); renderEquip(); }).catch(() => {});
+  }
+}
+function pveDgDefaults(){
+  if (!PVE.dgSetup){
+    PVE.dgSetup = {
+      b: Math.min(pveOwned('bandage'), 6),
+      f: Math.min(pveOwned('first_aid_kit'), 2),
+      r: Math.min(pveOwned('revive_kit'), 1),
+      under: 40, until: 75
+    };
+  }
+  return PVE.dgSetup;
+}
+/* Dungeondelen av zonrutan. */
+function buildZoneDungeon(regionId, zone){
+  const teaser = DUNGEON_TEASER[regionId + '|' + zone];
+  if (!teaser) return '';
+  let inner;
+  const here = (S.world.current === regionId && S.world.zone === zone);
+  const run = PVE.dg && PVE.dg.run;
+  if (!NET.on){
+    inner = '<div class="shelf-empty">The dungeon needs a live connection.</div>';
+  } else if (run && !pveDgDone()){
+    inner = buildDgRun(run);
+  } else if (run && pveDgDone()){
+    inner = buildDgClaim(run);
+  } else if (!here){
+    inner = '<div class="shelf-empty">A dungeon waits below. Travel here to enter.</div>';
+  } else if (PVE.dg && PVE.dg.dungeon){
+    inner = buildDgSetup(PVE.dg.dungeon);
+  } else {
+    inner = '<div class="shelf-empty">A dungeon waits below.</div>';
+  }
+  return '<div class="section-label">Dungeon</div><div id="zone-dg">' + inner + '</div>';
+}
+function buildDgSetup(dg){
+  const st = pveDgDefaults();
+  const rows = [
+    ['b', 'bandage', 'Bandage', pveOwned('bandage'), 99],
+    ['f', 'first_aid_kit', 'First Aid Kit', pveOwned('first_aid_kit'), 99],
+    ['r', 'revive_kit', 'Revive Kit', pveOwned('revive_kit'), dg.revive_max]
+  ].map(([k, key, name, owned, cap]) => {
+    st[k] = Math.max(0, Math.min(st[k], owned, cap));
+    return '<div class="dg-row"><span>' + name + ' <i class="dg-owned">(' + owned + ' owned' +
+      (cap < 99 ? ', max ' + cap : '') + ')</i></span>' +
+      '<span class="dg-step"><button data-dgs="' + k + '" data-d="-1">−</button>' +
+      '<b>' + st[k] + '</b>' +
+      '<button data-dgs="' + k + '" data-d="1">+</button></span></div>';
+  }).join('');
+  const opts = (name, vals, cur) => vals.map(v =>
+    '<button data-dgo="' + name + '" data-v="' + v + '"' +
+    (v === cur ? ' class="on"' : '') + '>' + v + '%</button>').join('');
+  return '<div class="pve-card">' +
+    '<div class="pve-name">' + dg.name + '</div>' +
+    '<div class="pve-blurb">' + dg.minutes + ' minutes \u00b7 ' + dg.bosses +
+    ' bosses \u00b7 the run keeps going while you are away, in real time.</div>' +
+    '<div class="dg-sub">Reserve medical supplies \u2014 unused ones come back.</div>' +
+    rows +
+    '<div class="dg-row"><span>Heal when below</span><span class="dg-opts">' +
+    opts('under', [25, 40, 50, 75], st.under) + '</span></div>' +
+    '<div class="dg-row"><span>Heal up to</span><span class="dg-opts">' +
+    opts('until', [50, 75, 100], st.until) + '</span></div>' +
+    (pveLowHealth() ? '<div class="pve-low">LOW HEALTH \u2014 patch up before you enter.</div>' : '') +
+    '<div class="pve-btns"><button class="pve-fight" id="dg-enter">Enter the dungeon</button></div>' +
+    '</div>';
+}
+function buildDgRun(run){
+  const feed = (run.events || []).slice().reverse().map(ev => {
+    const boss = ev.kind !== 'trash';
+    if (!ev.win){
+      return '<div class="dg-ev dead">min ' + ev.m + ' \u00b7 ' + ev.name +
+        ' \u2014 you went down. The run is over.</div>';
+    }
+    return '<div class="dg-ev' + (boss ? ' boss' : '') + '">min ' + ev.m + ' \u00b7 ' +
+      ev.name + ' \u2014 down \u00b7 ' + ev.hp + '% health' +
+      ((ev.ub || ev.uf || ev.ur)
+        ? ' \u00b7 used ' + [ev.ub ? ev.ub + ' bandage' : '', ev.uf ? ev.uf + ' kit' : '',
+                             ev.ur ? ev.ur + ' revive' : ''].filter(Boolean).join(', ')
+        : '') + '</div>';
+  }).join('') || '<div class="dg-ev">Descending\u2026 first contact soon.</div>';
+  const sup = run.sup_left || {};
+  return '<div class="pve-card">' +
+    '<div class="pve-name">' + run.name + ' \u2014 run in progress</div>' +
+    '<div class="dg-bar"><i id="dg-fill"></i></div>' +
+    '<div class="pve-row"><span id="dg-left">' + fmtDur(pveDgLeft()) + '</span>' +
+    '<span>Bosses ' + run.boss_down + ' / ' + run.boss_total + ' \u00b7 ' +
+    run.hp_now_pct + '% health</span></div>' +
+    '<div class="dg-sub">Supplies left: ' + (sup.b || 0) + ' bandage \u00b7 ' +
+    (sup.f || 0) + ' kit \u00b7 ' + (sup.r || 0) + ' revive</div>' +
+    '<div class="dg-feed">' + feed + '</div>' +
+    '<div class="pve-btns"><button class="pve-leave" id="dg-abandon">' +
+    (PVE.dgConfirm ? 'Confirm \u2014 end the run here?' : 'Abandon run') + '</button></div>' +
+    '</div>';
+}
+function buildDgClaim(run){
+  const head = run.died
+    ? 'It ended at the bottom \u2014 you were carried out with 1 HP.'
+    : 'Run complete. The spoils are waiting.';
+  return '<div class="pve-card">' +
+    '<div class="pve-name">' + run.name + '</div>' +
+    '<div class="pve-blurb">' + head + '</div>' +
+    '<div class="pve-row"><span>Bosses ' + run.boss_down + ' / ' + run.boss_total +
+    '</span></div>' +
+    '<div class="pve-btns"><button class="pve-fight" id="dg-claim">Claim the spoils</button></div>' +
+    '</div>';
+}
+/* Hamtningens kvitto - samma scen som striduppspelningen, utan strid. */
+function showDungeonSummary(r){
+  const old = document.getElementById('pve-overlay');
+  if (old) old.remove();
+  /* [ANDRAT v5.36.0] BOSS FOR BOSS: varje rad sager vem som gav vad - skrot,
+     XP och pjasen om det foll en. Signaturpjaser visar sin klartexteffekt. */
+  const bosses = (r.boss_loot || []).map(b => {
+    let row = '<div class="dg-ev boss">' + b.name +
+      (b.win ? ' \u2014 +' + fmt(b.xp || 0) + ' XP \u00b7 +' + (b.scrap || 0) + ' ' +
+        ((MATERIALS[b.sk] || {}).name || 'scrap') : ' \u2014 you went down here') + '</div>';
+    if (b.gear){
+      const D = ITEMS[b.gear.key] || {name: b.gear.key};
+      const R = RARITIES[b.gear.rarity] || RARITIES[0];
+      row += '<div class="dg-ev" style="color:' + R.color + '">\u2003\u21b3 ' +
+        R.name + ' ' + D.name +
+        (b.gear.fx ? ' <i class="dg-fx">' + pveEffLine(b.gear.fx) + '</i>' : '') + '</div>';
+    }
+    return row;
+  }).join('');
+  const scraps = Object.entries(r.scrap || {}).map(([k, q]) =>
+    '+' + q + ' ' + ((MATERIALS[k] || {}).name || k)).join(' \u00b7 ');
+  const ref = r.refund || {};
+  const refTxt = [ref.b ? ref.b + ' bandage' : '', ref.f ? ref.f + ' kit' : '',
+                  ref.r ? ref.r + ' revive' : ''].filter(Boolean).join(', ');
+  const ov = document.createElement('div');
+  ov.id = 'pve-overlay';
+  ov.innerHTML = '<div class="pve-stage">' +
+    '<div class="pve-result"><b class="' + (r.died ? 'loss' : 'win') + '">' +
+    (r.died ? 'CARRIED OUT' : 'DUNGEON CLEARED') + '</b>' +
+    '<span>' + r.bosses + ' bosses down \u00b7 +' + fmt(r.xp || 0) + ' XP' +
+    (scraps ? ' \u00b7 ' + scraps : '') + '</span></div>' +
+    (bosses || '<div class="dg-ev">No bosses were reached.</div>') +
+    (r.bosses > 0 && !(r.boss_loot || []).some(b => b.gear)
+      ? '<div class="dg-ev">No gear this time \u2014 it is never guaranteed.</div>' : '') +
+    (refTxt ? '<div class="dg-sub">Returned unused: ' + refTxt + '</div>' : '') +
+    '<button class="pve-close" id="pve-close">Close</button></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', ev => {
+    if (ev.target.closest('#pve-close')) ov.remove();
   });
 }
 /* Startar striden fran zonrutan. */
@@ -5634,7 +5889,9 @@ function netGearFromRow(row){
     craft: row.crafted ? 1 : undefined,
     /* Tuning-rakningen sitter pa pjasen och foljer den genom handel. */
     tune: row.tune_count | 0,
-    tprev: row.tune_prev || null
+    tprev: row.tune_prev || null,
+    /* PvE-effekten (v5.36.0) - signaturpjasernas klartextrad. */
+    pve:  row.pve_effect || null
   };
 }
 
@@ -5642,7 +5899,7 @@ function netGearFromRow(row){
 async function netPullItems(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,tune_count,tune_prev');
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,tune_count,tune_prev,pve_effect');
 
   S.equip = {};
   /* VILKEN VASKA SOM SITTER I VILKET FACK KOMMER NU FRAN SERVERN.
@@ -6049,6 +6306,7 @@ async function netPullAll(){
   await netPullStats();
   /* [TILLAGT v5.33.0] Halsan och motet. Fore omritningen, som allt annat. */
   try { await netPvePull(); } catch (e){}
+  try { await netPveDungeonPull(); } catch (e){}
   try { await netMyProfile(); } catch (e){}
   /* Vanlistan hamtas med allt annat, sa siffran pa knappen stammer fran forsta
      stund - inte forst nar man rakar oppna rutan. */
@@ -6138,7 +6396,7 @@ async function netClaimExpedition(expId){
 async function netPullVault(){
   if (!SRV.charId) return [];
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,tune_count,tune_prev');
+    'character_id=eq.' + SRV.charId + '&location=eq.vault&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,tune_count,tune_prev,pve_effect');
   return (rows || []).map(netGearFromRow);
 }
 
@@ -7612,6 +7870,119 @@ defItem('ring_copper_band', 'Copper Band', 8, 'assets/gear/rings/ring_copper_ban
 defItem('ring_crystal_ring', 'Crystal Ring', 8, 'assets/gear/rings/ring_crystal_ring.png', ALL_RAR, []);
 /* Halsband */
 defItem('neck_signal_tag', 'Signal Tag', 6, 'assets/gear/necks/neck_signal_tag.png', ALL_RAR, []);
+
+/* ---------- THE FIRST DIGGER'S (v5.36.0) ----------
+   Dungeonens signaturpjaser. Samma grundsiffror som allt annat - vardet ar
+   PVE-EFFEKTEN, som bara verkar i strid och star i klartext pa kortet.
+   Tom fall-lista: de faller ALDRIG i varlden, bara ur sina bossar i The
+   Deepshaft. Rariteter C/U/R, Normal-dungeonens viktning. Bilderna ar
+   spelarens uppgift; mappen ar assets/gear/signature/. */
+const SIG_RAR = [0, 1, 2];
+defItem('sig_toolbelt',        "First Digger's Toolbelt",       7, 'assets/gear/signature/sig_toolbelt.png',        SIG_RAR, []);
+defItem('sig_grippers',        "First Digger's Grippers",       3, 'assets/gear/signature/sig_grippers.png',        SIG_RAR, []);
+defItem('sig_tunnelstompers',  "First Digger's Tunnelstompers", 4, 'assets/gear/signature/sig_tunnelstompers.png',  SIG_RAR, []);
+defItem('sig_rockplate',       "First Digger's Rockplate",      1, 'assets/gear/signature/sig_rockplate.png',       SIG_RAR, []);
+defItem('sig_seamguards',      "First Digger's Seamguards",     2, 'assets/gear/signature/sig_seamguards.png',      SIG_RAR, []);
+defItem('sig_propped_beam',    'Propped Beam',                  9, 'assets/gear/signature/sig_propped_beam.png',    SIG_RAR, []);
+defItem('sig_echo_ring',       'Echo Ring',                     8, 'assets/gear/signature/sig_echo_ring.png',       SIG_RAR, []);
+defItem('sig_canary_pendant',  'Canary Pendant',                6, 'assets/gear/signature/sig_canary_pendant.png',  SIG_RAR, []);
+defItem('sig_hollow_note',     "Greta's Locket",               13, 'assets/gear/signature/sig_hollow_note.png',     SIG_RAR, []);  /* [ANDRAT v5.38.0] foljde sin boss: Pale Greta */
+defItem('sig_lamphelm',        "First Digger's Lamphelm",       0, 'assets/gear/signature/sig_lamphelm.png',        SIG_RAR, []);
+defItem('sig_ore_vein_band',   'Ore-Vein Band',                 8, 'assets/gear/signature/sig_ore_vein_band.png',   SIG_RAR, []);
+defItem('sig_runaway_minecart','Runaway Minecart',             11, 'assets/gear/signature/sig_runaway_minecart.png',SIG_RAR, []);
+defItem('sig_bedrock_breaker', 'Bedrock Breaker',               5, 'assets/gear/signature/sig_bedrock_breaker.png', SIG_RAR, []);
+defItem('sig_diggers_tooth',   "Digger's Tooth",                5, 'assets/gear/signature/sig_diggers_tooth.png',   SIG_RAR, []);
+ITEMS.sig_bedrock_breaker.twoHand = true;
+Object.keys(ITEMS).filter(k => k.startsWith('sig_')).forEach(k => {
+  ITEMS[k].flavor = "The First Digger's — The Deepshaft";
+});
+/* ---------- FYRA SET TILL (v5.37.0): en dungeon per varld ----------
+   Wyrmhoard, Undertow, Voidwatch, Last Ward. Samma regler som First
+   Digger's: varldens grundsiffror, effekten ar vardet, faller aldrig i
+   varlden. Bilderna ar spelarens uppgift, mappen assets/gear/signature/. */
+defItem('sigw_wardplate', 'Wyrmhoard Wardplate', 1, 'assets/gear/signature/sigw_wardplate.png', SIG_RAR, []);
+defItem('sigw_talon', 'Warden\'s Talon', 5, 'assets/gear/signature/sigw_talon.png', SIG_RAR, []);
+defItem('sigw_greaves', 'Nestwatch Greaves', 2, 'assets/gear/signature/sigw_greaves.png', SIG_RAR, []);
+defItem('sigw_gauntlets', 'Cogscale Gauntlets', 3, 'assets/gear/signature/sigw_gauntlets.png', SIG_RAR, []);
+defItem('sigw_mainspring', 'Mainspring Band', 8, 'assets/gear/signature/sigw_mainspring.png', SIG_RAR, []);
+defItem('sigw_perch', 'Clockwork Perch', 11, 'assets/gear/signature/sigw_perch.png', SIG_RAR, []);
+defItem('sigw_coinlight', 'Coinlight Pendant', 6, 'assets/gear/signature/sigw_coinlight.png', SIG_RAR, []);
+defItem('sigw_signet', 'Hoardkeeper\'s Signet', 8, 'assets/gear/signature/sigw_signet.png', SIG_RAR, []);
+defItem('sigw_coin', 'The Counted Coin', 13, 'assets/gear/signature/sigw_coin.png', SIG_RAR, []);
+defItem('sigw_helm', 'Cinderscale Helm', 0, 'assets/gear/signature/sigw_helm.png', SIG_RAR, []);
+defItem('sigw_sabatons', 'Drakefire Sabatons', 4, 'assets/gear/signature/sigw_sabatons.png', SIG_RAR, []);
+defItem('sigw_girdle', 'Emberhide Girdle', 7, 'assets/gear/signature/sigw_girdle.png', SIG_RAR, []);
+defItem('sigw_fang', 'Broodmother\'s Fang', 5, 'assets/gear/signature/sigw_fang.png', SIG_RAR, []);
+defItem('sigw_aegis', 'Eggshell Aegis', 9, 'assets/gear/signature/sigw_aegis.png', SIG_RAR, []);
+ITEMS.sigw_fang.twoHand = true;
+Object.keys(ITEMS).filter(k => k.startsWith('sigw_')).forEach(k => { ITEMS[k].flavor = 'The Wyrmhoard — The Dragon Nest'; });
+defItem('sigu_deckplate', 'Undertow Deckplate', 1, 'assets/gear/signature/sigu_deckplate.png', SIG_RAR, []);
+defItem('sigu_hook', 'Boarding Hook', 5, 'assets/gear/signature/sigu_hook.png', SIG_RAR, []);
+defItem('sigu_sash', 'Harrow\'s Sash', 7, 'assets/gear/signature/sigu_sash.png', SIG_RAR, []);
+defItem('sigu_barnacle', 'Barnacle Guards', 2, 'assets/gear/signature/sigu_barnacle.png', SIG_RAR, []);
+defItem('sigu_bilgewalkers', 'Bilgewalkers', 4, 'assets/gear/signature/sigu_bilgewalkers.png', SIG_RAR, []);
+defItem('sigu_eye', 'Horror\'s Eye', 8, 'assets/gear/signature/sigu_eye.png', SIG_RAR, []);
+defItem('sigu_maul', 'Chainshot Maul', 5, 'assets/gear/signature/sigu_maul.png', SIG_RAR, []);
+defItem('sigu_grips', 'Cannoneer\'s Grips', 3, 'assets/gear/signature/sigu_grips.png', SIG_RAR, []);
+defItem('sigu_charm', 'Powder Charm', 6, 'assets/gear/signature/sigu_charm.png', SIG_RAR, []);
+defItem('sigu_crown', 'Saltglass Crown', 0, 'assets/gear/signature/sigu_crown.png', SIG_RAR, []);
+defItem('sigu_lantern', 'Wraithlight Lantern', 9, 'assets/gear/signature/sigu_lantern.png', SIG_RAR, []);
+defItem('sigu_band', 'Tidewater Band', 8, 'assets/gear/signature/sigu_band.png', SIG_RAR, []);
+defItem('sigu_colors', 'The Captain\'s Colors', 13, 'assets/gear/signature/sigu_colors.png', SIG_RAR, []);
+defItem('sigu_longboat', 'The Longboat', 11, 'assets/gear/signature/sigu_longboat.png', SIG_RAR, []);
+ITEMS.sigu_maul.twoHand = true;
+Object.keys(ITEMS).filter(k => k.startsWith('sigu_')).forEach(k => { ITEMS[k].flavor = 'The Undertow — The Black Hull'; });
+defItem('sigv_bulkhelm', 'Voidwatch Bulkhelm', 0, 'assets/gear/signature/sigv_bulkhelm.png', SIG_RAR, []);
+defItem('sigv_plating', 'Sentinel Plating', 1, 'assets/gear/signature/sigv_plating.png', SIG_RAR, []);
+defItem('sigv_maglocks', 'Maglock Boots', 4, 'assets/gear/signature/sigv_maglocks.png', SIG_RAR, []);
+defItem('sigv_breachers', 'Breacher Gauntlets', 3, 'assets/gear/signature/sigv_breachers.png', SIG_RAR, []);
+defItem('sigv_blade', 'Boarding Blade', 5, 'assets/gear/signature/sigv_blade.png', SIG_RAR, []);
+defItem('sigv_belt', 'Squadleader\'s Belt', 7, 'assets/gear/signature/sigv_belt.png', SIG_RAR, []);
+defItem('sigv_ring', 'Stowaway\'s Ring', 8, 'assets/gear/signature/sigv_ring.png', SIG_RAR, []);
+defItem('sigv_hullwalkers', 'Hullwalkers', 2, 'assets/gear/signature/sigv_hullwalkers.png', SIG_RAR, []);
+defItem('sigv_flare', 'Signal Flare Pendant', 6, 'assets/gear/signature/sigv_flare.png', SIG_RAR, []);
+defItem('sigv_coil', 'Deflector Coil', 9, 'assets/gear/signature/sigv_coil.png', SIG_RAR, []);
+defItem('sigv_plasmaband', 'Plasma Band', 8, 'assets/gear/signature/sigv_plasmaband.png', SIG_RAR, []);
+defItem('sigv_pod', 'The Escape Pod', 11, 'assets/gear/signature/sigv_pod.png', SIG_RAR, []);
+defItem('sigv_standard', 'The Admiral\'s Standard', 13, 'assets/gear/signature/sigv_standard.png', SIG_RAR, []);
+defItem('sigv_lance', 'Flagship Lance', 5, 'assets/gear/signature/sigv_lance.png', SIG_RAR, []);
+ITEMS.sigv_lance.twoHand = true;
+Object.keys(ITEMS).filter(k => k.startsWith('sigv_')).forEach(k => { ITEMS[k].flavor = 'The Voidwatch — The Flagship'; });
+defItem('sigl_visor', 'Last Ward Visor', 0, 'assets/gear/signature/sigl_visor.png', SIG_RAR, []);
+defItem('sigl_harness', 'Triage Kit Harness', 7, 'assets/gear/signature/sigl_harness.png', SIG_RAR, []);
+defItem('sigl_grips', 'Orderly\'s Grips', 3, 'assets/gear/signature/sigl_grips.png', SIG_RAR, []);
+defItem('sigl_fang', 'Crawler\'s Fang', 5, 'assets/gear/signature/sigl_fang.png', SIG_RAR, []);
+defItem('sigl_plating', 'Ward Plating', 1, 'assets/gear/signature/sigl_plating.png', SIG_RAR, []);
+defItem('sigl_shoes', 'Quiet Shoes', 4, 'assets/gear/signature/sigl_shoes.png', SIG_RAR, []);
+defItem('sigl_mask', 'Filter Mask Pendant', 6, 'assets/gear/signature/sigl_mask.png', SIG_RAR, []);
+defItem('sigl_arm', 'The Ventilator\'s Arm', 5, 'assets/gear/signature/sigl_arm.png', SIG_RAR, []);
+defItem('sigl_leggings', 'Circuit-Sealed Leggings', 2, 'assets/gear/signature/sigl_leggings.png', SIG_RAR, []);
+defItem('sigl_feverglass', 'Feverglass Ring', 8, 'assets/gear/signature/sigl_feverglass.png', SIG_RAR, []);
+defItem('sigl_lamp', 'Hazelight Lamp', 9, 'assets/gear/signature/sigl_lamp.png', SIG_RAR, []);
+defItem('sigl_gurney', 'The Gurney', 11, 'assets/gear/signature/sigl_gurney.png', SIG_RAR, []);
+defItem('sigl_sample', 'The First Sample', 13, 'assets/gear/signature/sigl_sample.png', SIG_RAR, []);
+defItem('sigl_sigil', 'Outbreak Sigil', 8, 'assets/gear/signature/sigl_sigil.png', SIG_RAR, []);
+ITEMS.sigl_arm.twoHand = true;
+Object.keys(ITEMS).filter(k => k.startsWith('sigl_')).forEach(k => { ITEMS[k].flavor = 'The Last Ward — Patient Zero'; });
+/* Effekternas KLARTEXT. Inga kodord pa skarmen: spelaren ska inte behova veta
+   vad en "slayer" ar - "+6% damage vs Humanoids" forklarar sig sjalvt.
+   Opening Strike och Second Wind behaller sina namn, de bar sin forklaring. */
+const PVE_EFFECT_TEXT = {
+  vs_humanoid:  v => '+' + v + '% damage vs Humanoids',
+  vs_creature:  v => '+' + v + '% damage vs Creatures',
+  vs_machine:   v => '+' + v + '% damage vs Machines',
+  vs_elemental: v => '+' + v + '% damage vs Elementals',
+  vs_spirit:    v => '+' + v + '% damage vs Spirits',
+  armor:        v => v + '% armor — enemy hits land softer',
+  heal_received:v => '+' + v + '% healing received',
+  second_wind:  v => 'Second Wind — +' + v + '% health after each dungeon victory',
+  opening_strike: v => 'Opening Strike — your first hit deals +' + v + '%',
+  loot_bonus:   v => '+' + v + '% scrap & XP from fights'
+};
+function pveEffLine(fx){
+  if (!fx || !PVE_EFFECT_TEXT[fx.k]) return '';
+  return PVE_EFFECT_TEXT[fx.k](+fx.v);
+}
 defItem('neck_circuit_pendant', 'Circuit Pendant', 6, 'assets/gear/necks/neck_circuit_pendant.png', ALL_RAR, []);
 defItem('neck_runners_sleeve', "Runner's Sleeve", 6, 'assets/gear/necks/neck_runners_sleeve.png', ALL_RAR, []);
 defItem('neck_iron_pendant', 'Iron Pendant', 6, 'assets/gear/necks/neck_iron_pendant.png', ALL_RAR, []);
@@ -10019,176 +10390,118 @@ function collectTick(){
    - START kräver att du STÅR i expeditionens zon. Pågående sköts varifrån som helst.
    - Att KLIVA IN i en zon upptäcker dess expeditioner -> Discovered-katalogen.
    - Max 2 samtidiga (slots). Belöningen låses vid start (kontrakt, serverklart).
-   - Data = grundgolv + andel av din produktion över tiden. Fragments är zonfynd.
+   - Fragments är zonfynd; guld, skrot och XP räknas ur längd och ring.
    - XP star INTE har. Varje uppdrag bar forut en egen XP-siffra, satt for hand;
      sedan v4.2.0 raknas den fram ur langd och ring i expXpReward, och samma
      formel ligger pa servern. Talen togs bort helt (v4.2.2) sa att ingen om ett
      halvar andrar en siffra som inte gor nagot. Ett stalle, en sanning. */
 const EXPEDITIONS = {
-  /* Tre uppdrag per zon: ett kort, ett medellangt, ett riktigt langt.
-     Datalonen ar RAKNAD ur langd och niva, inte satt for hand - langre uppdrag
-     och hogre niva ger mer per minut. XP star inte har; den raknas ur langd och
-     ring pa bada sidor. */
+  /* [ANDRAT v5.35.0] 90 blev 30 - ETT uppdrag per zon. Urvalsregeln: zon 1-2
+     behaller sitt korta uppdrag, zon 3-4 sitt mellersta, zon 5-6 sitt langa;
+     namnen och nivaerna star kvar. Langdstegen foljer zonens plats i varlden:
+     5m / 15m / 45m / 2h / 4h / 8h. Belonen raknas ur langd och ring pa bada
+     sidor (XP, guld, skrot, fragments), sa den foljde med utan en enda ny
+     siffra. Samma trettio rader ligger pa servern - servern ar sanningen. */
   voxholm: {
     'The Grasslands': [
-      {id:'vox_grasslan_1', name:'Break the First Cube', mins:4, lvl:1, base:130},
-      {id:'vox_grasslan_2', name:'Herd the Cube Cattle', mins:18, lvl:1, base:720},
-      {id:'vox_grasslan_3', name:'Flatten the Whole Field', mins:50, lvl:1, base:2950}
+      {id:'vox_grasslan_1', name:'Break the First Cube', mins:5, lvl:1}
     ],
     'The Village': [
-      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:6, lvl:3, base:240},
-      {id:'vox_village_2', name:'Market Day Run', mins:20, lvl:3, base:980},
-      {id:'vox_village_3', name:'Raise a House by Dusk', mins:55, lvl:3, base:3850}
+      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:15, lvl:3}
     ],
     'The Mineshaft': [
-      {id:'vox_mineshaf_1', name:'Follow the Pickaxes Down', mins:7, lvl:5, base:340},
-      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:22, lvl:5, base:1280},
-      {id:'vox_mineshaf_3', name:'Bottom of the Shaft', mins:60, lvl:5, base:4860}
+      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:45, lvl:5}
     ],
     'The Lava Layer': [
-      {id:'vox_lavalaye_1', name:'Bridge the Hot Gap', mins:8, lvl:7, base:460},
-      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:25, lvl:7, base:1700},
-      {id:'vox_lavalaye_3', name:'Build Where Nobody Builds', mins:65, lvl:7, base:5980}
+      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:120, lvl:7}
     ],
     'The Skybuild': [
-      {id:'vox_skybuild_1', name:'Climb the Half Bridge', mins:8, lvl:9, base:530},
-      {id:'vox_skybuild_2', name:'Haul Blocks to the Clouds', mins:26, lvl:9, base:1990},
-      {id:'vox_skybuild_3', name:'Finish Somebody\'s Dream', mins:70, lvl:9, base:7210}
+      {id:'vox_skybuild_3', name:"Finish Somebody's Dream", mins:240, lvl:9}
     ],
     'The Deepshaft': [
-      {id:'vox_deepshaf_1', name:'Scout the Torn Entrance', mins:9, lvl:10, base:630},
-      {id:'vox_deepshaf_2', name:'Down Through Every Layer', mins:28, lvl:10, base:2290},
-      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:75, lvl:10, base:8250}
+      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:480, lvl:10}
     ]
   },
   drakemark: {
     'Gnome Square': [
-      {id:'dra_gnomesqu_1', name:'Catch a Runaway Invention', mins:6, lvl:11, base:440},
-      {id:'dra_gnomesqu_2', name:'Translate the Whole Market', mins:22, lvl:11, base:1810},
-      {id:'dra_gnomesqu_3', name:'The Contraption Contest', mins:58, lvl:11, base:6020}
+      {id:'dra_gnomesqu_1', name:'Catch a Runaway Invention', mins:5, lvl:11}
     ],
     'Troll Mire': [
-      {id:'dra_trollmir_1', name:'Pay the Crossing Toll', mins:7, lvl:13, base:570},
-      {id:'dra_trollmir_2', name:'Wade the Knee-Deep Fog', mins:24, lvl:13, base:2190},
-      {id:'dra_trollmir_3', name:'Argue With a Troll', mins:62, lvl:13, base:7080}
+      {id:'dra_trollmir_1', name:'Pay the Crossing Toll', mins:15, lvl:13}
     ],
     'Sand Valley': [
-      {id:'dra_sandvall_1', name:'Ride With the Caravan', mins:8, lvl:15, base:720},
-      {id:'dra_sandvall_2', name:'Bandit Country', mins:26, lvl:15, base:2620},
-      {id:'dra_sandvall_3', name:'Something Under the Sand', mins:68, lvl:15, base:8550}
+      {id:'dra_sandvall_2', name:'Bandit Country', mins:45, lvl:15}
     ],
     'The Black Keep': [
-      {id:'dra_blackkee_1', name:'Accept the Invitation', mins:8, lvl:17, base:780},
-      {id:'dra_blackkee_2', name:'Dine at the Long Table', mins:28, lvl:17, base:3070},
-      {id:'dra_blackkee_3', name:'Every Floor of the Keep', mins:72, lvl:17, base:9810}
+      {id:'dra_blackkee_2', name:'Dine at the Long Table', mins:120, lvl:17}
     ],
     'The Spine': [
-      {id:'dra_spine_1', name:'Take the Mountain Pass', mins:9, lvl:19, base:960},
-      {id:'dra_spine_2', name:'Watch Her Flight Path', mins:30, lvl:19, base:3570},
-      {id:'dra_spine_3', name:'Cross the Ridge at Night', mins:76, lvl:19, base:11140}
+      {id:'dra_spine_3', name:'Cross the Ridge at Night', mins:240, lvl:19}
     ],
     'The Dragon Nest': [
-      {id:'dra_dragonne_1', name:'Approach the Summit', mins:10, lvl:20, base:1110},
-      {id:'dra_dragonne_2', name:'She Already Knows', mins:32, lvl:20, base:3970},
-      {id:'dra_dragonne_3', name:'The Nest Itself', mins:80, lvl:20, base:12240}
+      {id:'dra_dragonne_3', name:'The Nest Itself', mins:480, lvl:20}
     ]
   },
   cutlassbay: {
     'Port Town': [
-      {id:'cut_porttown_1', name:'Buy the Same Map Twice', mins:7, lvl:21, base:790},
-      {id:'cut_porttown_2', name:'A Night at the Docks', mins:24, lvl:21, base:2960},
-      {id:'cut_porttown_3', name:'Outfit a Whole Crew', mins:64, lvl:21, base:9430}
+      {id:'cut_porttown_1', name:'Buy the Same Map Twice', mins:5, lvl:21}
     ],
     'The Shallows': [
-      {id:'cut_shallows_1', name:'Wade the Clear Water', mins:8, lvl:23, base:970},
-      {id:'cut_shallows_2', name:'The Sharks Know the Boats', mins:26, lvl:23, base:3450},
-      {id:'cut_shallows_3', name:'Dive the Bright Bottom', mins:70, lvl:23, base:11130}
+      {id:'cut_shallows_1', name:'Wade the Clear Water', mins:15, lvl:23}
     ],
     'Jungle Climb': [
-      {id:'cut_junglecl_1', name:'Learn the Gorilla Rules', mins:8, lvl:25, base:1040},
-      {id:'cut_junglecl_2', name:'Take the Canopy Road', mins:28, lvl:25, base:3970},
-      {id:'cut_junglecl_3', name:'Over the Green Ridge', mins:74, lvl:25, base:12540}
+      {id:'cut_junglecl_2', name:'Take the Canopy Road', mins:45, lvl:25}
     ],
     'Wreck Reef': [
-      {id:'cut_wreckree_1', name:'Knock on Fifty Hulls', mins:9, lvl:27, base:1250},
-      {id:'cut_wreckree_2', name:'The People Living Below', mins:30, lvl:27, base:4530},
-      {id:'cut_wreckree_3', name:'Strip the Deepest Wreck', mins:78, lvl:27, base:14020}
+      {id:'cut_wreckree_2', name:'The People Living Below', mins:120, lvl:27}
     ],
-    'Smuggler\'s Cove': [
-      {id:'cut_smuggler_1', name:'Deals the Port Won\'t Hold', mins:9, lvl:29, base:1320},
-      {id:'cut_smuggler_2', name:'Move the Quiet Cargo', mins:32, lvl:29, base:5130},
-      {id:'cut_smuggler_3', name:'Nobody Leaves Empty', mins:82, lvl:29, base:15600}
+    "Smuggler's Cove": [
+      {id:'cut_smuggler_3', name:'Nobody Leaves Empty', mins:240, lvl:29}
     ],
     'The Black Hull': [
-      {id:'cut_blackhul_1', name:'Board the Silent Ship', mins:10, lvl:30, base:1510},
-      {id:'cut_blackhul_2', name:'Below the Waterline', mins:34, lvl:30, base:5620},
-      {id:'cut_blackhul_3', name:'Nobody Comes Back', mins:86, lvl:30, base:16910}
+      {id:'cut_blackhul_3', name:'Nobody Comes Back', mins:480, lvl:30}
     ]
   },
   novacommand: {
     'The Dock Ring': [
-      {id:'nov_dockring_1', name:'Find a Berth in the Chaos', mins:8, lvl:31, base:1230},
-      {id:'nov_dockring_2', name:'A Thousand Ships, No Queue', mins:28, lvl:31, base:4640},
-      {id:'nov_dockring_3', name:'Run the Whole Ring', mins:76, lvl:31, base:14790}
+      {id:'nov_dockring_1', name:'Find a Berth in the Chaos', mins:5, lvl:31}
     ],
     'The Garrison': [
-      {id:'nov_garrison_1', name:'Watch the Drills', mins:9, lvl:33, base:1460},
-      {id:'nov_garrison_2', name:'They Are Recruiting', mins:30, lvl:33, base:5250},
-      {id:'nov_garrison_3', name:'Full Training Rotation', mins:80, lvl:33, base:16400}
+      {id:'nov_garrison_1', name:'Watch the Drills', mins:15, lvl:33}
     ],
     'Alien Bazaar': [
-      {id:'nov_alienbaz_1', name:'Nine Languages, No Translator', mins:9, lvl:35, base:1530},
-      {id:'nov_alienbaz_2', name:'Trade Without Words', mins:32, lvl:35, base:5890},
-      {id:'nov_alienbaz_3', name:'Every Stall on the Strip', mins:84, lvl:35, base:18090}
+      {id:'nov_alienbaz_2', name:'Trade Without Words', mins:45, lvl:35}
     ],
     'Asteroid Field': [
-      {id:'nov_asteroid_1', name:'Mine in Zero Gravity', mins:10, lvl:37, base:1790},
-      {id:'nov_asteroid_2', name:'The Rocks Are Moving', mins:34, lvl:37, base:6580},
-      {id:'nov_asteroid_3', name:'Deep Field Survey', mins:88, lvl:37, base:19870}
+      {id:'nov_asteroid_2', name:'The Rocks Are Moving', mins:120, lvl:37}
     ],
     'The Silent Cruiser': [
-      {id:'nov_silentcr_1', name:'It Answers the Hail', mins:10, lvl:39, base:1870},
-      {id:'nov_silentcr_2', name:'It Will Not Give a Name', mins:36, lvl:39, base:7290},
-      {id:'nov_silentcr_3', name:'Walk the Whole Hull', mins:92, lvl:39, base:21730}
+      {id:'nov_silentcr_3', name:'Walk the Whole Hull', mins:240, lvl:39}
     ],
     'The Flagship': [
-      {id:'nov_flagship_1', name:'Get Past the Airlock', mins:11, lvl:40, base:2110},
-      {id:'nov_flagship_2', name:'Deck by Deck', mins:38, lvl:40, base:7900},
-      {id:'nov_flagship_3', name:'All the Way to the Bridge', mins:96, lvl:40, base:23290}
+      {id:'nov_flagship_3', name:'All the Way to the Bridge', mins:480, lvl:40}
     ]
   },
   quarantine: {
     'The Wall': [
-      {id:'qua_wall_1', name:'Trade Under the Guns', mins:9, lvl:41, base:1750},
-      {id:'qua_wall_2', name:'The Station Broadcasts All Night', mins:34, lvl:41, base:7120},
-      {id:'qua_wall_3', name:'A Full Watch on the Wall', mins:90, lvl:41, base:21870}
+      {id:'qua_wall_1', name:'Trade Under the Guns', mins:5, lvl:41}
     ],
     'The Suburbs': [
-      {id:'qua_suburbs_1', name:'Walk the Quiet Street', mins:10, lvl:43, base:2030},
-      {id:'qua_suburbs_2', name:'They Hear You Walking', mins:36, lvl:43, base:7870},
-      {id:'qua_suburbs_3', name:'House by House', mins:94, lvl:43, base:23820}
+      {id:'qua_suburbs_1', name:'Walk the Quiet Street', mins:15, lvl:43}
     ],
     'The Mall': [
-      {id:'qua_mall_1', name:'Pay the Holder\'s Rent', mins:10, lvl:45, base:2110},
-      {id:'qua_mall_2', name:'The Biggest Find in the Zone', mins:38, lvl:45, base:8660},
-      {id:'qua_mall_3', name:'Take the Whole Floor', mins:98, lvl:45, base:25850}
+      {id:'qua_mall_2', name:'The Biggest Find in the Zone', mins:45, lvl:45}
     ],
     'The Overpass': [
-      {id:'qua_overpass_1', name:'Between the Dead Cars', mins:11, lvl:47, base:2420},
-      {id:'qua_overpass_2', name:'Run a Looter Route', mins:40, lvl:47, base:9480},
-      {id:'qua_overpass_3', name:'The Bridge, End to End', mins:104, lvl:47, base:28640}
+      {id:'qua_overpass_2', name:'Run a Looter Route', mins:120, lvl:47}
     ],
     'The Farm': [
-      {id:'qua_farm_1', name:'Somebody Grows Real Food', mins:11, lvl:49, base:2500},
-      {id:'qua_farm_2', name:'They Defend It Hard', mins:42, lvl:49, base:10340},
-      {id:'qua_farm_3', name:'A Season\'s Harvest', mins:110, lvl:49, base:31570}
+      {id:'qua_farm_3', name:"A Season's Harvest", mins:240, lvl:49}
     ],
     'Patient Zero': [
-      {id:'qua_patientz_1', name:'Through the Front Doors', mins:12, lvl:50, base:2790},
-      {id:'qua_patientz_2', name:'Down Through the Hospital', mins:44, lvl:50, base:11060},
-      {id:'qua_patientz_3', name:'The Floor Where It Started', mins:115, lvl:50, base:33810}
+      {id:'qua_patientz_3', name:'The Floor Where It Started', mins:480, lvl:50}
     ]
-  },
+  }
 };
 const EXP_SLOTS_BASE = 2;
 /* Antalet platser ar inte langre en konstant: omstartsformånen hojer det.
@@ -12716,7 +13029,7 @@ function updateUI(force){
   renderPremiumBags(); renderPremiumVaultBags();
   /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
      och tätare ritning river knappar under fingret på mobil. */
-  if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); }
+  if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); pveDungeonTick(); }
 
   if (S.world.travel){
     travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
@@ -13102,7 +13415,11 @@ const REGIONS = {
   cutlassbay: {name:'Cutlass Bay', ico:'🏴‍☠️', x:51, y:58, tier:2, band:'21-30', desig:'Safe',
                  adj:['drakemark','novacommand'],
                  zones:['Port Town', 'The Shallows', 'Jungle Climb', 'Wreck Reef', 'Smuggler\'s Cove', 'The Black Hull']},
-  novacommand: {name:'Nova Command', ico:'🚀', x:71, y:32, tier:3, band:'31-40', desig:'Safe',
+  /* [ANDRAT v5.39.0] Nova Command -> The Last Armada. Varje varld ar ett SPEL
+     i natverket, och en flotta som aldrig fick sin sista order ar ett spel -
+     "Nova Command" var en myndighet. Nyckeln 'novacommand' star ororda overallt:
+     namn ar visning, nycklar ar id. Samma rad ar bytt pa servern. */
+  novacommand: {name:'The Last Armada', ico:'🚀', x:71, y:32, tier:3, band:'31-40', desig:'Safe',
                  adj:['cutlassbay','quarantine'],
                  zones:['The Dock Ring', 'The Garrison', 'Alien Bazaar', 'Asteroid Field', 'The Silent Cruiser', 'The Flagship']},
   quarantine: {name:'The Quarantine', ico:'☣️', x:90, y:56, tier:4, band:'41-50', desig:'Safe',
@@ -14413,6 +14730,9 @@ function openZone(regionId, zi, keepNote){
        fredad och en okand zon har inget att soka av. */
     (zone !== TRADE_ZONE && isZoneCharted(regionId, zone)
       ? buildZoneEncounter(regionId, zone) : '') +
+    /* [TILLAGT v5.34.0] Dungeonen, under motet. Bara i zoner som har en. */
+    (zone !== TRADE_ZONE && isZoneCharted(regionId, zone)
+      ? buildZoneDungeon(regionId, zone) : '') +
     '<div class="section-label">Players in zone</div>' +
     '<div class="shelf-empty">Only you — other players appear when the server goes live.</div>' +
     buildZoneAction(regionId, zone);
@@ -14500,6 +14820,57 @@ function openZone(regionId, zi, keepNote){
   if (pveF) pveF.addEventListener('click', () => { pveF.disabled = true; startPveFight(); });
   const pveL = $('zone-pve-leave');
   if (pveL) pveL.addEventListener('click', () => closeRegion());
+  /* [TILLAGT v5.34.0] Dungeonens alla knappar genom EN lyssnare pa dess ruta
+     (buggfamilj 9) - stegare, laketrosklar, Enter, Abandon och Claim. */
+  const dgBox = $('zone-dg');
+  if (dgBox) dgBox.addEventListener('click', ev => {
+    const st = pveDgDefaults();
+    const step = ev.target.closest('[data-dgs]');
+    if (step){
+      const k = step.dataset.dgs, d = +step.dataset.d;
+      const cap = k === 'r'
+        ? Math.min(pveOwned('revive_kit'), (PVE.dg && PVE.dg.dungeon) ? PVE.dg.dungeon.revive_max : 1)
+        : pveOwned(k === 'b' ? 'bandage' : 'first_aid_kit');
+      st[k] = Math.max(0, Math.min(cap, st[k] + d));
+      openZone(regionId, zi, true); return;
+    }
+    const opt = ev.target.closest('[data-dgo]');
+    if (opt){
+      const v = +opt.dataset.v;
+      if (opt.dataset.dgo === 'under') st.under = v; else st.until = v;
+      /* Malet maste ligga OVER golvet - annars vagrar servern, med ratta. */
+      if (st.until <= st.under) st.until = st.under < 50 ? 50 : (st.under < 75 ? 75 : 100);
+      if (st.under >= st.until) st.under = st.until === 50 ? 40 : (st.until === 75 ? 50 : 75);
+      openZone(regionId, zi, true); return;
+    }
+    if (ev.target.closest('#dg-enter')){
+      const b = ev.target.closest('#dg-enter'); b.disabled = true;
+      netPveDungeonStart(st)
+        .then(() => netPullItems())
+        .then(() => { PVE.dgConfirm = false; openZone(regionId, zi, true); renderInventory(); })
+        .catch(e => { say(srvErrText(e)); openZone(regionId, zi, true); });
+      return;
+    }
+    if (ev.target.closest('#dg-abandon')){
+      if (!PVE.dgConfirm){ PVE.dgConfirm = true; openZone(regionId, zi, true); return; }
+      PVE.dgConfirm = false;
+      netPveDungeonAbandon()
+        .then(() => openZone(regionId, zi, true))
+        .catch(e => { say(srvErrText(e)); openZone(regionId, zi, true); });
+      return;
+    }
+    if (ev.target.closest('#dg-claim')){
+      const b = ev.target.closest('#dg-claim'); b.disabled = true;
+      netPveDungeonClaim()
+        .then(r => {
+          if (r && r.hp) pveApplyHp(r.hp);
+          return Promise.all([netPullItems(), netPvePull(), netPveDungeonPull()])
+            .then(() => { redrawAll(); openZone(regionId, zi, true); if (r) showDungeonSummary(r); });
+        })
+        .catch(e => { say(srvErrText(e)); openZone(regionId, zi, true); });
+      return;
+    }
+  });
 }
 /* ---------- VENDORNS GEAR ----------
    Grundplåten: enkla pjäser att köpa när dropparna sviker, så ingen står naken
@@ -17087,6 +17458,8 @@ function gearTipHTML(it){
         delta((it.dm || 0) - (cur ? (cur.dm || 0) : 0))) : '') +
     '<div class="gt-sep"></div>' +
     it.a.map(x => '<div class="gt-aff' + (AFFIXES[x.k].lower ? ' dn' : '') + '">' + affLine(x) + '</div>').join('') +
+    /* PvE-effekten (v5.36.0): signaturens rad, i sin egen farg. */
+    (it.pve ? '<div class="gt-sep"></div><div class="gt-pve">' + pveEffLine(it.pve) + '</div>' : '') +
     '<div class="gt-sep"></div>' +
     line('Sells for', fmtMoney(gearGold(it))) +
     (it.craft ? '<div class="gt-craft">⚒️ Crafted — low vendor value</div>' : '') +
@@ -17320,6 +17693,7 @@ function itemWinHTML(it, worn){
                ? '<button class="af-tune" data-tune="' + i + '" title="Reroll this number for ' +
                  moneyText(tunePrice(it.r, it.tune || 0)) + '">⟳</button>' : '') +
              '</div>').join('') +
+          (it.pve ? '<div class="af gt-pve">' + pveEffLine(it.pve) + '</div>' : '') +
           (NET.on && it.a && it.a.length && levelInfo().lvl >= TUNE_MIN_LEVEL
             ? '<div class="af tune-note">' +
                 (tuneLeft(it) > 0
