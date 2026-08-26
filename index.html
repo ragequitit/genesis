@@ -3063,7 +3063,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .ah-th:hover{color:var(--text-dim)}
 .ah-sort{opacity:.6}
 .ah-sort.on{color:var(--cyan);opacity:1}
-.ah-rows{flex:1;overflow-y:auto;min-height:0}
+/* [ANDRAT v5.42.0] overscroll-behavior:contain - punkt 5. Nar listan nadde sin
+   kant fortsatte rullningen till SIDAN BAKOM; nu stannar den i fonstret. */
+.ah-rows{flex:1;overflow-y:auto;min-height:0;overscroll-behavior:contain}
 .ah-row{padding:9px 12px;border-bottom:1px solid var(--border-soft)}
 .ah-row:hover{background:rgba(56,232,255,.03)}
 .ah-c-item{display:flex;align-items:center;gap:11px;min-width:0}
@@ -4471,7 +4473,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.41.0 — HANTVERKSKÖN</div>
+            <div class="desc">GENESIS v5.42.0 — RESANDET OCH FÖNSTREN</div>
           </div>
         </div>
       </div>
@@ -4482,7 +4484,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.41.0 — HANTVERKSKÖN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.42.0 — RESANDET OCH FÖNSTREN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -4803,6 +4805,12 @@ const SRV_ERRORS = {
   nothing_in_slot:          'The shelf is empty there.',
   not_at_this_vendor:       'You have to be standing at this vendor to trade.',
   still_travelling:         'You are still travelling.',
+  /* [TILLAGT v5.42.0] Resefelen sa "The server said no" for att de saknade
+     text. Nu sager de VAD som ar fel - punkt 3 pa listan. */
+  already_travelling:       'You are already on your way somewhere — wait until you arrive.',
+  already_here:             'You are already in that region.',
+  not_adjacent:             'You can only travel to a neighbouring region — open the map to see which ones connect.',
+  region_locked:            'That region is not open to you yet.',
   expedition_not_finished:  'That expedition is still out.',
   tank_already_full:        'The tank is already full.',
   not_usable:               'That cannot be used.',
@@ -4914,6 +4922,17 @@ async function netPull(){
       to: c.travel_to, zone: null, from: c.region,
       eta: new Date(c.travel_ends).getTime(), fuel: 0
     };
+  } else if (c.travel_to && c.travel_ends && new Date(c.travel_ends).getTime() <= Date.now()){
+    /* [BUGG v5.42.0] EN DOD RESA - en resa vars tid GATT UT medan man var borta.
+       Den lastes varken in (den ar inte i framtiden) eller avslutades, sa den
+       lag kvar pa servern och nekade ALLT nytt resande med "already_travelling"
+       - vilket klienten visade som "The server said no". Det ar hela punkt 3.
+       Nu bes servern avsluta den direkt, sa man ar framme och fri att resa. */
+    S.world.travel = {to: c.travel_to, zone: null, from: c.region, eta: Date.now(), fuel: 0};
+    if (NET.on) netArrive().then(r => {
+      if (r && r.arrived){ S.world.travel = null; S.world.zone = null;
+        refreshTravelBar(); refreshWarp(); renderMap(); updateUI(true); }
+    }).catch(() => {});
   } else if (S.world.travel && !c.travel_ends){
     S.world.travel = null;
   }
@@ -6069,20 +6088,62 @@ async function netPullItems(){
    flyttat mer an vi tror (en utbytt pjas hamnar i vaskan, en full vaska
    skickar till posten), och att gissa det lokalt vore att bygga en andra
    sanning som kan glida isar. */
+/* [ANDRAT v5.42.0] Punkt 7: utrustandet kandes trogt for att skarmen vantade pa
+   BADE serversvaret och en hel omhamtning innan den ritades om - ett till tva
+   sekunder. Nu flyttas pjasen lokalt DIREKT och servern bekraftar i bakgrunden;
+   nekas det backar vi genom att hamta sanningen och saga till. Optimistiskt,
+   men aldrig ohederligt - servern ar fortfarande den som avgor. */
 async function netEquip(gear, slot){
   if (!NET.on || !gear || !gear.sid) return null;
-  const r = await srvRpc('equip_item',
-    {p_character: SRV.charId, p_item: gear.sid, p_slot: (slot == null ? null : slot)});
-  await netPullItems();
+  applyEquipLocal(gear, slot);                 // skarmen svarar med detsamma
   renderEquip(); renderInventory(); updateUI(true);
-  return r;
+  try {
+    const r = await srvRpc('equip_item',
+      {p_character: SRV.charId, p_item: gear.sid, p_slot: (slot == null ? null : slot)});
+    await netPullItems();
+    renderEquip(); renderInventory(); updateUI(true);
+    return r;
+  } catch (e){
+    await netPullItems();                      // servern nekade - hamta sanningen
+    renderEquip(); renderInventory(); updateUI(true);
+    throw e;
+  }
 }
 async function netUnequip(gear){
   if (!NET.on || !gear || !gear.sid) return null;
-  const r = await srvRpc('unequip_item', {p_character: SRV.charId, p_item: gear.sid});
-  await netPullItems();
+  applyUnequipLocal(gear);
   renderEquip(); renderInventory(); updateUI(true);
-  return r;
+  try {
+    const r = await srvRpc('unequip_item', {p_character: SRV.charId, p_item: gear.sid});
+    await netPullItems();
+    renderEquip(); renderInventory(); updateUI(true);
+    return r;
+  } catch (e){
+    await netPullItems();
+    renderEquip(); renderInventory(); updateUI(true);
+    throw e;
+  }
+}
+/* Flytten pa klientsidan, sa skarmen svarar direkt. Speglar serverns regler
+   (ratt plats, tvahandslas, byte med det som satt dar); servern raknar om allt
+   pa riktigt strax efter. */
+function applyEquipLocal(gear, want){
+  const idx = S.inv.findIndex(r => r && r.gear && r.gear.uid === gear.uid);
+  if (idx < 0) return;
+  const it = S.inv[idx].gear, dest = targetSlotFor(it, want);
+  if (dest == null || dest < 0) return;
+  if (dest === 9 && twoHandOn()) return;
+  const old = S.equip[dest];
+  S.equip[dest] = it;
+  S.inv[idx] = old ? {gear: old} : null;
+}
+function applyUnequipLocal(gear){
+  const slot = Object.keys(S.equip).find(k => S.equip[k] && S.equip[k].uid === gear.uid);
+  if (slot == null) return;
+  const free = invFirstFree();
+  if (free < 0) return;
+  S.inv[free] = {gear: S.equip[slot]};
+  delete S.equip[slot];
 }
 async function netSell(gear){
   if (!NET.on || !gear || !gear.sid) return null;
@@ -14573,9 +14634,15 @@ function renderRegionView(){
   mapNodes.innerHTML = '';
   // Kärnan: regionens port
   const core = document.createElement('div');
-  core.className = 'map-node current core';
+  /* [BUGG v5.42.0] Karnan fick ALLTID 'current', sa vilken varld man an dok in i
+     lyste blatt som "du ar har" - markeringen foljde det man TITTADE pa, inte
+     var man stod. Nu far den blatt bara nar det ar ens egen varld; en annan
+     varlds insida lyser gront om besokt, annars neutralt. */
+  const coreHere = (id === S.world.current);
+  core.className = 'map-node core ' + (coreHere ? 'current' : (isVisited(id) ? 'visited' : 'known'));
   core.style.left = '50%'; core.style.top = '50%';
-  core.innerHTML = '<div class="map-dot">' + R.ico + '</div><div class="map-name">' + R.name + '</div>';
+  core.innerHTML = '<div class="map-dot">' + R.ico + '</div><div class="map-name">' + R.name +
+    (coreHere ? '<br>YOU ARE HERE' : '') + '</div>';
   core._tip = () => tipForRegion(id) .replace('Click to view zones', 'Click to zoom out to the world');
   core._action = () => setMapMode('world');
   mapNodes.appendChild(core);
@@ -16433,8 +16500,13 @@ document.addEventListener('click', e => {
   const slot = e.target.closest('[data-teamslot]');
   if (!slot){ closeTeamPicker(); return; }
   if (slot.dataset.teampet){ removeTeamPet(+slot.dataset.teampet); return; }
-  const r = slot.getBoundingClientRect();
-  openTeamPicker(+slot.dataset.teamslot, r.left + r.width / 2, r.bottom);
+  /* [ANDRAT v5.42.0] Punkt 6: plustecknet gav en smal textlista. Nu oppnas
+     HELA hjalparforradet - samma vy som Helpers i snabbraden - sa man ser dem
+     som foremal i rutor och kan dra darifran till lagplatsen. */
+  closeTeamPicker();
+  const w = $('pets-overlay');
+  if (w && !w.classList.contains('open')) openPetsModal();
+  if (w) bringToFront(w);
 });
 
 /* ===== STATIONSSIDAN (v5.14.0) =====
@@ -16567,15 +16639,10 @@ function spawnBonusFind(){
   if (!pool.length) return;
   const kind = pool[Math.floor(Math.random() * pool.length)];
   const def = BONUS_FIND_ICONS[kind];
-  /* Den flyger ut fran noden, eller fran yrkeskortet nar fyndet hor till ett
-     yrke - da ser man VARIFRAN det kom. */
-  let host = document.getElementById('core-wrap');
-  const profOf = {material_mining:'mining', material_synth:'synthetics',
-                  bound_medic:'medic', bound_refiner:'refiner'}[kind];
-  if (profOf){
-    const card = document.querySelector('.prof-card[data-prof="' + profOf + '"]');
-    if (card) host = card;
-  }
+  /* [ANDRAT v5.42.0] Fynden dyker upp BARA runt noden - punkt 4. Forut flog ett
+     yrkesfynd ut fran sitt yrkeskort, som kan ligga langt ner vid snabbaccessen,
+     sa fyndet hamnade var som helst pa sidan. Nu ar noden alltid stallet. */
+  const host = document.getElementById('core-wrap');
   if (!host) return;
   const r = host.getBoundingClientRect();
   const el = document.createElement('div');
@@ -18736,6 +18803,17 @@ $('mail-takeall').addEventListener('click', () => {
 });
 makeDraggable($('mail-overlay'), [$('mail-overlay').querySelector('.inv-titlebar'), $('mail-overlay').querySelector('.inv-emblem'), $('mail-overlay')]);
 makeDraggable($('pets-overlay'), [$('pets-overlay').querySelector('.inv-titlebar'), $('pets-overlay').querySelector('.inv-emblem'), $('pets-overlay')]);
+/* [TILLAGT v5.42.0] Punkt 5: ALLA popup-fonster ska ga att dra. Dessa fem
+   saknade det - butiken (som listan namnde), vanner, profil, stationen och
+   dev-menyn. In(stallningar och auktionshuset lamnas LASTA med flit: det ena
+   staller man in och stanger, det andra tar hela skarmen. */
+['shop-overlay', 'friends-overlay', 'profile-overlay', 'station-overlay', 'dev-overlay']
+  .forEach(id => {
+    const w = $(id);
+    if (!w) return;
+    const bar = w.querySelector('.inv-titlebar'), emb = w.querySelector('.inv-emblem');
+    if (bar) makeDraggable(w, [bar, emb].filter(Boolean));
+  });
 /* Lagplatsen ar bade mal och kalla - man ska kunna dra at bada hallen, annars ar
    det bara en halv gest. Bara nar husdjurssidan ar oppen, sa ett drag alltid har
    nagonstans att ta vagen. */
@@ -18814,17 +18892,35 @@ function dragTargetsFor(d){
   if (d.from === 'inv' && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag)
     return Array.from(document.querySelectorAll('[data-bag]')).filter(el => bagUnlocked(+el.dataset.bag))
       .concat(Array.from(document.querySelectorAll('[data-vaultbag]')).filter(el => vaultBagUnlocked(+el.dataset.vaultbag)));
-  if (d.from === 'inv' && d.gear)
-    return slotsForGear(d.gear).flatMap(sl =>
-      Array.from(document.querySelectorAll('#panel-character [data-slot="' + sl + '"]')));
-  /* DRAR MAN EN HJALPARE lyser den produktion hen hor hemma i. Forut fanns inget
-     mal alls for hjalpare, sa man fick sikta i blindo pa ratt ruta. En hjalpare
-     hor hemma i exakt en produktion, sa listan har alltid noll eller en post. */
+  /* [BUGG v5.42.0] Punkt 7. Har fanns targets BARA for gear -> karaktarsplats.
+     Darfor lyste ingen ruta nar man drog material INOM vaskan eller en pjas
+     FRAN kroppen, och draget kandes dott fast endDrag klarade slappet. Nu far
+     varje drag sina ratta mal, sa markeringen foljer och slappet landar synligt
+     at alla hall. */
+  const invCells = () => Array.from(document.querySelectorAll('#inv-grid [data-inv], .bagwin:not(.vaultbagwin) [data-inv]'));
+  if (d.from === 'inv'){
+    /* En bar pjas far bade sina kroppsplatser OCH alla vaskrutor (omsortering). */
+    const t = invCells();
+    if (d.gear) slotsForGear(d.gear).forEach(sl =>
+      document.querySelectorAll('#panel-character [data-slot="' + sl + '"]').forEach(s => t.push(s)));
+    return t;
+  }
+  if (d.from === 'equip'){
+    /* En buren pjas dras av till vaskan - varje ledig ruta ar ett mal. */
+    return invCells();
+  }
+  if (d.from === 'vault'){
+    /* Ur valvet: valvets egna rutor och hela vaskan. */
+    return Array.from(document.querySelectorAll('#vault-grid [data-vault], .vaultbagwin [data-vault]')).concat(invCells());
+  }
+  /* [BUGG v5.42.0] Punkt 6. Har pekades det ut en MASKINPLATS (.m-helper) - de
+     revs med maskinerna, sa listan blev alltid tom och ingen ruta lyste nar man
+     drog en hjalpare. Malet ar lagplatserna: alla lediga om laget har plats,
+     och de upptagna ocksa, for ett slapp dar byter ut den som satt. */
   if (d.from === 'pet'){
-    const p = petByUid(d.uid), chk = p ? petSeatCheck(p) : null;
-    if (!chk || !chk.b || chk.why) return [];
-    const slot = document.querySelector('.m-helper[data-helper="' + chk.b.id + '"]');
-    return slot ? [slot] : [];
+    const p = petByUid(d.uid);
+    if (!p || inTeam(d.uid)) return [];
+    return Array.from(document.querySelectorAll('[data-teamslot]'));
   }
   return [];
 }
@@ -18901,11 +18997,22 @@ function endDrag(d, x, y){
        ingenting - en hjalpare kan inte tappas bort. */
     /* [ANDRAT v5.2.0] Har slapptes ett husdjur pa en MASKINSTOL. Stolarna finns
        inte. Malet ar nu lagrutan. */
-    if (under.closest('#pet-team-grid')){
-      const p = petByUid(d.uid), chk = p ? petSeatCheck(p) : null;
-      if (p && chk){
-        if (chk.why) say(chk.why);
-        else { setTeamPet(p.uid); say(petName(p) + ' joined the team.'); }
+    /* [ANDRAT v5.42.0] Punkt 6: slappet letade bara i ETT rutnat, sa lagplatser
+       som star nagon annanstans tog inte emot. Nu galler varje lagplats - och
+       slapper man pa en UPPTAGEN plats byts den som satt dar ut. */
+    const ts = under.closest('[data-teamslot]');
+    if (ts){
+      const p = petByUid(d.uid);
+      if (p){
+        if (ts.dataset.teampet && +ts.dataset.teampet !== d.uid){
+          removeTeamPet(+ts.dataset.teampet);          // gor plats at den nya
+          setTeamPet(p.uid, +ts.dataset.teamslot);
+          say(petName(p) + ' took that seat.');
+        } else {
+          const chk = petSeatCheck(p);
+          if (chk.why) say(chk.why);
+          else { setTeamPet(p.uid, +ts.dataset.teamslot); say(petName(p) + ' joined the team.'); }
+        }
       }
       return;
     }
