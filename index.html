@@ -2253,6 +2253,10 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   display:flex;align-items:center;gap:7px;
   pointer-events:auto;cursor:default;
 }
+/* Core Sync-brickan: guld, med namn - den ska inte ga att missa. */
+.sync-chip .bc-ico{background:rgba(255,200,60,.14);border-color:var(--gold);box-shadow:0 0 12px -4px var(--gold)}
+.sync-chip .bc-name{font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--gold)}
+.sync-chip .bc-time{color:var(--gold)}
 .boost-chip .bc-ico{
   width:28px;height:28px;flex:0 0 auto;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-size:15px;
@@ -4601,7 +4605,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.48.0 — YRKENA ARBETAR ALLTID</div>
+            <div class="desc">GENESIS v5.48.1 — SYNKBRICKAN OCH MATERIALBILDER</div>
           </div>
         </div>
       </div>
@@ -4612,7 +4616,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.48.0 — YRKENA ARBETAR ALLTID</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.48.1 — SYNKBRICKAN OCH MATERIALBILDER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -8359,9 +8363,24 @@ function pickItemKey(rarIdx){
    Anvands overallt en stapelvara ritas: vaskan, receptkortet, spoket i handen. */
 function stackArtOf(key){
   const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
-  if (C && C.art) return C.art;
+  if (C && C.art) return artUnlessMissing(C.art);
+  /* [TILLAGT v5.48.1] MATERIALEN OCH SKRAPET FAR EGNA BILDER. En fil per nyckel:
+     material (inkl. alla scraps, medical supplies, crude fuel och crafting kit)
+     i assets/materials/<nyckel>.png, expeditionsskrapet i assets/junk/<nyckel>.png.
+     Saknas filen visas emojin - och en miss BOKFORS, sa vaskan inte fragar
+     efter samma saknade fil om och om igen vid varje omritning. */
+  if (typeof MATERIALS !== 'undefined' && MATERIALS[key])
+    return artUnlessMissing('assets/materials/' + key + '.png');
+  if (typeof JUNK !== 'undefined' && JUNK[key])
+    return artUnlessMissing('assets/junk/' + key + '.png');
   return '';
 }
+const ART_MISS = new Set();
+function artUnlessMissing(src){ return ART_MISS.has(src) ? '' : src; }
+function artMiss(src){ if (src) ART_MISS.add(src); }
+/* Inline-onerror kor i sidans GLOBALA rum, inte i spelets kapsel - utan den
+   har raden hade bokforingen aldrig natts darifran. */
+window.artMiss = artMiss;
 function stackIcoOf(key, fallbackIco){
   const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
   if (C && C.ico) return C.ico;
@@ -8375,7 +8394,7 @@ function stackIcoOf(key, fallbackIco){
    pa omslaget, och stilarket visar reserven i stallet. */
 function artWithFallback(src, emoji){
   return '<img class="art-img" src="' + src + '" alt="" ' +
-         'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\');">' +
+         'onerror="artMiss(this.getAttribute(\'src\'));var p=this.parentNode;this.remove();p.classList.add(\'noart\');">' +
          '<i class="art-fall">' + (emoji || '\ud83d\udce6') + '</i>';
 }
 function itemArtFor(key, rarIdx){
@@ -9945,6 +9964,10 @@ function toVault(invIdx, at){
       netMoveVault(row.gear, true).catch(e => say(srvErrText(e)));
       return true;
     }
+    /* [ANDRAT v5.48.1] HAR SATT EN TYSTNAD. Materialstaplar kan inte laggas i
+       valvet i serverlage - men klienten sa INGENTING, sa draget kandes dott.
+       Tystnad ar det varsta svaret en ruta kan ge. Nu sags det rakt ut. */
+    if (row) say('Materials can\u2019t be stored in the vault \u2014 only gear. Sell or use them to free your bag.');
     return false;
   }
   const row = S.inv[invIdx];
@@ -15687,6 +15710,17 @@ function renderBoostBar(){
   const bar = $('boost-bar');
   if (!bar) return;
   let h = '';
+  /* [TILLAGT v5.48.1] CORE SYNC SYNTES BARA I NODENS LILLA RAD, och den raden
+     ar latt att missa - spelaren trodde buffen dog nar handen slappte. Nu ar
+     Core Sync en riktig buff-bricka bland de andra, med sin ikon, sitt namn
+     och sin nedrakning fran fem minuter. */
+  const syncL = (typeof coreSyncLeft === 'function') ? coreSyncLeft() : 0;
+  if (syncL > 0){
+    h += '<div class="boost-chip sync-chip" title="Core Sync \u2014 all your professions run 15% faster">' +
+      '<span class="bc-ico">\u26a1</span>' +
+      '<span class="bc-name">CORE SYNC +15%</span>' +
+      '<span class="bc-time">' + fmtDur(syncL) + '</span></div>';
+  }
   const seen = {};
   for (const k in BOOSTS){
     const left = boostLeft(k);
@@ -19662,7 +19696,7 @@ function beginDrag(d, x, y){
        "staplar har ingen konst", och det stamde tills melonen fick sin - da visade
        rutan bilden men spoket ett tecken, sa saken bytte utseende mitt i handen.
        Bar stapeln en bild i katalogen bar spoket samma bild. */
-    const sdef = d.row && ITEM_DEFS[d.row.key];
+    const sdef = d.row ? {art: stackArtOf(d.row.key)} : null;
     if (sdef && sdef.art){
       /* [ANDRAT v5.47.0] Spoket bar bilden som bakgrund. Saknas filen blev
          spoket en tom ruta i handen, sa vi provar bilden forst och byter till
