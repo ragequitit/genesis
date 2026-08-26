@@ -1344,7 +1344,7 @@ body.dragging *{cursor:grabbing !important}
    de aldrig bara sadant man inte har rad att missa. Vanliga fynd samlas in av
    sig sjalva och ligger kvar i vaskan; de har ar en bonus ovanpa. */
 .bonus-find{
-  position:fixed;z-index:9000;cursor:pointer;user-select:none;
+  position:absolute;z-index:6;cursor:pointer;user-select:none;
   display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;
   background:linear-gradient(180deg, rgba(20,28,52,.97), rgba(11,16,36,.97));
   border:1px solid var(--cyan);box-shadow:0 0 20px -4px var(--cyan), 0 6px 18px rgba(0,0,0,.5);
@@ -4495,7 +4495,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.43.0 — EN MALL FÖR ALLA YRKEN</div>
+            <div class="desc">GENESIS v5.44.0 — INKORG OCH NODFYND</div>
           </div>
         </div>
       </div>
@@ -4506,7 +4506,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.43.0 — EN MALL FÖR ALLA YRKEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.44.0 — INKORG OCH NODFYND</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -16252,8 +16252,8 @@ function profPageHTML(p){
       (p.slots || []).map(x => '<span class="pp-find">' + x + '</span>').join('') + '</div>';
   }
 
-  h += '<div class="pp-next"><b style="color:' + col + '">Next level</b>' +
-    '<span>' + (info.need - Math.floor(info.into)) + ' XP to level ' + (info.lvl + 1) + '</span></div>';
+  /* [BORTTAGET v5.44.0] NEXT LEVEL-rutan. Den upprepade bara det XP-mataren
+     redan sager langre upp - hur mycket som ar kvar till nasta niva. */
   /* [ANDRAT v5.43.0] ALLA yrken far den breda rutan - en mall, ett utseende.
      Hoger sida ar det enda som skiljer: receptbok for dem som koar, och
      arbetspasset + fynden for samlarna. */
@@ -16309,12 +16309,9 @@ function ppQueueHTML(profId, col){
   h += '<div class="ppq-foot"><span>TOTAL TIME <b id="ppq-total">' + fmtDur(total) + '</b></span>' +
     (q.length ? '<button class="ppq-clear" data-clearqueue="' + profId + '">\ud83d\uddd1 Clear queue</button>' : '') +
     '</div>';
-  h += '<div class="section-label pp-sec">Output</div><div class="ppq-out">' +
-    (S.held > 0
-      ? '<span>' + S.held + ' finished piece' + (S.held > 1 ? 's' : '') + ' waiting \u2014 the backpack was full.</span>' +
-        '<button class="jc-btn" style="margin:0" data-collectout="1">Collect</button>'
-      : '<span class="jc-xp">Completed items move to Inventory \u00b7 they wait here if it is full.</span>') +
-    '</div>';
+  /* [BORTTAGET v5.44.0] OUTPUT-rutan. En fardig pjas som inte far plats i vaskan
+     skickas nu rakt till INKORGEN i stallet for att vanta har - kon fastnar
+     aldrig och rutan behovs inte. */
   return h + '</div>';
 }
 function ppBookHTML(profId){
@@ -16437,11 +16434,19 @@ function renderProfPage(){
   const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
   const pct = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
   const lv = w.querySelector('.pp-lvl'), tx = w.querySelector('.pp-xptext'),
-        fl = w.querySelector('.pp-xpfill'), nx = w.querySelector('.pp-next span');
+        fl = w.querySelector('.pp-xpfill');
   if (lv) lv.textContent = 'Level ' + info.lvl;
   if (tx) tx.textContent = fmt(info.into) + ' / ' + fmt(info.need) + ' XP';
   if (fl) fl.style.width = pct + '%';
-  if (nx) nx.textContent = (info.need - Math.floor(info.into)) + ' XP to level ' + (info.lvl + 1);
+  /* XP-plupparna skrivs pa plats. */
+  const dots = w.querySelectorAll('.xpdots .xpd');
+  if (dots.length){
+    const pc = info.need ? Math.max(0, Math.min(100, 100 * info.into / info.need)) : 0;
+    dots.forEach((el, i) => {
+      const on = pc >= (i + 1) * 10, half = !on && pc > i * 10;
+      el.className = 'xpd' + (on ? ' on' : (half ? ' half' : ''));
+    });
+  }
   if (o && o.total){
     const of = w.querySelector('.pp-ofill'), ot = w.querySelector('.pp-order .jc-xp');
     if (of) of.style.width = Math.min(100, Math.round(100 * (o.total - o.left) / o.total)) + '%';
@@ -16720,20 +16725,24 @@ function spawnBonusFind(){
   if (!pool.length) return;
   const kind = pool[Math.floor(Math.random() * pool.length)];
   const def = BONUS_FIND_ICONS[kind];
-  /* [ANDRAT v5.42.0] Fynden dyker upp BARA runt noden - punkt 4. Forut flog ett
-     yrkesfynd ut fran sitt yrkeskort, som kan ligga langt ner vid snabbaccessen,
-     sa fyndet hamnade var som helst pa sidan. Nu ar noden alltid stallet. */
-  const host = document.getElementById('core-wrap');
-  if (!host) return;
-  const r = host.getBoundingClientRect();
+  /* [ANDRAT v5.44.0] Fyndet lever nu INNE i nodpanelen (core-stage), inte pa
+     hela skarmen. Forut lag det pa body med position:fixed och z-index 9000, sa
+     det svavade over ALLA menyer och fonster. Nu ligger det absolut inom
+     nodens yta - syns pa noden, men aldrig over ett oppet fonster (bild 2). */
+  const stage = document.querySelector('#panel-home-server .core-stage') ||
+                document.getElementById('core-wrap');
+  if (!stage) return;
   const el = document.createElement('div');
   el.className = 'bonus-find';
   el.innerHTML = '<span class="bf-ico">' + def.ico + '</span>' + def.text;
-  document.body.appendChild(el);
-  const w = el.offsetWidth || 140;
-  el.style.left = Math.max(8, Math.min(window.innerWidth - w - 8,
-                    r.left + r.width / 2 - w / 2 + (Math.random() * 60 - 30))) + 'px';
-  el.style.top  = Math.max(8, r.top + r.height / 2 - 60) + 'px';
+  stage.appendChild(el);
+  const sr = stage.getBoundingClientRect();
+  const w = el.offsetWidth || 140, hgt = el.offsetHeight || 34;
+  /* Nagonstans i den ovre halvan av noden, lite slumpat i sidled. */
+  const maxX = Math.max(0, sr.width - w - 12);
+  const cx = sr.width / 2 - w / 2 + (Math.random() * 60 - 30);
+  el.style.left = Math.max(6, Math.min(maxX, cx)) + 'px';
+  el.style.top  = Math.max(6, sr.height * 0.30 - hgt / 2) + 'px';
 
   let done = false;
   const kill = () => { if (done) return; done = true;
