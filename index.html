@@ -569,6 +569,11 @@ body.dragging *{cursor:grabbing !important}
 .echo-slot.rare{border-color:var(--purple)}
 .echo-slot.epic{border-color:var(--cyan)}
 .echo-slot.locked{opacity:.5}
+/* Platsen man tryckte plustecknet pa VANTAR pa ett svar, och det ska synas -
+   annars vet man inte vart nasta klick tar vagen. */
+.echo-slot.awaiting{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(56,232,255,.28);animation:awaitPulse 1.3s ease-in-out infinite}
+@keyframes awaitPulse{0%,100%{opacity:1}50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){ .echo-slot.awaiting{animation:none} }
 /* En last plats sager vad som kraver - "last" utan varfor ar bara en vagg. */
 .echo-slot.locked .es-lock{font-size:15px;opacity:.8}
 .echo-slot.locked .es-req{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);font-weight:800}
@@ -1308,19 +1313,27 @@ body.dragging *{cursor:grabbing !important}
   background:linear-gradient(120deg, color-mix(in srgb, var(--pp-col) 26%, var(--bg-inset)), var(--bg-inset) 62%);
   border:1px solid color-mix(in srgb, var(--pp-col) 40%, var(--border));margin-bottom:12px;
 }
+.pp-banner .pp-art img{width:100%;height:100%;object-fit:contain;display:block}
+.pp-banner .pp-art .pp-artfall{display:none;font-size:96px;line-height:150px;text-align:center}
+.pp-banner .pp-art.noart .pp-artfall{display:block}
 .pp-banner .pp-art{
   position:absolute;right:-10px;top:50%;transform:translateY(-50%);
   width:150px;height:150px;background-size:contain;background-repeat:no-repeat;
-  background-position:center;opacity:.30;pointer-events:none;
+  background-position:center;opacity:.15;pointer-events:none;
 }
+/* [ANDRAT v5.45.0] Bilden lag pa 30 % och tog for mycket uppmarksamhet fran
+   namnet - den ar en bakgrund, inte ett motiv. Halverad till 15 %. */
 .pp-name{font-size:26px;font-weight:900;letter-spacing:.04em;line-height:1;color:var(--pp-col)}
-.pp-kind{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-dim);margin-top:4px}
-.pp-blurb{font-size:11px;color:var(--text-dim);margin-top:7px;max-width:70%}
+/* [ANDRAT v5.45.0] De tre tunna raderna - sorten, beskrivningen och XP-talet -
+   lag pa husets svagaste toner och gick knappt att lasa mot bannerns ljusa
+   halva. Alla tre ljusas upp och beskrivningen far lite mer tyngd. */
+.pp-kind{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:700;margin-top:4px}
+.pp-blurb{font-size:11.5px;color:rgba(255,255,255,.80);margin-top:7px;max-width:70%;line-height:1.55}
 .pp-lvlrow{display:flex;align-items:center;gap:10px;margin-top:12px}
 .pp-lvl{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--text)}
 .pp-xpbar{flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
 .pp-xpfill{height:100%;border-radius:4px;background:var(--pp-col)}
-.pp-xptext{font-size:10px;color:var(--text-faint);white-space:nowrap}
+.pp-xptext{font-size:10.5px;color:rgba(255,255,255,.78);font-weight:600;white-space:nowrap}
 .pp-link{display:inline-flex;align-items:center;gap:7px;margin-top:11px;padding:5px 10px;
   border-radius:8px;border:1px solid var(--border);font-size:9px;font-weight:900;
   letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);cursor:pointer}
@@ -1402,7 +1415,11 @@ body.dragging *{cursor:grabbing !important}
 .jc-link.on .lamp{background:#2ecc71;box-shadow:0 0 8px rgba(46,204,113,.9)}
 .jc-link.off{opacity:.35;cursor:default}
 .prof-card .jc-ico{width:56px;height:56px;flex:0 0 56px;border-radius:12px;display:grid;place-items:center;
-  font-size:28px;background:rgba(255,255,255,.05);border:1px solid var(--border)}
+  font-size:28px;background:rgba(255,255,255,.05);border:1px solid var(--border);overflow:hidden;position:relative}
+/* Bilden ligger overst; emojin syns bara nar bilden inte gick att ladda. */
+.prof-card .jc-art{width:100%;height:100%;object-fit:contain;display:block}
+.prof-card .jc-emoji{display:none}
+.prof-card .jc-ico.noart .jc-emoji{display:block}
 .prof-card .jc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .prof-card .jc-name{font-size:15px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;line-height:1.1}
 .prof-card .jc-lvl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
@@ -1841,7 +1858,7 @@ body.layout-edit .panel.dragging{opacity:.4}
 /* Rullning stannar i rutan: sidan bakom låses, och kedjningen bryts vid rutans kant */
 .modal-overlay{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .modal{overscroll-behavior:contain}
-body.modal-open{overflow:hidden}
+body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
 .modal{
   width:100%;max-width:420px;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
@@ -2488,6 +2505,9 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   background-size:contain;background-position:center;background-repeat:no-repeat;
   animation:gl-work 1.25s ease-in-out infinite;
 }
+.gl-tool img{width:100%;height:100%;object-fit:contain;display:block}
+.gl-tool .gl-fall{display:none;font-style:normal;font-size:22px;line-height:30px;text-align:center}
+.gl-tool.noart .gl-fall{display:block}
 @keyframes gl-work{0%,100%{transform:translateY(-1px) rotate(-8deg)}50%{transform:translateY(2px) rotate(8deg)}}
 .gl-right{flex:1;min-width:0}
 .gl-verb{font-size:10px;letter-spacing:.04em;color:var(--text-dim);margin-bottom:4px}
@@ -2525,6 +2545,16 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 .recipe-row.cant{opacity:.82}
 .rr-art{width:44px;height:44px;border-radius:8px;flex:0 0 auto;background:var(--bg-inset) center/contain no-repeat;
   border:1px solid var(--rc);box-shadow:inset 0 0 14px -8px var(--rc)}
+/* [TILLAGT v5.47.0] BILD MED RESERV. Bilden fyller rutan; gar den inte att
+   ladda tas den bort och omslaget far klassen 'noart', varpa emojin visas.
+   Samma tva rader galler var an bilden ritas - vaskan, receptkortet, resten. */
+.art-img{width:100%;height:100%;object-fit:contain;display:block}
+.art-fall{display:none;font-style:normal;line-height:1;text-align:center}
+.noart > .art-fall{display:block}
+.rr-art:has(.art-img){display:flex;align-items:center;justify-content:center;padding:3px}
+.rr-art.noart{display:flex;align-items:center;justify-content:center;font-size:24px}
+.inv-slot .iv-img.art-wrap{display:flex;align-items:center;justify-content:center}
+.inv-slot .iv-img.art-wrap.noart{font-size:20px}
 .rr-body{flex:1;min-width:0}
 .rr-name{font-size:14px;font-weight:800;margin-bottom:4px}
 .rr-rar{font-size:10px;font-weight:800;letter-spacing:.06em;margin-left:4px}
@@ -2727,10 +2757,15 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
    Layouten foljer spelarens bild: flikar uppe till vanster, titel i mitten,
    kategorier till vanster, tabellen i mitten, SELL ITEM till hoger, en
    bottenrad med Mina annonser / Historik / Saldo, och avgiftsraden underst. */
+/* Sidan frys medan auktionshuset ar oppet. Positionen halls med 'top' sa inget
+   hoppar till toppen nar huset stangs. */
+body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 #ah-overlay.open{
   display:flex;align-items:center;justify-content:center;
   inset:0;background:rgba(4,6,16,.72);backdrop-filter:blur(2px);
+  overscroll-behavior:contain;
 }
+/* Sidan frys medan en ruta ar oppen. Positionen halls med 'top', se lasningen. */
 .ah-win{
   width:min(1500px,95vw);height:min(920px,92vh);
   display:grid;grid-template-rows:auto 1fr auto auto;
@@ -4495,7 +4530,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.44.0 — INKORG OCH NODFYND</div>
+            <div class="desc">GENESIS v5.47.0 — SJUKVÅRDENS BILDER</div>
           </div>
         </div>
       </div>
@@ -4506,7 +4541,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.44.0 — INKORG OCH NODFYND</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.47.0 — SJUKVÅRDENS BILDER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -8222,6 +8257,32 @@ function pickItemKey(rarIdx){
   }
   return list[Math.floor(Math.random() * list.length)];
 }
+/* [TILLAGT v5.47.0] EN GEMENSAM VAG ATT RITA EN VARA SOM HAR EN BILD.
+   Bakgrundsbilder kan inte saga ifran nar filen saknas - da star bara en tom,
+   svart ruta kvar. Det har ar en riktig bild som byter till varans emoji om
+   filen inte gar att ladda, sa spelet ser hyfsat ut aven innan bilderna finns.
+   Anvands overallt en stapelvara ritas: vaskan, receptkortet, spoket i handen. */
+function stackArtOf(key){
+  const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
+  if (C && C.art) return C.art;
+  return '';
+}
+function stackIcoOf(key, fallbackIco){
+  const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
+  if (C && C.ico) return C.ico;
+  const M = (typeof MATERIALS !== 'undefined' && MATERIALS[key]) || null;
+  if (M && M.ico) return M.ico;
+  const F = (typeof FLASKS !== 'undefined' && FLASKS[key]) || null;
+  if (F && F.ico) return F.ico;
+  return fallbackIco || '\ud83d\udce6';
+}
+/* Ritar bilden plus en gomd reserv. Faller bilden bort satts klassen 'noart'
+   pa omslaget, och stilarket visar reserven i stallet. */
+function artWithFallback(src, emoji){
+  return '<img class="art-img" src="' + src + '" alt="" ' +
+         'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\');">' +
+         '<i class="art-fall">' + (emoji || '\ud83d\udce6') + '</i>';
+}
 function itemArtFor(key, rarIdx){
   const D = ITEMS[key];
   if (!D) return '';
@@ -8807,6 +8868,18 @@ function movePet(from, to){
   save(); renderPets(); renderPetPanel();
   return true;
 }
+/* [TILLAGT v5.45.0] Slappt pa den tomma svansen langst ner: hjalparen flyttas
+   SIST i listan. Utan den har studsade slappet, for det fanns ingen ruta att
+   byta med. */
+function movePetEnd(from){
+  const a = S.pets.owned[from];
+  if (!a) return false;
+  S.pets.owned.splice(from, 1);
+  S.pets.owned.push(a);
+  petOrderSave();
+  save(); renderPets(); renderPetPanel();
+  return true;
+}
 /* Sorteringslagena. Rariteten forst som standard, precis som vaskan sorterar. */
 const PET_SORTS = [
   {id:'rarity',  name:'Rarity',  cmp:(a,b) => (b.rar - a.rar) || (petLvl(b) - petLvl(a)) || (a.uid - b.uid)},
@@ -8943,6 +9016,36 @@ function setTeamPet(uid, slot){
   }
   if (cur >= 0 && cur !== i) S.pets.team[cur] = S.pets.team[i] || null;
   S.pets.team[i] = uid;
+  save(); renderPets(); renderPetPanel();
+  return true;
+}
+/* [TILLAGT v5.45.0] EN VAG IN I EN BESTAMD LAGPLATS - for bade draget fran
+   listan, draget mellan tva lagplatser och klicket efter plustecknet.
+   Regeln ar densamma i alla tre fall: sitter det redan nagon dar byter de tva
+   plats om den nya kom fran laget, annars gar den som satt tillbaka till listan.
+   I serverlage MASTE stegen tas ETT I TAGET och inte parallellt - forut kastades
+   \"ta ut\" och \"satt in\" ivag samtidigt, och servern hann svara i fel ordning. */
+async function helperToSlot(uid, slot){
+  const p = petByUid(uid);
+  if (!p) return false;
+  if (slot < 0 || slot >= teamSlots()) return false;
+  const from = teamIndexOf(uid);
+  const cur  = teamAt(slot);
+  if (cur && cur.uid === uid) return false;          /* redan dar */
+  /* Kommer den fran LISTAN och platsen ar tom galler det vanliga taket. */
+  if (from < 0 && !cur){
+    const chk = petSeatCheck(p);
+    if (chk.why){ say(chk.why); return false; }
+  }
+  if (NET.on){
+    try {
+      if (cur) await netSetTeam(cur, from >= 0 ? from : null);
+      await netSetTeam(p, slot);
+    } catch (e){ say(srvErrText(e, 'Could not change the team.')); return false; }
+    return true;
+  }
+  S.pets.team[slot] = uid;
+  if (from >= 0) S.pets.team[from] = cur ? cur.uid : null;
   save(); renderPets(); renderPetPanel();
   return true;
 }
@@ -11783,11 +11886,14 @@ function invCellHTML(i, pos){
        bild pa bada stallen, sa man kanner igen den utan att lasa. */
     /* En stapel kan bara en BILD i stallet for ett tecken - melonen gor det.
        Samma ruta, samma storlek, bara en annan sorts innehall. */
-    const artDef = ITEM_DEFS[it.key];
+    /* [ANDRAT v5.47.0] Bilden lag som BAKGRUND, och en bakgrund som inte gar
+       att ladda lamnar en tom svart ruta. Nu en riktig bild med varans emoji
+       som reserv - samma vag som receptkortet och spoket i handen. */
+    const artSrc = stackArtOf(it.key);
     const ico = it.key === 'fuelcell'
       ? '<span class="inv-ico"><span class="qi qi-fuel iv-qi"></span></span>'
-      : (artDef && artDef.art
-          ? '<div class="iv-img" style="background-image:url(\'' + artDef.art + '\')"></div>'
+      : (artSrc
+          ? '<div class="iv-img art-wrap">' + artWithFallback(artSrc, stackIcoOf(it.key, it.ico)) + '</div>'
           : '<span class="inv-ico">' + it.ico + '</span>');
     const tick = (sellMode && sellableRow(it))
       ? '<span class="sell-tick">' + (sellPick.has(i) ? '✓' : '') + '</span>' : '';
@@ -13906,9 +14012,13 @@ const ITEM_DEFS = {
   /* [ANDRAT v5.33.0] Halsan kan SJUNKA nu - de vita motena skadar den. Bandage
      och First Aid Kit gor darfor precis det de alltid lovat. Effekten sitter pa
      servern; talen har ar visningstext ur samma tabellvarden. */
+  /* [TILLAGT v5.47.0] Egna bilder for de tre sjukvardsvarorna. Filerna ligger i
+     assets/items/medical/ och heter exakt som nyckeln. Ligger de inte dar an
+     visas emojin i stallet - aldrig en svart ruta. */
   bandage: {
     name: 'Bandage',
     ico: '🩹',
+    art: 'assets/items/medical/bandage.png',
     kind: 'Consumable',
     desc: 'Restores 20% of your maximum health.',
     sell: GOLD(1.5)
@@ -13916,6 +14026,7 @@ const ITEM_DEFS = {
   first_aid_kit: {
     name: 'First Aid Kit',
     ico: '🧰',
+    art: 'assets/items/medical/first_aid_kit.png',
     kind: 'Consumable',
     desc: 'Restores 50% of your maximum health.',
     sell: GOLD(4)
@@ -13926,6 +14037,7 @@ const ITEM_DEFS = {
   revive_kit: {
     name: 'Revive Kit',
     ico: '💉',
+    art: 'assets/items/medical/revive_kit.png',
     kind: 'Consumable',
     desc: 'Brings you back at 50% health when you fall in a dungeon. Reserved before the run — never used by hand.',
     sell: GOLD(10)
@@ -15879,16 +15991,24 @@ function renderPets(){
   }
   renderPetTools();
   const grid = $('pet-grid');
+  /* [ANDRAT v5.45.0] HALEN I LISTAN. Rutnatet ritades ruta for ruta rakt ur
+     listan, sa varje hjalpare som satt i laget - och varje hal efter en
+     atervinning - lamnade en TOM ruta mitt bland de andra. Det sag ut som
+     ett fel, och spelaren har ratt i att det gor det.
+     Nu: listan stads forst fran gamla hal, och de som sitter i laget ritas
+     inte alls utan hoppas over, sa de som ar kvar glider ihop uppat. Ordningen
+     kommer anda ihag sig - hjalparen har kvar sin plats i listan och glider
+     tillbaka dit nar man tar ut henne ur laget.
+     [BEKRAFTAT AV SPELAREN 2026-08-26] En hjalpare som sitter i en lagplats ska
+     INTE synas i hjalparforradet. Fragan ar stalld och besvarad - rita henne
+     inte dar, inte heller nedtonad eller med en platssiffra. */
+  const dense = S.pets.owned.filter(Boolean);
+  if (dense.length !== S.pets.owned.length){ S.pets.owned = dense; petOrderSave(); }
   const n = petSlots();
   let cells = '';
-  for (let i = 0; i < n; i++){
+  for (let i = 0; i < S.pets.owned.length; i++){
     const p = S.pets.owned[i];
-    if (!p){ cells += '<div class="pet-cell" data-pet="' + i + '"></div>'; continue; }
-    /* EN INSATT HJALPARE SYNS INTE HAR (spelarens beslut). Den ar upptagen och
-       star i sin produktion; rutan lamnas tom och kommer tillbaka nar man tar
-       ut den. Platsen behalls i rutnatet sa ordningen inte hoppar omkring nar
-       man satter in och tar ut. */
-    if (inTeam(p.uid)){ cells += '<div class="pet-cell" data-pet="' + i + '"></div>'; continue; }
+    if (!p || inTeam(p.uid)) continue;
     const li = petLevelInfo(p.xp), max = li.lvl >= PET_MAX_LVL;
     const on = false;
     const sel = petSel.has(p.uid);
@@ -15907,6 +16027,11 @@ function renderPets(){
       (on ? '<span class="pc-slot">' + (teamIndexOf(p.uid) + 1) + '</span>' : '') +
       '</div>';
   }
+  /* Resten av rutnatet star tomt LANGST NER, aldrig mellan tva hjalpare. En tom
+     ruta har pekar pa en ledig plats i listan, sa ett slapp dar flyttar
+     hjalparen sist i stallet for att bara studsa. */
+  const drawn = S.pets.owned.filter(p => p && !inTeam(p.uid)).length;
+  for (let k = drawn; k < n; k++) cells += '<div class="pet-cell" data-pet="-1"></div>';
   grid.innerHTML = cells;
 }
 /* Verktygsraden byter helt skepnad i atervinningslaget: da ar det INTE en rad med
@@ -16210,7 +16335,13 @@ function profPageHTML(p){
   const queued = (p.kind === 'crafting' || p.kind === 'secondary');
 
   let h = '<div class="pp-banner" style="--pp-col:' + col + '">' +
-    '<div class="pp-art" style="background-image:url(\'' + profArt(p.id) + '\')"></div>' +
+    /* [ANDRAT v5.45.0] Mining stod utan bild. Bladet ritar alla sju yrken pa
+       exakt samma satt, sa det ar filen som saknas - inte koden. En bakgrundsbild
+       kan inte saga ifran nar den misslyckas, sa har ligger nu en riktig bild
+       som faller tillbaka pa emojin. Da star rutan aldrig tom igen. */
+    '<div class="pp-art"><img src="' + profArt(p.id) + '" alt="" ' +
+      'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\')">' +
+      '<span class="pp-artfall">' + p.ico + '</span></div>' +
     '<div class="pp-name">' + p.name + '</div>' +
     '<div class="pp-kind">' + p.kind + '</div>' +
     '<div class="pp-blurb">' + p.blurb + '</div>' +
@@ -16357,11 +16488,27 @@ function ppBookRows(profId){
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
     const isFl = isFlask(r.item);
-    const artStyle = isFl
-      ? '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px'
-      : '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
+    /* [ANDRAT v5.47.0] SAMMA RITNING SOM DEN ANDRA RECEPTBOKEN. Det finns tva
+       stallen som ritar en receptrad, och bara ETT av dem fick bilden forst -
+       det som INTE ar det som yrkessidan faktiskt visar. Uppmatt: raderna kom
+       harifran. Bada gar nu samma vag, sa de inte kan glida isar igen. */
+    const conArt = stackArtOf(r.item);
+    let artStyle, artInner;
+    if (isFl){
+      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
+      artInner = FLASKS[r.item].ico;
+    } else if (conArt){
+      artStyle = '--rc:' + rarCol(r.rar);
+      artInner = artWithFallback(conArt, stackIcoOf(r.item, ''));
+    } else if (!D){
+      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
+      artInner = stackIcoOf(r.item, '');
+    } else {
+      artStyle = '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
+      artInner = '';
+    }
     return '<div class="recipe-row' + (afford ? '' : ' cant') + '">' +
-      '<div class="rr-art" style="' + artStyle + '">' + (isFl ? FLASKS[r.item].ico : '') + '</div>' +
+      '<div class="rr-art" style="' + artStyle + '">' + artInner + '</div>' +
       '<div class="rr-body">' +
         '<div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
         '<div class="rr-time">\u23f1 ' + fmtDur(recipeSecs(r)) + (slotName ? ' \u00b7 ' + slotName : '') + '</div>' +
@@ -16571,16 +16718,34 @@ function closeTeamPicker(){
 document.addEventListener('click', e => {
   if (e.target.closest('#team-picker')) return;
   const slot = e.target.closest('[data-teamslot]');
-  if (!slot){ closeTeamPicker(); return; }
+  if (!slot){
+    closeTeamPicker();
+    /* Ett tryck utanfor betyder \"jag angrade mig\" - platsen slutar vanta. */
+    if (typeof pendingTeamSlot !== 'undefined' && pendingTeamSlot != null) clearPendingTeamSlot();
+    return;
+  }
   if (slot.dataset.teampet){ removeTeamPet(+slot.dataset.teampet); return; }
   /* [ANDRAT v5.42.0] Punkt 6: plustecknet gav en smal textlista. Nu oppnas
      HELA hjalparforradet - samma vy som Helpers i snabbraden - sa man ser dem
      som foremal i rutor och kan dra darifran till lagplatsen. */
   closeTeamPicker();
+  /* [BUGG v5.45.0] Plustecknet oppnade forradet men GLOMDE vilken plats man
+     tryckte pa. Klickade man sedan pa en hjalpare hamnade hon i \"forsta lediga\"
+     - alltsa nastan aldrig dar man siktade. Nu halls platsen kvar tills man
+     valt en hjalpare, tryckt bredvid, eller stangt forradet. */
+  pendingTeamSlot = +slot.dataset.teamslot;
   const w = $('pets-overlay');
   if (w && !w.classList.contains('open')) openPetsModal();
   if (w) bringToFront(w);
+  markPendingTeamSlot();
 });
+/* Platsen som vantar pa en hjalpare. null = ingen vantar. */
+let pendingTeamSlot = null;
+function markPendingTeamSlot(){
+  document.querySelectorAll('[data-teamslot]').forEach(el =>
+    el.classList.toggle('awaiting', pendingTeamSlot != null && +el.dataset.teamslot === pendingTeamSlot));
+}
+function clearPendingTeamSlot(){ pendingTeamSlot = null; markPendingTeamSlot(); }
 
 /* ===== STATIONSSIDAN (v5.14.0) =====
    Sidoyrkets egen sida. Kortet visade en siffra; har star hela yrket: takten,
@@ -16845,7 +17010,13 @@ function profPanelCardHTML(p, linked){
     '<div class="jc-link' + (linked ? ' on' : (canLink ? '' : ' off')) + '"' +
       (canLink ? ' data-link="' + p.id + '"' : ' title="Crafting is recipe-driven"') + '>' +
       'LINK<span class="lamp"></span></div>' +
-    '<div class="jc-ico" style="color:' + col + '">' + p.ico + '</div>' +
+    /* [ANDRAT v5.45.0] Kortet ritade en EMOJI, inte yrkets egen bild - trots att
+       bladet, samlarscenen och mappen alla anvander bilden. Nu ritas bilden, med
+       emojin kvar som reserv om filen skulle saknas, sa rutan aldrig star tom. */
+    '<div class="jc-ico" style="color:' + col + '">' +
+      '<img class="jc-art" src="' + profArt(p.id) + '" alt="" ' +
+      'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\')">' +
+      '<span class="jc-emoji">' + p.ico + '</span></div>' +
     '<div class="jc-mid">' +
       '<div><span class="jc-name" style="color:' + col + '">' +
         (secondary ? p.station : p.name) + '</span>' +
@@ -17033,7 +17204,13 @@ function gatherLoopHTML(id){
                   : '<span class="gl-miss">Last: nothing</span>')
     : '<span class="gl-miss">Idle</span>';
   return '<div class="gather-loop gl-shift" data-gather="' + id + '">' +
-    '<div class="gl-scene gl-' + id + '"><span class="gl-tool" style="background-image:url(\'' + profArt(id) + '\')"></span></div>' +
+    /* [ANDRAT v5.46.0] Ocksa har var bilden en BAKGRUND, och en bakgrund kan inte
+       saga ifran nar filen saknas - rutan stod bara tom. Nu en riktig bild med
+       yrkets emoji som reserv, samma som pa kortet och pa bladet. */
+    '<div class="gl-scene gl-' + id + '"><span class="gl-tool">' +
+      '<img src="' + profArt(id) + '" alt="" ' +
+      'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\')">' +
+      '<i class="gl-fall">' + ((PROF_BY[id] && PROF_BY[id].ico) || '\u26cf\ufe0f') + '</i></span></div>' +
     '<div class="gl-right">' +
       /* "Tier 0" stod har utan att betyda nagot i yrket - taget bort. */
       '<div class="gl-verb">' + def.verb + ' in ' + here +
@@ -17253,10 +17430,27 @@ function renderRecipeBook(){
       return '<span class="rc-mat' + (enough ? '' : ' short') + '">' + MATERIALS[k].ico + ' ' +
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
-    const artStyle = isFl
-      ? '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px'
-      : '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
-    const artInner = isFl ? FLASKS[r.item].ico : '';
+    /* [ANDRAT v5.47.0] Kortet kande bara TVA sorters utfall: en flaska (emoji,
+       centrerad) eller en pjas (bakgrundsbild). En FORBRUKNINGSVARA som bandage
+       star inte i utrustningslistan, sa uppslagningen gav tom strang - och
+       kortet ritade en tom svart ruta. Nu ritas varans egen bild med emojin som
+       reserv, sa raden ser ratt ut bade med och utan bildfil. */
+    const conArt = stackArtOf(r.item);
+    let artStyle, artInner;
+    if (isFl){
+      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
+      artInner = FLASKS[r.item].ico;
+    } else if (conArt){
+      artStyle = '--rc:' + rarCol(r.rar);
+      artInner = artWithFallback(conArt, stackIcoOf(r.item, ''));
+    } else if (!ITEMS[r.item]){
+      /* Varken pjas eller bild: material och ovriga varor far sitt tecken. */
+      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
+      artInner = stackIcoOf(r.item, '');
+    } else {
+      artStyle = '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
+      artInner = '';
+    }
     /* ETT RECEPT MAN INTE HITTAT SYNS INTE. Forut stod alla dropprecept som
        lasta rader i boken - man visste alltsa exakt vad som fanns att hitta
        innan man hittat det, och boken var full av saker man inte agde. Nu dyker
@@ -17517,9 +17711,30 @@ function toggleWindow(id, open, close){
 }
 /* Sidan bakom låses så länge någon ruta är öppen — vi lyssnar på klassbytet i stället
    för att haka på varje enskild öppna/stäng-knapp, så ingen ruta kan glömmas bort. */
+/* [ANDRAT v5.46.0] Tva fel har. Ett: AUKTIONSHUSET stod inte i listan - det ar
+   ingen 'modal-overlay' utan ett eget helskarmsfonster, sa det enda som tackte
+   HELA skarmen var ocksa det enda som inte lastes. Hjulet utanfor tabellen
+   rullade darfor spelet bakom, som man inte kunde se.
+   Tva: lasningen var bara 'overflow:hidden' pa body, och det haller inte nar
+   det ar sidan (html) som rullar. Nu frys sidan pa plats, och rullningen
+   laggs tillbaka exakt dar den lag nar rutan stangs - annars hoppar man till
+   toppen varje gang man stanger nagot. */
 (function lockScrollWhileModalOpen(){
-  const overlays = Array.from(document.querySelectorAll('.modal-overlay'));
-  const sync = () => document.body.classList.toggle('modal-open', overlays.some(o => o.classList.contains('open')));
+  const overlays = Array.from(document.querySelectorAll('.modal-overlay, #ah-overlay'));
+  let savedY = null;
+  const sync = () => {
+    const any = overlays.some(o => o.classList.contains('open'));
+    if (any && savedY == null){
+      savedY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.body.style.top = (-savedY) + 'px';
+      document.body.classList.add('modal-open');
+    } else if (!any && savedY != null){
+      const y = savedY; savedY = null;
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, y);
+    }
+  };
   const obs = new MutationObserver(sync);
   overlays.forEach(o => obs.observe(o, {attributes: true, attributeFilter: ['class']}));
   sync();
@@ -17584,6 +17799,15 @@ $('pet-grid').addEventListener('click', e => {
     if (inTeam(uid)) return;                /* burna husdjur gar inte att bocka for */
     if (petSel.has(uid)) petSel.delete(uid); else petSel.add(uid);
     renderPets();
+    return;
+  }
+  /* [TILLAGT v5.45.0] Vantar en lagplats pa nagon - for att man tryckte pa dess
+     plustecken - sa ar ett vanligt klick svaret pa den fragan, inte en begaran
+     om att fa se kortet. */
+  if (pendingTeamSlot != null){
+    const want = pendingTeamSlot;
+    clearPendingTeamSlot();
+    helperToSlot(uid, want);
     return;
   }
   /* SHIFT+klick satter husdjuret i arbete, i den produktion dess formaga hor
@@ -19007,10 +19231,21 @@ function dragTargetsFor(d){
      revs med maskinerna, sa listan blev alltid tom och ingen ruta lyste nar man
      drog en hjalpare. Malet ar lagplatserna: alla lediga om laget har plats,
      och de upptagna ocksa, for ett slapp dar byter ut den som satt. */
+  /* [ANDRAT v5.45.0] Punkt 12 igen, at bada hallen. En hjalpare fran LISTAN
+     kunde bara sikta pa lagplatserna - inte pa listans egna rutor, sa en
+     omflyttning kandes dod. Och draget UR en lagplats hade inga mal alls: det
+     foll rakt igenom till den tomma listan langst ner. Nu kanner bada hallen
+     sina mal, sa markeringen foljer handen hela vagen. */
+  const petCells = () => Array.from(document.querySelectorAll('#pet-grid [data-pet]'));
   if (d.from === 'pet'){
     const p = petByUid(d.uid);
-    if (!p || inTeam(d.uid)) return [];
-    return Array.from(document.querySelectorAll('[data-teamslot]'));
+    if (!p) return [];
+    return Array.from(document.querySelectorAll('[data-teamslot]')).concat(petCells());
+  }
+  if (d.from === 'petslot'){
+    /* Ut ur laget: varje annan lagplats (byte) och hela listan (tillbaka hem). */
+    return Array.from(document.querySelectorAll('[data-teamslot]'))
+      .filter(el => +el.dataset.teamslot !== d.idx).concat(petCells());
   }
   return [];
 }
@@ -19024,11 +19259,15 @@ function beginDrag(d, x, y){
   /* Drar man en hjalpare tonas alla lediga platser fram, och den ratta lyser
      gront via d.targets. Klassen sattes forut av webblasarens drag, som ar
      borttaget. */
-  if (d.from === 'pet' || d.from === 'helperslot') document.body.classList.add('dragging-pet');
-  if (d.from === 'pet'){
-    const p0 = petByUid(d.uid), c0 = p0 ? petSeatCheck(p0) : null;
-    setHelperDropTarget(c0 && c0.b && !c0.why ? c0.b.id : null);
-  }
+  if (d.from === 'pet' || d.from === 'petslot' || d.from === 'helperslot') document.body.classList.add('dragging-pet');
+  /* [BUGG v5.45.0] HAR LAG DEN VERKLIGA ORSAKEN TILL ATT INGENTING GICK ATT DRA.
+     Tva rader pekade pa en markering som revs med maskinerna - setHelperDropTarget
+     och helperDropTarget finns inte langre. Den ena lag har, i BORJAN av draget,
+     och slog sonder varje drag av en hjalpare innan spoket ens hann skapas. Den
+     andra lag forst i endDrag och slog darfor sonder VARJE SLAPP i hela spelet -
+     vaska, kropp, valv, hjalpare, allt. Draget sag levande ut hela vagen, for
+     rutorna lyste och spoket foljde handen; det var bara slappet som var dott.
+     Buggfamilj 4, men i sin varsta form: dod kod mitt i den levande vagen. */
   const g = document.createElement('div');
   g.className = 'drag-ghost';
   if (d.from === 'pet' || d.from === 'petslot'){
@@ -19046,6 +19285,16 @@ function beginDrag(d, x, y){
        Bar stapeln en bild i katalogen bar spoket samma bild. */
     const sdef = d.row && ITEM_DEFS[d.row.key];
     if (sdef && sdef.art){
+      /* [ANDRAT v5.47.0] Spoket bar bilden som bakgrund. Saknas filen blev
+         spoket en tom ruta i handen, sa vi provar bilden forst och byter till
+         tecknet om den inte gar att ladda. */
+      const probe = new Image();
+      probe.onerror = () => {
+        g.style.backgroundImage = '';
+        g.textContent = (d.row && d.row.ico) || '\ud83d\udce6';
+        g.classList.add('ghost-ico');
+      };
+      probe.src = sdef.art;
       g.style.backgroundImage = "url('" + sdef.art + "')";
     } else {
       g.textContent = (d.row && d.row.ico) || '📦';
@@ -19076,7 +19325,6 @@ function endDrag(d, x, y){
   document.querySelectorAll('.drop-cell').forEach(c => c.classList.remove('drop-cell'));
   document.body.classList.remove('dragging');
   document.body.classList.remove('dragging-pet');
-  if (helperDropTarget) setHelperDropTarget(null);
   const under = document.elementFromPoint(x, y);
   if (!under) return;
   /* Husdjuren har sitt eget rutnat och blandas aldrig med vaskan: ett husdjur ar
@@ -19093,21 +19341,18 @@ function endDrag(d, x, y){
     const ts = under.closest('[data-teamslot]');
     if (ts){
       const p = petByUid(d.uid);
-      if (p){
-        if (ts.dataset.teampet && +ts.dataset.teampet !== d.uid){
-          removeTeamPet(+ts.dataset.teampet);          // gor plats at den nya
-          setTeamPet(p.uid, +ts.dataset.teamslot);
-          say(petName(p) + ' took that seat.');
-        } else {
-          const chk = petSeatCheck(p);
-          if (chk.why) say(chk.why);
-          else { setTeamPet(p.uid, +ts.dataset.teamslot); say(petName(p) + ' joined the team.'); }
-        }
-      }
+      /* [ANDRAT v5.45.0] Har stod \"ta ut den som satt\" och \"satt in den nya\"
+         som tva sjalvstandiga anrop. I serverlage gick de ivag samtidigt och
+         svaren kom tillbaka i den ordning servern kande for. Nu gar bada
+         genom EN funktion som tar stegen i tur och ordning. */
+      if (p) helperToSlot(p.uid, +ts.dataset.teamslot);
       return;
     }
     const pc = under.closest('#pet-grid [data-pet]');
-    if (pc) movePet(d.idx, +pc.dataset.pet);
+    if (pc){
+      const to = +pc.dataset.pet;
+      if (to < 0) movePetEnd(d.idx); else movePet(d.idx, to);
+    }
     return;
   }
   if (d.from === 'helperslot'){
@@ -19122,11 +19367,23 @@ function endDrag(d, x, y){
     return;
   }
   if (d.from === 'petslot'){
-    /* Draget UT ur lagplatsen: slapper man over rutnatet lamnar husdjuret platsen.
-       Slapper man var som helst annars hander ingenting - platsen ar inte en soptunna. */
-    /* Slapper man over rutnatet lamnar husdjuret sin plats. Slapper man pa en
-       ANNAN lagplats byter de tva plats med varandra. */
+    /* [BUGG v5.45.0] DEN HAR GRENEN GJORDE INGENTING. Den letade upp lagplatsen
+       under pekaren och slangde sedan svaret - raden slutade mitt i. Bade
+       kommentaren ovanfor och markeringen sa att bytet fanns; det gjorde det
+       aldrig. Nu: slappt pa en ANNAN lagplats byter de tva plats, slappt i
+       listan gar hjalparen hem, slappt nagon annanstans hander ingenting -
+       en lagplats ar ingen soptunna. */
     const sl = under.closest('[data-teamslot]');
+    if (sl){
+      const to = +sl.dataset.teamslot;
+      if (to !== d.idx) helperToSlot(d.uid, to);
+      return;
+    }
+    if (under.closest('#pet-grid') || under.closest('#pets-overlay')){
+      const p = petByUid(d.uid);
+      removeTeamPet(d.uid);
+      if (p) say(petName(p) + ' is back in your helpers.');
+    }
     return;
   }
   /* En ruta räknas som mål oavsett om den sitter i huvudrutnätet eller i ett
