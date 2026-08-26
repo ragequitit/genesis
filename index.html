@@ -3527,6 +3527,28 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gt-pve{font-size:10px;color:#e8c15a;line-height:1.4}
 .dg-fx{color:#e8c15a;font-style:italic;font-size:9.5px}
 
+/* Yrkesmallen (v5.43.0): XP-pluppar, sidoyrkets lager och den gemensamma
+   knappen. Knappen ar RAKT KOPIERAD fran yrkeskortens OPEN. */
+.xpdots{display:inline-flex;gap:3px;align-items:center;flex:1}
+.xpd{width:100%;max-width:14px;height:6px;border-radius:3px;
+  background:rgba(255,255,255,.10);transition:background .2s}
+.xpd.on{background:var(--pp-col,var(--cyan))}
+.xpd.half{background:color-mix(in srgb, var(--pp-col,var(--cyan)) 45%, rgba(255,255,255,.10))}
+.pp-openbtn{
+  flex:0 0 auto;padding:11px 20px;border-radius:9px;cursor:pointer;
+  font-size:10.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);
+}
+.pp-openbtn:hover:not(:disabled){background:rgba(56,232,255,.12);border-color:var(--cyan-dim)}
+.pp-openbtn:disabled{opacity:.4;cursor:default}
+.pp-store{display:flex;flex-direction:column;gap:6px;border:1px solid var(--border);
+  border-radius:9px;padding:10px}
+.pp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:10.5px;color:var(--text-dim)}
+.pp-row b{color:var(--text);font-family:var(--font-mono)}
+.pp-sbar{height:6px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
+.pp-sbar i{display:block;height:100%}
+
 /* Hantverkskon (v5.41.0): breda rutan, kons rader, boken. Egna klasser. */
 #profpage-overlay.wide .modal{width:min(960px,94vw)}
 .pp-wide{display:flex;gap:14px;align-items:flex-start}
@@ -4473,7 +4495,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.42.0 — RESANDET OCH FÖNSTREN</div>
+            <div class="desc">GENESIS v5.43.0 — EN MALL FÖR ALLA YRKEN</div>
           </div>
         </div>
       </div>
@@ -4484,7 +4506,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.42.0 — RESANDET OCH FÖNSTREN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.43.0 — EN MALL FÖR ALLA YRKEN</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -16161,11 +16183,31 @@ function mySecondaryProf(){
    Insamlingsrutan ar SAMMA som yrkesfonstrets - inte en kopia. Tva kopior hade
    forr eller senare sagt olika saker, och knapparna hade slutat svara i den ena. */
 let profPageRef = null;
+/* ===== XP SOM TIO PLUPPAR (v5.43.0) =====
+   Spelarens regel: ett streck sager inte hur langt det ar kvar - tio pluppar
+   gor det. Var tionde procent tands en till. Anvands OVERALLT dar XP visas. */
+function xpDotsHTML(into, need, col){
+  const pct = need ? Math.max(0, Math.min(100, 100 * into / need)) : 0;
+  let d = '';
+  for (let i = 0; i < 10; i++){
+    const on = pct >= (i + 1) * 10;
+    const half = !on && pct > i * 10;
+    d += '<i class="xpd' + (on ? ' on' : (half ? ' half' : '')) + '"></i>';
+  }
+  return '<span class="xpdots" style="--pp-col:' + (col || 'var(--cyan)') + '">' + d + '</span>';
+}
+/* ===== DEN GEMENSAMMA YRKESMALLEN (v5.43.0) =====
+   ETT fonster for ALLA yrken - samma storlek, samma uppdelning, samma design.
+   Bara innehallet skiljer:
+     hantverk  -> ko till vanster, receptbok till hoger
+     sidoyrke  -> samma, plus lager/takt/nasta enhet i vansterspalten
+     samlare   -> ingen ko; arbetspasset och mojliga fynd till hoger
+   Varje NYTT yrke som laggs till ska folja den har mallen. */
 function profPageHTML(p){
   const info = profLevelInfo((S.prof.known[p.id] || {}).xp || 0);
   const col  = PROF_COLOR[p.id] || 'var(--cyan)';
-  const pct  = info.need ? Math.min(100, Math.round(100 * info.into / info.need)) : 0;
   const linked = linkedProf() === p.id;
+  const queued = (p.kind === 'crafting' || p.kind === 'secondary');
 
   let h = '<div class="pp-banner" style="--pp-col:' + col + '">' +
     '<div class="pp-art" style="background-image:url(\'' + profArt(p.id) + '\')"></div>' +
@@ -16173,21 +16215,32 @@ function profPageHTML(p){
     '<div class="pp-kind">' + p.kind + '</div>' +
     '<div class="pp-blurb">' + p.blurb + '</div>' +
     '<div class="pp-lvlrow"><span class="pp-lvl">Level ' + info.lvl + '</span>' +
-      '<span class="pp-xpbar"><span class="pp-xpfill" style="width:' + pct + '%"></span></span>' +
+      xpDotsHTML(info.into, info.need, col) +
       '<span class="pp-xptext">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span></div>' +
     '<div class="pp-link' + (linked ? ' on' : '') + '" data-link="' + p.id + '">' +
       (linked ? 'Linked to node' : 'Link to node') + '<span class="lamp"></span></div>' +
   '</div>';
 
+  /* SIDOYRKETS EGNA RADER: lagret, takten och tiden till nasta enhet. Det ar
+     hela skillnaden mot en hantverkare - allt annat ar samma mall. */
+  if (p.kind === 'secondary'){
+    const have = matCount(p.bound), cap = p.storageCap;
+    const next = stationNextIn(p);
+    const spct = Math.min(100, Math.round(100 * have / cap));
+    h += '<div class="section-label pp-sec">' + p.station + '</div>' +
+      '<div class="pp-store">' +
+      '<div class="pp-row"><span>' + MATERIALS[p.bound].ico + ' ' + MATERIALS[p.bound].name + '</span>' +
+        '<b>' + fmt(have) + ' / ' + fmt(cap) + '</b></div>' +
+      '<div class="pp-sbar"><i style="width:' + spct + '%;background:' + col + '"></i></div>' +
+      '<div class="pp-row"><span>Rate</span><b>1 per ' + fmtDur(p.stationSecs) + '</b></div>' +
+      '<div class="pp-row"><span>Next unit</span><b>' +
+        (have >= cap ? 'Storage full' : (next == null ? '—' : fmtDur(next))) + '</b></div>' +
+      '</div>';
+  }
+
   if (p.kind === 'gathering'){
-    h += '<div class="section-label pp-sec">Work</div>' + gatherLoopHTML(p.id);
-    h += '<div class="section-label pp-sec">Possible finds</div><div class="pp-finds">' +
-      p.mats.map(k => {
-        const m = MATERIALS[k];
-        const reach = !m.rank || m.rank <= (RANK_WEIGHTS[Math.min(regionTier(), 4)] || [[1,100]])
-                                  .map(r => r[0]).reduce((a, b) => Math.max(a, b), 1);
-        return '<span class="pp-find' + (reach ? '' : ' dim') + '">' + m.ico + ' ' + m.name + '</span>';
-      }).join('') + '</div>';
+    /* Samlarens arbetspass och fynd bor i HOGERSPALTEN - se ppGatherRightHTML.
+       Vansterspalten ar densamma for alla yrken. */
   } else {
     /* [ANDRAT v5.41.0] HANTVERKSKON efter skissen: kon till vanster,
        receptboken till hoger, allt i samma breda ruta. Fem platser; raden som
@@ -16201,10 +16254,25 @@ function profPageHTML(p){
 
   h += '<div class="pp-next"><b style="color:' + col + '">Next level</b>' +
     '<span>' + (info.need - Math.floor(info.into)) + ' XP to level ' + (info.lvl + 1) + '</span></div>';
-  if (p.kind === 'crafting'){
-    return '<div class="pp-wide"><div class="pp-left">' + h + '</div>' +
-      '<div class="pp-right">' + ppBookHTML(p.id) + '</div></div>';
-  }
+  /* [ANDRAT v5.43.0] ALLA yrken far den breda rutan - en mall, ett utseende.
+     Hoger sida ar det enda som skiljer: receptbok for dem som koar, och
+     arbetspasset + fynden for samlarna. */
+  const right = queued ? ppBookHTML(p.id) : ppGatherRightHTML(p.id);
+  return '<div class="pp-wide"><div class="pp-left">' + h + '</div>' +
+    '<div class="pp-right">' + right + '</div></div>';
+}
+/* Samlarens hogersida: arbetspasset och vad som gar att hitta har. */
+function ppGatherRightHTML(id){
+  const p = PROF_BY[id];
+  let h = '<div class="section-label pp-sec">Work</div>' + gatherLoopHTML(id);
+  h += '<div class="section-label pp-sec">Possible finds</div><div class="pp-finds">' +
+    (p.mats || []).map(k => {
+      const m = MATERIALS[k];
+      const reach = !m.rank || m.rank <= (RANK_WEIGHTS[Math.min(regionTier(), 4)] || [[1,100]])
+                                .map(r => r[0]).reduce((a, b) => Math.max(a, b), 1);
+      return '<span class="pp-find' + (reach ? '' : ' dim') + '">' +
+        (reach ? '' : '\ud83d\udd12 ') + m.ico + ' ' + m.name + '</span>';
+    }).join('') + '</div>';
   return h;
 }
 /* ---------- KON OCH BOKEN (v5.41.0) ---------- */
@@ -16302,7 +16370,7 @@ function ppBookRows(profId){
         '<div class="rr-time">\u23f1 ' + fmtDur(recipeSecs(r)) + (slotName ? ' \u00b7 ' + slotName : '') + '</div>' +
         '<div class="rr-cost">' + cost + '</div>' +
       '</div>' +
-      '<button class="rr-craft addq" data-addq="' + r.id + '"' +
+      '<button class="pp-openbtn addq" data-addq="' + r.id + '"' +
         ((afford && free > 0) ? '' : ' disabled') + '>' +
         (free > 0 ? 'Add to queue' : 'Queue full') + '</button>' +
     '</div>';
@@ -16310,14 +16378,14 @@ function ppBookRows(profId){
 }
 function openProfPage(profId){
   const p = PROF_BY[profId];
-  if (!p || p.kind === 'secondary') return;
+  if (!p) return;
   profPageRef = profId;
   $('pp-title').textContent = p.name;
   $('pp-body').innerHTML = profPageHTML(p);
   const w = $('profpage-overlay');
   /* [ANDRAT v5.41.0] Hantverksyrkena far den BREDA rutan (kon + boken) och den
      gar att dra i namnlisten, som de andra fonstren. Draget kopplas EN gang. */
-  w.classList.toggle('wide', p.kind === 'crafting');
+  w.classList.add('wide');          // en mall, en bredd - alla yrken
   if (!w.dataset.drag){
     w.dataset.drag = '1';
     makeDraggable(w.querySelector('.modal'), [w.querySelector('.inv-titlebar'), w.querySelector('.inv-emblem')]);
@@ -16554,8 +16622,10 @@ function stationBodyHTML(p){
     const locked = info.lvl < r.lvl;
     const costs = Object.keys(r.cost).map(k => {
       const need = r.cost[k], got = matCount(k), ok = got >= need;
+      /* [ANDRAT v5.43.0] Punkt 1: antalet man HAR star efter varje material,
+         alltid - inte bara nar det saknas. */
       return '<span class="pf-tag" style="' + (ok ? '' : 'color:var(--red);border-color:var(--red)') + '">' +
-        MATERIALS[k].ico + ' ' + need + ' ' + MATERIALS[k].name + (ok ? '' : ' (' + got + ')') + '</span>';
+        MATERIALS[k].ico + ' ' + need + ' ' + MATERIALS[k].name + ' (' + got + ')</span>';
     }).join('');
     const canMake = !locked && canAfford(r.id);
     return '<div class="region-zone" style="display:block;padding:9px 10px;margin-bottom:7px">' +
@@ -16563,15 +16633,26 @@ function stationBodyHTML(p){
         '<b style="flex:1">' + craftOutcomeName(r.id) + '</b>' +
         (locked
           ? '<span class="jc-xp">Level ' + r.lvl + '</span>'
-          : '<button class="jc-btn" style="margin:0;padding:7px 14px' + (canMake ? '' : ';opacity:.4') + '" ' +
-            (canMake ? 'data-stationcraft="' + r.id + '"' : 'disabled') + '>Craft</button>') +
+          /* [ANDRAT v5.43.0] Punkt 2: samma knapp som OPEN pa yrkeskorten -
+             samma form, ram och upplysning vid hovring. */
+          : '<button class="pp-openbtn"' + (canMake ? '' : ' disabled') + ' ' +
+            (canMake ? 'data-stationcraft="' + r.id + '"' : '') + '>Craft</button>') +
       '</div>' +
       '<div class="pf-tags" style="margin-top:6px">' + costs + '</div>' +
     '</div>';
   }).join('');
   return h;
 }
+/* [ANDRAT v5.43.0] Sidoyrket har inget EGET smalt fonster langre - det oppnar
+   den gemensamma yrkesmallen, precis som hantverk och samlare. Den gamla
+   stationsrutan lamnas kvar men nas inte fran spelet. */
 function openStation(profId){
+  const p = PROF_BY[profId];
+  if (!p || p.kind !== 'secondary') return;
+  openProfPage(profId);
+  return;
+}
+function openStationOld(profId){
   const p = PROF_BY[profId];
   if (!p || p.kind !== 'secondary') return;
   stationRef = profId;
@@ -17189,7 +17270,7 @@ function renderRecipeBook(){
       /* [ANDRAT v5.41.0] ETT klick, en plats i kon. All 10 ar borta pa
          spelarens beslut: vill man ha fem trycker man fem ganger. Mataren i
          raden ar ocksa borta - tiden bor i kons forsta rad, inte har. */
-      '<button class="rr-craft addq" data-addq="' + r.id + '"' + (afford ? '' : ' disabled') + '>Add to queue</button>' +
+      '<button class="pp-openbtn addq" data-addq="' + r.id + '"' + (afford ? '' : ' disabled') + '>Add to queue</button>' +
     '</div>';
   }).join('');
   /* Hovra en receptrad och se det nastan-vanliga foremalskortet: talen
