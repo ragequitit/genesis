@@ -2769,6 +2769,25 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   inset:0;background:rgba(4,6,16,.72);backdrop-filter:blur(2px);
   overscroll-behavior:contain;
 }
+/* Shopens varurader (v5.49.0) */
+.shop-row{display:flex;align-items:center;gap:10px;background:var(--bg-inset);
+  border:1px solid var(--border-soft);border-radius:9px;padding:9px 11px;margin-bottom:7px}
+.sr-ico{font-size:20px;flex:0 0 auto}
+.sr-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.sr-body b{font-size:11.5px;color:var(--text)}
+.sr-body i{font-size:9px;color:var(--text-dim);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-body em{font-size:8.5px;color:var(--text-faint);font-style:normal;font-family:var(--font-mono)}
+.sr-price{font-size:10.5px;color:var(--gold);font-family:var(--font-mono);white-space:nowrap}
+.sr-buy{padding:6px 9px;border-radius:7px;font-size:9.5px;font-weight:800;cursor:pointer;
+  background:rgba(56,232,255,.07);border:1px solid var(--cyan-dim);color:var(--cyan)}
+.sr-buy:hover{background:rgba(56,232,255,.14)}
+
+/* Monstervalet (v5.50.0) */
+.pt-pattern{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.pt-aff{padding:4px 8px;border-radius:7px;font-size:9px;cursor:pointer;
+  background:rgba(255,255,255,.04);border:1px solid var(--border-soft);color:var(--text-dim)}
+.pt-aff.on{color:var(--gold);border-color:var(--gold);box-shadow:0 0 8px -3px var(--gold)}
+.pt-aff:hover{color:var(--text)}
 /* ===== SKILLTRADET (v5.48.0) — efter spelarens bild ===== */
 .pp-derived{margin-top:12px;display:flex;flex-direction:column;gap:6px}
 .pp-drow{display:flex;align-items:center;gap:9px;background:var(--bg-inset);border:1px solid var(--border-soft);
@@ -4390,9 +4409,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="section-label">Offline Cap</div>
         <div class="kv" style="margin-bottom:8px"><span class="k">Current offline cap</span><span class="v" id="prem-cap" style="color:var(--cyan)">6h</span></div>
         <div class="upgrade-list" id="premium-offline"></div>
-        <div class="section-label" style="margin-top:14px">Extra Bag Slots</div>
+        <div class="section-label" style="margin-top:14px">Supplies</div>
+        <div class="upgrade-list" id="shop-supplies"></div>
+        <div class="section-label" style="margin-top:14px">Extra Bag Slots <span class="ppq-count">PREMIUM</span></div>
         <div class="upgrade-list" id="premium-bags"></div>
-        <div class="shelf-empty" style="margin-top:12px">More will arrive with pets and quests.</div>
+        <div class="shelf-empty" style="margin-top:12px">Regional vendors keep their own unique goods.</div>
       </div>
     </div>
   </div>
@@ -4605,7 +4626,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.48.1 — SYNKBRICKAN OCH MATERIALBILDER</div>
+            <div class="desc">GENESIS v5.50.0 — ÅTERVINNING OCH MÖNSTER</div>
           </div>
         </div>
       </div>
@@ -4616,7 +4637,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.48.1 — SYNKBRICKAN OCH MATERIALBILDER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.50.0 — ÅTERVINNING OCH MÖNSTER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -6208,6 +6229,23 @@ async function netPullItems(){
   const vslots = (typeof vaultSlots === 'function') ? vaultSlots() : vaultRows.length;
   S.vault.inv = new Array(Math.max(vslots, vaultRows.length)).fill(null);
   vaultRows.forEach((g, k) => { S.vault.inv[k] = {gear: g}; });
+  /* [TILLAGT v5.49.0] MATERIAL I VALVET. Staplarna bor i sin egen tabell pa
+     servern och laggs efter pjaserna. Raden bar sin nyckel, sa uttaget vet
+     exakt vad som ska hem. */
+  try {
+    const vst = await srvSelect('vault_stacks',
+      'character_id=eq.' + SRV.charId + '&select=stack_key,kind,qty&order=stack_key');
+    let vk = vaultRows.length;
+    (vst || []).forEach(r => {
+      const name = (MATERIALS[r.stack_key] && MATERIALS[r.stack_key].name) ||
+                   (ITEM_DEFS[r.stack_key] && ITEM_DEFS[r.stack_key].name) || r.stack_key;
+      const ico  = stackIcoOf(r.stack_key, '\ud83d\udce6');
+      while (vk < S.vault.inv.length && S.vault.inv[vk]) vk++;
+      const row = {key: r.stack_key, name: name, ico: ico, qty: +r.qty, stack: true, vstack: true};
+      if (vk < S.vault.inv.length) S.vault.inv[vk] = row; else S.vault.inv.push(row);
+      vk++;
+    });
+  } catch (e){ /* tabellen kan saknas i en gammal databas - valvet visar da bara pjaser */ }
 
   /* Staplarna: material, flaskor och recept. Samlat material sist, i sin egen
      vaska - dess forsta ruta ar gStart. */
@@ -6993,7 +7031,12 @@ function gatherShiftSecs(){ return (SHIFT_HOURS[shiftPoints()] || 1) * 3600; }
    pass ger mindre. Den snabbar i stallet upp rullningarna, en halv sekund per
    niva. Samma tanke, ratt riktning. Servern raknar likadant. */
 function gatherCycleSecs(id){
-  return Math.max(2, GATHER_DEFS[id].cycle - 0.5 * (NET.on ? perkLvl('shiftFast') : 0));
+  /* [ANDRAT v5.49.0] Samma matematik som serverns gather_cycle_secs: Faster
+     Cycles kortar cykeln, golvet ar tva sekunder. Formanen shiftFast ar riven
+     med passen - den drog i en klocka som inte finns. Klient och server maste
+     saga SAMMA tal, annars ljuger nedrakningen (buggfamilj 6). */
+  const pct = Math.min((typeof skillPct === 'function') ? skillPct(id, 'gather_speed') : 0, 40);
+  return Math.max(2, GATHER_DEFS[id].cycle * (1 - pct / 100));
 }
 /* VILKEN RANK EN VARLD GER (v4.91.0). Ren data - samma tabell som servern.
    Hemma i Voxholm ar nastan allt Rank I; langst ut i The Quarantine bara Rank
@@ -7141,29 +7184,30 @@ function salvageProfFor(it){ const m = SALVAGE_MAP[it.s]; return m ? m.prof : nu
    saljs till handlaren eller pa auktionen; materialet kommer fran den som
    faktiskt samlar det. Funktionen star kvar och svarar nej, sa ingen knapp
    nagonstans kan borja lova nagot igen. */
-function canSalvage(it){ return false; }
+/* [ANDRAT v5.50.0] ATERVINNINGEN AR TILLBAKA - MEN SOM SKROT. Skrotningen
+   revs 2026-08-15 for att den gav samlarens material och gjorde samlaren
+   overflodig. Atervinningen ger darfor BARA skrot av pjasens egen rang, plus
+   tradens Recycling-procent. Samlarens material ror den aldrig. Talen ar
+   samma som serverns salvage_item - tva stallen, EN sanning. */
+function canSalvage(it){ return !!it; }
+function recycleScrapKey(r){ return r <= 1 ? 'salvaged_scrap' : r <= 3 ? 'scrap_reinforced' : r === 4 ? 'scrap_charged' : 'scrap_phase'; }
+function recycleProfFor(it){
+  return [6,8,12,13].indexOf(it.s) >= 0 ? 'jewelcrafter'
+       : [5,9,11].indexOf(it.s)   >= 0 ? 'weaponsmith' : 'outfitter';
+}
 /* Rakna ut vad en isarplockning SKULLE ge, utan att utfora den - sa fonstret kan
    visa det i forvag. Returnerar {rows:[{key,qty}], bonus, prof, comp} dar bonus ar
    sant om ratt yrke gav paslag. */
 function salvagePreview(it){
-  const m = SALVAGE_MAP[it.s];
-  if (!m) return null;
-  const base = SALVAGE_YIELD[it.r] || 2;
-  const prof = m.prof;
+  /* [ANDRAT v5.50.0] Samma matematik som serverns salvage_item: skrot av
+     pjasens rang, bas 2-6 efter raritet, gangat med tradens Recycling. */
+  const prof = recycleProfFor(it);
+  const key = recycleScrapKey(it.r);
+  const pct = (typeof skillPct === 'function') ? skillPct(prof, 'recycle') : 0;
+  const qty = Math.max(1, Math.round((SALVAGE_YIELD[it.r] || 2) * (1 + pct / 100)));
   const learned = profLearned(prof);
-  /* +25 % vid niva 1, klattrar mot +50 % vid niva 10 och over. */
-  const lvl = learned ? profLvl(prof) : 0;
-  const mult = learned ? (1.25 + Math.min(0.25, (lvl - 1) * 0.025)) : 1;
-  const total = Math.round(base * mult);
-  /* Fordela totalen over platsens tva material, forsta far overskottet. */
-  const rows = [];
-  const per = Math.floor(total / m.mats.length);
-  m.mats.forEach((k, i) => {
-    let q = per + (i === 0 ? total - per * m.mats.length : 0);
-    if (q > 0) rows.push({key: k, qty: q});
-  });
-  return {rows: rows, bonus: learned, prof: prof, comp: m.comp,
-          compChance: learned ? Math.min(0.5, 0.15 + lvl * 0.02) : 0, xp: 3 + it.r * 2};
+  return {rows: [{key: key, qty: qty}], bonus: pct > 0, prof: prof, comp: null,
+          compChance: 0, xp: learned ? 3 + it.r * 2 : 0};
 }
 /* Utfor isarplockningen pa vaskraden idx. Ger materialen, ev. komponenten,
    yrkes-XP om ratt yrke, tar bort pjasen. */
@@ -7173,10 +7217,7 @@ function salvageGear(idx){
   if (NET.on){ netSalvage(row.gear).catch(e => say(srvErrText(e))); return true; }
   const it = row.gear, pv = salvagePreview(it);
   pv.rows.forEach(r => giveMaterial(r.key, r.qty));
-  if (pv.bonus){
-    grantProfXP(pv.prof, pv.xp);
-    if (Math.random() < pv.compChance) giveMaterial(pv.comp, 1);
-  }
+  if (pv.xp) grantProfXP(pv.prof, pv.xp);
   S.stats = S.stats || {};
   S.stats.salvaged = (S.stats.salvaged || 0) + 1;
   S.inv[idx] = null;
@@ -9964,10 +10005,17 @@ function toVault(invIdx, at){
       netMoveVault(row.gear, true).catch(e => say(srvErrText(e)));
       return true;
     }
-    /* [ANDRAT v5.48.1] HAR SATT EN TYSTNAD. Materialstaplar kan inte laggas i
-       valvet i serverlage - men klienten sa INGENTING, sa draget kandes dott.
-       Tystnad ar det varsta svaret en ruta kan ge. Nu sags det rakt ut. */
-    if (row) say('Materials can\u2019t be stored in the vault \u2014 only gear. Sell or use them to free your bag.');
+    /* [ANDRAT v5.49.0] MATERIAL FAR PLATS I VALVET. Hela stapeln flyttas -
+       servern bokfor med samma uttag som nar nagot forbrukas. Recept ar
+       fortfarande personliga och stannar i vaskan. */
+    if (row && row.key && !row.recipe){
+      srvRpc('vault_stack_put', {p_character: SRV.charId, p_key: row.key, p_qty: null})
+        .then(() => netPullItems())
+        .then(() => { renderInventory(); renderVault(); updateUI(true); })
+        .catch(e => say(srvErrText(e, 'Could not store that.')));
+      return true;
+    }
+    if (row) say('Recipes stay in your bag \u2014 they are yours to learn.');
     return false;
   }
   const row = S.inv[invIdx];
@@ -9985,6 +10033,14 @@ function fromVault(vaultIdx, at){
   if (NET.on){
     if (row.gear){
       netMoveVault(row.gear, false).catch(e => say(srvErrText(e)));
+      return true;
+    }
+    /* [ANDRAT v5.49.0] En stapel gar hem till vaskan - hela pa en gang. */
+    if (row.vstack && row.key){
+      srvRpc('vault_stack_take', {p_character: SRV.charId, p_key: row.key, p_qty: null})
+        .then(() => netPullItems())
+        .then(() => { renderInventory(); renderVault(); updateUI(true); })
+        .catch(e => say(srvErrText(e, 'Could not take that out.')));
       return true;
     }
     return false;
@@ -10920,7 +10976,11 @@ function startExpedition(id){
      man kunde starta expeditioner från zonen man just lämnade medan man reste.
      En pågående resa betyder att man inte är NÅGONSTANS än. */
   if (S.world.travel) return false;
-  if (S.world.current !== def.region || S.world.zone !== def.zone) return false;
+  /* [ANDRAT v5.49.0] REGIONEN RACKER. Star man nagonstans i regionen och zonen
+     ar kartlagd far expeditionen startas - man behover inte sta i exakt ratt
+     zon. Samma regel pa servern. Quests och dungeons forblir zonbundna. */
+  if (S.world.current !== def.region) return false;
+  if (S.world.zone !== def.zone && !isZoneCharted(def.region, def.zone)) return false;
   if (levelInfo().lvl < def.lvl) return false;
   /* Farten låses vid START. Byter du utrustning mitt i påverkas inte en resa som
      redan är igång — tiden på klockan är ett löfte, inte en variabel. */
@@ -16530,6 +16590,47 @@ let SKILL_TREES = {};
         skT('pattern','Weapon Pattern Specialist','pattern',0,1,{scrap_phase:25,cobalt_ore:18})]
   };
 })();
+(function buildStage4Mirror(){
+  const m3 = (a,b) => ({1:a,2:b,3:b});
+  SKILL_TREES.mining = {
+    1: [skT('cycles','Faster Cycles','gather_speed',4,3,{salvaged_scrap:15,copper_ore:10},{salvaged_scrap:25,copper_ore:16},{salvaged_scrap:40,iron_ore:14}),
+        skT('veins','Richer Veins','gather_double',3,3,{salvaged_scrap:15,crystal_quartz:6},{salvaged_scrap:25,crystal_quartz:10},{salvaged_scrap:40,amethyst:6}),
+        skT('pockets','Deep Pockets','gather_bag',1,3,{salvaged_scrap:20},{salvaged_scrap:35,copper_ore:12},{scrap_reinforced:14})],
+    2: [skT('ore_focus','Ore Focus','focus_ore',15,3,{scrap_reinforced:12,iron_ore:10},{scrap_reinforced:20,iron_ore:16},{scrap_charged:10,cobalt_ore:8},{ico:'\u26cf\ufe0f'}),
+        skT('crystal_focus','Crystal Focus','focus_crystal',15,3,{scrap_reinforced:12,crystal_quartz:8},{scrap_reinforced:20,amethyst:8},{scrap_charged:10,ruby:5},{ico:'\ud83d\udc8e'}),
+        skT('scrapsense','Scrap Sense','scrap_sense',2,3,{scrap_reinforced:12},{scrap_reinforced:20,iron_ore:10},{scrap_charged:12})],
+    3: [skT('double','Double Strike','gather_double',2,3,{scrap_charged:14,cobalt_ore:10},{scrap_charged:22,sapphire:6},{scrap_phase:10,ruby:8}),
+        skT('prospector','Prospector','gem_luck',2,3,{scrap_charged:14,amethyst:8},{scrap_charged:22,ruby:6},{scrap_phase:10,sapphire:8}),
+        skT('resonance','Core Resonance','core_boost',2,3,{scrap_charged:14,crystal_quartz:12},{scrap_charged:22,amethyst:10},{scrap_phase:10,cobalt_ore:12})]
+  };
+  const stTree = (bound) => ({
+    1: [skT('stores', bound === 'medical_supplies' ? 'Bigger Stores' : 'Bigger Tanks','store_cap',25,3,
+          {[bound]:20,salvaged_scrap:15},{[bound]:35,salvaged_scrap:25},{[bound]:50,scrap_reinforced:10}),
+        skT(bound === 'medical_supplies' ? 'synthesis' : 'flow',
+          bound === 'medical_supplies' ? 'Fast Synthesis' : 'Faster Flow','station_speed',5,3,
+          {[bound]:20,salvaged_scrap:15},{[bound]:35,scrap_reinforced:8},{[bound]:50,scrap_reinforced:14}),
+        skT('hands','Practiced Hands','speed',2,3,
+          {[bound]:15,salvaged_scrap:20},{[bound]:30,salvaged_scrap:30},{[bound]:45,scrap_reinforced:12})],
+    2: [skT(bound === 'medical_supplies' ? 'sterile' : 'seals',
+          bound === 'medical_supplies' ? 'Sterile Technique' : 'Tight Seals','preserve',1,3,
+          {[bound]:30,scrap_reinforced:10},{[bound]:45,scrap_reinforced:16},{[bound]:60,scrap_charged:8}),
+        skT('training', bound === 'medical_supplies' ? 'Field Training' : 'Refinery Training','xp',3,3,
+          {[bound]:25},{[bound]:40,scrap_reinforced:12},{[bound]:55,scrap_charged:10}),
+        skT(bound === 'medical_supplies' ? 'triage' : 'coreflow',
+          bound === 'medical_supplies' ? 'Core Triage' : 'Core Flow','core_boost',2,3,
+          {[bound]:30,scrap_reinforced:12},{[bound]:45,scrap_charged:8},{[bound]:60,scrap_charged:14})],
+    3: [skT('deep', bound === 'medical_supplies' ? 'Deep Stores' : 'Deep Tanks','store_cap',50,3,
+          {[bound]:60,scrap_charged:10},{[bound]:80,scrap_charged:16},{[bound]:100,scrap_phase:8}),
+        skT(bound === 'medical_supplies' ? 'protocol' : 'overdrive',
+          bound === 'medical_supplies' ? 'Emergency Protocols' : 'Overdrive','station_speed',5,3,
+          {[bound]:60,scrap_charged:12},{[bound]:80,scrap_phase:6},{[bound]:100,scrap_phase:10}),
+        bound === 'medical_supplies'
+          ? skT('reserve','Trauma Reserve','future_pve',0,1,{[bound]:120,scrap_phase:12})
+          : skT('voyage','Long Voyage','future_travel',0,1,{[bound]:120,scrap_phase:12})]
+  });
+  SKILL_TREES.medic = stTree('medical_supplies');
+  SKILL_TREES.refiner = stTree('crude_fuel');
+})();
 /* Serverns rader skriver over spegeln - EN sanning. Ikonerna ar klientens. */
 async function netPullSkills(){
   if (!NET.on || !SRV.charId) return false;
@@ -16550,11 +16651,13 @@ async function netPullSkills(){
     }
   } catch (e){ /* spegeln racker tills natet ar tillbaka */ }
   const mine = await srvSelect('character_skills',
-    'character_id=eq.' + SRV.charId + '&select=prof,tier,node,ranks');
+    'character_id=eq.' + SRV.charId + '&select=prof,tier,node,ranks,meta');
   S.skills = {};
+  S.skillMeta = S.skillMeta || {};
   (mine || []).forEach(r => {
     S.skills[r.prof] = S.skills[r.prof] || {};
     S.skills[r.prof][r.tier] = {node: r.node, ranks: +r.ranks};
+    if (r.meta && r.meta.affix) S.skillMeta[r.prof] = r.meta.affix;
   });
   return true;
 }
@@ -16590,12 +16693,23 @@ function skillEffText(n, ranks){
       case 'xp': return '+' + v + '% profession XP';
       case 'slots': return 'Work Order slots: ' + Math.min(5, 2 + v);
       case 'kits': return v + '% chance to not consume a Crafting Kit';
-      case 'recycle': return '+' + v + '% recycling yield (takes effect with the recycling rework)';
+      case 'recycle': return '+' + v + '% scrap when recycling gear';
       case 'slot_focus': return '-' + v + '% craft time & -' + Math.round(v / 3 * 2) + '% common material cost for its slots';
       case 'ranked_speed': return '-' + v + '% craft time on Rank III\u2013IV recipes';
       case 'reclaim': return v + '% chance to reclaim one common material after a craft';
       case 'core_boost': return '+' + v + ' pp speed while Core Sync is active';
-      case 'pattern': return 'One chosen affix rolls slightly more often (takes effect with the affix rework)';
+      case 'pattern': return 'Pick one affix below \u2014 it rolls a little more often on your crafts. Never guaranteed.';
+      case 'gather_speed': return '-' + v + '% time between gathering rolls';
+      case 'gather_double': return v + '% chance a find is doubled';
+      case 'gather_bag': return '+' + v + ' gathering bag slot' + (v === 1 ? '' : 's');
+      case 'focus_ore': return v + '% of common finds re-rolled toward ores';
+      case 'focus_crystal': return v + '% of common finds re-rolled toward crystals';
+      case 'scrap_sense': return v + '% chance a find also drops Scrap';
+      case 'gem_luck': return '+' + v + '% gem branch chance';
+      case 'store_cap': return '+' + v + ' storage capacity';
+      case 'station_speed': return '-' + v + '% time per produced unit';
+      case 'future_pve': return 'Reserves the Trauma Kit line for the coming PvE update';
+      case 'future_travel': return 'Reserves a travel-efficiency line for a coming update';
       default: return '';
     }
   };
@@ -16627,12 +16741,14 @@ function ppTreeHTML(prof){
   if (!tree) return '';
   if (!PPT.sel || PPT.sel.prof !== prof) PPT.sel = null;
   let rows = '';
-  for (let t = 1; t <= 5; t++){
+  const tierList = Object.keys(tree).map(Number).sort((a, b) => a - b);
+  for (const t of tierList){
     const gate = SKILL_GATES[t - 1];
     const open = lvl >= gate;
     const choice = skillChoice(prof, t);
     const state = t === 5 ? 'CAPSTONE' : (!open ? 'LOCKED' : (choice ? 'UNLOCKED' : 'AVAILABLE'));
-    rows += '<div class="pt-row' + (t === 5 ? ' cap' : '') + '">' +
+    const isCap = (t === tierList[tierList.length - 1] && (tree[t] || []).some(n => n.max === 1));
+    rows += '<div class="pt-row' + (isCap ? ' cap' : '') + '">' +
       '<div class="pt-tierlab"><b>TIER ' + t + '</b><span>' +
         (open ? state : '\ud83d\udd12 LEVEL ' + gate) + '</span></div>' +
       '<div class="pt-nodes">' +
@@ -16653,13 +16769,13 @@ function ppTreeHTML(prof){
         '</div>';
       }).join('<i class="pt-wire"></i>') +
       '</div>' +
-      (t === 5 ? '<div class="pt-chooseone">CHOOSE ONE</div>' : '') +
+      (isCap ? '<div class="pt-chooseone">CHOOSE ONE</div>' : '') +
     '</div>';
   }
   /* Detaljpanelen: vald nod, annars forsta kopbara. */
   let sel = PPT.sel;
   if (!sel){
-    outer: for (let t = 1; t <= 5; t++){
+    outer: for (const t of tierList){
       for (const n of tree[t]){
         if (lvl >= SKILL_GATES[t - 1] && (!skillChoice(prof, t) || skillChoice(prof, t).node === n.id)){
           sel = {prof: prof, tier: t, node: n.id}; break outer;
@@ -16694,6 +16810,18 @@ function ppTreeHTML(prof){
         ? 'CONFIRM \u2014 LOCKS THE OTHER TWO'
         : 'UPGRADE';
     const disabled = maxed || !open || branchLocked || !afford;
+    let patternPick = '';
+    if (n.eff === 'pattern' && ranks > 0){
+      const chosen = (skillChoice(prof, sel.tier) || {}).metaAffix ||
+                     (S.skillMeta && S.skillMeta[prof]) || null;
+      const jewel = prof === 'jewelcrafter';
+      const pool = (jewel ? AFFIX_KEYS.filter(k => k !== 'travel')
+                          : NORMAL_KEYS).slice(0, 12);
+      patternPick = '<div class="pt-pattern"><div class="pt-dcosth">CHOSEN PATTERN</div>' +
+        pool.map(k => '<button class="pt-aff' + (chosen === k ? ' on' : '') + '" data-ptaff="' +
+          prof + ':' + k + '">' + (AFFIXES[k] ? AFFIXES[k].name : k) + '</button>').join('') +
+        '</div>';
+    }
     detail = '<div class="pt-detail">' +
       '<div class="pt-dico"><span>' + (n.ico || SKILL_ICO[n.eff] || '\u2b50') + '</span></div>' +
       '<div class="pt-dtext">' +
@@ -16701,6 +16829,7 @@ function ppTreeHTML(prof){
           ' <span class="pt-drank">' + ranks + ' / ' + n.max + '</span></div>' +
         '<div class="pt-deff">' + (eff.next ? '<b>' + eff.next + '</b>' + (ranks > 0 ? ' <span class="pt-now">(now: ' + eff.now + ')</span>' : '') : '<b>' + eff.now + '</b>') + '</div>' +
         '<div class="pt-dflav">' + skillFlavor(n.eff) + '</div>' +
+        patternPick +
       '</div>' +
       '<div class="pt-dbuy">' +
         (nextCost ? '<div class="pt-dcosth">UPGRADE COST</div><div class="pt-costs">' + costHTML + '</div>' : '') +
@@ -16792,7 +16921,26 @@ document.addEventListener('click', e => {
   }
   const rs = e.target.closest('[data-ptreset]');
   if (rs){ skillReset(rs.dataset.ptreset); return; }
+  const pa = e.target.closest('[data-ptaff]');
+  if (pa){
+    const parts = pa.dataset.ptaff.split(':');
+    skillPatternChoose(parts[0], parts[1]); return;
+  }
 });
+/* Monstret: EN vald affix per yrke, sparad pa tradraden. Vikten laggs av
+   servern vid tillverkningen - nagot hogre, aldrig garanterad. */
+async function skillPatternChoose(prof, affix){
+  S.skillMeta = S.skillMeta || {};
+  if (NET.on){
+    try {
+      await srvRpc('skill_pattern_choose', {p_character: SRV.charId, p_prof: prof, p_affix: affix});
+    } catch (e){ say('The server said no to that pattern.'); return; }
+  }
+  S.skillMeta[prof] = affix;
+  save();
+  say('Pattern set: ' + (AFFIXES[affix] ? AFFIXES[affix].name : affix) + ' rolls a little more often on your crafts.');
+  ppForceRender();
+}
 
 /* ===== YRKESSIDAN (v5.23.0) =====
    Ett eget fonster per huvudyrke, efter spelarens skiss. Samma stuk for bada
@@ -16870,8 +17018,14 @@ function profPageHTML(p){
   }
 
   if (p.kind === 'gathering'){
-    /* Samlarens arbetspass och fynd bor i HOGERSPALTEN - se ppGatherRightHTML.
-       Vansterspalten ar densamma for alla yrken. */
+    /* Samlarens ruta bor i HOGERSPALTEN. Har laggs bara tradets flikar, sa
+       gruvans trad nas precis som hantverkets (v5.49.0). */
+    if (hasTree){
+      h += '<div class="pp-tabs">' +
+        '<button class="pp-tabbtn' + (ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="book">\u26cf\ufe0f WORK</button>' +
+        '<button class="pp-tabbtn' + (ppTab === 'tree' ? ' on' : '') + '" data-ppttab="tree">\ud83c\udf33 SKILL TREE</button>' +
+      '</div>';
+    }
   } else {
     /* [ANDRAT v5.41.0] HANTVERKSKON efter skissen: kon till vanster,
        receptboken till hoger, allt i samma breda ruta. Fem platser; raden som
@@ -16896,9 +17050,9 @@ function profPageHTML(p){
   /* [ANDRAT v5.43.0] ALLA yrken far den breda rutan - en mall, ett utseende.
      Hoger sida ar det enda som skiljer: receptbok for dem som koar, och
      arbetspasset + fynden for samlarna. */
-  const right = queued
-    ? (ppTab === 'tree' && hasTree ? ppTreeHTML(p.id) : ppBookHTML(p.id))
-    : ppGatherRightHTML(p.id);
+  const right = (ppTab === 'tree' && hasTree)
+    ? ppTreeHTML(p.id)
+    : (queued ? ppBookHTML(p.id) : ppGatherRightHTML(p.id));
   return '<div class="pp-wide"><div class="pp-left">' + h + '</div>' +
     '<div class="pp-right">' + right + '</div></div>';
 }
@@ -18172,11 +18326,75 @@ $('prof-close').addEventListener('click', closeProfessions);
 /* BUTIKEN (v4.94.0). Bygger raderna forsta gangen den oppnas - de kan inte
    byggas vid start, for fonstret ritas efter att koden redan kort en gang. */
 let shopBuilt = false;
+/* [TILLAGT v5.49.0] DEN GLOBALA BASSHOPEN. De vanligaste varorna kops har,
+   var man an star - de regionala handlarna behaller sina egna varor.
+   Priserna ar SERVERNS (shop_config); talen har ar spegeln for texten, och
+   kopet gors alltid av servern i serverlage. */
+const SHOP_LIST = [
+  {key: 'crafting_kit',  price: 20000},
+  {key: 'fuelcell',      price: 130000},
+  {key: 'bandage',       price: 25000},
+  {key: 'first_aid_kit', price: 60000},
+  {key: 'boost_idle',    price: 380000},
+  {key: 'boost_expspd',  price: 480000},
+  {key: 'boost_luck',    price: 580000}
+];
+function shopOwned(key){
+  if (MATERIALS[key]) return matCount(key);
+  let n = 0;
+  (S.inv || []).forEach(r => { if (r && r.key === key) n += (r.qty || 1); });
+  return n;
+}
+function renderShopSupplies(){
+  const box = $('shop-supplies');
+  if (!box) return;
+  box.innerHTML = SHOP_LIST.map(it => {
+    const name = (MATERIALS[it.key] && MATERIALS[it.key].name) ||
+                 (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].name) || it.key;
+    const ico = stackIcoOf(it.key, '\ud83d\udce6');
+    const desc = (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].desc) ||
+                 (it.key === 'crafting_kit' ? 'Used by crafting recipes.' : '');
+    return '<div class="shop-row">' +
+      '<span class="sr-ico">' + ico + '</span>' +
+      '<span class="sr-body"><b>' + name + '</b><i>' + desc + '</i>' +
+        '<em>Owned: ' + shopOwned(it.key) + '</em></span>' +
+      '<span class="sr-price">' + moneyText(it.price) + '</span>' +
+      '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="1">Buy 1</button>' +
+      '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="5">Buy 5</button>' +
+    '</div>';
+  }).join('');
+}
+async function shopBuy(key, qty){
+  const it = SHOP_LIST.find(x => x.key === key);
+  if (!it) return;
+  const cost = it.price * qty;
+  if (S.gold < cost){ say('Not enough money \u2014 you need ' + moneyText(cost - S.gold) + ' more.'); return; }
+  if (NET.on){
+    try {
+      const r = await srvRpc('shop_buy', {p_character: SRV.charId, p_key: key, p_qty: qty});
+      if (r && r.gold != null) S.gold = +r.gold;
+      await netPullItems();
+    } catch (e){ say(srvErrText(e, 'The shop refused the trade.')); return; }
+  } else {
+    S.gold -= cost;
+    if (MATERIALS[key]) giveMaterial(key, qty);
+    else addInvItem({key: key, name: (ITEM_DEFS[key] || {}).name || key,
+                     ico: stackIcoOf(key, '\ud83d\udce6'), qty: qty, stack: true});
+    save();
+  }
+  say('Bought ' + qty + ' \u00d7 ' + ((MATERIALS[key] || ITEM_DEFS[key] || {}).name || key) + '.');
+  renderInventory(); updateUI(true); renderShopSupplies();
+}
+document.addEventListener('click', e => {
+  const sb = e.target.closest('[data-shopbuy]');
+  if (sb) shopBuy(sb.dataset.shopbuy, +sb.dataset.qty || 1);
+});
 function openShop(){
   const w = $('shop-overlay');
   if (!w) return;
   if (!shopBuilt){ buildPremiumOffline(); buildPremiumBags(); shopBuilt = true; }
   renderPremiumBags(); renderPremiumVaultBags(); refreshPremiumOffline();
+  renderShopSupplies();
   w.classList.add('open');
   bringToFront(w);
 }
@@ -18694,7 +18912,7 @@ function itemWinActions(win, uid){
     box.innerHTML =
       '<button class="ia-equip" data-act="equip">Equip<span>' + GEAR_SLOTS[found.it.s].name + '</span></button>' +
       '<button class="ia-sell" data-act="sell">Sell</button>' +
-      (canSalvage(found.it) ? '<button class="ia-salvage" data-act="salvage">Salvage<span>' + salvageSummary(found.it) + '</span></button>' : '');
+      (canSalvage(found.it) ? '<button class="ia-salvage" data-act="salvage">Recycle<span>' + salvageSummary(found.it) + '</span></button>' : '');
   }
 }
 /* Kort text pa Salvage-knappen: totalt antal material, och en prick om ratt yrke
@@ -18703,7 +18921,7 @@ function salvageSummary(it){
   const pv = salvagePreview(it);
   if (!pv) return '';
   const n = pv.rows.reduce((a, r) => a + r.qty, 0);
-  return n + ' mat' + (pv.bonus ? ' +' : '');
+  return n + ' scrap' + (pv.bonus ? ' +' : '');
 }
 /* Ritar om ett OPPET kort ur den nya sanningen. Utan detta stod gamla talet
    kvar tills man stangde och oppnade igen - samma familj av bugg som plagat
