@@ -1699,6 +1699,23 @@ body.dragging *{cursor:grabbing !important}
 .prof-card .jc-emoji{display:none;font-size:92px;line-height:132px;text-align:center}
 .prof-card.is-secondary .jc-emoji{font-size:70px;line-height:100px}
 .prof-card .jc-bg.noart .jc-emoji{display:block}
+/* Den lilla sexkanten framfor namnet. Tva lager, som overallt annars: yttre ar
+   ramen, inre fyllningen, och glodet foljer formen. */
+.jc-titlerow{display:flex;align-items:center;gap:9px;min-width:0}
+.jc-hex{
+  --hxc:var(--cyan);position:relative;flex:0 0 auto;width:30px;height:30px;
+  display:grid;place-items:center;font-size:15px;
+  filter:drop-shadow(0 0 5px color-mix(in srgb, var(--hxc) 55%, transparent));
+}
+.jc-hex::before,.jc-hex::after{content:'';position:absolute;
+  clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}
+.jc-hex::before{inset:0;background:var(--hxc)}
+.jc-hex::after{inset:2px;background:#070d1c}
+.jc-hexart{position:relative;z-index:2;width:19px;height:19px;object-fit:contain;display:block}
+.jc-hexfall{position:relative;z-index:2;display:none;line-height:1}
+.jc-hex.noart .jc-hexfall{display:block}
+.prof-card.is-secondary .jc-hex{width:26px;height:26px;font-size:13px}
+.prof-card.is-secondary .jc-hexart{width:16px;height:16px}
 /* Allt innehall ligger OVANFOR bilden. */
 .prof-card .jc-mid, .prof-card .jc-btns{position:relative;z-index:1}
 /* Tva knappar under varandra, lika breda. */
@@ -4364,7 +4381,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.76.0 — HJÄLPARLAGET OMBYGGT</div>
+        <div class="sn-ver">GENESIS v5.77.0 — SEXKANT FRAMFÖR YRKET</div>
       </div>
     </div>
   </aside>
@@ -5096,7 +5113,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.76.0 — HJÄLPARLAGET OMBYGGT</div>
+            <div class="desc">GENESIS v5.77.0 — SEXKANT FRAMFÖR YRKET</div>
           </div>
         </div>
       </div>
@@ -18582,8 +18599,17 @@ function profPanelCardHTML(p, linked){
       'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\')">' +
       '<span class="jc-emoji">' + p.ico + '</span></div>' +
     '<div class="jc-mid">' +
-      '<div><span class="jc-name" style="color:' + col + '">' +
-        (secondary ? p.station : p.name) + '</span>' +
+      /* [TILLAGT v5.77.0] En liten sexkant framfor yrkets namn, med yrkets egen
+         bild i sig och i yrkets farg - samma form som sidoraden och skilltradet
+         anvander. Den stora bilden i bakgrunden ar kvar; den har ger en fast
+         punkt att lasa fran. */
+      '<div class="jc-titlerow">' +
+        '<span class="jc-hex" style="--hxc:' + col + '">' +
+          '<img class="jc-hexart" src="' + profArt(p.id) + '" alt="" draggable="false" ' +
+          'onerror="var q=this.parentNode;this.remove();q.classList.add(\'noart\')">' +
+          '<span class="jc-hexfall">' + p.ico + '</span></span>' +
+        '<span class="jc-name" style="color:' + col + '">' +
+          (secondary ? p.station : p.name) + '</span>' +
         (secondary ? '<span class="jc-tag">SECONDARY</span>' : '') + '</div>' +
       '<div class="jc-lvl">Level ' + info.lvl + '</div>' +
       '<div class="jc-line"><span class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span>' +
