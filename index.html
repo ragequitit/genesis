@@ -1551,14 +1551,15 @@ body.dragging *{cursor:grabbing !important}
 .prof-cards{display:flex;flex-direction:column;gap:12px;min-height:330px}
 .prof-card{
   background:var(--bg-inset);border:1px solid var(--border);border-radius:12px;
-  padding:16px 16px;display:flex;align-items:center;gap:14px;
+  padding:16px 16px 16px 108px;display:flex;align-items:center;gap:14px;
   position:relative;
   /* HUVUDYRKENA ar de stora - de far vaxa och fylla rutan. Sidoyrket star
      kvar i sin lagre hojd, sa man ser pa formen vilket som ar vilket. */
   flex:1 1 0;min-height:104px;
 }
-.prof-card.is-secondary{flex:0 0 auto;min-height:74px;padding:12px 16px}
-.prof-card.is-secondary .jc-ico{width:55px;height:55px;flex:0 0 55px;font-size:28px}
+.prof-card.is-secondary{flex:0 0 auto;min-height:74px;padding:12px 16px 12px 86px}
+.prof-card.is-secondary .jc-bg{width:92px;height:92px}
+.prof-card.is-secondary .jc-emoji{font-size:64px;line-height:92px}
 .prof-card.is-secondary .jc-name{font-size:13px}
 .prof-card.shift-done{border-color:var(--green);box-shadow:0 0 0 1px rgba(61,255,158,.4), inset 0 0 26px rgba(61,255,158,.07)}
 .prof-card.shift-done::after{
@@ -1581,13 +1582,20 @@ body.dragging *{cursor:grabbing !important}
 .jc-link.on{color:var(--cyan);border-color:var(--cyan-dim)}
 .jc-link.on .lamp{background:#2ecc71;box-shadow:0 0 8px rgba(46,204,113,.9)}
 .jc-link.off{opacity:.35;cursor:default}
-/* [ANDRAT v5.69.0] Ikonrutan 25 % storre - 56 blev 70, och tecknet med den. */
-.prof-card .jc-ico{width:70px;height:70px;flex:0 0 70px;border-radius:14px;display:grid;place-items:center;
-  font-size:35px;background:rgba(255,255,255,.05);border:1px solid var(--border);overflow:hidden;position:relative}
-/* Bilden ligger overst; emojin syns bara nar bilden inte gick att ladda. */
+/* [ANDRAT v5.73.0] YRKETS BILD AR EN BAKGRUND, inte en ikon i en ruta. Den
+   ligger till vanster i kortet, stor och nedtonad, precis som pa yrkessidans
+   banderoll - samma bild, samma kansla, ingen extra ram. Kortet fick en
+   vansterpadding sa texten inte hamnar ovanpa motivet. */
+.prof-card{overflow:hidden}
+.prof-card .jc-bg{
+  position:absolute;left:-6px;top:50%;transform:translateY(-50%);
+  width:118px;height:118px;opacity:.15;pointer-events:none;z-index:0;
+}
 .prof-card .jc-art{width:100%;height:100%;object-fit:contain;display:block}
-.prof-card .jc-emoji{display:none}
-.prof-card .jc-ico.noart .jc-emoji{display:block}
+.prof-card .jc-emoji{display:none;font-size:82px;line-height:118px;text-align:center}
+.prof-card .jc-bg.noart .jc-emoji{display:block}
+/* Allt innehall ligger OVANFOR bilden. */
+.prof-card .jc-mid, .prof-card .jc-btn{position:relative;z-index:1}
 .prof-card .jc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .prof-card .jc-name{font-size:15px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;line-height:1.1}
 .prof-card .jc-lvl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
@@ -1635,7 +1643,11 @@ body.dragging *{cursor:grabbing !important}
   .prof-cards{padding-left:0}
   /* Lankfliken hanger utanfor kanten pa datorn. Pa telefon far den inte gora
      det - da ar det den som gor sidan for bred. Den star i raden i stallet. */
-  .prof-card{padding-left:12px}
+  /* [ANDRAT v5.73.0] Bilden bor i kortets bakgrund nu och behover sin plats aven
+     har - annars hamnar texten ovanpa motivet pa en telefon. */
+  .prof-card{padding-left:86px}
+  .prof-card .jc-bg{width:92px;height:92px;left:-8px}
+  .prof-card .jc-emoji{font-size:64px;line-height:92px}
   .prof-card .jc-link{position:static; transform:none; flex:0 0 auto; padding:6px 7px}
   .prof-card .jc-btn{padding:10px 13px}
   /* Namnet fick krypa in under knappen. Mitten maste fa krympa, och langa namn
@@ -4237,7 +4249,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.72.1 — PROFILRUTAN KANT I KANT</div>
+        <div class="sn-ver">GENESIS v5.73.0 — YRKESBILDEN I BAKGRUNDEN</div>
       </div>
     </div>
   </aside>
@@ -4954,7 +4966,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.72.1 — PROFILRUTAN KANT I KANT</div>
+            <div class="desc">GENESIS v5.73.0 — YRKESBILDEN I BAKGRUNDEN</div>
           </div>
         </div>
       </div>
@@ -18417,8 +18429,11 @@ function profPanelCardHTML(p, linked){
     /* [ANDRAT v5.45.0] Kortet ritade en EMOJI, inte yrkets egen bild - trots att
        bladet, samlarscenen och mappen alla anvander bilden. Nu ritas bilden, med
        emojin kvar som reserv om filen skulle saknas, sa rutan aldrig star tom. */
-    '<div class="jc-ico" style="color:' + col + '">' +
-      '<img class="jc-art" src="' + profArt(p.id) + '" alt="" ' +
+    /* [ANDRAT v5.73.0] Ikonen satt i en liten ruta till vanster. Nu ar den en
+       STOR, nedtonad bild i kortets bakgrund - samma grepp som yrkessidans
+       banderoll anvander, sa de tva kanns som samma sak. */
+    '<div class="jc-bg" style="color:' + col + '">' +
+      '<img class="jc-art" src="' + profArt(p.id) + '" alt="" draggable="false" ' +
       'onerror="var p=this.parentNode;this.remove();p.classList.add(\'noart\')">' +
       '<span class="jc-emoji">' + p.ico + '</span></div>' +
     '<div class="jc-mid">' +
