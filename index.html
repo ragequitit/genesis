@@ -4783,7 +4783,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.61.0 — AUKTIONSHUSETS BILDER</div>
+            <div class="desc">GENESIS v5.62.0 — SJUKSTUGANS PULS</div>
           </div>
         </div>
       </div>
@@ -4794,7 +4794,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.61.0 — AUKTIONSHUSETS BILDER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.62.0 — SJUKSTUGANS PULS</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -18055,9 +18055,14 @@ function profCardStatus(p, info){
     return '<span class="jc-done">\u25cf 1 Gathering / ' + gatherRateText(p.id) + '</span>';
   }
   if (p.kind === 'secondary'){
+    /* [ANDRAT v5.62.0] Stod "Medical Supplies 166 / 200 \u00b7 +1 / 1m 0s".
+       Takten star nu i MATAREN under raden i stallet, sa siffran behovs inte i
+       text - och raden bar samma gronda prick och samma farg som samlarens,
+       for det ar samma sak: ett yrke som arbetar just nu. */
     const have = matCount(p.bound), full = have >= p.storageCap;
-    return MATERIALS[p.bound].name + ' ' + have + ' / ' + p.storageCap +
-           (full ? ' \u2014 full, production paused' : ' \u00b7 +1 / ' + fmtDur(p.stationSecs));
+    if (full) return '<span style="color:var(--pink)">\u23f8 Paused \u2014 storage full</span>';
+    return '<span class="jc-done">\u25cf ' + MATERIALS[p.bound].name +
+           ' ' + have + ' / ' + p.storageCap + '</span>';
   }
   const o = S.orders && S.orders[p.id];
   if (o) return o.left > 0
@@ -18100,7 +18105,10 @@ function profPanelCardHTML(p, linked){
          Den rullar upp mot nasta fynd om och om igen, sa man ser pa huvudsidan
          att yrket verkligen arbetar. Ingen text och ingen klocka - bara
          mataren. Bara samlaryrken har en cykel; ovriga far ingen rad alls. */
-      (p.kind === 'gathering'
+      /* [ANDRAT v5.62.0] Ocksa SIDOYRKET far sin puls: stationen tickar fram en
+         enhet i taget, precis som samlaren rullar mot nasta fynd. Hantverkarna
+         har ingen egen takt och far darfor ingen rad. */
+      (p.kind === 'gathering' || p.kind === 'secondary'
         ? '<div class="jc-cyc" data-cyc="' + p.id + '"><div class="jc-cycfill" style="width:0%"></div></div>'
         : '') +
     '</div>' +
@@ -18160,11 +18168,28 @@ function refreshProfCards(){
        star still pa noll, precis som dar. */
     const cyc = card.querySelector('.jc-cycfill');
     if (cyc){
-      const ms = gatherCycleSecs(p.id) * 1000;
-      const g = (S.prof.gather && S.prof.gather[p.id]) || {};
-      const ph = g.full ? 0 : ((Date.now() % ms) / ms);
+      let ph = 0, paused = false;
+      if (p.kind === 'secondary'){
+        /* Stationens klocka star pa SERVERN - stationNextIn sager hur manga
+           sekunder som ar kvar till nasta enhet, sa mataren rullar UPP mot den.
+           Fullt lager star still: da tickar stationen inte alls. */
+        const per = p.stationSecs;
+        const left = stationNextIn(p);
+        paused = matCount(p.bound) >= p.storageCap;
+        /* Utan serverns utbetalningstid - forsta besoket, eller lokalt lage -
+           rullar mataren pa den egna klockan i stationens takt. Den ar da en
+           KANSLA, inte ett lofte, precis som samlarens klocka i sin ruta. */
+        ph = paused ? 0
+           : (left == null ? ((Date.now() / 1000) % per) / per
+                           : Math.min(1, Math.max(0, (per - left) / per)));
+      } else {
+        const ms = gatherCycleSecs(p.id) * 1000;
+        const g = (S.prof.gather && S.prof.gather[p.id]) || {};
+        paused = !!g.full;
+        ph = paused ? 0 : ((Date.now() % ms) / ms);
+      }
       cyc.style.width = (ph * 100) + '%';
-      cyc.parentNode.classList.toggle('paused', !!g.full);
+      cyc.parentNode.classList.toggle('paused', paused);
     }
   });
 }
