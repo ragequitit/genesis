@@ -1477,6 +1477,14 @@ body.dragging *{cursor:grabbing !important}
 .prof-card .jc-status{font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:5px}
 .prof-card .jc-bar{height:5px;flex:0 0 5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
 .prof-card .jc-fill{height:100%;border-radius:3px;transition:width .3s}
+/* [TILLAGT v5.56.0] Samlarens cykel, precis under XP-mataren. Samma form och
+   samma fargresa som yrkessidans - blaa till guld medan den fylls - men tunnare,
+   for har ar den en pulsslag, inte en siffra man laser. */
+.prof-card .jc-cyc{height:3px;border-radius:2px;background:rgba(255,255,255,.07);
+  overflow:hidden;margin-top:4px}
+.prof-card .jc-cycfill{height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--cyan),var(--gold));transition:width .12s linear}
+.prof-card .jc-cyc.paused .jc-cycfill{background:var(--pink);width:100% !important;opacity:.35}
 .prof-card .jc-btn{
   flex:0 0 auto;padding:11px 20px;border-radius:9px;cursor:pointer;
   font-size:10.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
@@ -4759,7 +4767,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.55.1 — BARA IKONEN UR NODEN</div>
+            <div class="desc">GENESIS v5.56.1 — LAST-RADEN LEVER</div>
           </div>
         </div>
       </div>
@@ -4770,7 +4778,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.55.1 — BARA IKONEN UR NODEN</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.56.1 — LAST-RADEN LEVER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -17894,13 +17902,22 @@ function checkShiftDone(){
     if (!done) shiftAlerted[id] = false;
   });
 }
+/* Takten i klarsprak: sekunder under en minut, annars minuter och sekunder. */
+function gatherRateText(id){
+  const secs = Math.max(1, Math.round(gatherCycleSecs(id)));
+  if (secs < 60) return secs + ' sec';
+  const m = Math.floor(secs / 60), r = secs % 60;
+  return r ? m + ' min ' + r + ' sec' : m + ' min';
+}
 function profCardStatus(p, info){
   if (p.kind === 'gathering'){
     /* [ANDRAT v5.48.0] Passen ar rivna. Samlandet gar ALLTID - kortet sager
        bara om det ar igang eller pausat for att lagret ar fullt. */
     const g = S.prof.gather && S.prof.gather[p.id];
     if (g && g.full) return '<span style="color:var(--pink)">\u23f8 Paused \u2014 storage full</span>';
-    return '<span class="jc-done">\u25cf Gathering \u00b7 1 roll / ' + fmtDur(gatherCycleSecs(p.id)) + '</span>';
+    /* [ANDRAT v5.56.1] Stod "1 roll / 0m 5s". "Roll" ar ett ord ur maskineriet,
+       inte ur spelet, och "0m 5s" skriver ut en nolla ingen behover lasa. */
+    return '<span class="jc-done">\u25cf 1 Gathering / ' + gatherRateText(p.id) + '</span>';
   }
   if (p.kind === 'secondary'){
     const have = matCount(p.bound), full = have >= p.storageCap;
@@ -17944,6 +17961,13 @@ function profPanelCardHTML(p, linked){
       '<div class="jc-line"><span class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span>' +
         '<span class="jc-status">' + profCardStatus(p, info) + '</span></div>' +
       '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+      /* [TILLAGT v5.56.0] SAMLARENS EGEN CYKEL, speglad fran yrkessidans ruta.
+         Den rullar upp mot nasta fynd om och om igen, sa man ser pa huvudsidan
+         att yrket verkligen arbetar. Ingen text och ingen klocka - bara
+         mataren. Bara samlaryrken har en cykel; ovriga far ingen rad alls. */
+      (p.kind === 'gathering'
+        ? '<div class="jc-cyc" data-cyc="' + p.id + '"><div class="jc-cycfill" style="width:0%"></div></div>'
+        : '') +
     '</div>' +
     /* [ANDRAT v5.52.2] COLLECT-KNAPPEN AR BORTTAGEN. Fardiga bestallningar
        ramlar ner i vaskan av sig sjalva nar arbetsklockan tickar - servern
@@ -17996,6 +18020,17 @@ function refreshProfCards(){
     if (fill) fill.style.width = pct + '%';
     const st = card.querySelector('.jc-status');
     if (st) st.innerHTML = profCardStatus(p, info);
+    /* [TILLAGT v5.56.0] Cykeln rullar med samma klocka och samma regel som
+       yrkessidans matare - ett rakneslag, tva staller som ritar. Fullt lager
+       star still pa noll, precis som dar. */
+    const cyc = card.querySelector('.jc-cycfill');
+    if (cyc){
+      const ms = gatherCycleSecs(p.id) * 1000;
+      const g = (S.prof.gather && S.prof.gather[p.id]) || {};
+      const ph = g.full ? 0 : ((Date.now() % ms) / ms);
+      cyc.style.width = (ph * 100) + '%';
+      cyc.parentNode.classList.toggle('paused', !!g.full);
+    }
   });
 }
 function renderProfessions(){
@@ -18118,11 +18153,7 @@ function gatherLoopHTML(id){
   const sh = gatherShift(id);
   const here = REGIONS[S.world.current] ? REGIONS[S.world.current].name : '';
   const tier = regionTier();
-  const g = (S.prof.gather && S.prof.gather[id]) || {last: null};
-  const last = g.last
-    ? (g.last.key ? '<span class="gl-hit">Last: ' + MATERIALS[g.last.key].ico + ' ' + MATERIALS[g.last.key].name + '</span>'
-                  : '<span class="gl-miss">Last: nothing</span>')
-    : '<span class="gl-miss">Idle</span>';
+  const last = gatherLastHTML(id);
   /* [ANDRAT v5.48.0] PASSET AR RIVET. Rutan visar en standigt rullande cykel:
      status, tid till nasta fynd, och det senaste. Ingen knapp - det finns
      inget att starta och inget att hamta. */
@@ -18179,6 +18210,16 @@ function gatherShowGotInner(id, mats){
 /* [BORTTAGET v5.48.0] gatherFinish - se ovan. */
 /* Uppdatera BARA loopdelarna, inte hela panelen - annars nollstalls hover och
    knappar mitt i en cykel. */
+/* [TILLAGT v5.56.1] EN text, tva stallen som ritar den: rutans bygge och dess
+   lopande uppdatering. Stod den i tva kopior skulle de glida isar - och det var
+   precis vad som hade hant. */
+function gatherLastHTML(id){
+  const g = (S.prof.gather && S.prof.gather[id]) || {last: null};
+  if (!g.last) return '<span class="gl-miss">Idle</span>';
+  if (!g.last.key || !MATERIALS[g.last.key]) return '<span class="gl-miss">Last: nothing</span>';
+  return '<span class="gl-hit">Last: ' + MATERIALS[g.last.key].ico + ' ' +
+         MATERIALS[g.last.key].name + '</span>';
+}
 function renderGatherLoops(){
   /* [ANDRAT v5.48.0] Kontinuerligt: mataren rullar UPP mot nasta fynd, om och
      om igen. Klockan i hornet ar spelarens egen - fynden bokfors av servern -
@@ -18197,6 +18238,13 @@ function renderGatherLoops(){
     if (st) st.innerHTML = full
       ? '<span class="gl-paused">\u23f8 PAUSED \u2014 gathering bag full. Sell or use materials to resume.</span>'
       : '<span class="gl-active">\u25cf ALWAYS WORKING' + (coreSyncLeft() > 0 ? ' \u00b7 +15% CORE SYNC' : '') + '</span>';
+    /* [BUGG v5.56.1] LAST-RADEN SKREVS ALDRIG OM. Den satte sitt varde nar rutan
+       BYGGDES och rordes aldrig mer, sa med rutan oppen stod det kvar pa det
+       fynd som rakade vara senast nar man oppnade den - medan mataren rullade
+       och nya fynd trillade in. Samma familj som resten av veckans: ratt sak i
+       minnet, skarmen inte omritad. Nu skrivs den har, med de andra tre. */
+    const lastEl = el.querySelector('.gl-last');
+    if (lastEl) lastEl.innerHTML = gatherLastHTML(id);
   });
 }
 /* Lokalt lage (utan server): samma kontinuerliga regel, radad i webblasaren.
