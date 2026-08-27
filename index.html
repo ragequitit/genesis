@@ -98,7 +98,10 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   padding:var(--gap);
   max-width:1822px;margin:0 auto;      /* 1600 spel + 192 sidorad + mellanrum */
 }
-html{min-height:100vh}
+/* [BORTTAGET v5.72.0] html{min-height:100vh} saboterade uppforstoringen: under
+   zoom ritades den ut till mer an en skarmhojd, sidan borjade skrolla, och
+   skalan backade da anda ned till 1 igen. Sidans bakgrund kommer fran body och
+   maalar hela ytan anda, sa regeln behovdes aldrig. */
 .app-main{flex:1 1 auto;min-width:0;max-width:1600px;
   display:grid;grid-template-rows:1fr;gap:var(--gap)}
 
@@ -113,11 +116,12 @@ html{min-height:100vh}
 /* [ANDRAT v5.71.0] Spelarkortet var stapel: bild, namn, niva, matare, siffror -
    och blev darfor hogt. Nu ligger bilden till VANSTER med namn och niva bredvid,
    och XP-mataren under bada. Halva hojden, samma innehall.
-   Marginalen pa sidorna gor kortet exakt lika brett som valutakorten inne i
-   langrutan under - kortets ram lag forut en bit utanfor deras. */
+   [ANDRAT v5.72.1] Kortet ar lika brett som den LANGA RUTAN under, inte som
+   korten inne i den. Tva ramar som bada gar kant i kant lasar som en spalt;
+   en indragen ram sag ut som ett misstag. */
 .sn-player{
   background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
-  margin:0 11px;padding:9px 10px;display:flex;flex-direction:column;gap:5px;
+  padding:9px 12px;display:flex;flex-direction:column;gap:5px;
   cursor:pointer;overflow:hidden;
 }
 .sn-player:hover{border-color:var(--border-glow)}
@@ -1897,14 +1901,16 @@ body.dragging *{cursor:grabbing !important}
   /* [ANDRAT v5.55.0] Regionen och bufflistan ar rivna som egna rutor. Deras
      plats bar nu snabbvalen med regionen som flik - lika hog som de var. */
   #panel-home-server{height:397px;min-height:0}
-  #panel-network-map{height:516px;overflow-y:auto;overflow-x:hidden}
+  #panel-network-map{height:491px;overflow-y:auto;overflow-x:hidden}
   #panel-professions{height:396px;overflow-y:auto;overflow-x:hidden}
   /* [ANDRAT v5.55.0] Snabbvalen lag under expeditionerna och holl dem korta.
      Nu ar spalten fri, sa expeditionsrutan far vaxa ned till samma underkant
-     som natverkskartan i mitten. */
-  #panel-expeditions{height:517px;overflow-y:auto;overflow-x:hidden}
+     som natverkskartan i mitten.
+     [ANDRAT v5.72.0] De tre undre rutorna ar 25 px kortare. Uppforstoringen lag
+     pa haret och lamnade nagra pixlar att skrolla; nu finns marginal. */
+  #panel-expeditions{height:492px;overflow-y:auto;overflow-x:hidden}
   #panel-expeditions .tab-pane{height:auto;min-height:0}
-  #panel-quick-access{height:273px;overflow-y:auto;overflow-x:hidden}
+  #panel-quick-access{height:248px;overflow-y:auto;overflow-x:hidden}
 }
 
 /* Rullningslister i spelets färger — aldrig mer vit systemlist */
@@ -4231,7 +4237,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.71.0 — LÅGT SPELARKORT</div>
+        <div class="sn-ver">GENESIS v5.72.1 — PROFILRUTAN KANT I KANT</div>
       </div>
     </div>
   </aside>
@@ -4948,7 +4954,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.71.0 — LÅGT SPELARKORT</div>
+            <div class="desc">GENESIS v5.72.1 — PROFILRUTAN KANT I KANT</div>
           </div>
         </div>
       </div>
@@ -14077,14 +14083,19 @@ function fitApp(){
   if (!natH || natH < 200) return;
   let k = Math.min(window.innerWidth / APP_BASE_W, window.innerHeight / natH);
   if (k <= 1.02) return;                 /* ryms inte, eller precis - lat vara */
-  k = Math.min(k, 1.6);                  /* tak, sa en jattemonitor inte blir grotesk */
+  k = Math.min(k, 1.6) * 0.995;          /* tak, plus en hars marginal mot avrundning */
   /* MAT, PASTA INTE. Rakningen ovan ar en gissning: zoom flyttar bade vad som
      ritas och vad viewporten ar vard, sa den kan sla nagra procent fel at bada
      hall. Vi satter skalan, MATER om sidan skrollar, och backar tills den inte
      gor det. Hellre nagon procent mindre an en skrollist. */
   for (let i = 0; i < 14; i++){
     document.body.style.zoom = k.toFixed(4);
-    if (document.documentElement.scrollHeight <= window.innerHeight + 1) return;
+    /* [BUGG v5.72.0] HAR STOD "<= innerHeight - 4". Dokumentets scrollHeight ar
+       ALLTID minst fonsterhojden, aven nar innehallet ar kortare - sa kravet pa
+       fyra pixlars luft kunde aldrig uppfyllas, loopen backade varje gang och
+       uppforstoringen slog av sig sjalv. Villkoret ar nu det enda som gar att
+       mata: skrollar sidan eller inte. Marginalen ligger i k i stallet. */
+    if (document.documentElement.scrollHeight <= window.innerHeight) return;
     k *= 0.975;
     if (k <= 1.02){ document.body.style.zoom = ''; return; }
   }
