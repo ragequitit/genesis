@@ -4767,7 +4767,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.57.0 — MARKERINGEN OCH VALVETS SPÖKE</div>
+            <div class="desc">GENESIS v5.58.0 — VALVET MINNS SIN ORDNING</div>
           </div>
         </div>
       </div>
@@ -4778,7 +4778,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.57.0 — MARKERINGEN OCH VALVETS SPÖKE</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.58.0 — VALVET MINNS SIN ORDNING</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -6389,6 +6389,10 @@ async function netPullItems(){
       vk++;
     });
   } catch (e){ /* tabellen kan saknas i en gammal databas - valvet visar da bara pjaser */ }
+  /* [TILLAGT v5.58.0] Har lag hela problemet: rutnatet var just ombyggt fran
+     noll, och den ordning spelaren sjalv stallt upp fanns ingenstans. Nu laggs
+     den tillbaka direkt efter hamtningen, innan nagot ritas. */
+  vaultOrderApply();
 
   /* Staplarna: material, flaskor och recept. Samlat material sist, i sin egen
      vaska - dess forsta ruta ar gStart. */
@@ -6566,6 +6570,63 @@ function invOrderSave(){
   (S.inv || []).forEach((row, i) => { const k = invRowKey(row); if (k) map[k] = i; });
   try { localStorage.setItem(INV_ORDER_KEY, JSON.stringify(map)); } catch (e){}
 }
+/* ===== VALVETS EGNA ORDNING (v5.58.0) =====
+   Valvet hade INGEN ordning alls. Servern har ingen platskolumn for det, sa
+   varje hamtning byggde om rutnatet fran noll - pjaserna i den ordning servern
+   rakade skicka dem, materialen sorterade pa nyckel. Darfor gick det inte att
+   lagga nagot dar man ville: allt hoppade tillbaka vid nasta omritning.
+   Nu bor ordningen har, precis som vaskans, och pa samma satt: VAR en sak star
+   ar inte speldata utan mobleringen i ens eget forrad, sa den sparas lokalt aven
+   nar servern ager sjalva innehallet. Nyckeln ar densamma som vaskan anvander,
+   sa en sak som flyttas mellan de tva kanns igen i bada. */
+const VAULT_ORDER_KEY = 'genesis.vaultorder';
+function vaultOrderLoad(){
+  try { const d = JSON.parse(localStorage.getItem(VAULT_ORDER_KEY) || '{}');
+        return (d && typeof d === 'object') ? d : {}; } catch (e){ return {}; }
+}
+function vaultOrderSave(){
+  const map = {};
+  (S.vault && S.vault.inv || []).forEach((row, i) => {
+    const k = invRowKey(row); if (k) map[k] = i;
+  });
+  try { localStorage.setItem(VAULT_ORDER_KEY, JSON.stringify(map)); } catch (e){}
+}
+/* Lagger om valvets rader efter den sparade ordningen. Rader utan sparad plats,
+   och rader vars plats ar upptagen, glider in i forsta lediga ruta - ingenting
+   far tappas bort, och ingenting far hamna pa varandra. */
+function vaultOrderApply(){
+  if (!S.vault || !Array.isArray(S.vault.inv)) return;
+  const want = vaultOrderLoad();
+  const rows = S.vault.inv.filter(Boolean);
+  /* Taket far ALDRIG kapa bort en rad. Skickar servern fler saker an valvet har
+     rutor vaxer listan i stallet - det ar sa dubbletterna uppstod: raderna lag
+     kvar utanfor taket och ritades en gang till. */
+  const cap = Math.max(vaultSlots(), rows.length);
+  const out = new Array(cap).fill(null);
+  const rest = [];
+  rows.forEach(row => {
+    const k = invRowKey(row);
+    const at = (k != null && Object.prototype.hasOwnProperty.call(want, k)) ? +want[k] : -1;
+    if (at >= 0 && at < cap && !out[at]) out[at] = row; else rest.push(row);
+  });
+  let n = 0;
+  rest.forEach(row => { while (n < cap && out[n]) n++; if (n < cap) out[n] = row; });
+  S.vault.inv = out;
+}
+/* Skriver in EN sak pa EN ruta i den sparade ordningen, och knuffar undan den
+   som redan stod dar sa tva saker aldrig pekar pa samma plats. Anvands nar man
+   slapper nagot i serverlage: valet maste finnas innan servern svarar, for det
+   ar hamtningen efterat som bygger om rutnatet. Utan rutnummer gors ingenting -
+   da faller saken tillbaka pa forsta lediga, som forut. */
+function orderPlaceIn(key, at, load, save){
+  if (!key || typeof at !== 'number' || at < 0) return;
+  const map = load();
+  Object.keys(map).forEach(k => { if (k !== key && +map[k] === at) delete map[k]; });
+  map[key] = at;
+  try { localStorage.setItem(save, JSON.stringify(map)); } catch (e){}
+}
+function vaultOrderPlace(key, at){ orderPlaceIn(key, at, vaultOrderLoad, VAULT_ORDER_KEY); }
+function invOrderPlace(key, at){ orderPlaceIn(key, at, invOrderLoad, INV_ORDER_KEY); }
 const PET_ORDER_KEY = 'genesis.petorder';
 function petOrderLoad(){
   try { const d = JSON.parse(localStorage.getItem(PET_ORDER_KEY) || '{}');
@@ -10156,6 +10217,7 @@ function toVault(invIdx, at){
   if (NET.on){
     const row = S.inv[invIdx];
     if (row && row.gear){
+      vaultOrderPlace(invRowKey(row), at);
       netMoveVault(row.gear, true).catch(e => say(srvErrText(e)));
       return true;
     }
@@ -10163,6 +10225,10 @@ function toVault(invIdx, at){
        servern bokfor med samma uttag som nar nagot forbrukas. Recept ar
        fortfarande personliga och stannar i vaskan. */
     if (row && row.key && !row.recipe){
+      /* [TILLAGT v5.58.0] Rutan man siktade pa skrivs in i ordningen INNAN
+         servern svarar. Nar hamtningen sedan bygger om valvet laggs raden dar
+         spelaren ville ha den - inte i forsta lediga ruta. */
+      vaultOrderPlace(invRowKey(row), at);
       srvRpc('vault_stack_put', {p_character: SRV.charId, p_key: row.key, p_qty: null})
         .then(() => netPullItems())
         .then(() => { renderInventory(); renderVault(); updateUI(true); })
@@ -10178,6 +10244,7 @@ function toVault(invIdx, at){
   if (dest < 0) return false;
   S.vault.inv[dest] = row;
   S.inv[invIdx] = null;
+  vaultOrderSave(); invOrderSave();
   renderInventory(); renderVault(); save();
   return true;
 }
@@ -10186,11 +10253,15 @@ function fromVault(vaultIdx, at){
   if (!row) return false;
   if (NET.on){
     if (row.gear){
+      invOrderPlace(invRowKey(row), at);
       netMoveVault(row.gear, false).catch(e => say(srvErrText(e)));
       return true;
     }
     /* [ANDRAT v5.49.0] En stapel gar hem till vaskan - hela pa en gang. */
     if (row.vstack && row.key){
+      /* Ut ur valvet: rutan i VASKAN man siktade pa skrivs in dar, av samma
+         skal. Forut landade saken alltid pa sin gamla plats. */
+      invOrderPlace(invRowKey(row), at);
       srvRpc('vault_stack_take', {p_character: SRV.charId, p_key: row.key, p_qty: null})
         .then(() => netPullItems())
         .then(() => { renderInventory(); renderVault(); updateUI(true); })
@@ -10203,6 +10274,7 @@ function fromVault(vaultIdx, at){
   if (dest < 0) return false;
   S.inv[dest] = row;
   S.vault.inv[vaultIdx] = null;
+  vaultOrderSave(); invOrderSave();
   renderInventory(); renderVault(); save();
   return true;
 }
@@ -10210,6 +10282,9 @@ function moveInVault(from, to){
   if (from === to) return;
   const a = S.vault.inv[from], b = S.vault.inv[to];
   S.vault.inv[to] = a; S.vault.inv[from] = b;
+  /* [TILLAGT v5.58.0] Ordningen sparas i samma andetag som den andras - annars
+     skrivs den over av nasta hamtning fran servern och saken hoppar tillbaka. */
+  vaultOrderSave();
   renderVault(); save();
 }
 function hookVaultCells(root){
