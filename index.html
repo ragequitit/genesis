@@ -529,9 +529,14 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   box-shadow:0 0 12px -5px #2ecc71}
 .hp-fill{height:100%;width:100%;border-radius:99px;
   background:linear-gradient(90deg,#1fa85a,#4ee88a)}
+/* [ANDRAT v5.85.0] Svart text foll bort sa fort mataren tomdes - da lag den mot
+   den morka fonden. Texten ar VIT med mork kontur: lasbar bade mot det grona och
+   mot tom bakgrund, utan att byta farg mitt i. */
 .hp-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-family:var(--font-mono);font-size:10px;font-weight:800;letter-spacing:.06em;
-  color:#04120a;text-shadow:0 1px 0 rgba(255,255,255,.25)}
+  color:#fff;
+  text-shadow:0 0 3px rgba(0,0,0,.95), 0 1px 2px rgba(0,0,0,.9),
+              -1px 0 1px rgba(0,0,0,.8), 1px 0 1px rgba(0,0,0,.8)}
 /* Karaktärspanelen i två spalter: utrustning till vänster, stats till höger.
    Vänstersidan är ihoptryckt så statsen får en egen pelare. */
 /* Två spalter, två rader. Statsrutan ligger i rad 1 och blir därmed EXAKT lika
@@ -1807,8 +1812,13 @@ body.dragging *{cursor:grabbing !important}
    for har ar den en pulsslag, inte en siffra man laser. */
 .prof-card .jc-cyc{height:3px;border-radius:2px;background:rgba(255,255,255,.07);
   overflow:hidden;margin-top:4px}
+/* [ANDRAT v5.85.1] Pulsen ar GRON. Den gick forut fran blaatt till guld, vilket
+   krockade med varje yrkes egen farg - och betydde inget, for den sager bara
+   "arbete pagar". En egen farg som ar samma pa alla kort lases som en signal i
+   stallet for som en del av kortets dekor. */
 .prof-card .jc-cycfill{height:100%;border-radius:2px;
-  background:linear-gradient(90deg,var(--cyan),var(--gold));transition:width .12s linear}
+  background:linear-gradient(90deg,#1fa85a,#4ee88a);
+  box-shadow:0 0 7px -2px #4ee88a;transition:width .12s linear}
 .prof-card .jc-cyc.paused .jc-cycfill{background:var(--pink);width:100% !important;opacity:.35}
 .prof-card .jc-btn{
   flex:0 0 auto;padding:11px 20px;border-radius:9px;cursor:pointer;
@@ -4459,7 +4469,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.84.0 — HJÄLPARE GER FRAGMENT</div>
+        <div class="sn-ver">GENESIS v5.85.1 — GRÖN PULS PÅ KORTEN</div>
       </div>
     </div>
   </aside>
@@ -5207,7 +5217,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.84.0 — HJÄLPARE GER FRAGMENT</div>
+            <div class="desc">GENESIS v5.85.1 — GRÖN PULS PÅ KORTEN</div>
           </div>
         </div>
       </div>
@@ -12306,6 +12316,12 @@ function renderEquip(){
       el.innerHTML = '<i class="slot-bg" style="background-image:url(\'assets/slots/slot_' + art + '.png\')"></i>';
     }
   });
+  refreshHpBar();
+  renderCharStats();
+}
+/* EN plats som skriver halsan, sa renderEquip och den lopande klockan aldrig
+   kan saga olika saker. */
+function refreshHpBar(){
   const hf = $('hp-fill'), ht = $('hp-txt');
   /* [ANDRAT v5.33.0] Mataren visar NUVARANDE halsa - den kan sjunka nu, for de
      vita motena skadar den. Under 25 procent blir texten rod och sager LOW.
@@ -12317,9 +12333,10 @@ function renderEquip(){
   if (ht){
     ht.textContent = (pct < 99.999 ? fmt(cur) + ' / ' : '') + fmt(hp) + ' HP' +
                      (pveLowHealth() ? ' \u00b7 LOW' : '');
-    ht.style.color = pveLowHealth() ? '#ff5964' : '';
+    /* Vit text hela tiden - konturen barnar lasbarheten. Vid lag halsa blir den
+       rod, och konturen haller den lasbar aven da. */
+    ht.style.color = pveLowHealth() ? '#ff8a92' : '';
   }
-  renderCharStats();
 }
 /* Statsraderna. Varje värde räknas ur de system som FINNS: utrustning, husdjur,
    rykte. Inga påhittade rader — listan växer av sig själv när nya källor byggs. */
@@ -14262,6 +14279,10 @@ function updateUI(force){
      dess XP-matare stod stilla medan kortets rorde sig. Nu skrivs bada varje
      bildruta - sidan bygger bara om sig sjalv nar nagot faktiskt andrats. */
   try { renderProfPage(); } catch (e){}
+  /* [TILLAGT v5.85.0] HP-MATAREN SKREVS BARA I renderEquip, som kors nar
+     utrustningen andras - inte lopande. Darfor stod den still efter en healning
+     tills man laddade om sidan. Talen ar tva enkla uppslag; de skrivs har. */
+  try { refreshHpBar(); } catch (e){}
   el.resCredits.textContent = fmt(S.credits);
   el.resFragments.textContent = fmt(S.frags);
   el.resGold.textContent = goldOnlyText(S.gold);
@@ -16735,12 +16756,18 @@ function coreSyncTipHTML(){
     } else {
       const core = skillPct(p.id, 'core_boost');
       rows.push('<div class="cst-row"><b>' + p.name + '</b>' +
-        '<span>work orders ' + (core > 0 ? '15% + ' + core + ' pp' : '15%') + ' faster</span></div>');
+        '<span>' + (p.kind === 'secondary' ? 'production' : 'work orders') + ' ' +
+        (15 + core) + '% faster</span></div>');
     }
   });
+  /* [ANDRAT v5.85.0] Stationerna star inte langre utanfor - servern raknar in
+     synken aven dar nu. */
   const sec = mySecondaryProf();
-  if (sec) rows.push('<div class="cst-row off"><b>' + sec.station + '</b>' +
-    '<span>not affected \u2014 runs on its own clock</span></div>');
+  if (sec){
+    const core = skillPct(sec.id, 'core_boost');
+    rows.push('<div class="cst-row"><b>' + sec.station + '</b>' +
+      '<span>production ' + (15 + core) + '% faster</span></div>');
+  }
   if (!rows.length) rows.push('<div class="cst-row off"><span>Learn a profession to feel this.</span></div>');
   /* [BORTTAGET v5.68.1] Fotnoten om att ett nytt hall borjar om de fem
      minuterna. Kortet ska saga vad man FAR, inte forklara mekaniken. */
@@ -17731,7 +17758,11 @@ function skillEffText(n, ranks){
       case 'slot_focus': return '-' + v + '% craft time & -' + Math.round(v / 3 * 2) + '% common material cost for its slots';
       case 'ranked_speed': return '-' + v + '% craft time on Rank III\u2013IV recipes';
       case 'reclaim': return v + '% chance to reclaim one common material after a craft';
-      case 'core_boost': return '+' + v + ' pp speed while Core Sync is active';
+      /* [ANDRAT v5.85.0] Stod "+2 pp speed". "pp" ar procentenheter - ett ord ur
+         rakningen, inte ur spelet. Nu star det vad det GOR: Core Sync ger 15 %,
+         och noden hojer just den siffran. */
+      case 'core_boost': return 'Core Sync speeds this profession by ' + (15 + v) +
+                                '% instead of 15%';
       case 'pattern': return 'Pick one affix below \u2014 it rolls a little more often on your crafts. Never guaranteed.';
       case 'gather_speed': return '-' + v + '% time between gathering rolls';
       case 'gather_double': return v + '% chance a find is doubled';
@@ -20894,6 +20925,20 @@ function openInventory(){
     if (x + 320 > window.innerWidth) x = Math.max(8, window.innerWidth - 320);
     w.style.left = x + 'px'; w.style.top = y + 'px';
   }
+  /* [TILLAGT v5.85.0] VAKT: ett fonster far aldrig ligga utanfor skarmen. Efter
+     att layouten andrats kunde en sparad plats hamna utanfor kanten - da
+     oppnades fonstret men syntes aldrig. Har dras det tillbaka in. */
+  requestAnimationFrame(() => {
+    const b = w.getBoundingClientRect();
+    if (!b.width) return;
+    let L = parseFloat(w.style.left); if (!isFinite(L)) L = b.left;
+    let T = parseFloat(w.style.top);  if (!isFinite(T)) T = b.top;
+    L = Math.max(8, Math.min(L, window.innerWidth  - b.width  - 8));
+    T = Math.max(8, Math.min(T, window.innerHeight - b.height - 8));
+    w.style.left = Math.round(L) + 'px'; w.style.top = Math.round(T) + 'px';
+  });
+  if (false){
+  }
 }
 $('qa-inventory').addEventListener('click', () => toggleWindow('inv-overlay', openInventory, closeInventoryWindow));
 $('qa-vault').addEventListener('click', () => toggleWindow('vault-overlay', openVault, closeVaultWindow));
@@ -20935,10 +20980,11 @@ makeDraggable($('inv-overlay'), [$('inv-overlay').querySelector('.inv-titlebar')
 makeDraggable($('vault-overlay'), [$('vault-overlay').querySelector('.inv-titlebar'), $('vault-overlay').querySelector('.inv-emblem'), $('vault-overlay')]);
 /* Knappen VÄXLAR: står väskan öppen stänger nästa tryck den, i stället för att
    bara rita om ett fönster som redan syns. */
-$('bag-btn').addEventListener('click', () => {
-  if ($('inv-overlay').classList.contains('open')){ closeInventoryWindow(); return; }
-  openInventory();
-});
+/* [BUGG v5.85.0] Vaskknappen gick sin EGEN vag medan snabbvalet gick via
+   toggleWindow. Stod fonstret redan som "oppet" - fast utanfor skarmen efter en
+   layoutandring - satte den ingen ny plats, sa knappen studsade men ingenting
+   syntes. En vag nu. */
+$('bag-btn').addEventListener('click', () => toggleWindow('inv-overlay', openInventory, closeInventoryWindow));
 /* Pengarutan i toppen visar bara guldet; hovringen ger hela summan i guld, silver
    och koppar. Samma lilla ruta som väskfacken använder — ingen gul webbläsarruta. */
 (function(){
