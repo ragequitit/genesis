@@ -2159,6 +2159,14 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
   --win-edge:#3a8a5c; --win-fill:26,62,44; --win-deep:7,20,14;
   --win-glow:130,255,190; --win-emblem:#2a7850;
 }
+/* [TILLAGT v5.59.0] BLATT ar fonstrens grundton - samma tal som star hogst upp
+   for varje fonster i spelet. Valvet saknade den helt: den enda vagen tillbaka
+   var att inte ha valt nagon ton alls, och gron var dessutom forvalt. Nu ar
+   blatt en ton som alla andra, och det ar den valvet startar i. */
+body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
+  --win-edge:#3a4a8a; --win-fill:26,34,70; --win-deep:10,14,32;
+  --win-glow:120,150,255; --win-emblem:#2a3a78;
+}
 /* Prickarna: uppe till vänster i valvets fönster, halvt utanför precis som emblemet. */
 .vt-picker{
   /* Innanför ramen, inte hängande utanför — utanför krockade de med kanten. */
@@ -2172,6 +2180,7 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 }
 .vt-dot:hover{opacity:1;transform:scale(1.15)}
 .vt-dot.on{opacity:1;border-color:#fff}
+.vt-dot[data-tone="blue"]{background:#3a4a8a}
 .vt-dot[data-tone="bronze"]{background:#8a6a3a}
 .vt-dot[data-tone="red"]{background:#8a3a4a}
 .vt-dot[data-tone="green"]{background:#3a8a5c}
@@ -3323,6 +3332,12 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   background-size:78%;background-position:center;background-repeat:no-repeat;
 }
 .ah-art.big{width:56px;height:56px}
+/* [TILLAGT v5.61.0] Rutan bar en RIKTIG bild nu, inte en bakgrund. Den behover
+   en yta att rita i, och lite luft sa bilden inte klistrar i ramen. */
+.ah-art.art-wrap{display:flex;align-items:center;justify-content:center;padding:4px}
+.ah-art.art-wrap .art-img{width:100%;height:100%;object-fit:contain}
+.ah-art.art-wrap.noart{font-size:22px;padding:0}
+.ah-art.big.art-wrap.noart{font-size:28px}
 .ah-art-emoji{display:flex;align-items:center;justify-content:center;font-size:22px}
 .ah-art.big.ah-art-emoji{font-size:28px}
 .ah-nm{min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -4121,7 +4136,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <section class="panel" id="panel-quick-access">
         <div class="tabs" id="quick-tabs">
           <div class="tab active" data-pane="pane-quick-access">Quick Access</div>
-          <div class="tab" data-pane="pane-region-rep">Region</div>
+          <div class="tab" data-pane="pane-region-rep">Region Rep.</div>
         </div>
         <div class="tab-pane" id="pane-quick-access">
           <div class="qa-grid">
@@ -4314,6 +4329,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 <div class="float-win" id="vault-overlay">
     <div class="modal inv-modal vault-modal">
       <div class="vt-picker">
+        <span class="vt-dot" data-tone="blue" title="Blue"></span>
         <span class="vt-dot" data-tone="bronze" title="Bronze"></span>
         <span class="vt-dot" data-tone="red" title="Red"></span>
         <span class="vt-dot" data-tone="green" title="Green"></span>
@@ -4767,7 +4783,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.58.0 — VALVET MINNS SIN ORDNING</div>
+            <div class="desc">GENESIS v5.61.0 — AUKTIONSHUSETS BILDER</div>
           </div>
         </div>
       </div>
@@ -4778,7 +4794,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.58.0 — VALVET MINNS SIN ORDNING</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.61.0 — AUKTIONSHUSETS BILDER</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5328,6 +5344,20 @@ async function netSync(){
        forst nar minutregeln rakar slappa igenom dem. */
     if (clock && clock.sync_until != null){
       S.syncUntil = clock.sync_until ? new Date(clock.sync_until).getTime() : null;
+    }
+    /* [TILLAGT v5.60.0] SKROTET SYNTES ALDRIG. Tomgangen har hela tiden delat ut
+       skrot - servern lagger det i vaskan varje varv - men klienten laste bara
+       talet nar man kom tillbaka efter en lang franvaro, till valkomstrutan.
+       Medan man satt och tittade ramlade det in helt tyst: ingen bubbla ur
+       noden, ingen rad, och inte ens en hamtning hem, sa det dok upp forst nar
+       nagot annat rakade hamta staplarna. Darav kanslan av att det knappt kom
+       nagot. Nu behandlas det som samlarens fynd: det kastas ut ur noden och
+       hamtas hem direkt. INGENTING i utdelningen ar andrat - bara att den syns.
+       Franvarons skrot hor till valkomstrutan och kastas darfor inte ut har. */
+    if (clock && clock.drops && Object.keys(clock.drops).length && !(firstSync && NET.awaySecs > 120)){
+      nodeDropPopMany(clock.drops, 'var(--gold)');
+      NET.lastStackPull = Date.now();
+      netPullItems().then(() => { renderInventory && renderInventory(); }).catch(() => {});
     }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
@@ -9495,7 +9525,7 @@ let S = {
   vendTip: {},              // senaste tipset per region, så det blir högst ett per dygn
   vendGift: {},             // femstjärnepaketet per region: 'invited' | 'taken'
   boosts: {},               // aktiva flaskor: {nyckel: utgångstid i ms}
-  vaultTone: 'green',       // valvets färgton: green (standard) | bronze | red
+  vaultTone: 'blue',        // valvets färgton: blue (standard) | bronze | red | green
   bagOpen: [false, false, false, false, false],
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
   savedAt: 0
@@ -9664,7 +9694,7 @@ function load(){
             S.flaskBoost[k] = {until: +b.until, pct: Math.max(0, +b.pct || 0)};
         }
       }
-      if (['bronze','red','green'].includes(d.vaultTone)) S.vaultTone = d.vaultTone;
+      if (['blue','bronze','red','green'].includes(d.vaultTone)) S.vaultTone = d.vaultTone;
       S.bagOpen = [0,1,2,3,4].map(i => !!(Array.isArray(d.bagOpen) && d.bagOpen[i]));
       /* MÅSTE stå EFTER readGear — tredje gången den fällan gillras (moneyV,
          väskorna, nu valvet). Deklarationen är en const längre ned i blocket. */
@@ -10322,16 +10352,25 @@ function hookVaultCells(root){
     if (!cell) return;
     e.preventDefault();
     const row = S.vault.inv[+cell.dataset.vault];
-    if (row && row.gear){ hideGearTip(); openGearMenu(row.gear.uid, e.clientX, e.clientY); }
+    if (!row) return;
+    hideGearTip();
+    if (row.gear) openGearMenu(row.gear.uid, e.clientX, e.clientY);
+    else openVaultStackMenu(+cell.dataset.vault, e.clientX, e.clientY);
   });
   grid.addEventListener('mouseover', e => {
+    /* [BUGG v5.58.1] STAPLARNA I VALVET HADE VARKEN HOVRING ELLER HOGERKLICK.
+       Vaskan visar bade pjaskort och stapelkort och har meny for bada; valvet
+       kande bara till pjaser, sa allt material dar var helt stumt. Nu samma
+       tre vagar som i vaskan. */
     const cell = e.target.closest('[data-vault]');
-    if (!cell) return;
+    if (!cell) return hideGearTip();
     const row = S.vault.inv[+cell.dataset.vault];
     if (row && row.gear) showGearTip(row.gear, e.clientX, e.clientY);
+    else if (row) showStackTip(row, e.clientX, e.clientY);
+    else hideGearTip();
   });
   grid.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
-  grid.addEventListener('mouseout', hideGearTip);
+  grid.addEventListener('mouseleave', hideGearTip);
 }
 function hookVaultBagSlots(){
   document.querySelectorAll('[data-vaultbag]').forEach(el => {
@@ -10445,7 +10484,8 @@ function mainVaultIndices(){
     if (seg.socket === undefined || vaultBagIsOpen(seg.socket)) return;
     for (let k = 0; k < seg.len; k++) out.push(seg.start + k);
   });
-  return out;
+  /* Samma dubblettvakt som vaskan - valvet ritas ur en likadan lista. */
+  return dedupeSlots(out);
 }
 function renderVaultMiniBags(){
   document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
@@ -11646,7 +11686,7 @@ function invSort(){
   renderInventory(); save();
 }
 /* Valvets sortering: samma ordning som väskans, men mot valvets egen lista. */
-const VAULT_TONES = ['bronze', 'red', 'green'];
+const VAULT_TONES = ['blue', 'bronze', 'red', 'green'];
 function setVaultTone(tone){
   if (!VAULT_TONES.includes(tone)) return false;
   S.vaultTone = tone;
@@ -11655,7 +11695,10 @@ function setVaultTone(tone){
   return true;
 }
 function applyVaultTone(){
-  const tone = VAULT_TONES.includes(S.vaultTone) ? S.vaultTone : 'green';
+  /* [ANDRAT v5.59.0] Forvalet var gront. Valvet startar i blatt nu - samma ton
+     som vaskan och alla andra fonster - och den som redan valt en ton behaller
+     sin. */
+  const tone = VAULT_TONES.includes(S.vaultTone) ? S.vaultTone : 'blue';
   VAULT_TONES.forEach(t => document.body.classList.toggle('vt-' + t, t === tone));
   document.querySelectorAll('.vt-dot').forEach(d => d.classList.toggle('on', d.dataset.tone === tone));
 }
@@ -12268,14 +12311,27 @@ function packDims(n){
   }
   return {cols: best.cols, rows: best.rows};
 }
+/* [TILLAGT v5.58.1] DUBBLETTVAKTEN. Rutnaten ritas ur en LISTA av platsnummer,
+   och stod samma nummer med tva ganger ritades saken pa den platsen tva ganger -
+   exakt de dubbletter som forsvann sa fort rutan stangdes och oppnades igen.
+   Det kan hanta sa fort ett vaskintervall rakar overlappa ett annat, vilket i
+   sin tur beror pa att servern och den lokala listan hinner saga olika saker ett
+   ogonblick. Vi lagar bade orsaken och symptomet: listan tvattas har, alltid, sa
+   ingen plats kan ritas mer an en gang oavsett vad som hant fore. */
+function dedupeSlots(list){
+  const seen = new Set(), out = [];
+  list.forEach(n => { if (!seen.has(n)){ seen.add(n); out.push(n); } });
+  return out;
+}
 function invLayout(){
   /* Platserna i ordning: grunden först, sedan varje inbakad väska. */
-  const order = [];
+  let order = [];
   for (let i = 0; i < INV_BASE_SLOTS; i++) order.push(i);
   bagSegments().forEach(seg => {
     if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
     for (let k = 0; k < seg.len; k++) order.push(seg.start + k);
   });
+  order = dedupeSlots(order);
   const dim = packDims(order.length);
   /* RADVIS fyllning: plats 0 överst till vänster, sedan åt höger och ned. Kolumnvis
      fyllning såg logisk ut men gjorde att en sortering la sig i en stapel längs
@@ -12296,7 +12352,7 @@ function mainInvIndices(){
     if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
     for (let k = 0; k < seg.len; k++) out.push(seg.start + k);
   });
-  return out;
+  return dedupeSlots(out);
 }
 function bagSegments(){
   const segs = [{name: 'Backpack', start: 0, len: INV_BASE_SLOTS}];
@@ -13695,7 +13751,7 @@ function redrawAll(){
      familj som receptboken och regionen. */
   call(redrawZone);
   /* Kartan ska visa DAR MAN STAR. Vid start ritas den innan servern hunnit
-     sага var man ar, sa den fastnade i forvalet - en omladdning kastade en
+     saga var man ar, sa den fastnade i forvalet - en omladdning kastade en
      tillbaka till hemmaregionens insida oavsett var man verkligen stod. */
   call(syncMapToPlayer);
   call(renderMap);
@@ -15227,7 +15283,7 @@ function setMapMode(m){
 function viewRegion(id){ viewedRegion = id; setMapMode('region'); }
 /* [BUGG] F5 KASTADE TILLBAKA TILL HEMMAREGIONENS INSIDA. Kartan valjer vilken
    regions insida den visar en gang, vid start - och vid start har servern inte
-   hunnit sага var man star, sa den fastnade i forvalet och stod kvar dar aven
+   hunnit saga var man star, sa den fastnade i forvalet och stod kvar dar aven
    efter att resten av skarmen ritats om med ratt region.
    Kartan foljer nu MED nar spelarens egen plats andras, men bara da: star man
    och bladdrar i en annan regions insida ska ett serversvar inte rycka tillbaka
@@ -16020,7 +16076,7 @@ function buildDiscoverBody(id, R){
         '>Skip — ' + surveySkipCost() + ' 💳</button>' +
       '</div>';
   }
-  /* [ANDRAT v5.1.0] Har slogs en MASKIN upp for att sага vad man saknade - och
+  /* [ANDRAT v5.1.0] Har slogs en MASKIN upp for att saga vad man saknade - och
      nyckeln var alltid null, sa uppslagningen gav undefined och raden hade
      kraschat den dagen kravet inte var uppfyllt. Kravet ar tiern sjalv. */
   if (!discoverReqMet(R.tier)){
@@ -19627,6 +19683,28 @@ function openGearMenu(uid, x, y){
     else if (act === 'sell-yes'){ hideGearTip(); closeStackMenu(); sellGear(f.idx); }
   });
 }
+/* [TILLAGT v5.58.1] EGEN MENY FOR VALVETS STAPLAR. Vaskans meny letar upp saken
+   i VASKAN, sa for en stapel som ligger i valvet hittade den ingenting och
+   hogerklicket dog tyst. Valvet ar ett forrad - det enda man gor med en stapel
+   dar ar att ta hem den, sa menyn har ett val. */
+function openVaultStackMenu(vaultIdx, x, y){
+  closeStackMenu(); closePetMenu();
+  const row = S.vault.inv[vaultIdx];
+  if (!row || row.gear) return;
+  const m = document.createElement('div');
+  m.className = 'pet-menu ctx';
+  m.innerHTML = '<button class="pm-item" data-act="take">To backpack</button>';
+  document.body.appendChild(m);
+  const w = m.offsetWidth, hh = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+  m.style.top  = Math.max(8, Math.min(y, window.innerHeight - hh - 8)) + 'px';
+  stackMenuEl = m;
+  m.addEventListener('click', e => {
+    if (!e.target.closest('[data-act="take"]')) return;
+    closeStackMenu();
+    fromVault(vaultIdx);
+  });
+}
 function openStackMenu(key, x, y){
   closeStackMenu(); closePetMenu();
   const idx = findStackIdx(key);
@@ -21840,6 +21918,10 @@ function ahIconHtml(row){
   if (row.stack_kind === 'recipe') ico = '📜';
   else if (row.stack_kind === 'flask'){ const f = FLASKS[row.stack_key]; ico = f ? f.ico : '🧪'; }
   else if (row.stack_key){ const m = MATERIALS[row.stack_key]; ico = m ? m.ico : '📦'; }
+  /* [ANDRAT v5.61.0] Samma sak i listorna: bar varan en bild ritas den, med
+     tecknet som reserv om filen inte gar att ladda. */
+  const art = row.stack_key ? stackArtOf(row.stack_key) : '';
+  if (art) return '<span class="ah-art art-wrap">' + artWithFallback(art, ico) + '</span>';
   return '<span class="ah-art ah-art-emoji">' + ico + '</span>';
 }
 function ahTypeOfSel(s){ return s.type || ''; }
@@ -22066,7 +22148,12 @@ function ahRenderPicker(){
       const D = itemDef(it);
       rows.push({kind: 'stack', key: it.key, rar: it.rar == null ? null : it.rar,
         name: (D && D.name) || it.name, ico: (D && D.ico) || it.ico,
-        art: (D && D.art) || null, avail: it.qty, row: it,
+        /* [BUGG v5.61.0] BARA FOREMALSKATALOGENS EGNA BILDER HITTADES. Material,
+           skrot och skrap bar sina bilder i materialmappen, och den vagen fragade
+           auktionshuset aldrig - darfor stod nastan varje rad med sin emoji medan
+           vaskan bredvid visade riktiga bilder. stackArtOf ar samma uppslagning
+           som vaskan, valvet och butiken anvander. */
+        art: (D && D.art) || stackArtOf(it.key) || null, avail: it.qty, row: it,
         type: (D && D.kind) || (it.flask ? 'Consumable' : it.recipe ? 'Recipe' : 'Item')});
     }
   });
@@ -22078,7 +22165,7 @@ function ahRenderPicker(){
       '<div class="ah-row ah-prow" data-i="' + i + '">' +
         '<span class="ah-c-item">' +
           (r.art
-            ? '<span class="ah-art" style="background-image:url(\'' + r.art + '\')"></span>'
+            ? '<span class="ah-art art-wrap">' + artWithFallback(r.art, r.ico) + '</span>'
             : '<span class="ah-art ah-art-emoji">' + r.ico + '</span>') +
           '<span class="ah-nm"><b style="color:' + ahRarCol(r.rar) + '">' + r.name + '</b><i>' + r.type + '</i></span></span>' +
         '<span class="ah-c-qty">' + (r.kind === 'stack' ? '×' + r.avail : '') + '</span>' +
@@ -22129,7 +22216,7 @@ function ahRenderSellPanel(){
   h +=
     '<div class="ah-sel-card">' +
       (s.kind === 'item'
-        ? '<span class="ah-art big" style="background-image:url(\'' + s.art + '\')"></span>'
+        ? '<span class="ah-art big art-wrap">' + artWithFallback(s.art, s.ico) + '</span>'
         : '<span class="ah-art big ah-art-emoji">' + s.ico + '</span>') +
       '<span class="ah-nm"><b style="color:' + ahRarCol(s.rar) + '">' + s.name + '</b>' +
       '<em style="color:' + ahRarCol(s.rar) + '">' + ahRarName(s.rar) + '</em><i>' + ahTypeOfSel(s) + '</i></span>' +
