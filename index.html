@@ -4767,7 +4767,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.56.1 — LAST-RADEN LEVER</div>
+            <div class="desc">GENESIS v5.57.0 — MARKERINGEN OCH VALVETS SPÖKE</div>
           </div>
         </div>
       </div>
@@ -4778,7 +4778,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.56.1 — LAST-RADEN LEVER</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.57.0 — MARKERINGEN OCH VALVETS SPÖKE</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -10221,7 +10221,11 @@ function hookVaultCells(root){
     if (!cell) return null;
     const row = S.vault.inv[+cell.dataset.vault];
     if (!row) return null;
-    return {from: 'vault', idx: +cell.dataset.vault, gear: row.gear || null, ico: row.ico || null};
+    /* [BUGG v5.57.0] RADEN SKICKADES INTE MED. Spoket i handen ritar en stapel ur
+       d.row - saknas den blir varje stapel ur valvet ett generiskt paket. Vaskan
+       skickade alltid med sin rad; valvet gjorde det aldrig. */
+    return {from: 'vault', idx: +cell.dataset.vault, gear: row.gear || null,
+            row: row, ico: row.ico || null};
   });
   /* Shift+klick skickar saken tillbaka till väskan — samma vana som på kroppen. */
   grid.addEventListener('click', e => {
@@ -20258,7 +20262,15 @@ function beginDrag(d, x, y){
   d.ghost = g;
   moveGhost(d, x, y);
   d.targets = dragTargetsFor(d);
-  d.targets.forEach(t => t.classList.add('drop-ok'));
+  /* [ANDRAT v5.57.0] ALLA RUTOR LYSTE BLATT sa fort man lyfte nagot, och da gick
+     det inte att se vilken man faktiskt siktade pa. Rutnatens rutor markeras nu
+     INTE i forvag - bara den under pekaren lyser. Kroppsplatserna och vaskfacken
+     behaller sin forhandsmarkering: de ar fa, de ligger utanfor rutnatet, och
+     utan den gar det inte att se vart en pjas faktiskt far ta vagen. */
+  d.targets.forEach(t => {
+    if (t.hasAttribute('data-inv') || t.hasAttribute('data-vault')) return;
+    t.classList.add('drop-ok');
+  });
   document.body.classList.add('dragging');
 }
 function moveGhost(d, x, y){
