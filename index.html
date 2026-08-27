@@ -83,13 +83,113 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 /* ============================================================
    HUVUDGRID — 3 kolumner: vänster / mitt / höger
    ============================================================ */
+/* [ANDRAT v5.66.0] Appen ar TVA kolumner nu: den smala sidoraden och spelet.
+   Forut var det tre RADER - topprad, spel, bottenrad - och de tva raderna at
+   den hojd som saknades pa en 1080-skarm. */
 .app{
-  display:grid;
-  grid-template-rows:auto 1fr auto;
-  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  /* [ANDRAT v5.66.0] min-height:100vh satt har forut. Under uppforstoring blev
+     den ett moment 22: appen var alltid exakt en skarmhojd hog, sa skalan
+     rakades pa fel tal och zoomen skapade sjalv den skrollning den skulle ta
+     bort. Hojden kommer nu ur innehallet; html haller bakgrunden full. */
+  min-height:0;
   gap:var(--gap);
   padding:var(--gap);
-  max-width:1600px;margin:0 auto;
+  max-width:1712px;margin:0 auto;      /* 1600 spel + 96 sidorad + mellanrum */
+}
+html{min-height:100vh}
+.app-main{flex:1 1 auto;min-width:0;max-width:1600px;
+  display:grid;grid-template-rows:1fr;gap:var(--gap)}
+
+/* ===== SIDORADEN ===== */
+.sidenav{
+  flex:0 0 96px;width:96px;position:sticky;top:var(--gap);
+  display:flex;flex-direction:column;gap:8px;
+  max-height:calc(100vh - var(--gap) * 2);
+}
+.sn-player{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
+}
+.sn-player:hover{border-color:var(--border-glow)}
+.sn-player .avatar{width:44px;height:44px;font-size:24px}
+.sn-name{font-size:10px;font-weight:900;letter-spacing:.06em;color:var(--text);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn-lvl{font-size:9px;letter-spacing:.06em;color:var(--cyan);text-transform:uppercase;
+  white-space:nowrap;font-family:var(--font-mono)}
+/* Nivabrickan satt utanfor avataren i toppradens breda kort. Har hor den inne
+   i hornet, annars hanger den ut over sidoradens kant. */
+.sn-player .avatar{position:relative}
+.sn-player .lvl-badge{left:auto;right:-2px;bottom:-2px}
+.sn-player .xp-bar{width:100%;margin-top:2px}
+.sn-xp{font-size:7.5px;color:var(--text-faint);font-family:var(--font-mono);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn-player{overflow:hidden}
+.sn-cur, .sn-nav{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:6px;display:flex;flex-direction:column;gap:5px;
+}
+.sn-nav{flex:1 1 auto;min-height:0;overflow-y:auto}
+.sn-cur .res-pill{
+  border:1px solid var(--border);background:var(--bg-inset);border-radius:8px;
+  width:100%;height:34px;padding:0 6px;
+  display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:6px;
+}
+.sn-cur .res-pill .res-icon{font-size:12px;flex:0 0 auto}
+.sn-cur .res-pill .res-icon .qi{width:17px;height:17px}
+.sn-cur .res-pill .res-body{min-width:0;overflow:hidden}
+.sn-cur .res-pill .res-value{font-size:11px;white-space:nowrap}
+.sn-nav .nav-btn{
+  border:1px solid var(--border);background:var(--bg-inset);border-radius:8px;
+  width:100%;height:auto;padding:6px 3px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  position:relative;cursor:pointer;
+}
+.sn-nav .nav-btn:hover{border-color:var(--border-glow)}
+.sn-nav .nav-btn .ico .qi{width:21px;height:21px}
+.sn-nav .nav-btn .lbl{font-size:7.5px;letter-spacing:.04em;line-height:1.15;text-align:center}
+.sn-nav .nav-btn .lbl small{display:block;font-size:7px;color:var(--gold)}
+/* Foten: ljud, spartillstand och version */
+.sn-foot{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:7px 6px;display:flex;flex-direction:column;gap:5px;align-items:center;
+}
+.sn-snd{display:flex;flex-direction:column;gap:3px;width:100%;align-items:center}
+.sn-snd .link{font-size:8px;letter-spacing:.05em;cursor:pointer;color:var(--text-dim)}
+.sn-snd .link:hover{color:var(--text)}
+.sn-save{display:flex;align-items:center;gap:4px;font-size:7.5px;color:var(--text-faint);
+  text-align:center;line-height:1.2}
+/* Pricken ar gron nar allt star ratt till och lyser rott om nagot ar fel - det
+   var bottenradens enda signal som betydde nagot. */
+.sn-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:0 0 auto;
+  box-shadow:0 0 6px -1px var(--green)}
+.sn-dot.bad{background:var(--pink);box-shadow:0 0 7px -1px var(--pink)}
+.sn-ver{font-size:6.5px;letter-spacing:.02em;color:var(--text-faint);text-align:center;
+  line-height:1.25;word-break:break-word}
+
+/* [TILLAGT v5.66.0] STORRE SKARMAR SKALAR UPP SPELET i stallet for att lamna
+   en havsvidd av tom yta runt det. Skalan raknas av JS ur bade bredden och
+   hojden - den minsta av de tva vinner, sa uppforstoringen aldrig sjalv skapar
+   en skrollning. Under 1x ror vi ingenting: da ar det hellre skrollning an ett
+   spel man inte kan lasa. */
+/* (skalan sitter pa body, se fitApp) */
+
+/* ===== TELEFON: sidoraden viker tillbaka till en RAD ===== */
+@media (max-width:760px){
+  .app{flex-direction:column;padding:8px;max-width:100%}
+  .app-main{width:100%;max-width:100%}
+  .sidenav{position:static;flex:0 0 auto;width:100%;max-height:none;
+    flex-direction:row;flex-wrap:wrap;gap:6px;align-items:stretch}
+  .sn-player{flex:1 1 100%;flex-direction:row;gap:8px;align-items:center;text-align:left}
+  .sn-player .avatar{flex:0 0 40px}
+  .sn-player .xp-bar{flex:1 1 60px}
+  .sn-cur{flex:1 1 100%;flex-direction:row;flex-wrap:wrap}
+  .sn-cur .res-pill{flex:1 1 22%;width:auto}
+  .sn-nav{flex:1 1 100%;flex-direction:row;flex-wrap:wrap;overflow:visible}
+  .sn-nav .nav-btn{flex:1 1 60px;width:auto}
+  .sn-foot{flex:1 1 100%;flex-direction:row;justify-content:space-between;flex-wrap:wrap}
+  .sn-snd{flex-direction:row;width:auto;gap:10px}
 }
 .layout{
   display:grid;
@@ -1773,7 +1873,9 @@ body.dragging *{cursor:grabbing !important}
    Layoutredigeringen kan fortfarande skriva över detta lokalt.
    ============================================================ */
 @media (min-width:821px){
-  #panel-currency, #panel-nav{height:80px;overflow-y:auto;overflow-x:hidden}
+  /* [BORTTAGET v5.66.0] height:80px pa valutorna och navigeringen. Det var
+     TOPPRADENS matt. Rutorna star i sidoraden nu och ska vara hoga, inte breda -
+     regeln klippte dem till atta rader hoga tumnaglar dar bara Inbox syntes. */
   #panel-character{height:392px;overflow:hidden;padding-bottom:8px}
   #panel-pet-team{height:238px;overflow-y:auto;overflow-x:hidden}
   /* [ANDRAT v5.55.0] Regionen och bufflistan ar rivna som egna rutor. Deras
@@ -2331,6 +2433,21 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .sync-chip .bc-ico{background:rgba(255,200,60,.14);border-color:var(--gold);box-shadow:0 0 12px -4px var(--gold)}
 .sync-chip .bc-name{font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--gold)}
 .sync-chip .bc-time{color:var(--gold)}
+.sync-chip{cursor:help}
+/* Kortet som sager vad synken ger, per yrke. */
+.sync-tip{
+  position:fixed;z-index:9100;pointer-events:none;width:max-content;max-width:300px;
+  padding:10px 12px;border-radius:11px;
+  background:linear-gradient(180deg,rgba(20,28,52,.98),rgba(11,16,36,.98));
+  border:1px solid var(--gold);box-shadow:0 0 22px -8px var(--gold),0 8px 22px rgba(0,0,0,.55);
+}
+.cst-head{font-size:9.5px;letter-spacing:.22em;font-weight:900;color:var(--gold);margin-bottom:7px}
+.cst-row{display:flex;justify-content:space-between;gap:14px;font-size:11px;
+  color:var(--text);padding:3px 0}
+.cst-row b{font-weight:800}
+.cst-row span{color:var(--cyan);font-family:var(--font-mono);font-size:10.5px}
+.cst-row.off span,.cst-row.off b{color:var(--text-dim)}
+.cst-foot{margin-top:7px;font-size:9.5px;color:var(--text-dim);font-style:italic}
 .boost-chip .bc-ico{
   width:28px;height:28px;flex:0 0 auto;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-size:15px;
@@ -4034,36 +4151,35 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
 <div class="app">
 
-  <!-- ================= TOP BAR ================= -->
-  <header class="topbar col col-top">
+  <!-- ================= SIDORADEN (v5.66.0) =================
+       Lag forut som en RAD ovanfor spelet, och tillsammans med bottenraden at
+       de tva ungefar 160 pixlar hojd - precis sa mycket att sidan inte fick
+       plats pa en 1080-skarm och man fick skrolla de sista centimetrarna.
+       Nu star allt i en smal kolumn till vanster, dar det finns gott om tom
+       marginal, och bottenraden ar riven. Dess enda innehall som betydde nagot -
+       versionen, ljudknapparna och spartillstandet - bor langst ned har. -->
+  <aside class="sidenav" id="sidenav">
 
-    <!-- Spelarkortet -->
-    <div class="panel hpanel clickable" id="panel-player" title="Your account">
+    <!-- Spelarkortet: langsmalt pa HOJDEN i stallet for bredden. Ordet
+         "Runner" ar borta - det sa ingenting. -->
+    <div class="sn-player clickable" id="panel-player" title="Your account">
       <div class="avatar">🥷<span class="lvl-badge" id="lvl-badge">1</span></div>
-      <div class="player-info">
-        <!-- Namnet kommer fran karaktaren, inte ur filen. Hela kortet gar att
-             klicka pa och oppnar kontot. -->
-        <div class="player-name" id="player-name">RUNNER</div>
-        <div class="player-sub" id="player-level-text">Runner Level 1</div>
-        <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
-        <div class="xp-label" id="xp-label">0 / 100 XP</div>
-      </div>
+      <div class="sn-name" id="player-name">RUNNER</div>
+      <div class="sn-lvl" id="player-level-text">Level 1</div>
+      <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+      <div class="sn-xp" id="xp-label">0 / 100 XP</div>
     </div>
 
-    <!-- [BORTTAGET v5.55.0] HAR LAG EN TOM RAM. Den holl platsen at Data, som
-         revs redan i v5.3.0, och stod sedan dess ihoptryckt mellan spelarkortet
-         och valutorna utan att saga nagot alls. -->
-
-    <!-- Valutorna hör ihop -->
-    <div class="panel hpanel" id="panel-currency">
+    <!-- Valutorna, staplade -->
+    <div class="sn-cur" id="panel-currency">
       <div class="res-pill" data-label="Money" data-color="gold"><span class="res-icon"><span class="qi qi-money"></span></span><span class="res-body"><span class="res-value" id="res-gold">0c</span></span></div>
       <div class="res-pill" data-label="Fuel" data-color="fuel" id="fuel-pill"><span class="res-icon"><span class="qi qi-fuel"></span></span><span class="res-body"><span class="res-value" id="res-fuel">100</span></span></div>
       <div class="res-pill" data-label="Credits" data-color="blue"><span class="res-icon"><span class="qi qi-credits"></span></span><span class="res-body"><span class="res-value" id="res-credits">0</span></span></div>
       <div class="res-pill" data-label="Fragments" data-color="purple"><span class="res-icon"><span class="qi qi-fragments"></span></span><span class="res-body"><span class="res-value" id="res-fragments">0</span></span></div>
     </div>
 
-    <!-- Navigeringen -->
-    <div class="panel hpanel" id="panel-nav">
+    <!-- Navigeringen, staplad -->
+    <div class="sn-nav" id="panel-nav">
       <div class="nav-btn" id="nav-inbox"><span class="ico"><span class="qi qi-inbox"></span></span><span class="lbl">Inbox</span><span class="notif" id="mail-badge" style="display:none">0</span></div>
       <div class="nav-btn" id="nav-ach"><span class="ico"><span class="qi qi-achievements"></span></span><span class="lbl">Achievements</span><span class="notif" id="ach-badge" style="display:none">0</span></div>
       <div class="nav-btn"><span class="ico"><span class="qi qi-events"></span></span><span class="lbl">Events<small>2d 14h</small></span></div>
@@ -4071,9 +4187,24 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <div class="nav-btn" id="nav-shop"><span class="ico"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
       <div class="nav-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
       <div class="nav-btn" id="nav-settings"><span class="ico"><span class="qi qi-settings"></span></span><span class="lbl">Settings</span></div>
-
     </div>
-  </header>
+
+    <!-- Foten: ljudet, spartillstandet och versionen -->
+    <div class="sn-foot">
+      <div class="sn-snd">
+        <span class="link snd-toggle" id="nav-sfx">Sound <span id="nav-sfx-state">ON</span></span>
+        <span class="link snd-toggle" id="nav-music">Music <span id="nav-music-state">ON</span></span>
+      </div>
+      <div class="sn-save" id="sn-save" title="Save status">
+        <i class="sn-dot" id="save-dot"></i>
+        <span id="save-status">Not saved yet</span>
+      </div>
+      <span id="next-save" style="display:none">0:10</span>
+      <div class="sn-ver">GENESIS v5.67.0 — HJÄLPARE BYTS I STÄLLET</div>
+    </div>
+  </aside>
+
+  <div class="app-main">
 
   <!-- ================= HUVUDLAYOUT: 3 KOLUMNER ================= -->
   <main class="layout">
@@ -4124,10 +4255,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
       <!-- ACTIVE PET TEAM -->
       <section class="panel" id="panel-pet-team">
-        <div class="panel-title">Active Pet Team <span class="sub" id="pet-team-count">0/3</span></div>
+        <div class="panel-title">Active Helper Team <span class="sub" id="pet-team-count">0/3</span></div>
         <div class="echo-grid" id="pet-team-grid"></div>
-        <div class="section-label">Active Pet Buffs</div>
-        <div class="shelf-empty" id="pet-buff-line">No active pets</div>
+        <div class="section-label">Active Helper Buffs</div>
+        <div class="shelf-empty" id="pet-buff-line">No helpers in the team</div>
       </section>
 
       <!-- ===== SNABBVALEN OCH REGIONEN I EN RAM (v5.55.0) =====
@@ -4785,7 +4916,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.64.0 — CORE SYNC TÄNDS PÅ RIKTIGT</div>
+            <div class="desc">GENESIS v5.67.0 — HJÄLPARE BYTS I STÄLLET</div>
           </div>
         </div>
       </div>
@@ -4793,26 +4924,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     </div>
   </div>
 
-  <!-- ================= FOOTER ================= -->
-  <footer class="footer">
-    <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.64.0 — CORE SYNC TÄNDS PÅ RIKTIGT</span>
-    </div>
-    <div class="center">
-      <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
-      <span>NEXT SAVE IN <b id="next-save">0:10</b></span>
-    </div>
-    <div class="grp">
-      <span class="link" id="footer-settings">Settings</span>
-      <!-- Ljudet vaxlas HAR, i bottenraden. Raderna stod redan har men var dod
-           text som alltid sa ON. Gront nar det later, rott nar det ar tyst. -->
-      <span class="link snd-toggle" id="nav-sfx">Sound <span id="nav-sfx-state">ON</span></span>
-      <span class="link snd-toggle" id="nav-music">Music <span id="nav-music-state">ON</span></span>
-      <span class="link">Help</span>
-      <span class="link">Open Guide</span>
-      <span class="help-circle">?</span>
-    </div>
-  </footer>
+  <!-- [BORTTAGET v5.66.0] BOTTENRADEN. Ingenting i den var spelarens: Settings
+       har en egen knapp i sidoraden, ljudet vaxlas dar, Help och Open Guide
+       ledde ingenstans, och nasta sparning ar inte nagot man behover se.
+       Versionen, ljudknapparna och spartillstandet bor i sidoradens fot. -->
+  </div>
 </div>
 
 
@@ -13827,9 +13943,11 @@ function updateUI(force){
   /* Vid taket fortsatter paragon. Den star som "50+12" - ett tal man kan lasa
      utan forklaring, och det syns att grundnivan tagit slut. */
   el.lvlBadge.textContent = li.para ? (li.lvl + '+' + li.para) : li.lvl;
+  /* [ANDRAT v5.66.0] "Runner Level 50 · Paragon 75" tog tre rader i den smala
+     sidoraden, och ordet Runner betyder ingenting. Kort form nu. */
   el.lvlText.textContent = li.para
-    ? 'Runner Level ' + li.lvl + ' · Paragon ' + li.para
-    : 'Runner Level ' + li.lvl;
+    ? 'LV ' + li.lvl + ' · P' + li.para
+    : 'LV ' + li.lvl;
   /* Kortet stod med ett hardkodat namn i filen. Nu star det som galler: den
      karaktar man faktiskt spelar, och offline det generiska ordet. */
   if (el.playerName){
@@ -13879,11 +13997,17 @@ function updateUI(force){
      Offlinetaket och offlineandelen ar KVAR som premiumkop; de bor i butiken. */
 
   if (el.saveStatus){
+    /* [ANDRAT v5.66.0] Kortare text - raden ar smal nu - och en PRICK som lyser
+       rott sa fort det gatt for lange sedan sparningen lyckades. Det var
+       bottenradens enda signal som betydde nagot, och den enda som ar kvar. */
+    const dot = document.getElementById('save-dot');
     if (S.savedAt){
       const ago = Math.max(0, Math.round((Date.now() - S.savedAt) / 1000));
-      el.saveStatus.textContent = ago < 3 ? 'Synced just now' : 'Synced ' + ago + 's ago';
+      el.saveStatus.textContent = ago < 3 ? 'Synced' : 'Synced ' + ago + 's';
+      if (dot) dot.classList.toggle('bad', ago > 90);
     } else {
-      el.saveStatus.textContent = 'Not saved yet';
+      el.saveStatus.textContent = 'Not saved';
+      if (dot) dot.classList.add('bad');
     }
   }
   if (el.nextSave){
@@ -13892,6 +14016,54 @@ function updateUI(force){
   }
   if (typeof renderHelperSlots === 'function') renderHelperSlots();
 }
+
+/* ===== SKALAN PA STORA SKARMAR (v5.66.0) =====
+   Spelet ar byggt for 1712 px brett och sin egen hojd. Pa en storre skarm lag
+   det forut som en liten o mitt i en tom yta. Nu forstoras HELA appen sa den
+   fyller skarmen - men bara uppat: under 1x rors ingenting, for da vore ett
+   nedkrympt spel svarare att lasa an ett man skrollar i.
+   Bade bredd och hojd raknas, och den MINSTA av de tva vinner - annars kunde
+   uppforstoringen sjalv skapa den skrollning vi just blev av med. */
+const APP_BASE_W = 1712;
+function fitApp(){
+  const app = document.querySelector('.app');
+  if (!app) return;
+  /* ZOOM, inte transform. En transform bryter fixed-positionering och flyttar
+     musens koordinater ur led - da hade varje drag i vaskan, varje flyttbart
+     fonster och varje hovringskort landat fel. zoom raknas in i layouten, sa
+     allt - aven fonstren utanfor appen - foljer med och traffar ratt. */
+  document.body.style.zoom = '';
+  if (window.innerWidth <= 760) return;
+  /* Appens egen hojd duger INTE som matt: den har min-height 100vh, sa den ar
+     alltid exakt skarmhojden och skalan blev darfor alltid 1. Vi mater i
+     stallet det som faktiskt star i den - spelet och sidoraden - och lagger
+     till marginalen runt om. */
+  const mainEl = document.querySelector('.app-main');
+  const sideEl = document.getElementById('sidenav');
+  const natH = Math.max(mainEl ? mainEl.scrollHeight : 0,
+                        sideEl ? sideEl.scrollHeight : 0) + 20;
+  if (!natH || natH < 200) return;
+  let k = Math.min(window.innerWidth / APP_BASE_W, window.innerHeight / natH);
+  if (k <= 1.02) return;                 /* ryms inte, eller precis - lat vara */
+  k = Math.min(k, 1.6);                  /* tak, sa en jattemonitor inte blir grotesk */
+  /* MAT, PASTA INTE. Rakningen ovan ar en gissning: zoom flyttar bade vad som
+     ritas och vad viewporten ar vard, sa den kan sla nagra procent fel at bada
+     hall. Vi satter skalan, MATER om sidan skrollar, och backar tills den inte
+     gor det. Hellre nagon procent mindre an en skrollist. */
+  for (let i = 0; i < 14; i++){
+    document.body.style.zoom = k.toFixed(4);
+    if (document.documentElement.scrollHeight <= window.innerHeight + 1) return;
+    k *= 0.975;
+    if (k <= 1.02){ document.body.style.zoom = ''; return; }
+  }
+}
+window.addEventListener('resize', fitApp);
+/* Skalan raknas om nagra ganger de forsta sekunderna: rutorna fylls av servern
+   och hojden andras medan det sker. */
+(function fitLoop(){
+  let n = 0;
+  const t = setInterval(() => { fitApp(); if (++n > 10) clearInterval(t); }, 600);
+})();
 
 /* ---------- START ---------- */
 /* iOS-vakter: dubbeltapp-och-håll väcker Safaris förstoringsglas trots CSS.
@@ -13926,12 +14098,14 @@ el.hex.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
    visas som en kod i inställningarna. Koden skickas som skärmbild och
    låses sedan permanent i filen. */
 const LAYOUT_KEY = 'genesis-layout-v1';
-const COLS = {
-  top: document.querySelector('.col-top'),
-  left: document.querySelector('.col-left'),
-  mid: document.querySelector('.col-mid'),
-  right: document.querySelector('.col-right')
-};
+/* [ANDRAT v5.66.0] col-top var toppraden. Den ar riven - sidoraden ar inte en
+   yta man moblerar om - sa den finns inte langre att peka pa. Listan tvattas
+   fran tomma platser, annars kastar layoutlaget pa forsta raden det korde. */
+const COLS = {};
+[['left', '.col-left'], ['mid', '.col-mid'], ['right', '.col-right']].forEach(pair => {
+  const e = document.querySelector(pair[1]);
+  if (e) COLS[pair[0]] = e;
+});
 let editMode = false, draggedPanel = null;
 
 function panelsIn(col){ return Array.from(col.querySelectorAll(':scope > .panel')); }
@@ -16160,6 +16334,46 @@ function tickSurveyClock(){
 }
 /* Ritas om varje tick — brickorna räknar ned och försvinner av sig själva när
    tiden går ut, utan någon egen timer att städa. */
+/* ===== VAD CORE SYNC FAKTISKT GER (v5.65.0) =====
+   Servern lagger 15 % av synkens sekunder OVANPA den tid som delas ut, och den
+   tiden gar till samlarnas cykel och till hantverkskon. Stationerna raknar pa
+   ren vaggklocka och rors inte alls - det ar sant och ska sagas rakt ut, inte
+   gommas bakom ordet "alla".
+   Hantverkarens capstone Core Workshop laggs OVANPA de 15 procenten. */
+function coreSyncTipHTML(){
+  const rows = [];
+  myMainProfs().forEach(p => {
+    if (p.kind === 'gathering'){
+      const now = gatherCycleSecs(p.id);
+      const then = now / 1.15;
+      rows.push('<div class="cst-row"><b>' + p.name + '</b>' +
+        '<span>next find ' + now.toFixed(1) + 's \u2192 ' + then.toFixed(1) + 's</span></div>');
+    } else {
+      const core = skillPct(p.id, 'core_boost');
+      rows.push('<div class="cst-row"><b>' + p.name + '</b>' +
+        '<span>work orders ' + (core > 0 ? '15% + ' + core + ' pp' : '15%') + ' faster</span></div>');
+    }
+  });
+  const sec = mySecondaryProf();
+  if (sec) rows.push('<div class="cst-row off"><b>' + sec.station + '</b>' +
+    '<span>not affected \u2014 runs on its own clock</span></div>');
+  if (!rows.length) rows.push('<div class="cst-row off"><span>Learn a profession to feel this.</span></div>');
+  return '<div class="cst-head">CORE SYNC</div>' + rows.join('') +
+    '<div class="cst-foot">Holding again restarts the five minutes \u2014 it never stacks.</div>';
+}
+let syncTipEl = null;
+function showSyncTip(x, y){
+  hideSyncTip();
+  const d = document.createElement('div');
+  d.className = 'sync-tip';
+  d.innerHTML = coreSyncTipHTML();
+  document.body.appendChild(d);
+  const w = d.offsetWidth, hh = d.offsetHeight;
+  d.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+  d.style.top  = Math.max(8, Math.min(y + 14, window.innerHeight - hh - 8)) + 'px';
+  syncTipEl = d;
+}
+function hideSyncTip(){ if (syncTipEl){ syncTipEl.remove(); syncTipEl = null; } }
 function renderBoostBar(){
   const bar = $('boost-bar');
   if (!bar) return;
@@ -16170,7 +16384,10 @@ function renderBoostBar(){
      och sin nedrakning fran fem minuter. */
   const syncL = (typeof coreSyncLeft === 'function') ? coreSyncLeft() : 0;
   if (syncL > 0){
-    h += '<div class="boost-chip sync-chip" title="Core Sync \u2014 all your professions run 15% faster">' +
+    /* [ANDRAT v5.65.0] "+15% professions" sa inget om vad man FAR. Brickan har
+       nu ett eget kort pa hovring som raknar ut det per yrke, med de tal som
+       galler just den har karaktaren. */
+    h += '<div class="boost-chip sync-chip" id="sync-chip">' +
       '<span class="bc-ico">\u26a1</span>' +
       '<span class="bc-name">CORE SYNC +15%</span>' +
       '<span class="bc-time">' + fmtDur(syncL) + '</span></div>';
@@ -16201,6 +16418,14 @@ function renderBoostBar(){
       '<span class="bc-time">' + fmtDur(left) + '</span></div>';
   }
   bar.innerHTML = h;
+  const chip = $('sync-chip');
+  if (chip){
+    chip.addEventListener('mouseenter', e => {
+      const b = chip.getBoundingClientRect();
+      showSyncTip(b.left, b.bottom);
+    });
+    chip.addEventListener('mouseleave', hideSyncTip);
+  } else hideSyncTip();
   hookBoostTips(bar);
 }
 /* Hovringen berättar vad boosten gör. Samma kort som allt annat i spelet använder,
@@ -17822,7 +18047,12 @@ document.addEventListener('click', e => {
     if (typeof pendingTeamSlot !== 'undefined' && pendingTeamSlot != null) clearPendingTeamSlot();
     return;
   }
-  if (slot.dataset.teampet){ removeTeamPet(+slot.dataset.teampet); return; }
+  /* [ANDRAT v5.67.0] ETT KLICK PA EN BESATT PLATS TOG UT HJALPAREN. Spelaren
+     vill i stallet BYTA: platsen behaller sin hjalpare, forradet oppnas, och
+     valjer man nagon annan dar byter de plats. Vill man tomma platsen finns
+     draget kvar - dra ut henne i forradet. Darfor faller en besatt plats nu
+     genom till samma vag som en tom; enda skillnaden ar att den redan har
+     nagon i sig. */
   /* [ANDRAT v5.42.0] Punkt 6: plustecknet gav en smal textlista. Nu oppnas
      HELA hjalparforradet - samma vy som Helpers i snabbraden - sa man ser dem
      som foremal i rutor och kan dra darifran till lagplatsen. */
@@ -21201,7 +21431,8 @@ async function findPlayer(h){
     box.innerHTML = '<div class="desc" style="color:#ff9b9b">' + findErrText(e) + '</div>';
   }
 }
-$('footer-settings').addEventListener('click', openSettings);
+/* [BORTTAGET v5.66.0] Bottenradens Settings-lank. Knappen i sidoraden gor
+   samma sak, och bottenraden finns inte langre. */
 $('settings-close').addEventListener('click', closeSettings);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeSettings(); });
 /* Byt karaktar: slapp karaktaren men behall inloggningen, glom den lokala
