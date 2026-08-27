@@ -146,6 +146,11 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   --hc:var(--cyan);
   position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:8px 7px 9px;border-radius:11px;cursor:pointer;overflow:hidden;
+  /* [PROVAT OCH FORKASTAT v5.92.0] Ett minimimatt pa kortet lat innehallet fa
+     plats, men rutan omkring vaxte INTE med det: spalten till vanster ar redan
+     overfull (bade karaktarsrutan och snabbfacket kapar drygt tjugo pixlar av
+     sitt eget innehall i utgangslaget). Kortet vaxte darfor UT ur sin ruta och
+     la sig over bonusraden. Utrymmet tas i stallet inne i kortet - se namnet. */
   background:linear-gradient(180deg, color-mix(in srgb, var(--hc) 15%, var(--bg-inset)), var(--bg-inset) 70%);
   border:1px solid var(--hc);
   box-shadow:0 0 16px -8px var(--hc), inset 0 0 22px -14px var(--hc);
@@ -153,9 +158,12 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .ht-card:hover{box-shadow:0 0 20px -6px var(--hc), inset 0 0 22px -12px var(--hc)}
 /* [ANDRAT v5.87.0] Storre bild, niva som bricka i hornet, och en XP-matare som
    faktiskt syns - den var fyra pixlar hog mot en nastan osynlig fond. */
-/* [ANDRAT v5.90.0] Bilden ar 15 % storre, nivan star som en pillerbricka i
-   kortets ovre VANSTRA horn i samma stil som knappen ovanfor rutan, och
-   XP-mataren ar dubbelt sa tjock. */
+/* [ANDRAT v5.92.0] BILDEN AR SA STOR RUTAN TILLATER, och namnet ligger OVANPA
+   dess nederkant i stallet for pa en egen rad. Skalet ar matt: kortets hojd
+   bestams helt av rutan omkring, som ger 133 px, och innehallet ville ha mer
+   redan innan bilden vaxte. Flexen tryckte da ihop det som fick krympa - NAMNET
+   var noll pixlar hogt och har darfor aldrig synts sedan korten byggdes. Med
+   namnet ovanpa bilden ryms allt: bilden, formagan, mataren OCH namnet. */
 .htc-art{position:relative;width:85px;height:85px;display:grid;place-items:center;flex:0 0 auto;
   filter:drop-shadow(0 0 8px color-mix(in srgb, var(--hc) 50%, transparent))}
 .htc-badge{
@@ -168,18 +176,24 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   border:1px solid color-mix(in srgb, var(--hc) 55%, var(--border));
   box-shadow:0 0 10px -5px var(--hc);
 }
-.htc-name{font-size:11.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.htc-name{position:absolute;left:0;right:0;bottom:-2px;z-index:2;
+  font-size:11.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text);text-align:center;line-height:1.1;
+  text-shadow:0 0 4px rgba(0,0,0,.95), 0 1px 3px rgba(0,0,0,.9);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
 .htc-eff{font-size:9.5px;font-weight:700;letter-spacing:.02em;color:#fff;text-align:center;
   line-height:1.2;margin-top:1px;max-width:100%}
 .htc-eff.dim{color:var(--text-faint);font-weight:500}
-.htc-xp{font-size:9px;font-weight:700;color:rgba(255,255,255,.78);
-  font-family:var(--font-mono);padding-top:3px}
-.htc-bar{width:100%;height:16px;flex:0 0 16px;border-radius:8px;margin-top:auto;
+.htc-bar{position:relative;width:100%;height:14.4px;flex:0 0 14.4px;border-radius:8px;margin-top:auto;
   background:rgba(4,8,18,.85);border:1px solid color-mix(in srgb, var(--hc) 45%, var(--border));
-  overflow:hidden}
-.htc-bar i{display:block;height:100%;border-radius:8px;background:var(--hc);
+  overflow:hidden;display:flex;align-items:center;justify-content:center}
+.htc-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--hc);
   box-shadow:0 0 9px -2px var(--hc)}
+/* Texten maste kunna lasas BADE mot den fyllda delen och mot den tomma. Vit med
+   en svart kontur klarar bagge, oavsett vilken sallsynthetsfarg mataren bar. */
+.htc-bar b{position:relative;z-index:2;font-family:var(--font-mono);
+  font-size:8.5px;font-weight:900;letter-spacing:.04em;line-height:1;color:#fff;
+  text-shadow:0 0 3px rgba(0,0,0,.95), 0 1px 2px rgba(0,0,0,.9);white-space:nowrap}
 /* Tom och last plats: samma form, tystare. */
 .ht-card.empty, .ht-card.locked{
   justify-content:center;gap:5px;border-style:dashed;border-color:var(--border);
@@ -1874,16 +1888,16 @@ body.dragging *{cursor:grabbing !important}
   background:linear-gradient(90deg,#1fa85a,#4ee88a);
   box-shadow:0 0 7px -2px #4ee88a;transition:width .12s linear}
 .prof-card .jc-cyc.paused .jc-cycfill{background:var(--pink);width:100% !important;opacity:.35}
-/* [ANDRAT v5.90.0] SEXKANTIGA PA RIKTIGT. Forra formen skar bara av tva horn -
-   den var en ruta med avfasningar, inte en sexkant. Nu ar bada kortsidorna
-   spetsade, sa formen har sex sidor. Ramen kan inte ritas med border, for
-   urklippet skar bort den: samma tvalagerstrick som hexikonen anvander, ett
-   yttre lager i ramfargen och ett inre en pixel mindre som ar fyllningen. */
+/* [ANDRAT v5.92.0] ATTAKANTIGA. Forra steget spetsade kortsidorna, alltsa sex
+   sidor. Nu ar i stallet alla fyra horn avfasade, vilket ger atta sidor: fyra
+   raka kanter och fyra sneddar. Ramen kan inte ritas med border, for urklippet
+   skar bort den: samma tvalagerstrick som hexikonen anvander, ett yttre lager i
+   ramfargen och ett inre en pixel mindre som ar fyllningen. */
 .prof-card .jc-btn{
   position:relative;
   flex:0 0 auto;width:158px;box-sizing:border-box;
   display:flex;align-items:center;gap:9px;
-  padding:10px 20px;cursor:pointer;text-align:left;
+  padding:10px 16px;cursor:pointer;text-align:left;
   clip-path:none;border:0;border-radius:0;background:none;
   font-size:10.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
   color:var(--text);
@@ -1892,7 +1906,8 @@ body.dragging *{cursor:grabbing !important}
 }
 .prof-card .jc-btn::before,.prof-card .jc-btn::after{
   content:'';position:absolute;pointer-events:none;
-  clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,13px 100%,0 50%);
+  clip-path:polygon(11px 0,calc(100% - 11px) 0,100% 11px,100% calc(100% - 11px),
+    calc(100% - 11px) 100%,11px 100%,0 calc(100% - 11px),0 11px);
 }
 .prof-card .jc-btn::before{inset:0;background:var(--jcb-ram)}
 .prof-card .jc-btn::after{inset:1px;background:var(--jcb-fyll)}
@@ -1934,9 +1949,9 @@ body.dragging *{cursor:grabbing !important}
   .prof-card .jc-bg{width:92px;height:92px;right:110px}
   .prof-card .jc-emoji{font-size:64px;line-height:92px}
   .prof-card .jc-link{position:static; transform:none; flex:0 0 auto; padding:6px 7px}
-  /* [ANDRAT v5.90.0] Spetsarna ater 13 px i var ande, sa texten behover samma
-     luft har som pa datorn - annars gar bokstaverna in i snedkanten. */
-  .prof-card .jc-btn{padding:10px 18px}
+  /* [ANDRAT v5.92.0] Avfasningarna ater 11 px i varje horn; samma luft som pa
+     datorn sa bokstaverna inte gar in i snedkanten. */
+  .prof-card .jc-btn{padding:10px 16px}
   /* Namnet fick krypa in under knappen. Mitten maste fa krympa, och langa namn
      ska brytas i stallet for att svalla ut over grannen. */
 
@@ -4566,7 +4581,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.91.0 — VÄSKKNAPPEN</div>
+        <div class="sn-ver">GENESIS v5.92.0 — ÅTTAKANTER OCH MÄTARE</div>
       </div>
     </div>
   </aside>
@@ -5314,7 +5329,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.91.0 — VÄSKKNAPPEN</div>
+            <div class="desc">GENESIS v5.92.0 — ÅTTAKANTER OCH MÄTARE</div>
           </div>
         </div>
       </div>
@@ -17322,12 +17337,11 @@ function renderPetPanel(){
               ' title="' + petName(p) + ' \u2014 click to change" style="--hc:' + col + '">' +
         '<span class="htc-badge">Lev ' + li.lvl + '</span>' +
         '<div class="htc-art"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 85) +
-          ';border:0;background:transparent"></div></div>' +
-        '<div class="htc-name">' + petName(p) + '</div>' +
+          ';border:0;background:transparent"></div>' +
+          '<div class="htc-name">' + petName(p) + '</div></div>' +
         (eff ? '<div class="htc-eff">' + eff + '</div>' : '<div class="htc-eff dim">No ability</div>') +
-        '<div class="htc-bar"><i style="width:' + pct + '%"></i></div>' +
-        '<div class="htc-xp">' + (max ? 'Level ' + li.lvl + ' \u00b7 fully grown'
-                                      : fmt(li.into) + ' / ' + fmt(li.need) + ' XP') + '</div>' +
+        '<div class="htc-bar"><i style="width:' + pct + '%"></i><b>' +
+          (max ? 'FULLY GROWN' : fmt(li.into) + ' / ' + fmt(li.need) + ' XP') + '</b></div>' +
       '</div>';
     } else {
       html += '<div class="ht-card empty" data-teamslot="' + i + '" title="Choose a helper">' +
