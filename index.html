@@ -1382,6 +1382,46 @@ body.dragging *{cursor:grabbing !important}
 @keyframes bfFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 @keyframes bfBlink{0%{opacity:1}100%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){ .bonus-find{animation:none} }
+/* ===== DROPPEN SOM FLYGER UT UR NODEN (v5.54.0) =====
+   Sa fort tomgangen ger nagot - ett samlarfynd, en enhet ur sjukstugan eller
+   raffinaderiet, skrap - kastas varans egen bild ut ur karnan, svavar i tva
+   sekunder och tonar bort. Den ligger INNE i nodens yta, aldrig over ett oppet
+   fonster; det var precis felet den gamla fyndrutan hade. Den tar heller inga
+   klick - det ar en signal, inte en knapp: bytet ar redan bokfort. */
+.node-drop{
+  position:absolute;z-index:6;pointer-events:none;user-select:none;
+  display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:999px;
+  background:linear-gradient(180deg, rgba(20,28,52,.94), rgba(11,16,36,.94));
+  border:1px solid var(--ndc, var(--cyan));
+  box-shadow:0 0 18px -6px var(--ndc, var(--cyan)), 0 5px 14px rgba(0,0,0,.45);
+  font-size:11px;font-weight:800;letter-spacing:.04em;color:var(--text);
+  opacity:0;
+}
+.node-drop .nd-art{width:22px;height:22px;flex:0 0 auto;display:flex;
+  align-items:center;justify-content:center;font-size:15px}
+.node-drop .nd-art .art-img{width:100%;height:100%;object-fit:contain}
+.node-drop b{color:var(--ndc, var(--cyan));font-family:var(--font-mono);font-weight:700}
+/* Ett steg ut ur karnan, sedan langsam sväv uppat medan den tonar bort.
+   Tva sekunder svavande ar hela poangen - kortare hinner man inte se. */
+.node-drop.fly{animation:ndOut .42s cubic-bezier(.2,.9,.3,1) forwards,
+                         ndHover 2s ease-in-out .42s 1 forwards,
+                         ndFade .45s ease-in 2.42s forwards}
+@keyframes ndOut{
+  0%  {opacity:0; transform:translate(0,0) scale(.35)}
+  60% {opacity:1}
+  100%{opacity:1; transform:translate(var(--ndx,0px),var(--ndy,-46px)) scale(1)}
+}
+@keyframes ndHover{
+  0%,100%{transform:translate(var(--ndx,0px),var(--ndy,-46px)) scale(1)}
+  50%    {transform:translate(var(--ndx,0px),calc(var(--ndy,-46px) - 9px)) scale(1)}
+}
+@keyframes ndFade{
+  from{opacity:1}
+  to  {opacity:0; transform:translate(var(--ndx,0px),calc(var(--ndy,-46px) - 26px)) scale(.85)}
+}
+@media (prefers-reduced-motion:reduce){
+  .node-drop.fly{animation:ndOut .01s forwards, ndFade .3s ease-in 2.42s forwards}
+}
 /* ===== YRKESKORTEN (v5.10.0) =====
    OMBYGGT efter spelarens skiss: breda rader under varandra, inte tva smala
    kolumner. Varje rad har ikonen till vanster, namn och niva bredvid, XP-mataren
@@ -1530,7 +1570,10 @@ body.dragging *{cursor:grabbing !important}
 /* --- QUICK ACCESS --- */
 /* FEM i bredd: två rader ger tio platser. Rutorna blir smalare, men ikonen och
    texten VÄXER — det är innehållet som ska synas, inte ramen runt det. */
-.qa-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+/* [ANDRAT v5.55.0] Fem kolumner satt nar rutan lag i den breda hogerspalten.
+   I vansterspalten blev knapparna sa smala att "Auction House" bots i tre
+   rader. Fyra kolumner ger nio knappar pa tva och en halv rad med luft kvar. */
+.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .qa-btn{
   position:relative;aspect-ratio:1/0.95;border-radius:var(--radius-sm);cursor:pointer;
   background:var(--bg-row);border:1px solid var(--border-soft);
@@ -1720,16 +1763,20 @@ body.dragging *{cursor:grabbing !important}
    Layoutredigeringen kan fortfarande skriva över detta lokalt.
    ============================================================ */
 @media (min-width:821px){
-  #panel-data-res, #panel-currency, #panel-nav{height:80px;overflow-y:auto;overflow-x:hidden}
+  #panel-currency, #panel-nav{height:80px;overflow-y:auto;overflow-x:hidden}
   #panel-character{height:392px;overflow:hidden;padding-bottom:8px}
   #panel-pet-team{height:238px;overflow-y:auto;overflow-x:hidden}
-  #panel-current-region, #panel-active-buffs{height:275px;overflow-y:auto;overflow-x:hidden}
+  /* [ANDRAT v5.55.0] Regionen och bufflistan ar rivna som egna rutor. Deras
+     plats bar nu snabbvalen med regionen som flik - lika hog som de var. */
   #panel-home-server{height:397px;min-height:0}
   #panel-network-map{height:516px;overflow-y:auto;overflow-x:hidden}
   #panel-professions{height:396px;overflow-y:auto;overflow-x:hidden}
-  #panel-expeditions{height:242px;overflow-y:auto;overflow-x:hidden}
+  /* [ANDRAT v5.55.0] Snabbvalen lag under expeditionerna och holl dem korta.
+     Nu ar spalten fri, sa expeditionsrutan far vaxa ned till samma underkant
+     som natverkskartan i mitten. */
+  #panel-expeditions{height:517px;overflow-y:auto;overflow-x:hidden}
   #panel-expeditions .tab-pane{height:auto;min-height:0}
-  #panel-quick-access{height:264px;overflow-y:auto;overflow-x:hidden}
+  #panel-quick-access{height:273px;overflow-y:auto;overflow-x:hidden}
 }
 
 /* Rullningslister i spelets färger — aldrig mer vit systemlist */
@@ -2560,7 +2607,11 @@ body.vt-green #vault-overlay .inv-modal, body.vt-green .bagwin.vaultbagwin{
 /* [TILLAGT v5.47.0] BILD MED RESERV. Bilden fyller rutan; gar den inte att
    ladda tas den bort och omslaget far klassen 'noart', varpa emojin visas.
    Samma tva rader galler var an bilden ritas - vaskan, receptkortet, resten. */
-.art-img{width:100%;height:100%;object-fit:contain;display:block}
+/* [TILLAGT v5.54.1] Ingen bild i spelet far vara webblasarens dragobjekt, och
+   ingen bild far heller ata musnedslaget fran rutan den ligger i. */
+.art-img{width:100%;height:100%;object-fit:contain;display:block;
+  -webkit-user-drag:none;user-select:none;pointer-events:none}
+.inv-slot img, .pet-cell img, .bagwin img{-webkit-user-drag:none;pointer-events:none}
 .art-fall{display:none;font-style:normal;line-height:1;text-align:center}
 .noart > .art-fall{display:block}
 .rr-art:has(.art-img){display:flex;align-items:center;justify-content:center;padding:3px}
@@ -3974,12 +4025,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </div>
     </div>
 
-    <!-- Data hör ihop med Data/sec -->
-    <div class="panel hpanel" id="panel-data-res">
-      <!-- [BORTTAGET v5.3.0] HAR STOD DATA och Data per sekund. Valutan finns
-           inte langre - inget skapar den och inget koper for den. Platsen star
-           tom tills nagot varre an ett dott tal ska sta dar. -->
-    </div>
+    <!-- [BORTTAGET v5.55.0] HAR LAG EN TOM RAM. Den holl platsen at Data, som
+         revs redan i v5.3.0, och stod sedan dess ihoptryckt mellan spelarkortet
+         och valutorna utan att saga nagot alls. -->
 
     <!-- Valutorna hör ihop -->
     <div class="panel hpanel" id="panel-currency">
@@ -4057,10 +4105,33 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="shelf-empty" id="pet-buff-line">No active pets</div>
       </section>
 
-      <!-- CURRENT REGION + ACTIVE BUFFS: två små rutor sida vid sida -->
-      <div class="panel-pair" id="pair-region-buffs">
-        <section class="panel" id="panel-current-region">
-          <div class="panel-title">Region Reputation</div>
+      <!-- ===== SNABBVALEN OCH REGIONEN I EN RAM (v5.55.0) =====
+           Snabbvalen lag langst ned i hogerspalten och regionen har nere till
+           vanster. Nu bor de i SAMMA ram med var sin flik, dar regionen stod
+           forut. Rutan Active Buffs ar riven: den sa "No active buffs" i stort
+           sett jamt och tog en halv spalt for det. -->
+      <section class="panel" id="panel-quick-access">
+        <div class="tabs" id="quick-tabs">
+          <div class="tab active" data-pane="pane-quick-access">Quick Access</div>
+          <div class="tab" data-pane="pane-region-rep">Region</div>
+        </div>
+        <div class="tab-pane" id="pane-quick-access">
+          <div class="qa-grid">
+            <div class="qa-btn" id="qa-inventory"><span class="ico"><span class="qi qi-inventory"></span></span><span class="lbl">Inventory</span></div>
+            <div class="qa-btn" id="qa-vault"><span class="ico"><span class="qi qi-vault"></span></span><span class="lbl">Vault</span></div>
+            <div class="qa-btn" id="qa-pets"><span class="ico"><span class="qi qi-pets"></span></span><span class="lbl">Helpers</span></div>
+            <div class="qa-btn"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span></div>
+            <div class="qa-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
+            <div class="qa-btn"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
+            <div class="qa-btn" id="qa-friends"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span><span class="notif" id="friend-badge" style="display:none">0</span></div>
+            <div class="qa-btn"><span class="ico"><span class="qi qi-guild"></span></span><span class="lbl">Guild</span></div>
+            <!-- [BORTTAGET v5.55.0] Den tomma nionde rutan. Med fem kolumner
+                 var den en arlig lucka; med fyra fyller de atta knapparna tva
+                 hela rader, och en tom ruta ensam pa en tredje rad ar bara
+                 en tom rad. -->
+          </div>
+        </div>
+        <div class="tab-pane" id="pane-region-rep" style="display:none">
           <div class="server-thumb" id="region-thumb">NEON HUB</div>
           <div class="zone-line">📍 <span id="current-zone">No zone entered</span></div>
           <div class="rep-block">
@@ -4072,14 +4143,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
               <div class="bonus-row"><span>Production</span><span id="rep-bonus">+0%</span></div>
             </div>
           </div>
-        </section>
-        <section class="panel" id="panel-active-buffs">
-          <div class="panel-title">Active Buffs</div>
-          <div class="buff-scroll" id="active-buffs">
-            <div class="shelf-empty">No active buffs</div>
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
 
     </div>
@@ -4225,23 +4290,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         </div>
       </section>
 
-      <!-- QUICK ACCESS -->
-      <section class="panel" id="panel-quick-access">
-        <div class="panel-title">Quick Access</div>
-        <div class="qa-grid">
-          <div class="qa-btn" id="qa-inventory"><span class="ico"><span class="qi qi-inventory"></span></span><span class="lbl">Inventory</span></div>
-          <div class="qa-btn" id="qa-vault"><span class="ico"><span class="qi qi-vault"></span></span><span class="lbl">Vault</span></div>
-          <div class="qa-btn" id="qa-pets"><span class="ico"><span class="qi qi-pets"></span></span><span class="lbl">Helpers</span></div>
-          <div class="qa-btn"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span></div>
-          <div class="qa-btn"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
-          <div class="qa-btn"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
-          <div class="qa-btn" id="qa-friends"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span><span class="notif" id="friend-badge" style="display:none">0</span></div>
-          <div class="qa-btn"><span class="ico"><span class="qi qi-guild"></span></span><span class="lbl">Guild</span></div>
-          <!-- En ledig plats kvar: en tom ruta ar arligare an att stracka ut nio
-               over fem kolumner. Den fylls nar vi har innehall. -->
-          <div class="qa-btn empty" aria-hidden="true"></div>
-        </div>
-      </section>
+      <!-- [FLYTTAT v5.55.0] Snabbvalen bor i vanstersp alten nu, i samma ram
+           som regionen. -->
     </div>
   </main>
 
@@ -4709,7 +4759,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.53.3 — NODERNA I RAK LINJE</div>
+            <div class="desc">GENESIS v5.55.0 — SNABBVALEN FLYTTADE</div>
           </div>
         </div>
       </div>
@@ -4720,7 +4770,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.53.3 — NODERNA I RAK LINJE</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.55.0 — SNABBVALEN FLYTTADE</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -5237,6 +5287,8 @@ async function netStationCollect(){
     if (r && r.units > 0){
       await netPullItems();
       spawnFloat({text: '+' + r.units + ' ' + MATERIALS[sec.bound].name, idle: true});
+      /* [TILLAGT v5.54.0] Sjukstugan och raffinaderiet kastar ocksa ut sitt. */
+      nodeDropPop(sec.bound, r.units, PROF_COLOR[sec.id] || null);
     }
     return r;
   } catch (e){ return null; }
@@ -8520,7 +8572,15 @@ function stackIcoOf(key, fallbackIco){
 /* Ritar bilden plus en gomd reserv. Faller bilden bort satts klassen 'noart'
    pa omslaget, och stilarket visar reserven i stallet. */
 function artWithFallback(src, emoji){
-  return '<img class="art-img" src="' + src + '" alt="" ' +
+  /* [BUGG v5.54.1] HAR LAG ORSAKEN TILL ATT INGET GICK ATT DRA I VASKAN.
+     Sedan staplarna fick RIKTIGA bilder i stallet for bakgrundsbilder ar varje
+     ruta med bild en <img> - och en bild ar webblasarens EGET dragobjekt. Sa
+     fort man tryckte ner och drog tog webblasaren over musen och slutade skicka
+     rorelser till sidan, sa spelets eget drag vaknade aldrig. Rutor UTAN bild
+     (bara ett tecken) gick att dra hela tiden - darav att det sag godtyckligt
+     ut. Samma buggfamilj som husdjursrutorna hade. draggable=false lamnar
+     musen till spelet. */
+  return '<img class="art-img" draggable="false" src="' + src + '" alt="" ' +
          'onerror="artMiss(this.getAttribute(\'src\'));var p=this.parentNode;this.remove();p.classList.add(\'noart\');">' +
          '<i class="art-fall">' + (emoji || '\ud83d\udce6') + '</i>';
 }
@@ -10257,7 +10317,17 @@ function vaultCellHTML(i){
   }
   if (row){
     const showQty = row.stack || row.qty > 1;
-    return '<div class="inv-slot filled" data-vault="' + i + '"><span class="inv-ico">' + row.ico + '</span>' +
+    /* [BUGG v5.54.1] VALVET RITADE BARA TECKNET. Vaskan ritar varans egen bild
+       med tecknet som reserv; valvet gjorde det aldrig, sa samma sak BYTTE
+       utseende sa fort den flyttades in i valvet. Nu gar bada genom exakt samma
+       tre fall - bransleceller, bild, och tecken som sista utvag. */
+    const vArt = stackArtOf(row.key);
+    const vIco = row.key === 'fuelcell'
+      ? '<span class="inv-ico"><span class="qi qi-fuel iv-qi"></span></span>'
+      : (vArt
+          ? '<div class="iv-img art-wrap">' + artWithFallback(vArt, stackIcoOf(row.key, row.ico)) + '</div>'
+          : '<span class="inv-ico">' + row.ico + '</span>');
+    return '<div class="inv-slot filled" data-vault="' + i + '">' + vIco +
       (showQty ? '<span class="inv-qty">' + (row.qty > 999 ? '999+' : row.qty) + '</span>' : '') + '</div>';
   }
   return '<div class="inv-slot" data-vault="' + i + '"></div>';
@@ -13264,6 +13334,66 @@ function flyToBag(fromEl, ico){
     target.classList.add('got');
     setTimeout(() => target.classList.remove('got'), 460);
   };
+}
+/* ===== DROPPEN FLYGER UT UR NODEN (v5.54.0) =====
+   Anropas sa fort tomgangen delar ut nagot. Den RITAR bara - den ger ingenting
+   och tar ingenting; bytet ar redan bokfort nar vi kommer hit. Ligger inne i
+   nodens yta, sa den kan aldrig hamna over ett oppet fonster.
+   Flera fynd samtidigt lags ut med en liten forskjutning i tid och i sidled, sa
+   de inte staplas ovanpa varandra och blir en enda klump. */
+let nodeDropStep = 0;
+const NODE_DROP_MAX = 4;          /* fler an sa blir det bara grot pa noden */
+const nodeDropsLive = [];
+function nodeDropStage(){
+  return document.querySelector('#panel-home-server .core-stage') ||
+         document.getElementById('core-stage');
+}
+function nodeDropPop(key, qty, colour){
+  if (document.visibilityState !== 'visible') return;
+  const stage = nodeDropStage();
+  if (!stage) return;
+  const m = (typeof MATERIALS !== 'undefined' && MATERIALS[key]) ||
+            (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
+  const name = (m && m.name) || key || 'Find';
+  const ico = stackIcoOf(key, '\ud83d\udce6');
+  const art = stackArtOf(key);
+  const el = document.createElement('div');
+  el.className = 'node-drop';
+  if (colour) el.style.setProperty('--ndc', colour);
+  el.innerHTML = '<span class="nd-art' + (art ? ' art-wrap' : '') + '">' +
+      (art ? artWithFallback(art, ico) : ico) + '</span>' +
+    (qty > 1 ? '<b>+' + qty + '</b> ' : '') + name;
+  stage.appendChild(el);
+  /* Startlaget ar karnans mitt; sedan bar animationen den utat och uppat. */
+  const sr = stage.getBoundingClientRect();
+  const w = el.offsetWidth || 120, h = el.offsetHeight || 30;
+  el.style.left = Math.round(sr.width / 2 - w / 2) + 'px';
+  el.style.top  = Math.round(sr.height / 2 - h / 2) + 'px';
+  /* Vaxlande hall, sa tva fynd i rad inte flyger samma vag. */
+  const i = nodeDropStep++;
+  const side = (i % 2 ? 1 : -1) * (26 + (i % 3) * 22);
+  const lift = -(38 + (i % 4) * 16);
+  el.style.setProperty('--ndx', side + 'px');
+  el.style.setProperty('--ndy', lift + 'px');
+  requestAnimationFrame(() => el.classList.add('fly'));
+  nodeDropsLive.push(el);
+  while (nodeDropsLive.length > NODE_DROP_MAX){
+    const old = nodeDropsLive.shift();
+    if (old && old.parentNode) old.remove();
+  }
+  setTimeout(() => {
+    const j = nodeDropsLive.indexOf(el);
+    if (j >= 0) nodeDropsLive.splice(j, 1);
+    el.remove();
+  }, 3000);
+}
+/* Flera nycklar pa en gang: samma effekt, men utlagda i tid sa de inte
+   kommer ut i exakt samma ogonblick. */
+function nodeDropPopMany(mats, colour){
+  const keys = Object.keys(mats || {});
+  keys.slice(0, NODE_DROP_MAX).forEach((k, n) => {
+    setTimeout(() => nodeDropPop(k, mats[k], colour), n * 220);
+  });
 }
 function spawnFloat(opts){
   /* Ett tal borjar med + eller ar en crit; allt annat ar ett meddelande. */
@@ -18039,6 +18169,9 @@ function gatherShowGotInner(id, mats){
   S.prof.gather = S.prof.gather || {};
   S.prof.gather[id] = {last: {key: lastKey, at: Date.now()}};
   spawnFloat({text: '+' + n + ' ' + (MATERIALS[lastKey] ? MATERIALS[lastKey].name : 'materials')});
+  /* [TILLAGT v5.54.0] Fyndet kastas ut ur noden. Varje nyckel for sig, sa en
+     cykel som gav tva olika saker visar bada. */
+  nodeDropPopMany(mats, PROF_COLOR[id] || null);
   renderInventory(); updateUI(true);
 }
 /* [BORTTAGET v5.48.0] gatherFinish - se ovan. */
@@ -18074,14 +18207,19 @@ function localGatherTick(dtSecs){
     localGatherBank[id] = (localGatherBank[id] || 0) + dtSecs * (coreSyncLeft() > 0 ? 1.15 : 1);
     const cyc = gatherCycleSecs(id);
     let n = 0, lastKey = null;
+    const got = {};
     while (localGatherBank[id] >= cyc){
       localGatherBank[id] -= cyc;
       const key = gatherRoll(id);
-      if (key){ giveMaterial(key, 1); grantProfXP(id, 4); n++; lastKey = key; }
+      if (key){ giveMaterial(key, 1); grantProfXP(id, 4); n++; lastKey = key;
+                got[key] = (got[key] || 0) + 1; }
     }
     if (n){
       S.prof.gather = S.prof.gather || {};
       S.prof.gather[id] = {last: {key: lastKey, at: Date.now()}};
+      /* [TILLAGT v5.54.0] Samma utkast som i serverlage - tomgangen ska se
+         likadan ut oavsett om servern eller webblasaren raknade fyndet. */
+      nodeDropPopMany(got, PROF_COLOR[id] || null);
       renderInventory(); updateUI(true);
     }
   });
@@ -20080,6 +20218,36 @@ function moveGhost(d, x, y){
 /* "Släpptes det i väskan?" — huvudrutnätet ELLER något utbrutet minifönster. */
 function inInvArea(el){ return !!(el.closest('#inv-grid') || el.closest('.bagwin:not(.vaultbagwin)')); }
 function inVaultArea(el){ return !!(el.closest('#vault-grid') || el.closest('.vaultbagwin')); }
+/* [TILLAGT v5.54.1] VILKEN RUTA SLAPPTE MAN PA?
+   Forut fragade vi bara webblasaren vad som lag OVERST i punkten. Ligger
+   vaskan och valvet omlott - och det gor de sa fort man skjuter ihop fonstren -
+   sa svarar den fonsterKANTEN, inte rutan under, och slappet foll till marken
+   utan att saga nagot. Nu: hittar den overstas ingen ruta, letar vi sjalva
+   igenom alla synliga rutor efter en vars yta innehaller punkten, och tar den
+   som ritas hogst upp. Draget blir da oberoende av hur fonstren ligger. */
+const DROP_CELL_SEL = '[data-inv],[data-vault],[data-pet],[data-teamslot],[data-slot],[data-bag],[data-vaultbag],[data-vaultbagslot]';
+function dropCellAt(x, y){
+  if (!(x >= 0 && y >= 0)) return null;
+  let best = null, bestZ = -1;
+  document.querySelectorAll(DROP_CELL_SEL).forEach(c => {
+    const b = c.getBoundingClientRect();
+    if (!b.width || !b.height) return;
+    if (x < b.left || x > b.right || y < b.top || y > b.bottom) return;
+    /* Hur hogt upp ritas rutan? Vi tar narmaste flytande fonster eller panel. */
+    const host = c.closest('.float-win, .bagwin, .panel') || document.body;
+    const z = parseInt(getComputedStyle(host).zIndex, 10) || 0;
+    if (z >= bestZ){ bestZ = z; best = c; }
+  });
+  return best;
+}
+/* Samma fraga som forut, men med reservvagen inbakad: forst det som ligger
+   overst i punkten, sedan var egen genomsokning. */
+function dropTargetAt(under, x, y, sel){
+  const direct = under && under.closest(sel);
+  if (direct) return direct;
+  const fallback = dropCellAt(x, y);
+  return (fallback && fallback.matches(sel)) ? fallback : null;
+}
 function endDrag(d, x, y){
   highlightBagSlots(-1, false);
   highlightVaultBagSlots(-1, false);
@@ -20089,7 +20257,12 @@ function endDrag(d, x, y){
   document.querySelectorAll('.drop-cell').forEach(c => c.classList.remove('drop-cell'));
   document.body.classList.remove('dragging');
   document.body.classList.remove('dragging-pet');
-  const under = document.elementFromPoint(x, y);
+  let under = document.elementFromPoint(x, y);
+  /* Reservvagen: hittar den overstas ingen ruta, letar vi sjalva. */
+  if (!under || !under.closest(DROP_CELL_SEL)){
+    const alt = dropCellAt(x, y);
+    if (alt) under = alt;
+  }
   if (!under) return;
   /* Husdjuren har sitt eget rutnat och blandas aldrig med vaskan: ett husdjur ar
      inte ett foremal och far inte kunna hamna i ryggsacken. */
@@ -20152,10 +20325,10 @@ function endDrag(d, x, y){
   }
   /* En ruta räknas som mål oavsett om den sitter i huvudrutnätet eller i ett
      utbrutet minifönster — annars gick det bara att dra ÅT ena hållet. */
-  const cell = under.closest('[data-inv]');
+  const cell = dropTargetAt(under, x, y, '[data-inv]');
   /* Rutor i valvets minifönster räknas också — samma envägsproblem som väskan hade. */
-  const vcell = under.closest('[data-vault]');
-  const inVault = inVaultArea(under);
+  const vcell = dropTargetAt(under, x, y, '[data-vault]');
+  const inVault = inVaultArea(under) || (vcell ? inVaultArea(vcell) : false);
   if (d.from === 'vault'){
     /* En väska ur valvet får sättas direkt i ett av valvets fack. */
     const vsock2 = under.closest('[data-vaultbag]');
