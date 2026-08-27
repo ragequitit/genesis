@@ -4395,7 +4395,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.78.0 — SPELARFIGUREN PÅ PLATS</div>
+        <div class="sn-ver">GENESIS v5.79.0 — DUNGEON UPPDATERAS LIVE</div>
       </div>
     </div>
   </aside>
@@ -5133,7 +5133,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.78.0 — SPELARFIGUREN PÅ PLATS</div>
+            <div class="desc">GENESIS v5.79.0 — DUNGEON UPPDATERAS LIVE</div>
           </div>
         </div>
       </div>
@@ -6281,7 +6281,7 @@ function pveDgDone(){ return !!(PVE.dg && PVE.dg.run) && pveDgLeft() <= 0; }
 async function netPveDungeonPull(){
   if (!NET.on || !SRV.charId) return null;
   const r = await srvRpc('pve_dungeon_state', {p_character: SRV.charId});
-  if (r){ PVE.dg = r; PVE.dgAt = Date.now(); PVE.dgPolled = false; }
+  if (r){ PVE.dg = r; PVE.dgAt = Date.now(); PVE.dgPolled = false; PVE.dgSeen = Date.now(); }
   return r;
 }
 function pveOwned(key){
@@ -6300,6 +6300,28 @@ function pveDungeonTick(){
   if (bar){
     const total = PVE.dg.run.minutes * 60;
     bar.style.width = Math.min(100, 100 * (total - pveDgLeft()) / total) + '%';
+  }
+  /* [TILLAGT v5.79.0] LOPPET RAKNAS PA SERVERN. Klienten hamtade det EN gang -
+     nar man gick in - och sedan forst nar tiden gatt ut. Darfor stod bossarna,
+     halsan, forraden och handelserna stilla i upp till en halvtimme medan
+     loppet i sjalva verket rullade pa. Nu hamtas laget var tjugonde sekund och
+     de fyra delarna skrivs PA PLATS. Rutan byggs aldrig om - da hade knappen
+     kunnat bytas mitt i ett klick. */
+  const now = Date.now();
+  if (!pveDgDone() && now - (PVE.dgSeen || 0) > 20000){
+    PVE.dgSeen = now;
+    netPveDungeonPull().then(() => {
+      const r = PVE.dg && PVE.dg.run;
+      if (!r) return;
+      const st = $('dg-stat');
+      if (st) st.textContent = 'Bosses ' + r.boss_down + ' / ' + r.boss_total +
+        ' \u00b7 ' + r.hp_now_pct + '% health';
+      const sp = $('dg-sup'), sl = r.sup_left || {};
+      if (sp) sp.textContent = 'Supplies left: ' + (sl.b || 0) + ' bandage \u00b7 ' +
+        (sl.f || 0) + ' kit \u00b7 ' + (sl.r || 0) + ' revive';
+      const fd = $('dg-feed');
+      if (fd) fd.innerHTML = dgFeedHTML(r);
+    }).catch(() => {});
   }
   if (pveDgDone() && !PVE.dgPolled){
     PVE.dgPolled = true;
@@ -6370,8 +6392,10 @@ function buildDgSetup(dg){
     '<div class="pve-btns"><button class="pve-fight" id="dg-enter">Enter the dungeon</button></div>' +
     '</div>';
 }
-function buildDgRun(run){
-  const feed = (run.events || []).slice().reverse().map(ev => {
+/* EN lista, tva stallen som ritar den: rutans bygge och dess lopande
+   uppdatering. Stod den i tva kopior skulle de glida isar. */
+function dgFeedHTML(run){
+  return (run.events || []).slice().reverse().map(ev => {
     const boss = ev.kind !== 'trash';
     if (!ev.win){
       return '<div class="dg-ev dead">min ' + ev.m + ' \u00b7 ' + ev.name +
@@ -6384,16 +6408,23 @@ function buildDgRun(run){
                              ev.ur ? ev.ur + ' revive' : ''].filter(Boolean).join(', ')
         : '') + '</div>';
   }).join('') || '<div class="dg-ev">Descending\u2026 first contact soon.</div>';
+}
+function buildDgRun(run){
+  const feed = dgFeedHTML(run);
   const sup = run.sup_left || {};
+  /* [ANDRAT v5.79.0] De tre rorliga delarna har fatt egna id. Klockan skrevs pa
+     plats varje sekund, men bosskvoten, halsan, forraden och handelselistan
+     hamtades ALDRIG om medan loppet pagick - de stod kvar sa som de sag ut nar
+     rutan byggdes. Nu skrivs aven de pa plats, utan att rutan byggs om. */
   return '<div class="pve-card">' +
     '<div class="pve-name">' + run.name + ' \u2014 run in progress</div>' +
     '<div class="dg-bar"><i id="dg-fill"></i></div>' +
     '<div class="pve-row"><span id="dg-left">' + fmtDur(pveDgLeft()) + '</span>' +
-    '<span>Bosses ' + run.boss_down + ' / ' + run.boss_total + ' \u00b7 ' +
+    '<span id="dg-stat">Bosses ' + run.boss_down + ' / ' + run.boss_total + ' \u00b7 ' +
     run.hp_now_pct + '% health</span></div>' +
-    '<div class="dg-sub">Supplies left: ' + (sup.b || 0) + ' bandage \u00b7 ' +
+    '<div class="dg-sub" id="dg-sup">Supplies left: ' + (sup.b || 0) + ' bandage \u00b7 ' +
     (sup.f || 0) + ' kit \u00b7 ' + (sup.r || 0) + ' revive</div>' +
-    '<div class="dg-feed">' + feed + '</div>' +
+    '<div class="dg-feed" id="dg-feed">' + feed + '</div>' +
     '<div class="pve-btns"><button class="pve-leave" id="dg-abandon">' +
     (PVE.dgConfirm ? 'Confirm \u2014 end the run here?' : 'Abandon run') + '</button></div>' +
     '</div>';
