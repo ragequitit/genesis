@@ -1675,6 +1675,8 @@ body.dragging *{cursor:grabbing !important}
 .hold-shift{font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:900;
   color:var(--text-dim);margin-bottom:5px;min-height:12px;transition:color .5s linear}
 .hold-hint{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text);font-weight:900}
+/* Nedrakningen bar guld, sa man ser pa fargen om mataren fylls eller tommas. */
+.hold-meter.synced .hold-meter-fill{background:linear-gradient(90deg,var(--gold),#ffe9a8)}
 .hold-hint.full{color:var(--gold)}
 .machine-row.cant{opacity:.55}
 .machine-row{cursor:default}
@@ -4783,7 +4785,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.62.0 — SJUKSTUGANS PULS</div>
+            <div class="desc">GENESIS v5.64.0 — CORE SYNC TÄNDS PÅ RIKTIGT</div>
           </div>
         </div>
       </div>
@@ -4794,7 +4796,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= FOOTER ================= -->
   <footer class="footer">
     <div class="grp">
-      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.62.0 — SJUKSTUGANS PULS</span>
+      <span class="badge" style="color:var(--cyan);border-color:var(--cyan-dim)">GENESIS v5.64.0 — CORE SYNC TÄNDS PÅ RIKTIGT</span>
     </div>
     <div class="center">
       <span>SAVE STATUS · <b style="color:var(--green)" id="save-status">Not saved yet</b></span>
@@ -10928,7 +10930,9 @@ function startHold(e){ if (editMode) return; e.preventDefault(); holding = true;
   setTimeout(() => el.hex.classList.remove('core-hit'), 90);
   el.coreSpark.classList.remove('core-spark-anim');
   void el.coreSpark.getBBox && el.coreSpark.getBoundingClientRect();
-  el.coreSpark.classList.add('core-spark-anim'); holdT = 0; tickAcc = 0; el.meter.classList.remove('full'); }
+  el.coreSpark.classList.add('core-spark-anim'); holdT = 0; tickAcc = 0;
+  HOLD._syncFired = false;
+  el.meter.classList.remove('full'); }
 function fullNow(){ return holding && holdT >= HOLD.duration; }
 function stopHold(){
   el.coreWrap.classList.remove('core-holding'); holding = false; }
@@ -11019,11 +11023,8 @@ function collectTick(){
      valda yrken gar 15 % fortare. XP:n och kritkanslan ar orord. */
   S.ticks++;
   grantXP(0.20 * ringMult() * (crit ? 2 : 1));
-  if (holdT < 0.5) HOLD._syncFired = false;
-  if (holdT >= HOLD.duration && !HOLD._syncFired){
-    HOLD._syncFired = true;
-    coreSyncActivate();
-  }
+  /* [FLYTTAT v5.64.0] Har lag tandningen av Core Sync. Den kunde aldrig nas -
+     se loopen. Sparren nollas nu nar hallet borjar. */
   if (!crit) Sound.play('tap', {holding: true});
   if (crit || performance.now() - floatGate > 180){
     floatGate = performance.now();
@@ -11032,12 +11033,15 @@ function collectTick(){
   }
 }
 /* Core Sync: tidsstampeln ar hela sanningen, precis som pa servern. */
+/* Fem minuter, pa ETT stalle. Talet stod forut inskrivet i aktiveringen och
+   hade behovt skrivas en gang till for matarens nedrakning. */
+const CORE_SYNC_SECS = 300;
 function coreSyncLeft(){
   return S.syncUntil ? Math.max(0, (S.syncUntil - Date.now()) / 1000) : 0;
 }
 function coreSyncActivate(){
   const first = coreSyncLeft() <= 0;
-  S.syncUntil = Date.now() + 5 * 60 * 1000;   /* ny aktivering BORJAR OM, staplar aldrig */
+  S.syncUntil = Date.now() + CORE_SYNC_SECS * 1000;  /* ny aktivering BORJAR OM, staplar aldrig */
   if (NET.on){
     srvRpc('core_sync_activate', {p_character: SRV.charId})
       .then(r => { if (r && r.sync_until) S.syncUntil = new Date(r.sync_until).getTime(); })
@@ -13651,7 +13655,17 @@ function loopBody(now){
       holdT += dt;
       tickAcc += holdRate() * dt;
       while (tickAcc >= 1 && holdT <= HOLD.duration){ tickAcc -= 1; collectTick(); }
-      if (holdT >= HOLD.duration) el.meter.classList.add('full');
+      /* [BUGG v5.64.0] CORE SYNC TANDES ALDRIG. Tandningen satt inne i ETT HACK,
+         och hacken stoppas av samma villkor som stoppar mataren: while-slingan
+         kraver holdT <= 30. Nar holdT passerar 30 landar den pa 30-komma-nagot,
+         slingan kors inte, och det enda hack som skulle ha tant synken blir
+         aldrig av. Mataren blev full, texten sa CORE SYNC ENGAGED - men
+         ingenting hande, for raden som tander lag pa fel sida grinden.
+         Nu tands den HAR, av mataren sjalv, dar den inte kan missas. */
+      if (holdT >= HOLD.duration){
+        el.meter.classList.add('full');
+        if (!HOLD._syncFired){ HOLD._syncFired = true; coreSyncActivate(); }
+      }
     }
   }
 
@@ -13827,15 +13841,22 @@ function updateUI(force){
   el.xpFill.style.width = Math.min(100, (li.into / li.need) * 100) + '%';
   el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
 
-  const p = holding ? Math.min(1, holdT / HOLD.duration) : 0;
+  /* [ANDRAT v5.64.0] Mataren tomdes sa fort man slappte, sa buffen syntes inte
+     alls pa noden. Nu bar SAMMA matare de fem minuterna: den fylls medan man
+     haller, och nar synken ar tand rullar den bakat mot noll i guld. Slappt
+     utan tand synk star den tom som forut. */
+  const syncLeft0 = coreSyncLeft();
+  const p = holding ? Math.min(1, holdT / HOLD.duration)
+                    : (syncLeft0 > 0 ? syncLeft0 / CORE_SYNC_SECS : 0);
   el.fill.style.width = (p * 100) + '%';
+  el.meter.classList.toggle('synced', !holding && syncLeft0 > 0);
   const full = holding && holdT >= HOLD.duration;
   /* [ANDRAT v4.95.0] Noden ger inte langre Data. Den hjalper det LANKADE
      yrket, och texten sager vilket - annars vore det ett hall utan mottagare. */
   /* [ANDRAT v5.48.0] Lankningen ar riven. Noden ger CORE SYNC: full hallning
      tander fem minuter dar ALLA valda yrken gar 15 % fortare. Raden ovanfor
      visar buffens klocka; fargen ar alltid spelets egen cyan. */
-  const syncLeft = coreSyncLeft();
+  const syncLeft = syncLeft0;
   el.hint.textContent = full ? 'CORE SYNC ENGAGED'
     : (syncLeft > 0 ? 'HOLD TO RESTART SYNC' : 'HOLD CORE TO SYNC');
   const shiftLine = $('hold-shift');
@@ -16310,9 +16331,25 @@ function arrive(){
 }
 function abortTravel(){
   if (!S.world.travel) return;
+  /* [BUGG v5.63.0] AVBRYTNINGEN SA INGENTING TILL SERVERN. Den nollade bara
+     skarmens minne, sa servern trodde att resan fortfarande pagick: nasta
+     hamtning la tillbaka den, och varje forsok att resa igen nektes med "du ar
+     redan pa vag nagonstans". Man satt fast tills resan hann ta slut av sig
+     sjalv. Nu avbryts den dar den faktiskt bor. */
   S.world.travel = null;
   refreshTravelBar(); refreshRegionUI(); refreshWarp();
   save();
+  if (NET.on){
+    srvRpc('abort_travel', {p_character: SRV.charId})
+      .then(() => netPull())
+      .then(() => { refreshTravelBar(); refreshRegionUI(); refreshWarp(); renderMap(); })
+      .catch(e => {
+        /* Nekade servern star resan kvar dar - hamta sanningen sa skarmen inte
+           ljuger om att man ar fri. */
+        say(srvErrText(e, 'Could not abort the warp.'));
+        netPull().then(() => { refreshTravelBar(); refreshRegionUI(); refreshWarp(); });
+      });
+  }
 }
 function checkTravel(){
   if (S.world.travel && Date.now() >= S.world.travel.eta) arrive();
