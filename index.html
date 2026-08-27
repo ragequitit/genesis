@@ -4459,7 +4459,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.83.2 — VÄSKAN SOM CIRKEL</div>
+        <div class="sn-ver">GENESIS v5.84.0 — HJÄLPARE GER FRAGMENT</div>
       </div>
     </div>
   </aside>
@@ -4898,7 +4898,6 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <button data-dev="credits" data-amt="1000">+1 000 credits</button>
           <button data-dev="tokens" data-amt="500">+500 tokens</button>
           <button data-dev="fragments" data-amt="500">+500 fragments</button>
-          <button data-dev="dust" data-amt="1000">+1 000 dust</button>
           <button data-dev="data" data-amt="1000000000">+1 bn Data</button>
         </div>
         <div class="section-label">Progress</div>
@@ -5208,7 +5207,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.83.2 — VÄSKAN SOM CIRKEL</div>
+            <div class="desc">GENESIS v5.84.0 — HJÄLPARE GER FRAGMENT</div>
           </div>
         </div>
       </div>
@@ -5499,7 +5498,6 @@ const SRV_ERRORS = {
   insufficient_credits:     'Not enough credits.',
   insufficient_tokens:      'Not enough Tokens.',
   insufficient_fragments:   'Not enough fragments.',
-  insufficient_dust:        'Not enough dust.',
   insufficient_data:        'Not enough Data.',
   insufficient_fuel:        'Not enough fuel for that trip.',
   cannot_be_sold:           'The vendor does not buy that.',
@@ -7204,18 +7202,12 @@ async function netSetTeam(pet, slot){
   renderPets(); renderPetPanel(); updateUI(true);
   return r;
 }
-async function netFeedPet(pet, dust){
-  if (!NET.on || !pet || !pet.sid) return null;
-  const r = await srvRpc('feed_pet',
-    {p_character: SRV.charId, p_pet: pet.sid, p_dust: Math.max(1, dust | 0)});
-  await netPull(); await netPullPets();
-  renderPets(); renderPetPanel(); updateUI(true);
-  return r;
-}
+/* [BORTTAGET v5.84.0] netFeedPet. Matningen ar riven bade har och pa servern -
+   serverfunktionen finns inte langre att ropa pa. */
 async function netRecyclePet(pet){
   if (!NET.on || !pet || !pet.sid) return null;
   const r = await srvRpc('recycle_pet', {p_character: SRV.charId, p_pet: pet.sid});
-  if (r && r.dust_total != null) S.pets.dust = +r.dust_total;
+  if (r && r.fragments != null) S.frags = +r.fragments;
   await netPullPets();
   renderPets(); renderPetPanel(); renderHelperSlots(); updateUI(true);
   return r;
@@ -9668,8 +9660,15 @@ function rollRarity(weights, rnd){
    glider forr eller senare isar. */
 const PET_MAX_LVL = 10;
 const PET_XP_SHARE = 0.15;                    /* andel av din egen XP som droppar ner i laget */
-const DUST_XP = 25;                           /* vad ett dammkorn ar vart i husdjurs-XP */
-const DUST_YIELD = [2, 6, 16, 40, 100, 250];  /* atervinning per sallsynthetssteg */
+/* [BORTTAGET v5.84.0] DUST_XP - inget dammkorn delas ut langre. */
+/* [ANDRAT v5.84.0] ATERVINNING GER FRAGMENT, INTE DAMM. Dammet var en egen
+   valuta med EN anvandning - en matningsknapp som bara gick att na via
+   hogerklick - och en kurs sa brant att atta tiotal vanliga kravdes for att
+   foda upp en enda hjalpare. Nivaerna far hjalparna anda av att sitta i laget.
+   Fragment har redan sin sank i cachen, sa loopen sluts: gamla hjalpare betalar
+   for chansen till nya. De tre lagsta stegen ar medvetet daligt betalda - en
+   cache kostar tio - sa det aldrig blir en kvarn. Samma tal som pa servern. */
+const FRAG_YIELD = [1, 2, 4, 7, 12, 20];      /* atervinning per sallsynthetssteg */
 function petXpToNext(lvl){ return lvl >= PET_MAX_LVL ? Infinity : Math.round(40 * Math.pow(lvl, 1.6)); }
 const PET_XP_MAX = (function(){ let t = 0; for (let l = 1; l < PET_MAX_LVL; l++) t += petXpToNext(l); return t; })();
 function petLevelInfo(xp){
@@ -9790,14 +9789,15 @@ function petSort(){
    hjalparformagorna heter sa, och serverns motsvarighet hangde pa lagplatserna
    som inte finns langre - bada sidor rakade alltsa alltid noll. Tabellens tal
    ar hela sanningen, och nu star det sa. */
-function dustFor(p){
-  return DUST_YIELD[p.rar];
+/* Vad en hjalpare ger vid atervinning - i FRAGMENT. */
+function fragFor(p){
+  return FRAG_YIELD[p.rar];
 }
 function petSelSummary(){
   const list = Array.from(petSel).map(petByUid).filter(Boolean);
   return {
     list: list,
-    dust: list.reduce((a, p) => a + dustFor(p), 0),
+    frags: list.reduce((a, p) => a + fragFor(p), 0),
     levelled: list.filter(p => petLvl(p) > 1),
     maxed: list.filter(p => petLvl(p) >= PET_MAX_LVL)
   };
@@ -9956,10 +9956,8 @@ function petLevelUpFx(p){
   renderPetPanel();
   if ($('pets-overlay').classList.contains('open')) renderPets();
 }
-function feedAmount(p){
-  const need = Math.ceil((PET_XP_MAX - (p.xp || 0)) / DUST_XP);
-  return Math.max(0, Math.min(S.pets.dust, need));
-}
+/* [BORTTAGET v5.84.0] feedAmount. */
+
 /* SUMMAN av hela laget. Bar man tre husdjur med samma formaga laggs de ihop -
    det ar hela poangen med att valja lag. */
 function petBonusPct(fam){
@@ -9972,7 +9970,7 @@ function petExtraFrags(rnd){
 
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
-  pets: {owned: [], team: [null, null, null], seq: 1, dust: 0, seen: []},
+  pets: {owned: [], team: [null, null, null], seq: 1, seen: []},
   equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
   bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
@@ -10255,7 +10253,8 @@ function load(){
                       : undefined}
               : null);
         S.pets.seq = Math.max(1, Math.floor(+d.pets.seq) || 1, ...petsOwned().map(o => o.uid + 1));
-        S.pets.dust = Math.max(0, Math.floor(+d.pets.dust) || 0);
+        /* [BORTTAGET v5.84.0] Dammet lases inte in langre. Gamla sparfiler
+           som barn det tappar det tyst - det gick anda inte att anvanda. */
         /* Gamla sparfiler bar ETT aktivt husdjur. Det blir lagets forsta ruta -
            ingen tappar sitt husdjur pa vagen till det nya systemet. */
         S.pets.team = [null, null, null];
@@ -17291,7 +17290,7 @@ function renderPetTools(){
     const sum = petSelSummary();
     t.classList.add('danger');
     t.innerHTML =
-      '<span class="inv-capline"><b>' + sum.list.length + '</b> selected \u00b7 <b>' + sum.dust + '</b> ✨</span>' +
+      '<span class="inv-capline"><b>' + sum.list.length + '</b> selected \u00b7 <b>' + sum.frags + '</b> \ud83d\udd37</span>' +
       '<span class="pet-toolbtns">' +
       '<button class="inv-sort" id="pet-selall">Select all</button>' +
       '<button class="inv-sort danger" id="pet-recgo"' + (sum.list.length ? '' : ' disabled') + '>Recycle</button>' +
@@ -17311,7 +17310,7 @@ function renderPetTools(){
      fem ganger for att se vad den kan. */
   t.classList.remove('danger');
   t.innerHTML =
-    '<span class="inv-capline"><b>' + count + '</b> helpers \u00b7 <b>' + S.pets.dust + '</b> ✨</span>' +
+    '<span class="inv-capline"><b>' + count + '</b> helpers \u00b7 <b>' + fmt(S.frags) + '</b> \ud83d\udd37</span>' +
     '<span class="pet-toolbtns">' +
     '<span class="pet-sortwrap">' +
       '<button class="inv-sort' + (petSortOpen ? ' on' : '') + '" id="pet-sort">\u21c5 ' + PET_SORTS[petSortIdx].name + '</button>' +
@@ -17342,14 +17341,14 @@ function openPetRecycle(){
   body.innerHTML =
     '<div class="prc-big">' + sum.list.length + '</div>' +
     '<div class="prc-sub">pets will be recycled</div>' +
-    '<div class="prc-gain">You get <b>' + sum.dust + ' ✨ Dust</b></div>' +
+    '<div class="prc-gain">You get <b>' + sum.frags + ' \ud83d\udd37 Fragments</b></div>' +
     (sum.maxed.length
       ? '<div class="prc-warn">⚠ ' + sum.maxed.length + ' of them are at MAX level: ' + names(sum.maxed) + '</div>' : '') +
     (sum.levelled.length > sum.maxed.length
       ? '<div class="prc-warn">⚠ Levelled pets in this batch: ' +
         names(sum.levelled.filter(x => petLvl(x) < PET_MAX_LVL)) + '</div>' : '') +
     (sum.levelled.length
-      ? '<div class="prc-note">The dust is paid on rarity alone \u2014 the levels are not paid back.</div>' : '') +
+      ? '<div class="prc-note">Paid on rarity alone \u2014 the levels are not paid back.</div>' : '') +
     '<div class="prc-note">This cannot be undone.</div>';
   $('petrec-overlay').classList.add('open');
 }
@@ -17371,7 +17370,7 @@ function doPetRecycle(){
   sum.list.forEach(p => {
     const i = petIndexOf(p.uid);
     if (i < 0 || inTeam(p.uid)) return;            /* burna husdjur ar alltid fredade */
-    S.pets.dust += dustFor(p);
+    S.frags += fragFor(p);
     S.pets.owned[i] = null;
   });
   petSel.clear(); petSelMode = false;
@@ -17413,7 +17412,7 @@ function petTipHTML(p){
     petXpBarHTML(p) +
     petEffLines(p).map(t => '<div class="gt-stat">' + t + '</div>').join('') +
     '<div class="gt-sep"></div>' +
-    line('Recycles into', dustFor(p) + ' ✨') +
+    line('Recycles into', fragFor(p) + ' \ud83d\udd37') +
     '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
       ? 'Tap to inspect \u00b7 long-press for options'
       : 'Click to inspect \u00b7 right-click for options') + '</div>';
@@ -19310,7 +19309,7 @@ function petWinHTML(p){
         '<div class="iw-affs">' +
           petEffLines(p).map(t => '<div class="af">' + t + '</div>').join('') +
           '<div class="af">' + (max ? 'Fully grown' : Math.floor(li.into) + ' / ' + li.need + ' XP to next level') + '</div>' +
-          '<div class="af">Recycles into ' + dustFor(p) + ' ✨</div>' +
+          '<div class="af">Recycles into ' + fragFor(p) + ' \ud83d\udd37</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -19356,16 +19355,15 @@ function spawnPetWin(uid, nearX, nearY){
     const cur = petByUid(uid);
     if (!cur){ petWinActions(win, uid); return; }
     const act = btn.dataset.act;
-    if (act === 'feed'){ feedPet(uid); win.innerHTML = petWinHTML(petByUid(uid)); petWinActions(win, uid);
-                              win.querySelector('.iw-x').addEventListener('click', () => win.remove());
-                              makeDraggable(win, win.querySelector('.iw-head')); }
-    else if (act === 'rec'){
+    /* [BORTTAGET v5.84.0] Valet "feed". Det var systemets enda ingang och
+       krävde en valuta som inte langre delas ut. */
+    if (act === 'rec'){
       const li = petLevelInfo(cur.xp), lost = li.lvl > 1;
       win.querySelector('.item-actions').innerHTML =
         '<div class="ia-note">' + (li.lvl >= PET_MAX_LVL ? '⚠ MAX LEVEL. ' : (lost ? '⚠ ' : '')) +
-        'Recycle ' + petName(cur) + ' (' + RARITIES[cur.rar].name + ') for ' + dustFor(cur) + ' ✨?' +
-        (lost ? '<br>You lose Lv ' + li.lvl + ' \u2014 the dust does not pay it back.' : '<br>It is gone for good.') + '</div>' +
-        '<button class="ia-danger" data-act="rec-yes">Yes, recycle<span>' + dustFor(cur) + ' ✨</span></button>' +
+        'Recycle ' + petName(cur) + ' (' + RARITIES[cur.rar].name + ') for ' + fragFor(cur) + ' \ud83d\udd37?' +
+        (lost ? '<br>You lose Lv ' + li.lvl + ' \u2014 the levels are not paid back.' : '<br>It is gone for good.') + '</div>' +
+        '<button class="ia-danger" data-act="rec-yes">Yes, recycle<span>' + fragFor(cur) + ' \ud83d\udd37</span></button>' +
         '<button class="ia-cancel" data-act="rec-no">Keep it</button>';
     }
     else if (act === 'rec-yes'){ recyclePet(uid); win.remove(); }
@@ -19375,19 +19373,8 @@ function spawnPetWin(uid, nearX, nearY){
 /* Matningen rakans BARA lokalt forut: stoftet drogs i webblasaren och XP:n var
    borta vid nasta hamtning. Servern har alltid haft funktionen - klienten
    anropade den aldrig. */
-function feedPet(uid){
-  const p = petByUid(uid);
-  if (!p) return;
-  const spend = feedAmount(p);
-  if (spend <= 0) return;
-  if (NET.on){
-    netFeedPet(p, spend).catch(e => say(srvErrText(e, 'Could not feed that helper.')));
-    return;
-  }
-  S.pets.dust -= spend;
-  p.xp = Math.min(PET_XP_MAX, (p.xp || 0) + spend * DUST_XP);
-  save(); renderPets(); renderPetPanel();
-}
+/* [BORTTAGET v5.84.0] feedPet. Systemet ar rivet - se FRAG_YIELD. */
+
 /* Det aktiva husdjuret gar aldrig att atervinna - det ar den enda sparr som
    behovs for att ingen ska rada bort det man faktiskt anvander av misstag.
    Rutan TOMS i stallet for att tas bort ur listan, sa grannarna star kvar dar
@@ -19397,7 +19384,7 @@ function recyclePet(uid){
   if (i < 0) return;
   const p = S.pets.owned[i];
   if (inTeam(p.uid)) return;
-  S.pets.dust += dustFor(p);
+  S.frags += fragFor(p);
   S.pets.owned[i] = null;
   petSel.delete(uid);
   save(); renderPets(); renderPetPanel();
@@ -19749,8 +19736,8 @@ function openPetMenu(uid, x, y){
          Sjalva valet ska inte skrika en siffra at en. */
       const li = petLevelInfo(p.xp), lost = li.lvl > 1;
       m.innerHTML = '<div class="pm-head">Recycle ' + petName(p) + '?</div>' +
-        '<div class="pm-note">You get ' + dustFor(p) + ' \u2728 dust' +
-        (lost ? ', and you lose Lv ' + li.lvl + ' \u2014 the dust does not pay it back.'
+        '<div class="pm-note">You get ' + fragFor(p) + ' \ud83d\udd37 fragments' +
+        (lost ? ', and you lose Lv ' + li.lvl + ' \u2014 the levels are not paid back.'
               : '. It is gone for good.') + '</div>' +
         '<button class="pm-item danger" data-act="rec-yes">Yes, recycle</button>' +
         '<button class="pm-item" data-act="rec-no">Keep it</button>';
