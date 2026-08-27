@@ -4469,7 +4469,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.85.1 — GRÖN PULS PÅ KORTEN</div>
+        <div class="sn-ver">GENESIS v5.86.0 — SEX NYA NODER</div>
       </div>
     </div>
   </aside>
@@ -5217,7 +5217,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.85.1 — GRÖN PULS PÅ KORTEN</div>
+            <div class="desc">GENESIS v5.86.0 — SEX NYA NODER</div>
           </div>
         </div>
       </div>
@@ -10333,7 +10333,15 @@ function load(){
    listan ar bara flyttad ett steg, inget system ar last. Samma tal som servern. */
 const OFFLINE_HOURS = [8, 12, 16, 20, 24];
 function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 8; }
-function offlineRate(){ return Math.min(1, 0.40 + gearBonus('offline') / 100); }
+/* [ANDRAT v5.86.0] Sidoyrkets offlinenod raknas in. Den ligger pa YRKET, sa den
+   hamtas ur skilltradet - inte ur utrustningen. */
+function secSkillPct(eff){
+  const sec = (typeof mySecondaryProf === 'function') ? mySecondaryProf() : null;
+  return sec ? skillPct(sec.id, eff) : 0;
+}
+function offlineRate(){
+  return Math.min(1, 0.40 + (gearBonus('offline') + secSkillPct('offline')) / 100);
+}
 function computeOffline(){
   /* SERVERLAGE: klienten far INTE rakna ut detta sjalv. Den raknade pa den
      LOKALA sparfilens maskiner och tid, vilket kunde visa biljoner for en
@@ -12531,11 +12539,11 @@ function useInvItem(idx){
   if (S.fuel >= fuelMax()) return false;      // full tank vägrar hellre än slösar
   if (NET.on){
     netUseStackItem('fuelcell')
-      .then(() => spawnFloat({text: '+' + FUEL_CELL_RESTORE + ' fuel'}))
+      .then(() => spawnFloat({text: '+' + fuelCellRestore() + ' fuel'}))
       .catch(e => say(srvErrText(e, 'Could not use the fuel cell.')));
     return true;
   }
-  addFuel(FUEL_CELL_RESTORE);
+  addFuel(fuelCellRestore());
   row.qty--;
   if (row.qty <= 0) S.inv[idx] = null;
   renderInventory(); updateUI(true); save();
@@ -14785,6 +14793,11 @@ const FUEL_REGEN_PER_MIN = 1;
    saljer dyrt, det dyra skyddsnatet - och Reinforced ar den nya starka som bara
    en Refiner kan gora. Ett foremal per styrka, inga dubbletter i vaskan. */
 const FUEL_CELL_RESTORE = 10;
+/* [TILLAGT v5.86.0] Dense Charge gor varje cell starkare - ett bransle mer per
+   rang. Talet lases dar cellen faktiskt anvands, sa noden verkar direkt. */
+function fuelCellRestore(){
+  return FUEL_CELL_RESTORE + skillPct('refiner', 'potency');
+}
 const FUEL_CELL_REINFORCED_RESTORE = 25;
 const ZONE_FUEL_COST = 2;
 /* ---------- FAKTA OM STAPELBARA FÖREMÅL ----------
@@ -15479,7 +15492,8 @@ function fuelMax(){ return FUEL_MAX_BASE; }
    raknat med den; matarn pa skarmen gjorde det inte, sa baren krop langsammare
    an verkligheten. */
 function fuelRegenPerMin(){
-  return FUEL_REGEN_PER_MIN * (1 + helperBonus('fuel') / 100)
+  /* [ANDRAT v5.86.0] Raffinaderiets Pressure Feed laggs pa har. */
+  return FUEL_REGEN_PER_MIN * (1 + (helperBonus('fuel') + skillPct('refiner', 'fuel_regen')) / 100)
        * (1 + 0.10 * (NET.on ? perkLvl('fuelFlow') : 0));
 }
 function fuelBetween(fromId, toId){
@@ -17665,30 +17679,46 @@ let SKILL_TREES = {};
         skT('prospector','Prospector','gem_luck',2,3,{scrap_charged:14,amethyst:8},{scrap_charged:22,ruby:6},{scrap_phase:10,sapphire:8}),
         skT('resonance','Core Resonance','core_boost',2,3,{scrap_charged:14,crystal_quartz:12},{scrap_charged:22,amethyst:10},{scrap_phase:10,cobalt_ore:12})]
   };
-  const stTree = (bound) => ({
-    1: [skT('stores', bound === 'medical_supplies' ? 'Bigger Stores' : 'Bigger Tanks','store_cap',25,3,
+  /* [ANDRAT v5.86.0] SIDOYRKENA HAR FEM RADER NU, som hantverkarna. De nio gamla
+     noderna gor dig snabbare eller ger mer lager; de sex nya pekar UTAT - mot
+     halsan, mot tiden du ar borta, mot fynden pa noden och mot sjalva produkten.
+     Sista raden ar ett slutval av tre. Servern ar sanningen; det har ar spegeln. */
+  const stTree = (bound) => {
+    const med = bound === 'medical_supplies';
+    return {
+    1: [skT('stores', med ? 'Bigger Stores' : 'Bigger Tanks','store_cap',25,3,
           {[bound]:20,salvaged_scrap:15},{[bound]:35,salvaged_scrap:25},{[bound]:50,scrap_reinforced:10}),
-        skT(bound === 'medical_supplies' ? 'synthesis' : 'flow',
-          bound === 'medical_supplies' ? 'Fast Synthesis' : 'Faster Flow','station_speed',5,3,
+        skT(med ? 'synthesis' : 'flow', med ? 'Fast Synthesis' : 'Faster Flow','station_speed',5,3,
           {[bound]:20,salvaged_scrap:15},{[bound]:35,scrap_reinforced:8},{[bound]:50,scrap_reinforced:14}),
         skT('hands','Practiced Hands','speed',2,3,
           {[bound]:15,salvaged_scrap:20},{[bound]:30,salvaged_scrap:30},{[bound]:45,scrap_reinforced:12})],
-    2: [skT(bound === 'medical_supplies' ? 'sterile' : 'seals',
-          bound === 'medical_supplies' ? 'Sterile Technique' : 'Tight Seals','preserve',1,3,
+    2: [skT(med ? 'sterile' : 'seals', med ? 'Sterile Technique' : 'Tight Seals','preserve',1,3,
           {[bound]:30,scrap_reinforced:10},{[bound]:45,scrap_reinforced:16},{[bound]:60,scrap_charged:8}),
-        skT('training', bound === 'medical_supplies' ? 'Field Training' : 'Refinery Training','xp',3,3,
+        skT('training', med ? 'Field Training' : 'Refinery Training','xp',3,3,
           {[bound]:25},{[bound]:40,scrap_reinforced:12},{[bound]:55,scrap_charged:10}),
-        skT(bound === 'medical_supplies' ? 'triage' : 'coreflow',
-          bound === 'medical_supplies' ? 'Core Triage' : 'Core Flow','core_boost',2,3,
+        skT(med ? 'triage' : 'coreflow', med ? 'Core Triage' : 'Core Flow','core_boost',2,3,
           {[bound]:30,scrap_reinforced:12},{[bound]:45,scrap_charged:8},{[bound]:60,scrap_charged:14})],
-    3: [skT('deep', bound === 'medical_supplies' ? 'Deep Stores' : 'Deep Tanks','store_cap',50,3,
+    3: [skT('deep', med ? 'Deep Stores' : 'Deep Tanks','store_cap',50,3,
           {[bound]:60,scrap_charged:10},{[bound]:80,scrap_charged:16},{[bound]:100,scrap_phase:8}),
         skT('workbench','Expanded Workbench','slots',1,3,
           {[bound]:60,scrap_charged:12},{[bound]:80,scrap_phase:6},{[bound]:100,scrap_phase:10}),
-        bound === 'medical_supplies'
-          ? skT('reserve','Trauma Reserve','future_pve',0,1,{[bound]:120,scrap_phase:12})
-          : skT('voyage','Long Voyage','future_travel',0,1,{[bound]:120,scrap_phase:12})]
-  });
+        skT('recovery', med ? 'Rapid Recovery' : 'Pressure Feed',
+          med ? 'hp_regen' : 'fuel_regen',3,3,
+          {[bound]:60,scrap_charged:10},{[bound]:80,scrap_charged:16},{[bound]:100,scrap_phase:8})],
+    4: [skT('offline', med ? 'Standing Orders' : 'Night Shift','offline',2,3,
+          {[bound]:90,scrap_charged:14},{[bound]:120,scrap_phase:8},{[bound]:150,scrap_phase:14}),
+        skT('finds', med ? 'Open Cabinet' : 'Open Valves','finds',5,3,
+          {[bound]:90,scrap_charged:14},{[bound]:120,scrap_phase:8},{[bound]:150,scrap_phase:14}),
+        skT('potency', med ? 'Strong Dosage' : 'Dense Charge','potency',1,3,
+          {[bound]:90,scrap_charged:14},{[bound]:120,scrap_phase:8},{[bound]:150,scrap_phase:14})],
+    5: [skT('specialist', med ? 'Supply Specialist' : 'Fuel Producer','station_speed',25,1,
+          {[bound]:200,scrap_phase:18}),
+        skT('stockpiler', med ? 'Stockpiler' : 'Tank Operator','store_cap',150,1,
+          {[bound]:200,scrap_phase:18}),
+        med ? skT('reserve','Trauma Reserve','future_pve',0,1,{[bound]:200,scrap_phase:18})
+            : skT('voyage','Long Voyage','future_travel',0,1,{[bound]:200,scrap_phase:18})]
+    };
+  };
   SKILL_TREES.medic = stTree('medical_supplies');
   SKILL_TREES.refiner = stTree('crude_fuel');
 })();
@@ -17773,6 +17803,14 @@ function skillEffText(n, ranks){
       case 'gem_luck': return '+' + v + '% gem branch chance';
       case 'store_cap': return '+' + v + ' storage capacity';
       case 'station_speed': return '-' + v + '% time per produced unit';
+      /* [TILLAGT v5.86.0] De sex nya noderna i sidoyrkenas trad. */
+      case 'hp_regen':   return '+' + v + '% health regeneration';
+      case 'fuel_regen': return '+' + v + '% fuel regeneration';
+      case 'offline':    return 'Offline production runs at ' + v + ' percent more of full rate';
+      case 'finds':      return '+' + v + '% more clickable finds on the node';
+      case 'potency':    return n.id === 'potency' && /Dos/.test(n.name)
+                                ? 'Bandages and kits restore +' + v + '% more health'
+                                : 'Fuel Cells restore +' + v + ' fuel each';
       case 'future_pve': return 'Reserves the Trauma Kit line for the coming PvE update';
       case 'future_travel': return 'Reserves a travel-efficiency line for a coming update';
       default: return '';
@@ -18707,8 +18745,11 @@ function claimBonusFind(kind){
 /* Slumpad tid mellan forsoken, och BARA medan sidan syns. Timern startas om
    varje gang, sa den kan inte ligga och lopa i en dold flik. */
 (function bonusFindLoop(){
+  /* [ANDRAT v5.86.0] Sidoyrkets fyndnod kortar VANTAN mellan forsoken. Fem
+     procent fler fynd ar detsamma som fem procent kortare vantan. */
+  const more = 1 + secSkillPct('finds') / 100;
   const wait = (BONUS_FIND_EVERY[0] + Math.random() *
-                (BONUS_FIND_EVERY[1] - BONUS_FIND_EVERY[0])) * 1000;
+                (BONUS_FIND_EVERY[1] - BONUS_FIND_EVERY[0])) * 1000 / more;
   setTimeout(() => { spawnBonusFind(); bonusFindLoop(); }, wait);
 })();
 
