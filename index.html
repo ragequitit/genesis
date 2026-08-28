@@ -388,6 +388,10 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .layout{
   display:grid;
   grid-template-columns:minmax(320px,470px) minmax(340px,1fr) minmax(320px,470px);
+  /* [TILLAGT v5.108.0] Ovre raden ar sa hog den behover; kartan tar resten.
+     Utan detta stod kartans hojd som en fast siffra som inte foljde med nar
+     rutan ovanfor vaxte. */
+  grid-template-rows:auto 1fr;
   gap:var(--gap);
   align-items:start;
 }
@@ -403,7 +407,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .layout > .col-left{grid-column:1; grid-row:1 / 3}
 .layout > .col-mid{grid-column:2; grid-row:1}
 .layout > .col-right{grid-column:3; grid-row:1}
-.map-panel{grid-column:2 / 4; grid-row:2; min-width:0;
+.map-panel{grid-column:2 / 4; grid-row:2; min-width:0; align-self:stretch;
   /* [ANDRAT v5.108.0] Rutan ar kartan och ingenting annat. Panelens egen ram,
      stoppning och bakgrund ar borta - kartan har sin egen och tva ramar utanpa
      varandra blev en tjock dodyta runt bilden. */
@@ -2273,15 +2277,24 @@ body.dragging *{cursor:grabbing !important}
      hela bredden under de tva ovre rutorna, och hojden ska vara det som blir
      kvar av skarmen - inte en siffra fran en annan layout. Ovanfor ligger den
      hogsta av de tva rutorna (397) plus mellanrum och sidans marginaler. */
-  #panel-network-map{height:calc(100vh - 397px - 3 * var(--gap) - 4px);
-                     min-height:470px; overflow:hidden;
+  /* [TILLAGT v5.108.0] Sidan slutade 128 pixlar fore skarmens underkant och den
+     ytan gick till spillo. Nu stracker sig rutnatet hela vagen ner, och
+     eftersom kartans rad ar den som far vaxa hamnar de pixlarna i kartan. */
+  .app-main, .layout{min-height:calc(100vh - 2 * var(--gap))}
+  /* [ANDRAT v5.108.0] Kartan tar den hojd som blir over. Raden ovanfor far
+     vara sa hog den behover - forut var talet 397 inskrivet har, och nar
+     yrkesrutan vaxte spillde den ut i tomma luften. */
+  #panel-network-map{height:100%; min-height:470px; overflow:hidden;
                      display:flex; flex-direction:column}
   /* Kartytan tar allt som blir over nar rubriken och resefaltet fatt sitt.
      Golvet ar viktigt: pa en lag skarm rakna de tva ovanfor bort sa mycket att
      kartan blev 220 pixlar hog - lagre an den var FORE ombyggnaden. Hellre att
      sidan rullar nagra pixlar an att kartan blir oanvandbar. */
   #panel-network-map > .map-shell{flex:1 1 auto; height:auto; min-height:320px}
-  #panel-professions{height:396px;overflow-y:auto;overflow-x:hidden}
+  /* Rutan far inte klippa - lankflikarna ska hanga utanfor kanten - sa den
+     maste i stallet vara HOG NOG for sitt innehall. Med fast hojd rann korten
+     rakt ut i luften sa fort ett tredje yrke laste upp. */
+  #panel-professions{height:auto; min-height:396px}
   /* [ANDRAT v5.55.0] Snabbvalen lag under expeditionerna och holl dem korta.
      Nu ar spalten fri, sa expeditionsrutan far vaxa ned till samma underkant
      som natverkskartan i mitten.
@@ -4752,7 +4765,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.108.0 — REN KARTRUTA</div>
+        <div class="sn-ver">GENESIS v5.109.0 — YRKESRUTAN OCH HOGERKLICK</div>
       </div>
     </div>
   </aside>
@@ -5538,7 +5551,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.108.0 — REN KARTRUTA</div>
+            <div class="desc">GENESIS v5.109.0 — YRKESRUTAN OCH HOGERKLICK</div>
           </div>
         </div>
       </div>
@@ -16639,6 +16652,20 @@ function gmHook(){
   gmReady = true;
   const fb = $('map-fallback');
   if (fb) fb.classList.add('gone');
+  /* Kartan har ett EGET fonster, sa spelets sparr mot hogerklick nar inte dit -
+     dar dok webblasarens egen meny upp mitt i spelet. Samma sparr laggs darfor
+     inne i kartan. Skrivfalt undantas, precis som i spelet. */
+  try {
+    const doc = $('map-frame').contentDocument;
+    if (doc && !doc._gmNoMenu){
+      doc._gmNoMenu = true;
+      doc.addEventListener('contextmenu', e => {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        e.preventDefault();
+      });
+    }
+  } catch (e){}
   gmLastSig = ''; gmShownRegion = null;   /* tvinga fram en forsta sandning */
   gmPush();
   return true;
