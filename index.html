@@ -393,6 +393,37 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 .col{display:flex;flex-direction:column;gap:var(--gap)}
 
+/* ===== KARTAN (v5.106.0) =====
+   Panelen ar inget barn till en kolumn - den ligger i rutnatet sjalv och tar
+   kolumn tva och tre, alltsa hela ytan till hoger om vanstersp alten. Raderna
+   pekas ut med flit: utan dem hamnar kartan under ALLA tre kolumnerna, och
+   eftersom vanstersp alten ar langst blev det en halv skarm tomrum ovanfor.
+   Nu spanner vanstersp alten bada raderna medan kartan lagger sig direkt under
+   de tva hogra. */
+.layout > .col-left{grid-column:1; grid-row:1 / 3}
+.layout > .col-mid{grid-column:2; grid-row:1}
+.layout > .col-right{grid-column:3; grid-row:1}
+.map-panel{grid-column:2 / 4; grid-row:2; min-width:0}
+.map-shell{
+  position:relative; width:100%; height:520px;
+  border:1px solid var(--border); border-radius:12px; overflow:hidden;
+  background:#04050a;
+}
+.map-frame{
+  position:absolute; inset:0; width:100%; height:100%;
+  border:0; display:block; background:#04050a;
+}
+/* Star kartfilen inte bredvid spelet visas detta i stallet for en svart ruta.
+   Ramen laggs OVER, sa den doljs sa fort kartan svarat. */
+.map-fallback{
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:8px; padding:24px;
+  text-align:center; pointer-events:none;
+}
+.map-fallback.gone{display:none}
+.mf-title{font-size:13px;letter-spacing:.24em;color:var(--text-dim)}
+.mf-text{font-size:11px;line-height:1.5;color:var(--text-dim);max-width:380px;opacity:.75}
+
 /* ============================================================
    TOP BAR
    ============================================================ */
@@ -2034,7 +2065,7 @@ body.dragging *{cursor:grabbing !important}
 /* [ANDRAT v5.55.0] Fem kolumner satt nar rutan lag i den breda hogerspalten.
    I vansterspalten blev knapparna sa smala att "Auction House" bots i tre
    rader. Fyra kolumner ger nio knappar pa tva och en halv rad med luft kvar. */
-.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.qa-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .qa-btn{
   position:relative;aspect-ratio:1/0.95;border-radius:var(--radius-sm);cursor:pointer;
   background:var(--bg-row);border:1px solid var(--border-soft);
@@ -2234,7 +2265,18 @@ body.dragging *{cursor:grabbing !important}
   /* [ANDRAT v5.55.0] Regionen och bufflistan ar rivna som egna rutor. Deras
      plats bar nu snabbvalen med regionen som flik - lika hog som de var. */
   #panel-home-server{height:397px;min-height:0}
-  #panel-network-map{height:491px;overflow-y:auto;overflow-x:hidden}
+  /* [ANDRAT v5.106.0] 491 var mattet fran nar kartan lag i en spalt. Nu tar den
+     hela bredden under de tva ovre rutorna, och hojden ska vara det som blir
+     kvar av skarmen - inte en siffra fran en annan layout. Ovanfor ligger den
+     hogsta av de tva rutorna (397) plus mellanrum och sidans marginaler. */
+  #panel-network-map{height:calc(100vh - 397px - 3 * var(--gap) - 4px);
+                     min-height:470px; overflow:hidden;
+                     display:flex; flex-direction:column}
+  /* Kartytan tar allt som blir over nar rubriken och resefaltet fatt sitt.
+     Golvet ar viktigt: pa en lag skarm rakna de tva ovanfor bort sa mycket att
+     kartan blev 220 pixlar hog - lagre an den var FORE ombyggnaden. Hellre att
+     sidan rullar nagra pixlar an att kartan blir oanvandbar. */
+  #panel-network-map > .map-shell{flex:1 1 auto; height:auto; min-height:320px}
   #panel-professions{height:396px;overflow-y:auto;overflow-x:hidden}
   /* [ANDRAT v5.55.0] Snabbvalen lag under expeditionerna och holl dem korta.
      Nu ar spalten fri, sa expeditionsrutan far vaxa ned till samma underkant
@@ -4461,6 +4503,50 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .pt-detail{flex-wrap:wrap;gap:10px;padding:11px}
   .pt-dbuy{flex:1 1 100%}
 }
+/* [TILLAGT v5.105.0] SNABBVALEN OCH UPPDRAGSFONSTRET PA TELEFON.
+   Tva saker. Ett: snabbvalen gick fran fyra till fem kolumner nar uppdragen och
+   inkorgen kom till, och pa en telefon blir fem rutor sa smala att texten
+   bryter mitt i ordet. Har star de i fyra kolumner igen - tio knappar ger tva
+   fulla rader plus tva, vilket ar battre an tio oläsbara.
+   Tva: uppdragsrutan far en placering i sidled pa datorn. Kryper skarmen ihop
+   ska bladet ligga i kanten som alla andra, sa den placeringen nollas har.
+   Ligger sist i stilmallen sa dessa regler vinner. */
+@media (max-width:760px){
+  .qa-grid{grid-template-columns:repeat(4,1fr)}
+  #exp-overlay.open > .modal{left:0 !important}
+}
+/* [TILLAGT v5.106.0] KARTAN PA TELEFON.
+   Kartan ar ritad for 1100 pixlars bredd. I en telefonspalt pa 338 skalas dess
+   text till en fjardedel och blir oläslig - noderna gar inte att traffa heller.
+   Darfor visas den DAR som en lag remsa med en knapp, och oppnas i helskarm.
+   Ramen flyttas, den laddas aldrig om: kopplingen till spelet overlever.
+   Datorn ror vi inte - knapparna finns bara har inne. */
+.map-fs-btn{display:none}
+@media (max-width:760px){
+  /* Rutan tar inte langre en halv skarmhojd i onodan. */
+  #panel-network-map{height:auto}
+  .map-shell{height:150px}
+  .map-fs-btn{
+    display:block; position:absolute; left:50%; bottom:12px;
+    transform:translateX(-50%); z-index:30;
+    padding:10px 18px; border-radius:99px; cursor:pointer;
+    background:rgba(6,12,16,.92); border:1px solid var(--border-glow);
+    color:var(--text); font-size:12px; letter-spacing:.14em;
+  }
+  .map-fs-btn.close{display:none}
+  /* Helskarmslaget: ramen lyfts ur sidan och tacker skarmen. */
+  .map-panel.fs .map-shell{
+    position:fixed; inset:0; height:auto; z-index:1300;
+    border-radius:0; border:0;
+  }
+  .map-panel.fs .map-fs-btn{display:none}
+  .map-panel.fs .map-fs-btn.close{
+    display:block; top:12px; bottom:auto; left:auto; right:12px;
+    transform:none; z-index:1310;
+  }
+  /* Sidan bakom ska inte rulla medan kartan tacker skarmen. */
+  body.map-fs-open{overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -4662,7 +4748,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.104.0 — SJUKHUSET</div>
+        <div class="sn-ver">GENESIS v5.107.0 — RESEKNAPPEN</div>
       </div>
     </div>
   </aside>
@@ -4774,10 +4860,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
             <div class="qa-btn"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
             <div class="qa-btn" id="qa-friends"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span><span class="notif" id="friend-badge" style="display:none">0</span></div>
             <div class="qa-btn"><span class="ico"><span class="qi qi-guild"></span></span><span class="lbl">Guild</span></div>
-            <!-- [BORTTAGET v5.55.0] Den tomma nionde rutan. Med fem kolumner
-                 var den en arlig lucka; med fyra fyller de atta knapparna tva
-                 hela rader, och en tom ruta ensam pa en tredje rad ar bara
-                 en tom rad. -->
+            <!-- [TILLAGT v5.105.0] Uppdragen forlorade sin ruta i mittkolumnen
+                 nar kartan tog over ytan, och nas nu harifran. Inkorgen star
+                 ocksa i vanstersp alten, men det ar den man oftast vill at
+                 direkt nar nagot landat dar. Tio knappar fyller tva hela rader
+                 pa fem kolumner - ingen ensam knapp pa en tredje rad. -->
+            <div class="qa-btn" id="qa-expeditions"><span class="ico"><span class="qi qi-daily"></span></span><span class="lbl">Expeditions</span></div>
+            <div class="qa-btn" id="qa-inbox"><span class="ico"><span class="qi qi-inbox"></span></span><span class="lbl">Inbox</span><span class="notif" id="qa-mail-badge" style="display:none">0</span></div>
           </div>
         </div>
         <div class="tab-pane" id="pane-region-rep" style="display:none">
@@ -4858,52 +4947,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         </div>
       </section>
 
-      <!-- NEDRE MITTRAD: KARTAN + RESANDET (hör ihop) -->
-      <section class="panel" id="panel-network-map">
-        <div class="panel-title">Network Map <span class="sub" id="map-hint">Drag to pan · scroll or ± to zoom · click a region</span></div>
-        <!-- [ANDRAT v5.75.3] 340 blev 318. Kartrutans innehall spillde sexton
-             pixlar over kanten, sa man fick skrolla INNE i rutan for att se
-             nederkanten. Kartytan bar sjalv den hojden. -->
-        <div class="map-area" id="map-area" style="height:318px">
-          <div class="map-world" id="map-world">
-            <svg class="map-lines" id="map-lines" width="100%" height="100%"></svg>
-            <div id="map-nodes"></div>
-          </div>
-          <div class="map-tip" id="map-tip"></div>
-          <div class="map-zoom">
-            <button class="map-zoom-btn" id="map-mode" title="World / Region">🌐</button>
-            <button class="map-zoom-btn" id="map-zoom-in">＋</button>
-            <button class="map-zoom-btn" id="map-zoom-out">－</button>
-          </div>
-          <div class="warp" id="warp">
-            <div class="warp-field" id="warp-field"></div>
-            <div class="warp-hud">
-              <div class="wh-route"><b id="warp-from">—</b><span class="wh-arrow">→</span><b id="warp-to">—</b></div>
-              <div class="wh-eta" id="warp-eta">—</div>
-              <div class="wh-lbl">Time to arrival</div>
-              <div class="wh-actions" id="warp-actions">
-                <button class="wh-btn skip" id="warp-skip">Skip</button>
-                <button class="wh-btn danger" id="warp-abort">Abort warp</button>
-              </div>
-              <div class="wh-confirm" id="warp-confirm">
-                <div class="whc-text" id="warp-confirm-text"></div>
-                <div class="wh-actions">
-                  <button class="wh-btn" id="warp-keep">Keep going</button>
-                  <button class="wh-btn danger" id="warp-abort-yes">Abort anyway</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="map-legend" id="map-legend"></div>
-        <div class="travel-bar" id="panel-travel">
-          <span class="travel-label">Travel to</span>
-          <select class="select travel-select" id="travel-select"></select>
-          <span class="travel-kv" id="travel-cost">—</span>
-          <span class="travel-kv" id="travel-time">—</span>
-          <button class="btn-primary travel-go" id="travel-go">🚀 Initiate Travel</button>
-        </div>
-      </section>
+      <!-- [FLYTTAT v5.106.0] HAR LAG KARTAN. Den star nu efter hogerkolumnen
+           och sträcker sig over bada, dar uppdragsrutan tidigare tog halva
+           bredden. Kartan behover hela ytan. -->
     </div>
 
     <!-- ============ HÖGER KOLUMN ============ -->
@@ -4923,7 +4969,103 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </section>
 
       <!-- EXPEDITIONS -->
-      <section class="panel" id="panel-expeditions">
+      <!-- [FLYTTAT v5.105.0] HAR LAG UPPDRAGSRUTAN. Den bor nu i ett eget
+           fonster som oppnas fran snabbvalen eller fran en nod pa kartan.
+           Ytan gick till kartan, som behover hela bredden. -->
+
+      <!-- [FLYTTAT v5.55.0] Snabbvalen bor i vanstersp alten nu, i samma ram
+           som regionen. -->
+    </div>
+
+    <!-- ============ KARTAN (v5.106.0) ============
+         Kartan ligger utanfor kolumnerna och stracker sig over de tva hogra,
+         dar uppdragsrutan tidigare tog halva bredden. Sjalva kartan ar en egen
+         fil bredvid spelet: byts den ut vid nasta varldsbygge rors inte en enda
+         rad har inne, och dess ramverk kan aldrig na spelets stilar.
+         Reseanimeringen ligger OVANPA kartan - den maste kunna tacka den. -->
+    <section class="panel map-panel" id="panel-network-map">
+      <div class="panel-title">Network Map <span class="sub" id="map-hint">Click a world to travel · click a zone to enter</span></div>
+      <div class="map-shell" id="map-shell">
+        <iframe class="map-frame" id="map-frame" src="genesis-map.html"
+                title="Network Map" loading="lazy"></iframe>
+        <div class="map-fallback" id="map-fallback">
+          <div class="mf-title">MAP NOT LOADED</div>
+          <div class="mf-text">The map file is missing next to the game, or the game was opened directly from a folder instead of a web address.</div>
+        </div>
+        <!-- Bara pa telefon: kartan ar ritad for 1100 pixlars bredd och blir
+             oläslig i en spalt pa 338. Dar oppnas den i helskarm i stallet. -->
+        <button class="map-fs-btn" id="map-fs-open" type="button">⛶ Open map</button>
+        <button class="map-fs-btn close" id="map-fs-close" type="button">✕ Close</button>
+        <!-- Reseanimeringen: last ur den gamla kartytan sa den kan tacka den nya. -->
+        <div class="warp" id="warp">
+          <div class="warp-field" id="warp-field"></div>
+          <div class="warp-hud">
+            <div class="wh-route"><b id="warp-from">—</b><span class="wh-arrow">→</span><b id="warp-to">—</b></div>
+            <div class="wh-eta" id="warp-eta">—</div>
+            <div class="wh-lbl">Time to arrival</div>
+            <div class="wh-actions" id="warp-actions">
+              <button class="wh-btn skip" id="warp-skip">Skip</button>
+              <button class="wh-btn danger" id="warp-abort">Abort warp</button>
+            </div>
+            <div class="wh-confirm" id="warp-confirm">
+              <div class="whc-text" id="warp-confirm-text"></div>
+              <div class="wh-actions">
+                <button class="wh-btn" id="warp-keep">Keep going</button>
+                <button class="wh-btn danger" id="warp-abort-yes">Abort anyway</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Resefaltet star kvar tills kartans egen reseknapp ar inkopplad.
+           Rivs det innan finns inget satt att resa alls. -->
+      <div class="travel-bar" id="panel-travel">
+        <span class="travel-label">Travel to</span>
+        <select class="select travel-select" id="travel-select"></select>
+        <span class="travel-kv" id="travel-cost">—</span>
+        <span class="travel-kv" id="travel-time">—</span>
+        <button class="btn-primary travel-go" id="travel-go">🚀 Initiate Travel</button>
+      </div>
+      <!-- [DOLT v5.106.0] Den gamla kartan. Elementen star kvar sa den gamla
+           koden - pan, zoom, noder, tips - lever vidare och inget kraschar.
+           Hela blocket rivs i ett eget steg nar den nya kartan ar inkopplad
+           och bevisat fungerar. Det ar en reserv, inte en design. -->
+      <div id="old-map-hidden" style="display:none">
+        <div class="map-area" id="map-area" style="height:318px">
+          <div class="map-world" id="map-world">
+            <svg class="map-lines" id="map-lines" width="100%" height="100%"></svg>
+            <div id="map-nodes"></div>
+          </div>
+          <div class="map-tip" id="map-tip"></div>
+          <div class="map-zoom">
+            <button class="map-zoom-btn" id="map-mode" title="World / Region">🌐</button>
+            <button class="map-zoom-btn" id="map-zoom-in">＋</button>
+            <button class="map-zoom-btn" id="map-zoom-out">－</button>
+          </div>
+        </div>
+        <div class="map-legend" id="map-legend"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= OMSTARTEN (v2.3.0) =================
+       Flyttbart fonster: dra i rubriken. Har nollas noden mot Tokens, och
+       Tokens kops formåner som ar PERMANENTA over alla omstarter. -->
+  <!-- [BORTTAGET v5.0.0] HAR LAG REBOOT-RUTAN: nollstall noden, fa Tokens,
+       kop formaner i ett trad om sex rader. Hela systemet ar rivet - Data som
+       den byggde pa finns inte langre, och ingen hade kopt en enda forman.
+       Grunden ar oforandrad: tva uppdragsplatser, tva boostplatser, samma
+       auktionsskatt och samma bransleregen som forut. -->
+  <!-- ================= UPPDRAGEN (v5.105.0) =================
+       Samma innehall som lag i mittkolumnen, nu i ett eget fonster. Oppnas
+       fran snabbvalen eller genom att trycka pa en uppdragsnod pa kartan. -->
+  <div class="float-win" id="exp-overlay">
+    <div class="modal profile-modal exp-modal">
+      <div class="inv-titlebar">
+        <span class="inv-title">Expeditions</span>
+        <button class="inv-x" id="exp-close">✕</button>
+      </div>
+      <div class="profile-body">
         <!-- Meddelandet sitter OVANFOR flikarna. Det lag inne i Active, sa den
              som tryckte Start i Discovered fick svaret renderat i en dold ruta -
              knappen sag ut att inte gora nagonting alls. -->
@@ -4940,22 +5082,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="tab-pane" id="pane-exp-active" style="display:none">
           <div class="exp-slots" id="exp-active-list"></div>
         </div>
-      </section>
-
-      <!-- [FLYTTAT v5.55.0] Snabbvalen bor i vanstersp alten nu, i samma ram
-           som regionen. -->
+      </div>
     </div>
-  </main>
+  </div>
 
-  <!-- ================= OMSTARTEN (v2.3.0) =================
-       Flyttbart fonster: dra i rubriken. Har nollas noden mot Tokens, och
-       Tokens kops formåner som ar PERMANENTA over alla omstarter. -->
-  <!-- [BORTTAGET v5.0.0] HAR LAG REBOOT-RUTAN: nollstall noden, fa Tokens,
-       kop formaner i ett trad om sex rader. Hela systemet ar rivet - Data som
-       den byggde pa finns inte langre, och ingen hade kopt en enda forman.
-       Grunden ar oforandrad: tva uppdragsplatser, tva boostplatser, samma
-       auktionsskatt och samma bransleregen som forut. -->
-<div class="float-win" id="vault-overlay">
+  <div class="float-win" id="vault-overlay">
     <div class="modal inv-modal vault-modal">
       <div class="vt-picker">
         <span class="vt-dot" data-tone="blue" title="Blue"></span>
@@ -5427,7 +5558,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.104.0 — SJUKHUSET</div>
+            <div class="desc">GENESIS v5.107.0 — RESEKNAPPEN</div>
           </div>
         </div>
       </div>
@@ -11463,13 +11594,17 @@ function openMailNote(id){
   });
 }
 function renderMailBadge(){
-  const b = $('mail-badge');
-  if (!b) return;
   /* Märket räknar OHÄMTADE saker i första hand — det är det som brådskar — och
      faller tillbaka på olästa meddelanden. */
   const n = mailWithItems() || mailUnread();
-  b.textContent = n;
-  b.style.display = n ? '' : 'none';
+  /* [ANDRAT v5.105.0] Inkorgen nas fran tva hall nu. Bada marken skrivs har,
+     annars star snabbvalet tyst medan vanstersp alten larmar. */
+  for (const id of ['mail-badge', 'qa-mail-badge']){
+    const b = $(id);
+    if (!b) continue;
+    b.textContent = n;
+    b.style.display = n ? '' : 'none';
+  }
 }
 function openMail(){
   const w = $('mail-overlay');
@@ -13667,6 +13802,38 @@ function openTravelNow(regionId){
 /* Panelen: Active (två slots) + Discovered (katalogen) */
 function fmtMins(m){ return m >= 60 ? (m / 60) + 'h' : m + 'm'; }
 let expPaneSig = '', discPaneSig = '';
+/* [TILLAGT v5.105.0] Uppdragen bor i ett eget fonster nu. Jamforelsen nedan
+   hoppar over ritningen nar innehallet ser likadant ut - men ett stangt fonster
+   kan ha missat en andring, sa den nollas vid oppning. Utan det oppnas rutan
+   med gammalt innehall, eller tom. */
+function openExpeditions(){
+  expPaneSig = ''; discPaneSig = '';
+  renderExpPanel();
+  const w = $('exp-overlay');
+  w.classList.add('open');
+  /* Fonstren har ingen gemensam placering - de hamnar dar de rakar sta i koden,
+     och det har hade lagt sig i vanstra kanten. Placeras EN gang, sa ett eget
+     drag inte nollas nasta gang man oppnar. Smala skarmar ligger som blad
+     underifran och ska inte flyttas alls. */
+  const m = w.querySelector('.modal');
+  if (m && !m.dataset.placed && !isNarrowScreen()){
+    /* Rutans left raknas fran fonstrets egen ram, inte fran skarmen, och den
+       ramen ligger dar den rakar hamna i koden. Matet tas darfor forst och
+       skillnaden laggs pa. Steget upprepas nar webblasaren raknat klart -
+       forsta matet tas i samma andetag som rutan blir synlig och slog fel. */
+    const center = () => {
+      const now = m.getBoundingClientRect();
+      if (!now.width) return;
+      const want = Math.round((window.innerWidth - now.width) / 2);
+      m.style.left = Math.round((parseFloat(m.style.left) || 0) + (want - now.left)) + 'px';
+    };
+    center();
+    requestAnimationFrame(center);
+    m.dataset.placed = '1';
+  }
+  bringToFront(w);
+}
+function closeExpeditions(){ $('exp-overlay').classList.remove('open'); }
 function renderExpPanel(){
   const noteBox = $('exp-note');
   if (noteBox){
@@ -16274,7 +16441,240 @@ function renderMap(){
   renderLegend();
   if (mapMode === 'region') renderRegionView();
   else renderWorld();
+  gmPush();
 }
+
+/* ==================== KARTAN I EGEN FIL (v5.106.0) ====================
+   Kartan ar en egen fil bredvid spelet, visad i en ram. Det gor tva saker:
+   nasta varldsbygge byter EN fil utan att spelet rors, och kartans egna stilar
+   kan aldrig na spelets - de bor i skilda fonster.
+
+   Trafiken gar bara at tva hall. Spelet SKICKAR laget hit; kartan RAPPORTERAR
+   klick tillbaka. Kartan avgor aldrig sjalv om nagot ar last, hur mycket det
+   kostar eller vart man far resa - da skulle vi ha tva sanningar om samma sak,
+   och det ar den vanligaste buggen i det har projektet.
+
+   Sandningen sitter i renderMap, som redrawAll redan anropar. Darfor kan kartan
+   inte hamna i otakt: allt som ritar om spelet ritar om kartan. */
+let gmReady = false, gmLastSig = '', gmShownRegion = null;
+function gmWin(){
+  const f = $('map-frame');
+  try { return (f && f.contentWindow && f.contentWindow.genesisMap) || null; }
+  catch (e){ return null; }   /* annan sida i ramen - las den inte */
+}
+/* Laget beskrivs i kartans sprak: en text per region och zon. */
+function gmState(){
+  const regions = {}, zones = {}, encounters = {};
+  const here = S.world.current, hereZone = S.world.zone || null;
+  for (const id of Object.keys(REGIONS)){
+    regions[id] = (id === here) ? 'current'
+                : S.world.visited.includes(id) ? 'visited'
+                : S.world.known.includes(id) ? 'known' : 'unknown';
+    for (const z of REGIONS[id].zones){
+      const key = id + '|' + z;
+      zones[key] = (id === here && z === hereZone) ? 'current'
+                 : isZoneCharted(id, z) ? 'visited'
+                 : (regions[id] === 'unknown' ? 'unknown' : 'uncharted');
+      /* Motet i en zon vilar en stund efter en vunnen strid. Servern ager
+         klockan; har sags bara vaket eller vilande. */
+      if (z !== TRADE_ZONE) encounters[key] = pveZoneResting(id, z) ? 'cooldown' : 'ready';
+    }
+  }
+  return {
+    current: {region: here, zone: hereZone},
+    regions: regions, zones: zones, encounters: encounters,
+    quests: gmQuestNodes(),
+    vaultOpen: false,
+    level: (function(){ try { return levelInfo().lvl; } catch (e){ return 1; } })()
+  };
+}
+/* Kontrakten far sina gula noder senare, nar platserna lart sig vilken zon de
+   ligger i. Tills dess star listan tom med flit - hellre ingen nod an en nod
+   pa fel stalle. */
+function gmQuestNodes(){ return []; }
+/* Vilar zonens mote? Servern skickar vilotid BARA for den zon man star i - den
+   vet inte, och tillfragas inte om, de ovriga tjugonio. Darfor sags 'vaket' om
+   alla andra. Att gissa vilande pa de ovriga vore ett dott varde som ser levande
+   ut, och det ar en av de aterkommande buggarna i det har projektet.
+   Vill vi visa vila pa hela kartan behover servern skicka listan - en egen
+   andring, inte nagot som kan fejkas har. */
+function pveZoneResting(regionId, zone){
+  if (regionId !== S.world.current || zone !== S.world.zone) return false;
+  try { return (PVE.cd || 0) > 0; } catch (e){ return false; }
+}
+function gmPush(){
+  const api = gmWin();
+  if (!api || typeof api.setState !== 'function') return;
+  const st = gmState();
+  /* Skickas bara nar nagot faktiskt andrats. Kartan ritar om sig vid varje
+     sandning, och spelet ritar om ofta - utan detta skulle kartan blinka. */
+  const sig = JSON.stringify(st);
+  if (sig === gmLastSig) return;
+  gmLastSig = sig;
+  try { api.setState(st); } catch (e){}
+  /* Byter man varld ska kartan folja med dit. Utan detta star den kvar i sin
+     egen standardregion medan spelaren ar nagon helt annanstans - laget ar
+     ratt men bilden visar fel varld. Bara vid FAKTISKT byte, annars skulle
+     varje omritning slanga tillbaka den som medvetet tittar pa en annan varld. */
+  if (gmShownRegion !== S.world.current && typeof api.showRegion === 'function'){
+    gmShownRegion = S.world.current;
+    try { api.showRegion(S.world.current); } catch (e){}
+  }
+  /* Knappen maste folja med nar branslet eller laget andras, inte bara nar man
+     klickar. Annars star det "NOT ENOUGH FUEL" kvar pa en knapp som borde ha
+     blivit klickbar for lange sedan. */
+  gmSetTravel();
+}
+/* Klick fran kartan. Kartan sager BARA vad som traffades; vad som hander
+   bestams har. */
+/* Kartans reseknapp. Kartan raknar ALDRIG sjalv - den visar det spelet sager
+   och rapporterar tillbaka nar man trycker. All prövning ligger kvar dar den
+   redan fanns; har byggs bara texten. */
+let gmSel = null;   /* vad kartan senast visade panel for */
+function gmSetTravel(){
+  const api = gmWin();
+  if (!api || typeof api.setTravel !== 'function') return;
+  if (!gmSel){ api.setTravel(null); return; }
+  const region = gmSel.region, zone = gmSel.zone;
+  try {
+    if (zone && region === S.world.current){
+      /* Zonhopp i egen region: ogonblickligt, men kostar bransle. */
+      if (S.world.zone === zone){
+        api.setTravel({label: 'YOU ARE HERE', cost: '', enabled: false, note: ''});
+      } else if (!isZoneCharted(region, zone)){
+        api.setTravel({label: 'UNCHARTED', cost: '', enabled: false,
+                       note: 'SEND A DRONE TO CHART THIS ZONE'});
+      } else if (S.fuel < ZONE_FUEL_COST){
+        api.setTravel({label: 'TRAVEL', cost: ZONE_FUEL_COST + ' FUEL · INSTANT',
+                       enabled: false, note: 'NOT ENOUGH FUEL'});
+      } else {
+        api.setTravel({label: 'TRAVEL', cost: ZONE_FUEL_COST + ' FUEL · INSTANT',
+                       enabled: true, note: ''});
+      }
+      return;
+    }
+    if (zone){   /* zon i en ANNAN region - dit reser man inte direkt */
+      api.setTravel({label: 'ANOTHER WORLD', cost: '', enabled: false,
+                     note: 'TRAVEL TO ' + REGIONS[region].name.toUpperCase() + ' FIRST'});
+      return;
+    }
+    /* Hela varlden. */
+    if (region === S.world.current){
+      api.setTravel({label: 'YOU ARE HERE', cost: '', enabled: false, note: ''});
+    } else if (!isKnown(region)){
+      api.setTravel({label: 'UNKNOWN', cost: '', enabled: false, note: 'NOT DISCOVERED YET'});
+    } else if (S.world.travel){
+      api.setTravel({label: 'IN TRANSIT', cost: '', enabled: false, note: 'ALREADY TRAVELING'});
+    } else {
+      const cost = costToTravel(region);
+      const secs = travelSeconds(secsBetween(S.world.current, region));
+      api.setTravel({label: 'TRAVEL', cost: cost + ' FUEL · ' + fmtDur(secs),
+                     enabled: S.fuel >= cost, note: S.fuel >= cost ? '' : 'NOT ENOUGH FUEL'});
+    }
+  } catch (e){ try { api.setTravel(null); } catch (e2){} }
+}
+function gmPick(o){
+  if (!o || !o.kind) return;
+  const region = o.region || S.world.current;
+  /* Kartan talar om zoner med NAMN; spelet oppnar dem med deras PLATS i
+     regionens lista. Utan den har oversattningen avbryter oppnandet tyst och
+     ingenting hander nar man klickar - det syns inte som ett fel, bara som en
+     karta som inte reagerar. */
+  const zi = (name) => {
+    const R = REGIONS[region];
+    if (!R || !name) return -1;
+    return R.zones.indexOf(name);
+  };
+  switch (o.kind){
+    case 'region':      gmSel = {region: region, zone: null}; gmSetTravel();
+                        openRegion(region); break;
+    /* Valvet ar an sa lange INGEN zon i spelet - det nas overallt ifran. Kartan
+       ritar redan sin valvplats, sa noden oppnar valvet direkt. Nar valvet blir
+       en plats man reser till flyttas den hit ner till raden under, och da
+       borjar last/upplast betyda nagot. */
+    case 'vault':       openVault(); break;
+    case 'zone':
+    case 'vendor':
+    case 'dungeon':
+    case 'encounter': {
+      gmSel = {region: region, zone: o.zone || null};
+      gmSetTravel();
+      const i = zi(o.zone);
+      if (i >= 0) openZone(region, i);
+      break;
+    }
+    case 'expedition':  openExpeditions(); break;
+    case 'quest':       break;   /* platserna ar inte zonbundna an */
+    /* Trycket pa kartans reseknapp. Provningen ligger kvar i spelets egna
+       resefunktioner - de sager nej sjalva om nagot inte stammer, sa knappen
+       kan aldrig bli en genvag forbi en regel. */
+    case 'travel':
+      if (o.zone) goToZone(region + '|' + o.zone);
+      else startTravel(region);
+      updateUI(true);
+      gmSetTravel();
+      break;
+  }
+}
+function gmHook(){
+  const api = gmWin();
+  if (!api){ return false; }
+  api.onPick = gmPick;
+  gmReady = true;
+  const fb = $('map-fallback');
+  if (fb) fb.classList.add('gone');
+  gmLastSig = ''; gmShownRegion = null;   /* tvinga fram en forsta sandning */
+  gmPush();
+  return true;
+}
+/* Ramen kan vara klar fore eller efter spelet, och pa en langsam uppkoppling
+   dropp lasten. Darfor bade en lyssnare och nagra forsok - och sedan slut, sa
+   en saknad kartfil inte later spelet leta i all evighet. */
+(function gmConnect(){
+  const f = $('map-frame');
+  if (!f) return;
+  f.addEventListener('load', () => { setTimeout(gmHook, 60); });
+  let tries = 0;
+  const t = setInterval(() => {
+    if (gmHook() || ++tries > 40) clearInterval(t);
+  }, 250);
+})();
+/* Helskarmskartan pa telefon. Ramen FLYTTAS, den laddas aldrig om - annars
+   tappar kartan sitt lage och kopplingen maste goras om varje gang man
+   oppnar. Bakatknappen stanger den, sa den inte blir en fälla man sitter
+   fast i. */
+(function gmFullscreen(){
+  const panel = $('panel-network-map'), open = $('map-fs-open'), close = $('map-fs-close');
+  if (!panel || !open || !close) return;
+  let savedY = null;
+  const set = on => {
+    if (on && savedY == null){
+      savedY = window.scrollY || document.documentElement.scrollTop || 0;
+    }
+    panel.classList.toggle('fs', on);
+    document.body.classList.toggle('map-fs-open', on);
+    /* Kartan matar om sin egen yta nar fonstret andras; utan detta ritar den
+       vidare i den lilla remsans matt mitt i helskarm. */
+    try { window.dispatchEvent(new Event('resize')); } catch (e){}
+    /* Utan detta hamnar man langt fran kartan nar man stanger: sidan tappar
+       sin plats sa fort kroppen last och slapps igen. */
+    if (!on && savedY != null){
+      const y = savedY; savedY = null;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    }
+  };
+  open.addEventListener('click', () => {
+    set(true);
+    try { history.pushState({mapFs: 1}, ''); } catch (e){}
+  });
+  close.addEventListener('click', () => {
+    if (history.state && history.state.mapFs){ history.back(); return; }
+    set(false);
+  });
+  window.addEventListener('popstate', () => {
+    if (panel.classList.contains('fs')) set(false);
+  });
+})();
 
 /* --- Regionmodalen --- */
 const regionOverlay = $('region-overlay');
@@ -21399,6 +21799,16 @@ $('nav-inbox').addEventListener('click', () => toggleWindow('mail-overlay', open
   $('mail-overlay').classList.remove('open');
   document.querySelectorAll('.mail-note').forEach(n => n.remove());
 }));
+/* [TILLAGT v5.105.0] De tva nya snabbvalen. Inkorgen oppnar exakt samma ruta
+   som knappen i vanstersp alten - en ruta, tva vagar in, inget eget tillstand
+   som kan hamna i otakt. */
+$('qa-inbox').addEventListener('click', () => toggleWindow('mail-overlay', openMail, () => {
+  $('mail-overlay').classList.remove('open');
+  document.querySelectorAll('.mail-note').forEach(n => n.remove());
+}));
+$('qa-expeditions').addEventListener('click', () => toggleWindow('exp-overlay', openExpeditions, closeExpeditions));
+$('exp-close').addEventListener('click', closeExpeditions);
+makeDraggable($('exp-overlay'), [$('exp-overlay').querySelector('.inv-titlebar'), $('exp-overlay')]);
 $('mail-close').addEventListener('click', () => { $('mail-overlay').classList.remove('open'); });
 $('mail-takeall').addEventListener('click', () => {
   const n = takeAllMail();
@@ -23141,7 +23551,12 @@ document.querySelectorAll('.tabs').forEach(tabs => {
       tab.classList.add('active');
       const paneId = tab.dataset.pane;
       if (paneId){
-        const panel = tabs.closest('.panel');
+        /* [ANDRAT v5.105.0] Flikarna letade bara efter en panel. Nar uppdragen
+           flyttade in i ett eget fonster fanns ingen panel langre, och raden
+           under kastade fel innan den hann visa nagot - flikarna sag ut att
+           vara trasiga. Nu duger fonstret, och i sista hand foraldern. */
+        const panel = tabs.closest('.panel') || tabs.closest('.modal') || tabs.parentElement;
+        if (!panel) return;
         panel.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
         const target = document.getElementById(paneId);
         if (target) target.style.display = '';
