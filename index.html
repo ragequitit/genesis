@@ -403,7 +403,11 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .layout > .col-left{grid-column:1; grid-row:1 / 3}
 .layout > .col-mid{grid-column:2; grid-row:1}
 .layout > .col-right{grid-column:3; grid-row:1}
-.map-panel{grid-column:2 / 4; grid-row:2; min-width:0}
+.map-panel{grid-column:2 / 4; grid-row:2; min-width:0;
+  /* [ANDRAT v5.108.0] Rutan ar kartan och ingenting annat. Panelens egen ram,
+     stoppning och bakgrund ar borta - kartan har sin egen och tva ramar utanpa
+     varandra blev en tjock dodyta runt bilden. */
+  padding:0; background:none; border:0; box-shadow:none}
 .map-shell{
   position:relative; width:100%; height:520px;
   border:1px solid var(--border); border-radius:12px; overflow:hidden;
@@ -4748,7 +4752,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.107.0 — RESEKNAPPEN</div>
+        <div class="sn-ver">GENESIS v5.108.0 — REN KARTRUTA</div>
       </div>
     </div>
   </aside>
@@ -4984,7 +4988,6 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
          rad har inne, och dess ramverk kan aldrig na spelets stilar.
          Reseanimeringen ligger OVANPA kartan - den maste kunna tacka den. -->
     <section class="panel map-panel" id="panel-network-map">
-      <div class="panel-title">Network Map <span class="sub" id="map-hint">Click a world to travel · click a zone to enter</span></div>
       <div class="map-shell" id="map-shell">
         <iframe class="map-frame" id="map-frame" src="genesis-map.html"
                 title="Network Map" loading="lazy"></iframe>
@@ -5017,34 +5020,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           </div>
         </div>
       </div>
-      <!-- Resefaltet star kvar tills kartans egen reseknapp ar inkopplad.
-           Rivs det innan finns inget satt att resa alls. -->
-      <div class="travel-bar" id="panel-travel">
-        <span class="travel-label">Travel to</span>
-        <select class="select travel-select" id="travel-select"></select>
-        <span class="travel-kv" id="travel-cost">—</span>
-        <span class="travel-kv" id="travel-time">—</span>
-        <button class="btn-primary travel-go" id="travel-go">🚀 Initiate Travel</button>
-      </div>
-      <!-- [DOLT v5.106.0] Den gamla kartan. Elementen star kvar sa den gamla
-           koden - pan, zoom, noder, tips - lever vidare och inget kraschar.
-           Hela blocket rivs i ett eget steg nar den nya kartan ar inkopplad
-           och bevisat fungerar. Det ar en reserv, inte en design. -->
-      <div id="old-map-hidden" style="display:none">
-        <div class="map-area" id="map-area" style="height:318px">
-          <div class="map-world" id="map-world">
-            <svg class="map-lines" id="map-lines" width="100%" height="100%"></svg>
-            <div id="map-nodes"></div>
-          </div>
-          <div class="map-tip" id="map-tip"></div>
-          <div class="map-zoom">
-            <button class="map-zoom-btn" id="map-mode" title="World / Region">🌐</button>
-            <button class="map-zoom-btn" id="map-zoom-in">＋</button>
-            <button class="map-zoom-btn" id="map-zoom-out">－</button>
-          </div>
-        </div>
-        <div class="map-legend" id="map-legend"></div>
-      </div>
+      <!-- [BORTTAGET v5.108.0] HAR LAG RESEFALTET med rullgardin, bransle, tid
+           och en Initiate Travel-knapp, plus den gamla kartan gomd bakom det.
+           Bada ar rivna: kartans egen knapp gor samma sak pa den plats man
+           tittar, och tva satt att resa var ett for mycket. Rutan ar nu kartan
+           och ingenting annat. -->
     </section>
   </main>
 
@@ -5558,7 +5538,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.107.0 — RESEKNAPPEN</div>
+            <div class="desc">GENESIS v5.108.0 — REN KARTRUTA</div>
           </div>
         </div>
       </div>
@@ -14699,10 +14679,14 @@ function updateUI(force){
   if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); pveDungeonTick(); }
 
   if (S.world.travel){
-    travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
-    travelGo.textContent = '🛰 Traveling to ' + (S.world.travel.zone || REGIONS[S.world.travel.to].name) + '…';
+    /* [ANDRAT v5.108.0] Resefaltets text och knapp ar rivna. Reseanimeringens
+       klocka ar det som betyder nagot och star kvar - den ligger ovanpa kartan.
+       Detta kors en gang i sekunden, sa ett fel har hade slagit ut allt
+       darunder varje sekund, om och om igen. */
+    if (travelTime) travelTime.textContent = '⏱ ' + fmtDur((S.world.travel.eta - Date.now()) / 1000);
+    if (travelGo) travelGo.textContent = '🛰 Traveling to ' + (S.world.travel.zone || REGIONS[S.world.travel.to].name) + '…';
     updateWarpEta();
-  } else if (travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
+  } else if (travelGo && travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
     travelGo.textContent = '🚀 Initiate Travel';
   }
 
@@ -16099,7 +16083,14 @@ function fogIds(){
 function renderableIds(){ return S.world.known.concat(fogIds()); }
 
 /* --- Kartrendering med pan/zoom --- */
-const mapArea = $('map-area'), mapWorld = $('map-world'), mapNodes = $('map-nodes'), mapLines = $('map-lines');
+/* [ANDRAT v5.108.0] Den gamla kartan ar riven ur rutan. Koden nedanfor ror ett
+   tjugotal element pa lika manga stallen, sa i stallet for att jaga bort varje
+   rad far den TOMMA attrapper att skriva till: samma namn, aldrig i sidan,
+   ingenting syns. Ett fönster som inte finns kan inte krascha och kan inte
+   heller ritas. Hela blocket kan tas bort helt i ett eget stadsteg. */
+const _mapGhost = id => $(id) || document.createElement('div');
+const mapArea = _mapGhost('map-area'), mapWorld = _mapGhost('map-world'),
+      mapNodes = _mapGhost('map-nodes'), mapLines = _mapGhost('map-lines');
 let view = {x: 0, y: 0, scale: 1};
 function applyView(){ mapWorld.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.scale + ')'; }
 function zoomAt(f, cx, cy){
@@ -16110,8 +16101,8 @@ function zoomAt(f, cx, cy){
   view.scale = ns;
   applyView();
 }
-$('map-zoom-in').addEventListener('click', () => zoomAt(1.25, mapArea.clientWidth/2, mapArea.clientHeight/2));
-$('map-zoom-out').addEventListener('click', () => zoomAt(0.8, mapArea.clientWidth/2, mapArea.clientHeight/2));
+_mapGhost('map-zoom-in').addEventListener('click', () => zoomAt(1.25, mapArea.clientWidth/2, mapArea.clientHeight/2));
+_mapGhost('map-zoom-out').addEventListener('click', () => zoomAt(0.8, mapArea.clientWidth/2, mapArea.clientHeight/2));
 mapArea.addEventListener('wheel', e => {
   e.preventDefault();
   const r = mapArea.getBoundingClientRect();
@@ -16119,7 +16110,7 @@ mapArea.addEventListener('wheel', e => {
 }, {passive:false});
 
 /* --- Hovringsrutan --- */
-const mapTip = $('map-tip');
+const mapTip = _mapGhost('map-tip');
 function showTip(html, cx, cy){
   mapTip.innerHTML = html;
   mapTip.style.display = 'block';
@@ -16329,8 +16320,8 @@ function renderLegend(){
 function setMapMode(m){
   mapMode = m;
   if (m === 'region' && !viewedRegion) viewedRegion = S.world.current;
-  $('map-mode').textContent = (m === 'world') ? '◉' : '🌐';
-  $('map-hint').textContent = (m === 'world')
+  _mapGhost('map-mode').textContent = (m === 'world') ? '◉' : '🌐';
+  _mapGhost('map-hint').textContent = (m === 'world')
     ? 'World view · hover a region · click to dive in · 🌐 back inside'
     : 'Inside ' + REGIONS[viewedRegion || S.world.current].name + ' · hover a zone · click to open · ◉ world view';
   renderMap();
@@ -16350,7 +16341,7 @@ function syncMapToPlayer(){
   viewedRegion = S.world.current;
   if (mapMode === 'region') setMapMode('region');
 }
-$('map-mode').addEventListener('click', () => setMapMode(mapMode === 'world' ? 'region' : 'world'));
+_mapGhost('map-mode').addEventListener('click', () => setMapMode(mapMode === 'world' ? 'region' : 'world'));
 
 /* Varje zon får sin egen naturliga plats: grundvinkeln jittras och avståndet
    varierar, styrt av en hash på zonens namn — samma zon landar alltid på
@@ -16560,7 +16551,10 @@ function gmSetTravel(){
     }
     /* Hela varlden. */
     if (region === S.world.current){
-      api.setTravel({label: 'YOU ARE HERE', cost: '', enabled: false, note: ''});
+      /* Star man REDAN i varlden ar resa fel ord - da ska knappen fora en in i
+         den. Utan detta blev globen en atervandsgrand: rutan sa "du ar har" och
+         det fanns ingen vag in i regionen darifran. */
+      api.setTravel({label: 'ENTER REGION', cost: '', enabled: true, note: ''});
     } else if (!isKnown(region)){
       api.setTravel({label: 'UNKNOWN', cost: '', enabled: false, note: 'NOT DISCOVERED YET'});
     } else if (S.world.travel){
@@ -16586,8 +16580,11 @@ function gmPick(o){
     return R.zones.indexOf(name);
   };
   switch (o.kind){
-    case 'region':      gmSel = {region: region, zone: null}; gmSetTravel();
-                        openRegion(region); break;
+    /* Kartan har EGNA paneler for varld och zon. Spelets gamla rutor oppnades
+       ovanpa dem, sa man fick tva fonster som sa nastan samma sak. Klicket
+       stannar darfor i kartan; spelets ruta oppnas forst nar man faktiskt ar
+       framme. */
+    case 'region':      gmSel = {region: region, zone: null}; gmSetTravel(); break;
     /* Valvet ar an sa lange INGEN zon i spelet - det nas overallt ifran. Kartan
        ritar redan sin valvplats, sa noden oppnar valvet direkt. Nar valvet blir
        en plats man reser till flyttas den hit ner till raden under, och da
@@ -16599,8 +16596,13 @@ function gmPick(o){
     case 'encounter': {
       gmSel = {region: region, zone: o.zone || null};
       gmSetTravel();
-      const i = zi(o.zone);
-      if (i >= 0) openZone(region, i);
+      /* Star man redan i zonen finns det nagot att gora dar - da oppnas rutan
+         med handlaren, motet och resten. Star man nagon annanstans ar zonen
+         bara ett resmal an sa lange. */
+      if (region === S.world.current && o.zone === S.world.zone){
+        const i = zi(o.zone);
+        if (i >= 0) openZone(region, i);
+      }
       break;
     }
     case 'expedition':  openExpeditions(); break;
@@ -16608,12 +16610,26 @@ function gmPick(o){
     /* Trycket pa kartans reseknapp. Provningen ligger kvar i spelets egna
        resefunktioner - de sager nej sjalva om nagot inte stammer, sa knappen
        kan aldrig bli en genvag forbi en regel. */
-    case 'travel':
-      if (o.zone) goToZone(region + '|' + o.zone);
-      else startTravel(region);
+    case 'travel': {
+      const api = gmWin();
+      if (o.zone){
+        if (goToZone(region + '|' + o.zone)){
+          /* Framme: nu ar zonens ruta ratt att oppna. */
+          const i = zi(o.zone);
+          if (i >= 0) openZone(region, i);
+        }
+      } else if (region === S.world.current){
+        /* "ENTER REGION" - ingen resa, bara in i varlden pa kartan. */
+        if (api && typeof api.showRegion === 'function'){
+          try { api.showRegion(region); } catch (e){}
+        }
+      } else {
+        startTravel(region);
+      }
       updateUI(true);
       gmSetTravel();
       break;
+    }
   }
 }
 function gmHook(){
@@ -17792,6 +17808,11 @@ $('warp-abort-yes').addEventListener('click', abortTravel);
 /* --- Resraden --- */
 const travelSelect = $('travel-select'), travelCost = $('travel-cost'), travelTime = $('travel-time'), travelGo = $('travel-go');
 function refreshTravelBar(){
+  /* [ANDRAT v5.108.0] Resefaltet ar rivet - kartans egen knapp har tagit over.
+     Funktionen anropas fran ett tiotal stallen i spelet och far darfor ligga
+     kvar som en tyst dorr i stallet for att jagas bort ur var och en av dem.
+     Den enda raden som betyder nagot nu ar att kartans knapp ritas om. */
+  if (!travelSelect){ gmSetTravel(); return; }
   if (S.world.travel){
     travelSelect.innerHTML = '<option>' + (S.world.travel.zone || REGIONS[S.world.travel.to].name) + '</option>';
     travelSelect.disabled = true;
@@ -17815,7 +17836,10 @@ function updateTravelInfo(){
   travelCost.textContent = '⛽ ' + costToTravel(id) + ' fuel';
   travelTime.textContent = '⏱ ' + fmtDur(travelSeconds(secsBetween(S.world.current, id)));
 }
-travelSelect.addEventListener('change', updateTravelInfo);
+/* [ANDRAT v5.108.0] Resefaltet ar rivet - lyssnarna far bara kopplas om det
+   faktiskt finns. Utan detta kastar sidan ett fel innan resten av kopplingarna
+   hunnit satta sig, och da slutar allt DARUNDER att fungera. */
+if (travelSelect) travelSelect.addEventListener('change', updateTravelInfo);
 $('exp-active-list').addEventListener('pointerdown', e => {
   const btn = e.target.closest('[data-claim]');
   if (btn) claimExpedition(btn.dataset.claim);
@@ -22432,7 +22456,7 @@ $('reward-claim').addEventListener('click', confirmClaim);
 $('reward-close').addEventListener('click', () => { pendingClaimId = null; $('reward-overlay').classList.remove('open'); });
 $('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')){ pendingClaimId = null; $('reward-overlay').classList.remove('open'); } });
 
-travelGo.addEventListener('click', () => {
+if (travelGo) travelGo.addEventListener('click', () => {
   if (S.world.travel) return;
   const id = travelSelect.value;
   if (id) startTravel(id);
