@@ -1927,22 +1927,22 @@ body.dragging *{cursor:grabbing !important}
   text-transform:uppercase;color:rgba(255,255,255,.72)}
 .prof-card .jc-tag{font-size:8.5px;font-weight:800;letter-spacing:.16em;
   color:rgba(255,255,255,.55);margin-left:7px}
-/* [ANDRAT v5.110.0] Raden fick brytas i tva. Statusen ar kort nar yrket vilar
-   ("Idle") och lang nar det arbetar ("Medical Supplies 197 / 200") - sa i det
-   ogonblick insamlingen startade fick raden en andra rad och HELA kortet blev
-   hogre. Det knuffade allt under sig varje gang arbetet borjade eller slutade.
-   Nu star raden alltid pa en rad: XP-talet behaller sin plats och statusen far
-   den bredd som blir over, med tre punkter om den inte racker till. */
-.prof-card .jc-line{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;
-  min-width:0}
-.prof-card .jc-xp{flex:0 0 auto;white-space:nowrap}
+/* [ANDRAT v5.111.0] Raden fick brytas fritt, och gjorde det forst nar yrket
+   BORJADE arbeta: statusen ar kort nar det vilar ("Idle") och lang nar det gar
+   ("Medical Supplies 197 / 200"). Kortet blev alltsa hogre i samma ogonblick
+   insamlingen startade och knuffade allt under sig.
+   Tva ting sitter ihop har. Raden har ALLTID plats for tva rader, sa den korta
+   statusen tar lika mycket utrymme som den langa. Och statusen sjalv far aldrig
+   brytas, sa den kan inte krypa ner pa en TREDJE rad pa en smal skarm. Da ar
+   hojden densamma oavsett hur bred rutan ar - och det var bredden mina matningar
+   inte kunde forutse. */
+.prof-card .jc-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  min-height:30px;align-content:center;row-gap:1px}
+.prof-card .jc-status{max-width:100%;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
 .prof-card .jc-xp{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.04em}
 .prof-card .jc-status{font-size:11px;font-weight:700;color:rgba(255,255,255,.9);
-  display:flex;align-items:center;gap:5px;
-  /* Statusen ar den som vaxer nar arbetet startar. Den far krympa och klippas
-     med tre punkter i stallet for att knuffa ut kortets hojd. */
-  flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  justify-content:flex-end}
+  display:flex;align-items:center;gap:5px}
 .prof-card .jc-bar{height:5px;flex:0 0 5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
 .prof-card .jc-fill{height:100%;border-radius:3px;transition:width .3s}
 /* [TILLAGT v5.56.0] Samlarens cykel, precis under XP-mataren. Samma form och
@@ -4512,9 +4512,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .prof-card .jc-mid > div{min-width:0; max-width:100%}
   .prof-card .jc-name{font-size:12px; display:block; overflow-wrap:anywhere; word-break:break-word}
   .prof-card .jc-tag{display:block; margin-left:0}
-  /* [ANDRAT v5.110.0] Bryt-var-som-helst gallde aven statusen, och dar ar det
-     fel: den vaxer nar arbetet startar och fallde ut kortet. Namnet far
-     fortfarande brytas - det ar ett enda langt ord - men statusen klipps. */
+  /* Statusen far INTE brytas var som helst - da tar den en tredje rad och
+     kortet vaxer igen. Bara XP-talet. */
   .prof-card .jc-xp{overflow-wrap:anywhere}
 }
 /* [TILLAGT v5.53.0] SKILLTRADET PA TELEFON. Rutan tog samma matt som pa datorn
@@ -4780,7 +4779,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.110.0 — DRONAREN OCH KORTHOJDEN</div>
+        <div class="sn-ver">GENESIS v5.111.0 — SYNLIGA FEL</div>
       </div>
     </div>
   </aside>
@@ -5566,7 +5565,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.110.0 — DRONAREN OCH KORTHOJDEN</div>
+            <div class="desc">GENESIS v5.111.0 — SYNLIGA FEL</div>
           </div>
         </div>
       </div>
@@ -8112,9 +8111,20 @@ function gatherCycleSecs(id){
   /* [ANDRAT v5.49.0] Samma matematik som serverns gather_cycle_secs: Faster
      Cycles kortar cykeln, golvet ar tva sekunder. Formanen shiftFast ar riven
      med passen - den drog i en klocka som inte finns. Klient och server maste
-     saga SAMMA tal, annars ljuger nedrakningen (buggfamilj 6). */
+     saga SAMMA tal, annars ljuger nedrakningen (buggfamilj 6).
+     CORE SYNC HOR INTE HIT. Bade servern och klienten lagger de femton
+     procenten pa TIDEN som tickar in, inte pa cykeln - servern skickar en
+     uppraknad tid till gather_tick, klienten raknar upp sin tidsbank likadant.
+     Laggs den har blir bonusen dubbel, och cykeln slutar stamma med serverns. */
   const pct = Math.min((typeof skillPct === 'function') ? skillPct(id, 'gather_speed') : 0, 40);
   return Math.max(2, GATHER_DEFS[id].cycle * (1 - pct / 100));
+}
+/* Den takt spelaren FAKTISKT ser fynd i, alltsa cykeln delad med den fart
+   tiden gar. Bara for text - aldrig for att rakna material. */
+function gatherEffectiveSecs(id){
+  const base = gatherCycleSecs(id);
+  const fast = ((typeof coreSyncLeft === 'function') && coreSyncLeft() > 0) ? 1.15 : 1;
+  return base / fast;
 }
 /* VILKEN RANK EN VARLD GER (v4.91.0). Ren data - samma tabell som servern.
    Hemma i Voxholm ar nastan allt Rank I; langst ut i The Quarantine bara Rank
@@ -16092,8 +16102,19 @@ function startZoneScan(regionId, zone){
        med redrawZone, som finns just for det har fallet: ett svar som kommer
        efter att knappen redan slappt har ingen klickhandlare kvar att rita i. */
     netScanZone(zone)
-      .then(() => { redrawZone(); refreshRegionUI(); renderMap(); updateUI(true); })
-      .catch(() => say('The drone could not be sent.'));
+      .then(() => {
+        /* Sag att den ar ute. Utan detta hande allt tyst: knappen bytte text
+           en halv sekund senare och det gick inte att se om trycket tagit. */
+        say('Drone sent to ' + zone + ' \u2014 charting takes ' + ZONE_SCAN_TIME + 's.');
+        redrawZone(); refreshRegionUI(); renderMap(); updateUI(true);
+      })
+      .catch(e => {
+        /* [ANDRAT v5.111.0] Stod bara "The drone could not be sent." Serverns
+           EGET skal - zonen redan kartlagd, dronaren upptagen, resa pagar -
+           slangdes bort, sa ett misslyckande sag likadant ut som ingenting
+           alls. Nu star skalet dar. */
+        say(typeof srvErrText === 'function' ? srvErrText(e) : 'The drone could not be sent.');
+      });
     return true;
   }
   S.zoneScan = {region: regionId, zone: zone, eta: Date.now() + ZONE_SCAN_TIME * 1000};
@@ -16629,7 +16650,9 @@ function gmPick(o){
        ovanpa dem, sa man fick tva fonster som sa nastan samma sak. Klicket
        stannar darfor i kartan; spelets ruta oppnas forst nar man faktiskt ar
        framme. */
-    case 'region':      gmSel = {region: region, zone: null}; gmSetTravel(); break;
+    case 'region':      gmSel = {region: region, zone: null}; gmSetTravel();
+                        /* [ATERSTALLT v5.111.0] Se kommentaren vid zonerna. */
+                        openRegion(region); break;
     /* Valvet ar an sa lange INGEN zon i spelet - det nas overallt ifran. Kartan
        ritar redan sin valvplats, sa noden oppnar valvet direkt. Nar valvet blir
        en plats man reser till flyttas den hit ner till raden under, och da
@@ -16641,6 +16664,15 @@ function gmPick(o){
     case 'encounter': {
       gmSel = {region: region, zone: o.zone || null};
       gmSetTravel();
+      /* [ATERSTALLT v5.111.0] Spelets EGEN zonruta oppnas igen vid sidan av
+         kartans panel, sa de tva gar att jamfora. Kartans ruta visar plats och
+         resa; spelets visar innehallet - expeditioner, moten, handlaren. Ar en
+         av dem overflodig ska den ena rivas, inte bada halvt.
+         Sattet att sla av: ta bort raderna nedan. */
+      if (region === S.world.current){
+        const i = zi(o.zone);
+        if (i >= 0) openZone(region, i);
+      }
       break;
     }
     case 'expedition':  openExpeditions(); break;
@@ -16654,7 +16686,14 @@ function gmPick(o){
         /* Samma knapp gor tva saker beroende pa vad zonen behover: en okartlagd
            zon far en dronare, en kartlagd far ett hopp. */
         if (!isZoneCharted(region, o.zone)){
-          startZoneScan(region, o.zone);
+          /* Sager startZoneScan nej hander INGENTING synligt - knappen ser ut
+             att vara trasig. Sa den far tala om varfor. */
+          if (!startZoneScan(region, o.zone)){
+            if (S.zoneScan) say('The drone is already charting ' + S.zoneScan.zone + '.');
+            else if (S.world.travel) say('You are travelling — the drone stays home.');
+            else if (region !== S.world.current) say('Travel to that world before charting it.');
+            else say('The drone could not be sent.');
+          }
         } else if (goToZone(region + '|' + o.zone)){
           /* Framme: nu ar zonens ruta ratt att oppna. */
           const i = zi(o.zone);
@@ -19566,9 +19605,13 @@ function checkShiftDone(){
 }
 /* Takten i klarsprak: sekunder under en minut, annars minuter och sekunder. */
 function gatherRateText(id){
-  const secs = Math.max(1, Math.round(gatherCycleSecs(id)));
-  if (secs < 60) return secs + ' sec';
-  const m = Math.floor(secs / 60), r = secs % 60;
+  /* [ANDRAT v5.111.0] Rakna pa den EFFEKTIVA takten. Kortet stod kvar pa fem
+     sekunder medan Core Sync-rutan lovade 4,3 - talet var dott, ritat ur en
+     formel som inte kande till bonusen. Cykeln sjalv ror vi inte: den ska
+     fortsatta spegla servern exakt. */
+  const secs = Math.max(1, Math.round(gatherEffectiveSecs(id) * 10) / 10);
+  if (secs < 60) return (secs % 1 ? secs.toFixed(1) : secs) + ' sec';
+  const t = Math.round(secs), m = Math.floor(t / 60), r = t % 60;
   return r ? m + ' min ' + r + ' sec' : m + ' min';
 }
 function profCardStatus(p, info){
