@@ -1927,10 +1927,22 @@ body.dragging *{cursor:grabbing !important}
   text-transform:uppercase;color:rgba(255,255,255,.72)}
 .prof-card .jc-tag{font-size:8.5px;font-weight:800;letter-spacing:.16em;
   color:rgba(255,255,255,.55);margin-left:7px}
-.prof-card .jc-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* [ANDRAT v5.110.0] Raden fick brytas i tva. Statusen ar kort nar yrket vilar
+   ("Idle") och lang nar det arbetar ("Medical Supplies 197 / 200") - sa i det
+   ogonblick insamlingen startade fick raden en andra rad och HELA kortet blev
+   hogre. Det knuffade allt under sig varje gang arbetet borjade eller slutade.
+   Nu star raden alltid pa en rad: XP-talet behaller sin plats och statusen far
+   den bredd som blir over, med tre punkter om den inte racker till. */
+.prof-card .jc-line{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;
+  min-width:0}
+.prof-card .jc-xp{flex:0 0 auto;white-space:nowrap}
 .prof-card .jc-xp{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.04em}
 .prof-card .jc-status{font-size:11px;font-weight:700;color:rgba(255,255,255,.9);
-  display:flex;align-items:center;gap:5px}
+  display:flex;align-items:center;gap:5px;
+  /* Statusen ar den som vaxer nar arbetet startar. Den far krympa och klippas
+     med tre punkter i stallet for att knuffa ut kortets hojd. */
+  flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  justify-content:flex-end}
 .prof-card .jc-bar{height:5px;flex:0 0 5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
 .prof-card .jc-fill{height:100%;border-radius:3px;transition:width .3s}
 /* [TILLAGT v5.56.0] Samlarens cykel, precis under XP-mataren. Samma form och
@@ -4500,7 +4512,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .prof-card .jc-mid > div{min-width:0; max-width:100%}
   .prof-card .jc-name{font-size:12px; display:block; overflow-wrap:anywhere; word-break:break-word}
   .prof-card .jc-tag{display:block; margin-left:0}
-  .prof-card .jc-status, .prof-card .jc-xp{overflow-wrap:anywhere}
+  /* [ANDRAT v5.110.0] Bryt-var-som-helst gallde aven statusen, och dar ar det
+     fel: den vaxer nar arbetet startar och fallde ut kortet. Namnet far
+     fortfarande brytas - det ar ett enda langt ord - men statusen klipps. */
+  .prof-card .jc-xp{overflow-wrap:anywhere}
 }
 /* [TILLAGT v5.53.0] SKILLTRADET PA TELEFON. Rutan tog samma matt som pa datorn
    och tredje noden hamnade utanfor kanten. Har krymper etiketten, sexkanten
@@ -4765,7 +4780,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.109.0 — YRKESRUTAN OCH HOGERKLICK</div>
+        <div class="sn-ver">GENESIS v5.110.0 — DRONAREN OCH KORTHOJDEN</div>
       </div>
     </div>
   </aside>
@@ -5551,7 +5566,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.109.0 — YRKESRUTAN OCH HOGERKLICK</div>
+            <div class="desc">GENESIS v5.110.0 — DRONAREN OCH KORTHOJDEN</div>
           </div>
         </div>
       </div>
@@ -14702,6 +14717,9 @@ function updateUI(force){
   } else if (travelGo && travelGo.classList.contains('busy') === false && travelGo.textContent !== '🚀 Initiate Travel'){
     travelGo.textContent = '🚀 Initiate Travel';
   }
+  /* Kartans knapp visar nedrakningar - dronarens tid och resans - sa den maste
+     ritas om varje sekund, inte bara nar nagot annat andras. */
+  if (typeof gmSetTravel === 'function') gmSetTravel();
 
   const rank = repRank();
   el.repStars.textContent = '★'.repeat(rank) + '☆'.repeat(5 - rank);
@@ -16509,6 +16527,10 @@ function pveZoneResting(regionId, zone){
 function gmPush(){
   const api = gmWin();
   if (!api || typeof api.setState !== 'function') return;
+  /* Knappen forst, och ALLTID. Den visar nedrakningar - dronarens tid tickar
+     medan allt annat star still - sa den far inte ligga bakom sparren nedan.
+     Lag den dar forut och klockan stod stilla i rutan. */
+  gmSetTravel();
   const st = gmState();
   /* Skickas bara nar nagot faktiskt andrats. Kartan ritar om sig vid varje
      sandning, och spelet ritar om ofta - utan detta skulle kartan blinka. */
@@ -16524,10 +16546,6 @@ function gmPush(){
     gmShownRegion = S.world.current;
     try { api.showRegion(S.world.current); } catch (e){}
   }
-  /* Knappen maste folja med nar branslet eller laget andras, inte bara nar man
-     klickar. Annars star det "NOT ENOUGH FUEL" kvar pa en knapp som borde ha
-     blivit klickbar for lange sedan. */
-  gmSetTravel();
 }
 /* Klick fran kartan. Kartan sager BARA vad som traffades; vad som hander
    bestams har. */
@@ -16546,8 +16564,22 @@ function gmSetTravel(){
       if (S.world.zone === zone){
         api.setTravel({label: 'YOU ARE HERE', cost: '', enabled: false, note: ''});
       } else if (!isZoneCharted(region, zone)){
-        api.setTravel({label: 'UNCHARTED', cost: '', enabled: false,
-                       note: 'SEND A DRONE TO CHART THIS ZONE'});
+        /* En okartlagd zon reser man inte till - man skickar en dronare forst.
+           Knappen sa bara UNCHARTED och det fanns ingen vag vidare: rutan
+           berattade vad som kravdes men gav ingen knapp att gora det med. */
+        const sc = zoneScanHere(region, zone);
+        if (sc){
+          api.setTravel({label: 'DRONE EN ROUTE', cost: fmtDur(zoneScanLeft()),
+                         enabled: false, note: 'CHARTING THIS ZONE'});
+        } else if (S.zoneScan){
+          api.setTravel({label: 'DRONE BUSY', cost: '', enabled: false,
+                         note: 'CHARTING ' + S.zoneScan.zone.toUpperCase()});
+        } else if (S.world.travel){
+          api.setTravel({label: 'IN TRANSIT', cost: '', enabled: false, note: ''});
+        } else {
+          api.setTravel({label: 'SEND DRONE', cost: fmtDur(ZONE_SCAN_TIME),
+                         enabled: true, note: 'CHARTS THIS ZONE FOR GOOD'});
+        }
       } else if (S.fuel < ZONE_FUEL_COST){
         api.setTravel({label: 'TRAVEL', cost: ZONE_FUEL_COST + ' FUEL · INSTANT',
                        enabled: false, note: 'NOT ENOUGH FUEL'});
@@ -16609,13 +16641,6 @@ function gmPick(o){
     case 'encounter': {
       gmSel = {region: region, zone: o.zone || null};
       gmSetTravel();
-      /* Star man redan i zonen finns det nagot att gora dar - da oppnas rutan
-         med handlaren, motet och resten. Star man nagon annanstans ar zonen
-         bara ett resmal an sa lange. */
-      if (region === S.world.current && o.zone === S.world.zone){
-        const i = zi(o.zone);
-        if (i >= 0) openZone(region, i);
-      }
       break;
     }
     case 'expedition':  openExpeditions(); break;
@@ -16626,7 +16651,11 @@ function gmPick(o){
     case 'travel': {
       const api = gmWin();
       if (o.zone){
-        if (goToZone(region + '|' + o.zone)){
+        /* Samma knapp gor tva saker beroende pa vad zonen behover: en okartlagd
+           zon far en dronare, en kartlagd far ett hopp. */
+        if (!isZoneCharted(region, o.zone)){
+          startZoneScan(region, o.zone);
+        } else if (goToZone(region + '|' + o.zone)){
           /* Framme: nu ar zonens ruta ratt att oppna. */
           const i = zi(o.zone);
           if (i >= 0) openZone(region, i);
