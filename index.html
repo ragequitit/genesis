@@ -4999,7 +4999,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.122.0 — GILLET ENLIGT RITNING</div>
+        <div class="sn-ver">GENESIS v5.123.0 — STARTZONER OCH DRONARE</div>
       </div>
     </div>
   </aside>
@@ -5822,7 +5822,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.122.0 — GILLET ENLIGT RITNING</div>
+            <div class="desc">GENESIS v5.123.0 — STARTZONER OCH DRONARE</div>
           </div>
         </div>
       </div>
@@ -8002,8 +8002,22 @@ async function netArrive(){
      stalle; skip gick en annan vag och kom aldrig forbi den raden.
      Resan rojs nu HAR, dar svaret kommer, sa bada vagarna far det gratis.
      Zonen nollas ocksa - servern gor det, och gjorde inte klienten det stod man
-     kvar i en zon som hor till regionen man just lamnade. */
-  if (r && r.arrived){ S.world.travel = null; S.world.zone = null; }
+     kvar i en zon som hor till regionen man just lamnade.
+     [ANDRAT v5.123.0] Servern satter numera av en i regionens FORSTA zon, gratis
+     och redan kartlagd. Klienten tar emot den zonen i stallet for att sta i
+     tomma luften - och skriver in den bland de kartlagda sa kartan lyser upp
+     den direkt, utan att vanta pa nasta hamtning. */
+  if (r && r.arrived){
+    S.world.travel = null;
+    S.world.zone = (r.zone && REGIONS[r.region] &&
+                    REGIONS[r.region].zones.indexOf(r.zone) >= 0) ? r.zone : null;
+    if (S.world.zone){
+      const k = zoneKey(r.region, S.world.zone);
+      S.world.zonesSeen = S.world.zonesSeen || [];
+      if (S.world.zonesSeen.indexOf(k) < 0) S.world.zonesSeen.push(k);
+      discoverZoneExpeditions(r.region, S.world.zone);
+    }
+  }
   return r;
 }
 
