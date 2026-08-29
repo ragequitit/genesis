@@ -4651,9 +4651,28 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}
 .oct::before{inset:0;background:var(--oc)}
 .oct::after{inset:2px;background:#070d1c}
-.oct .oct-in{position:relative;z-index:2;line-height:1}
-.oct img{position:relative;z-index:3;width:84%;height:84%;object-fit:contain;
-  clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}
+.oct .oct-in{position:relative;z-index:2;line-height:1;display:none}
+/* [ANDRAT v5.126.0] Symbolerna ar VITA bilder. De fargas har i webblasaren
+   genom att bilden anvands som mask for en fargad yta - da racker 24 filer
+   till alla atta fargerna. Hittas inte bilden faller vi tillbaka pa gillets
+   taggbokstaver: sonden nedan ar en osynlig bild vars fel-handelse satter
+   klassen "noimg" pa ramen. */
+.oct .oct-mask{position:absolute;z-index:3;inset:8%;background:var(--oc);
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain}
+.oct .oct-probe{display:none}
+.oct.noimg .oct-in{display:block}
+.oct.noimg .oct-mask{display:none}
+.em-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;margin-top:8px}
+.em-cell{aspect-ratio:1;border:1px solid var(--border);border-radius:9px;background:var(--bg-row);
+  display:grid;place-items:center;cursor:pointer;padding:4px}
+.em-cell.sel{border-color:var(--cyan);background:rgba(56,232,255,.1)}
+.em-colors{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.em-col{width:30px;height:30px;border-radius:9px;cursor:pointer;border:2px solid transparent;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.35)}
+.em-col.sel{border-color:#fff}
+@media (max-width:760px){ .em-grid{grid-template-columns:repeat(6,1fr)} }
 
 /* Stora segmentflikar */
 .seg{display:grid;gap:10px;margin-bottom:12px}
@@ -5053,7 +5072,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.125.0 — LIVSTIDSBIDRAG</div>
+        <div class="sn-ver">GENESIS v5.126.0 — EMBLEMVALJAREN</div>
       </div>
     </div>
   </aside>
@@ -5876,7 +5895,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.125.0 — LIVSTIDSBIDRAG</div>
+            <div class="desc">GENESIS v5.126.0 — EMBLEMVALJAREN</div>
           </div>
         </div>
       </div>
@@ -6267,7 +6286,8 @@ const SRV_ERRORS = {
   confirm_name_mismatch:    'Type the guild name exactly to confirm.',
   invite_expired:           'That invitation has expired.',
   below_min_level:          'That player is below the guild minimum level.',
-  bad_min_level:            'Minimum level must be between 1 and 60.'
+  bad_min_level:            'Minimum level must be between 1 and 60.',
+  bad_emblem_color:         'That emblem colour does not exist.'
 };
 function srvErrText(e, fallback){
   const m = String((e && e.message) || e || '');
@@ -24921,11 +24941,22 @@ function avChip(av, handle, px, on){
 }
 /* Emblemet ar ATTKANTIGT - samma form som sidoradens ikoner. Saknas bilden
    star gillets tagg i formen i stallet. */
+const EM_COLORS = {cyan:'#38e8ff', purple:'#7b5cff', gold:'#ffc542', green:'#4cd97b',
+                   red:'#ff5d7a', orange:'#ff9d3c', ice:'#a8d8ff', magenta:'#ff5df0'};
+const EM_IDS = (function(){ const a = []; for (let i = 1; i <= 24; i++)
+  a.push('em' + String(i).padStart(2, '0')); return a; })();
 function emblemChip(em, tag, px, col){
-  return '<span class="oct" style="width:' + px + 'px;height:' + px + 'px;font-size:' +
-    Math.round(px * .22) + 'px' + (col ? ';--oc:' + col : '') + '">' +
+  /* [ANDRAT v5.126.0] Bilden fargas via mask; utan bild visas taggbokstaverna. */
+  const c = EM_COLORS[col] || col || 'var(--cyan)';
+  const src = em ? 'assets/guilds/' + esc(em) + '.png' : '';
+  return '<span class="oct' + (em ? '' : ' noimg') + '" style="width:' + px + 'px;height:' + px +
+    'px;font-size:' + Math.round(px * .22) + 'px;--oc:' + c + '">' +
     '<span class="oct-in">' + esc(tag || '?') + '</span>' +
-    (em ? '<img src="assets/guilds/' + esc(em) + '.png" onerror="this.remove()" alt="">' : '') + '</span>';
+    (em ? '<span class="oct-mask" style="-webkit-mask-image:url(' + src +
+            ');mask-image:url(' + src + ')"></span>' +
+          '<img class="oct-probe" src="' + src +
+            '" onerror="this.closest(\'.oct\').classList.add(\'noimg\')" alt="">' : '') +
+    '</span>';
 }
 function renderFrMe(){
   const box = $('fr-me'); if (!box) return;
@@ -24963,6 +24994,7 @@ function renderFrMe(){
 
 /* ----- Gillets lage och anrop ----- */
 let GUILD = {state: null, busy: false, view: 'main', mtab: 'profile', mutePick: null,
+             pickEmblem: null, pickColor: null,
              chat: [], lastChat: 0,
              sock: null, sockOn: false, hb: null, poll: null, confirm: null};
 async function netGuildState(){
@@ -25067,7 +25099,7 @@ function guildMainHTML(st){
 
   /* Vanster: identiteten */
   let left = '<div class="gd-panel"><div class="gd-plabel">Guild identity</div>' +
-    '<div class="gd-id-emblem">' + emblemChip(g.emblem, g.tag, 108, '#7b5cff') + '</div>' +
+    '<div class="gd-id-emblem">' + emblemChip(g.emblem, g.tag, 108, g.emblem_color) + '</div>' +
     '<div class="gd-id-name">' + esc(g.name) + '</div>' +
     '<div class="gd-id-tag">[' + esc(g.tag) + ']</div>' +
     '<div class="gd-id-lvl">GUILD LEVEL ' + g.level + '</div>' +
@@ -25174,14 +25206,23 @@ function mgProfile(st, leader){
   const g = st.guild;
   return '<div class="mg-cols"><div class="gd-panel">' +
     '<div class="gd-plabel">Guild profile</div>' +
-    '<div class="gd-id-emblem">' + emblemChip(g.emblem, g.tag, 96, '#7b5cff') + '</div>' +
+    '<div class="gd-id-emblem">' + emblemChip(GUILD.pickEmblem || g.emblem, g.tag, 96,
+       GUILD.pickColor || g.emblem_color) + '</div>' +
     '<div class="gd-id-name" style="font-size:16px">' + esc(g.name) +
       ' <span class="gd-id-tag" style="display:inline">[' + esc(g.tag) + ']</span></div>' +
     '<div class="mg-lock" style="text-align:center">Name and tag are permanent in this version.</div>' +
     (leader
-      ? '<div class="mg-field" style="margin-top:12px"><div class="fl">Emblem image id</div>' +
-        '<input class="gate-input" id="mg-emblem" maxlength="24" placeholder="e.g. void01" value="' +
-          esc(g.emblem || '') + '"></div>'
+      ? '<div class="mg-field" style="margin-top:12px"><div class="fl">Symbol</div>' +
+          '<div class="em-grid">' + EM_IDS.map(id =>
+            '<div class="em-cell' + ((GUILD.pickEmblem || g.emblem) === id ? ' sel' : '') +
+             '" data-g="emsym:' + id + '">' +
+            emblemChip(id, g.tag, 30, GUILD.pickColor || g.emblem_color) + '</div>').join('') + '</div>' +
+        '<div class="mg-field" style="margin-top:12px"><div class="fl">Colour</div>' +
+          '<div class="em-colors">' + Object.keys(EM_COLORS).map(k =>
+            '<span class="em-col' + ((GUILD.pickColor || g.emblem_color) === k ? ' sel' : '') +
+            '" style="background:' + EM_COLORS[k] + '" data-g="emcol:' + k + '"></span>').join('') +
+          '</div></div>' +
+        '<div class="mg-lock">The picture is white; the colour is added by the game.</div></div>'
       : '<div class="mg-lock" style="text-align:center;margin-top:10px">\uD83D\uDD12 Only the Leader can change the emblem.</div>') +
     '</div><div class="gd-panel">' +
     '<div class="gd-plabel">Texts</div>' +
@@ -25504,6 +25545,8 @@ $('guild-body').addEventListener('click', e => {
   if (a.indexOf('memb:') === 0){
     guildDo('guild_update', {p_membership: a.slice(5)}, 'Membership type updated.'); return;
   }
+  if (a.indexOf('emsym:') === 0){ GUILD.pickEmblem = a.slice(6); renderGuild(); return; }
+  if (a.indexOf('emcol:') === 0){ GUILD.pickColor  = a.slice(6); renderGuild(); return; }
   if (a === 'profilesave'){
     const args = {
       p_descr:   ($('mg-descr')   || {}).value || '',
@@ -25511,8 +25554,13 @@ $('guild-body').addEventListener('click', e => {
       p_welcome: ($('mg-welcome') || {}).value || '',
       p_lang:    ($('mg-lang')    || {}).value || 'English'
     };
-    if ($('mg-emblem')) args.p_emblem = $('mg-emblem').value || '';
-    guildDo('guild_update', args, 'Profile saved.'); return;
+    /* Symbol och farg skickas bara om ledaren faktiskt valt nagot nytt. */
+    if (GUILD.pickEmblem) args.p_emblem = GUILD.pickEmblem;
+    if (GUILD.pickColor)  args.p_color  = GUILD.pickColor;
+    guildDo('guild_update', args, 'Profile saved.').then(() => {
+      GUILD.pickEmblem = null; GUILD.pickColor = null;
+    });
+    return;
   }
   if (a.indexOf('minlvl:') === 0){
     const el = $('mg-minlvl'); if (!el) return;
