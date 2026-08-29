@@ -1727,11 +1727,10 @@ body.dragging *{cursor:grabbing !important}
 /* Fast höjd på flikinnehållet i maskinramen: panelen står stilla oavsett flik */
 /* En enda rullyta: panelen rullar, flikytan är sitt innehåll. Två kapslade
    rullytor gav kedjad rullning som kastade en genom hela listan i ett steg. */
-/* [ANDRAT v5.11.0] Panelen klippte allt utanfor sin kant, sa lankflikarna - som
-   ska hanga UTANFOR, over nodens ruta - blev bortskurna. Bada leden maste sta,
-   annars ater den ena den andra. */
-#panel-professions{overflow:visible !important}
-#panel-professions .prof-cards{overflow:visible}
+/* [ANDRAT v5.120.0] De gamla lankflikarna som hangde ut till vanster om korten
+   ritas inte langre (de forsvann nar Core Sync ersatte nodlankningen). Darfor
+   behover panelen inte langre lamna overflow oppen - den far en fast hojd med
+   inre rullning nere i datorreglerna, precis som karaktars- och noderutan. */
 .prof-card .jc-link{z-index:5}
 /* Rullhjulet i maskinrutan tar mindre steg. Bara mushjul — pekrullning rörs inte. */
 /* ===== YRKESSIDAN (v5.23.0) ===== */
@@ -2353,7 +2352,7 @@ body.dragging *{cursor:grabbing !important}
   /* Rutan far inte klippa - lankflikarna ska hanga utanfor kanten - sa den
      maste i stallet vara HOG NOG for sitt innehall. Med fast hojd rann korten
      rakt ut i luften sa fort ett tredje yrke laste upp. */
-  #panel-professions{height:auto; min-height:396px}
+  #panel-professions{height:396px; overflow-y:auto; overflow-x:hidden}
   /* [ANDRAT v5.55.0] Snabbvalen lag under expeditionerna och holl dem korta.
      Nu ar spalten fri, sa expeditionsrutan far vaxa ned till samma underkant
      som natverkskartan i mitten.
@@ -4826,7 +4825,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.119.0 — FRAGMENTFONSTRET</div>
+        <div class="sn-ver">GENESIS v5.120.0 — YRKESRUTANS HOJD</div>
       </div>
     </div>
   </aside>
@@ -5624,26 +5623,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         </div>
         <div class="settings-row">
           <div>
-            <div>Layout Edit Mode</div>
-            <div class="desc">Drag panels to move them, pull the bottom grip to resize. PC only.</div>
-          </div>
-          <button class="btn-neutral" id="layout-toggle">Off</button>
-        </div>
-        <div class="settings-row" id="layout-reset-row" style="display:none">
-          <div>
-            <div>Reset Layout</div>
-            <div class="desc">Back to the standard layout.</div>
-          </div>
-          <button class="btn-neutral" id="layout-reset">Reset</button>
-        </div>
-        <div class="settings-row" id="layout-code-row" style="display:none;flex-direction:column;align-items:stretch">
-          <div>Layout Code <span class="desc" style="display:inline">— screenshot this and send it to lock the layout</span></div>
-          <div class="layout-code" id="layout-code"></div>
-        </div>
-        <div class="settings-row">
-          <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.119.0 — FRAGMENTFONSTRET</div>
+            <div class="desc">GENESIS v5.120.0 — YRKESRUTANS HOJD</div>
           </div>
         </div>
       </div>
@@ -15099,135 +15080,16 @@ document.addEventListener('selectstart', e => {
 });
 el.hex.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
 
-/* ---------- LAYOUTREDIGERING ----------
-   Spelaren möblerar själv i redigeringsläget; layouten sparas lokalt och
-   visas som en kod i inställningarna. Koden skickas som skärmbild och
-   låses sedan permanent i filen. */
-const LAYOUT_KEY = 'genesis-layout-v1';
-/* [ANDRAT v5.66.0] col-top var toppraden. Den ar riven - sidoraden ar inte en
-   yta man moblerar om - sa den finns inte langre att peka pa. Listan tvattas
-   fran tomma platser, annars kastar layoutlaget pa forsta raden det korde. */
-const COLS = {};
-[['left', '.col-left'], ['mid', '.col-mid'], ['right', '.col-right']].forEach(pair => {
-  const e = document.querySelector(pair[1]);
-  if (e) COLS[pair[0]] = e;
-});
-let editMode = false, draggedPanel = null;
-
-function panelsIn(col){ return Array.from(col.querySelectorAll(':scope > .panel')); }
-
-function saveLayout(){
-  const out = {};
-  for (const [name, col] of Object.entries(COLS)){
-    out[name] = panelsIn(col).map(p => ({
-      id: p.id,
-      h: p.style.height ? parseInt(p.style.height, 10) : 0
-    }));
-  }
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(out)); } catch(e){}
-  const codeEl = $('layout-code');
-  if (codeEl) codeEl.textContent = JSON.stringify(out);
-}
-
+/* ---------- LAYOUTREDIGERAREN BORTTAGEN (v5.120.0) ----------
+   Spelaren ska inte langre kunna mobblera om eller andra hojd pa rutorna, sa
+   hela redigeraren ar riven: knappen i installningarna, dragfunktionen och
+   koden. editMode stannar kvar som en konstant (alltid av) eftersom hall-
+   klicket pa noden laser den. applyLayout finns kvar for att anropas vid start,
+   men NOLLAR nu i stallet den gamla sparade mobbleringen sa ingen lokal rest
+   fran den forra redigeraren nagonsin kan sla till. */
+const editMode = false;
 function applyLayout(){
-  let raw = null;
-  try { raw = localStorage.getItem(LAYOUT_KEY); } catch(e){}
-  if (!raw) return;
-  try {
-    const lay = JSON.parse(raw);
-    for (const [name, list] of Object.entries(lay)){
-      const col = COLS[name];
-      if (!col || !Array.isArray(list)) continue;
-      list.forEach(item => {
-        const p = document.getElementById(item.id);
-        if (p){
-          col.appendChild(p);
-          if (item.h > 0){
-            p.style.height = item.h + 'px';
-            p.style.minHeight = '0';
-            p.classList.add('sized');
-          }
-        }
-      });
-    }
-    const codeEl = $('layout-code');
-    if (codeEl) codeEl.textContent = raw;
-  } catch(e){}
-}
-
-function setEditMode(on){
-  editMode = on;
-  document.body.classList.toggle('layout-edit', on);
-  $('layout-toggle').textContent = on ? 'On' : 'Off';
-  $('layout-reset-row').style.display = on ? '' : 'none';
-  $('layout-code-row').style.display = on ? '' : 'none';
-  if (on) saveLayout();
-  document.querySelectorAll('.panel').forEach(p => {
-    p.draggable = on;
-    let handle = p.querySelector(':scope > .drag-handle');
-    let grip = p.querySelector(':scope > .resize-grip');
-    if (on){
-      if (!handle){
-        handle = document.createElement('div');
-        handle.className = 'drag-handle';
-        handle.textContent = '☰';
-        p.appendChild(handle);
-      }
-      if (!grip){
-        grip = document.createElement('div');
-        grip.className = 'resize-grip';
-        p.appendChild(grip);
-        grip.addEventListener('pointerdown', e => {
-          e.preventDefault(); e.stopPropagation();
-          const startY = e.clientY;
-          const startH = p.getBoundingClientRect().height;
-          function move(ev){
-            const h = Math.max(80, startH + ev.clientY - startY);
-            p.style.height = h + 'px';
-            p.style.minHeight = '0';
-            p.classList.add('sized');
-          }
-          function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); saveLayout(); }
-          window.addEventListener('pointermove', move);
-          window.addEventListener('pointerup', up);
-        });
-      }
-    } else {
-      if (handle) handle.remove();
-      if (grip) grip.remove();
-    }
-  });
-}
-
-document.querySelectorAll('.panel').forEach(p => {
-  p.addEventListener('dragstart', e => {
-    if (!editMode){ e.preventDefault(); return; }
-    draggedPanel = p;
-    p.classList.add('dragging');
-  });
-  p.addEventListener('dragend', () => {
-    p.classList.remove('dragging');
-    draggedPanel = null;
-    Object.values(COLS).forEach(c => c.classList.remove('drop-hint'));
-    saveLayout();
-  });
-});
-for (const col of Object.values(COLS)){
-  col.addEventListener('dragover', e => {
-    if (!editMode || !draggedPanel) return;
-    e.preventDefault();
-    col.classList.add('drop-hint');
-    const horizontal = col.classList.contains('col-top');
-    const after = panelsIn(col).find(p => {
-      if (p === draggedPanel) return false;
-      const r = p.getBoundingClientRect();
-      return horizontal ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
-    });
-    if (after) col.insertBefore(draggedPanel, after);
-    else col.appendChild(draggedPanel);
-  });
-  col.addEventListener('dragleave', () => col.classList.remove('drop-hint'));
-  col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('drop-hint'); });
+  try { localStorage.removeItem('genesis-layout-v1'); } catch(e){}
 }
 
 /* ---------- PREMIUM: OFFLINETAKET ----------
@@ -23542,11 +23404,6 @@ $('vol-music').addEventListener('input', () => {
   Sound.setMusicVolume(S.snd.mv);
 });
 $('vol-music').addEventListener('change', saveSoundPrefs);
-$('layout-toggle').addEventListener('click', () => setEditMode(!editMode));
-$('layout-reset').addEventListener('click', () => {
-  try { localStorage.removeItem(LAYOUT_KEY); } catch(e){}
-  location.reload();
-});
 /* Flaggan lever kvar: bytet av karaktar anvander den for att hindra att den
    lokala spegeln skrivs tillbaka pa vagen ut. */
 let resetInProgress = false;
