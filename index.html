@@ -4790,7 +4790,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.113.0 — TELEFONEN LAGAD</div>
+        <div class="sn-ver">GENESIS v5.114.0 — KARTANS TELEFONSKYDD</div>
       </div>
     </div>
   </aside>
@@ -5576,7 +5576,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.113.0 — TELEFONEN LAGAD</div>
+            <div class="desc">GENESIS v5.114.0 — KARTANS TELEFONSKYDD</div>
           </div>
         </div>
       </div>
@@ -16768,6 +16768,34 @@ function gmHook(){
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
         e.preventDefault();
       });
+      /* [TILLAGT v5.114.0] SAMMA TELEFONSKYDD SOM SPELET. Kartan ligger i eget
+         fonster och arver ingenting: dar levde dubbeltryck-zoomen, luppen som
+         poppar upp vid langt tryck, textmarkeringen och studsen vid kanten
+         vidare. Speglas hit i stallet for att bes av Design - da overlever det
+         nasta gang de skickar en ny fil. */
+      const skydd = doc.createElement('style');
+      skydd.textContent =
+        'html,body{user-select:none;-webkit-user-select:none;' +
+        '-webkit-touch-callout:none;touch-action:manipulation;' +
+        'overscroll-behavior:contain;-webkit-tap-highlight-color:transparent}' +
+        '::selection{background:transparent}' +
+        'input,select,textarea{user-select:text;-webkit-user-select:text;' +
+        '-webkit-touch-callout:default}' +
+        'svg,img{-webkit-user-drag:none;-webkit-touch-callout:none}';
+      (doc.head || doc.documentElement).appendChild(skydd);
+      /* Tva fingrar som nyper ar Safaris egen zoom och stangs av separat -
+         touch-action racker inte for gester som borjar utanfor ett element. */
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(g =>
+        doc.addEventListener(g, e => e.preventDefault(), {passive: false}));
+      /* Dubbeltryck-zoomen: tva tryck inom en tredjedels sekund. touch-action
+         stoppar den i moderna Safari men inte i alla aldre, sa den fangas har
+         ocksa. Enkeltryck rors inte - kartan maste ga att klicka. */
+      let sisteTryck = 0;
+      doc.addEventListener('touchend', e => {
+        const nu = Date.now();
+        if (nu - sisteTryck < 330) e.preventDefault();
+        sisteTryck = nu;
+      }, {passive: false});
     }
   } catch (e){}
   gmLastSig = ''; gmShownRegion = null;   /* tvinga fram en forsta sandning */
