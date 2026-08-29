@@ -388,10 +388,6 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .layout{
   display:grid;
   grid-template-columns:minmax(320px,470px) minmax(340px,1fr) minmax(320px,470px);
-  /* [TILLAGT v5.108.0] Ovre raden ar sa hog den behover; kartan tar resten.
-     Utan detta stod kartans hojd som en fast siffra som inte foljde med nar
-     rutan ovanfor vaxte. */
-  grid-template-rows:auto 1fr;
   gap:var(--gap);
   align-items:start;
 }
@@ -399,18 +395,16 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 
 /* ===== KARTAN (v5.106.0) =====
    Panelen ar inget barn till en kolumn - den ligger i rutnatet sjalv och tar
-   kolumn tva och tre, alltsa hela ytan till hoger om vanstersp alten. Raderna
-   pekas ut med flit: utan dem hamnar kartan under ALLA tre kolumnerna, och
-   eftersom vanstersp alten ar langst blev det en halv skarm tomrum ovanfor.
-   Nu spanner vanstersp alten bada raderna medan kartan lagger sig direkt under
-   de tva hogra. */
-.layout > .col-left{grid-column:1; grid-row:1 / 3}
-.layout > .col-mid{grid-column:2; grid-row:1}
-.layout > .col-right{grid-column:3; grid-row:1}
-.map-panel{grid-column:2 / 4; grid-row:2; min-width:0; align-self:stretch;
-  /* [ANDRAT v5.108.0] Rutan ar kartan och ingenting annat. Panelens egen ram,
-     stoppning och bakgrund ar borta - kartan har sin egen och tva ramar utanpa
-     varandra blev en tjock dodyta runt bilden. */
+   kolumn tva och tre, alltsa hela ytan till hoger om vanstersp alten.
+   [ANDRAT v5.113.0] Radernas och kolumnernas placering star INTE har langre.
+   Pa en telefon ar rutnatet EN kolumn, och da pekade de har reglerna pa en
+   kolumn tva och tre som inte finns - allt hamnade ovanpa varandra i en enda
+   hog. De ligger nu bland datorreglerna langre ner, dar tre kolumner faktiskt
+   finns. Har star bara det som galler overallt. */
+.map-panel{min-width:0;
+  /* Rutan ar kartan och ingenting annat. Panelens egen ram, stoppning och
+     bakgrund ar borta - kartan har sin egen och tva ramar utanpa varandra blev
+     en tjock dodyta runt bilden. */
   padding:0; background:none; border:0; box-shadow:none}
 .map-shell{
   position:relative; width:100%; height:520px;
@@ -730,6 +724,11 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   padding:12px;margin-bottom:4px;
 }
 .tr-item{display:flex;align-items:center;gap:10px}
+/* [TILLAGT v5.115.0] Hyllans pjaser gar att peka pa nu - de ar rullade pa
+   riktigt, sa de har siffror att visa. Kanten lyser svagt sa man ser att raden
+   gommer nagot. */
+.trader-row.vg-peek{cursor:help}
+.trader-row.vg-peek:hover{border-color:var(--rc, var(--border-glow))}
 .tr-ico{font-size:22px}
 /* [TILLAGT v5.53.1] Samma sak i boden som i butiken: en riktig bild behover en
    yta, och faller filen bort visas varans emoji i stallet. */
@@ -901,6 +900,37 @@ body.dragging *{cursor:grabbing !important}
    Utan den har fanns ingen bekraftelse alls: man tryckte kop, guldet sjonk och
    ingenting rorde sig. En ikon som lamnar knappen och landar i vaskan sager
    BADE att kopet gick igenom OCH var saken tog vagen - utan ett enda ord. */
+/* [TILLAGT v5.119.0] Fragmentet som lamnar noden. Det svavar sakta pa stallet
+   i tva sekunder - darav den langsamma vaggningen - och far sedan sin fard mot
+   raden satt fran koden. Raden sjalv stots till nar fragmentet landar. */
+.frag-fly{
+  position:fixed;z-index:12000;pointer-events:none;
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  filter:drop-shadow(0 0 8px var(--purple));
+  opacity:0;
+}
+.frag-fly .qi{width:26px;height:26px}
+.frag-fly.hover{animation:fragHover 2s ease-in-out;opacity:1}
+@keyframes fragHover{
+  0%{opacity:0;transform:translateY(6px) scale(.6)}
+  18%{opacity:1;transform:translateY(0) scale(1)}
+  55%{transform:translateY(-5px) scale(1)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.sn-cur .res-pill.got{animation:fragGot .45s ease}
+@keyframes fragGot{
+  0%{transform:scale(1)}
+  45%{transform:scale(1.09);box-shadow:0 0 14px color-mix(in srgb, var(--purple) 60%, transparent)}
+  100%{transform:scale(1)}
+}
+.sn-cur .res-pill.clickable{cursor:pointer}
+.sn-cur .res-pill.clickable:hover{border-color:var(--purple)}
+/* Fragmentfonstret. */
+.frag-modal .frag-have{display:flex;align-items:center;gap:12px;margin-bottom:12px;
+  padding:10px 12px;background:var(--bg-inset);border:1px solid var(--border-soft);
+  border-radius:var(--radius-sm)}
+.frag-have-lbl{font-size:10px;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase}
+.frag-have-val{font-size:20px;font-weight:800;color:var(--purple)}
 .buy-fly{position:fixed;z-index:12000;pointer-events:none;font-size:26px;
   line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));
   will-change:transform,opacity}
@@ -1828,8 +1858,12 @@ body.dragging *{cursor:grabbing !important}
   padding:14px 16px;display:flex;align-items:center;gap:14px;
   position:relative;
   /* HUVUDYRKENA ar de stora - de far vaxa och fylla rutan. Sidoyrket star
-     kvar i sin lagre hojd, sa man ser pa formen vilket som ar vilket. */
-  flex:1 1 0;min-height:104px;
+     kvar i sin lagre hojd, sa man ser pa formen vilket som ar vilket.
+     [ANDRAT v5.112.0] Stod "1 1 0", vilket lat korten KRYMPA under sitt eget
+     innehall nar de var manga - och eftersom kortet klipper det som sticker ut
+     kapades sexkanten med yrkets ikon uppe i horet. Med "auto" utgar de fran
+     sitt innehall och far fortfarande vaxa; rutan omkring vaxer med dem. */
+  flex:1 1 auto;min-height:104px;
 }
 .prof-card.is-secondary{flex:0 0 auto;min-height:74px;padding:11px 16px}
 .prof-card.is-secondary .jc-bg{width:92px;height:92px}
@@ -2289,6 +2323,19 @@ body.dragging *{cursor:grabbing !important}
      hela bredden under de tva ovre rutorna, och hojden ska vara det som blir
      kvar av skarmen - inte en siffra fran en annan layout. Ovanfor ligger den
      hogsta av de tva rutorna (397) plus mellanrum och sidans marginaler. */
+  /* [FLYTTAT HIT v5.113.0] Radernas och kolumnernas placering. Den stod forut
+     bland de gemensamma reglerna och gallde DARFOR aven telefonen, dar rutnatet
+     ar en enda kolumn - rutorna pekades da mot en kolumn tva och tre som inte
+     finns, och hela sidan lade sig i en hog ovanpa sig sjalv. Har inne finns de
+     tre kolumnerna pa riktigt.
+     Vanstersp alten spanner bada raderna; kartan lagger sig under de tva hogra.
+     Utan raderna hamnar kartan under ALLA tre, och eftersom vanstersp alten ar
+     langst blir det en halv skarm tomrum ovanfor. */
+  .layout{grid-template-rows:auto 1fr}
+  .layout > .col-left{grid-column:1; grid-row:1 / 3}
+  .layout > .col-mid{grid-column:2; grid-row:1}
+  .layout > .col-right{grid-column:3; grid-row:1}
+  .map-panel{grid-column:2 / 4; grid-row:2; align-self:stretch}
   /* [TILLAGT v5.108.0] Sidan slutade 128 pixlar fore skarmens underkant och den
      ytan gick till spillo. Nu stracker sig rutnatet hela vagen ner, och
      eftersom kartans rad ar den som far vaxa hamnar de pixlarna i kartan. */
@@ -4752,7 +4799,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="res-pill" data-label="Money" data-color="gold"><span class="res-icon sn-hex" style="--hxc:var(--gold)"><span class="qi qi-money"></span></span><span class="res-body"><span class="res-lbl">Gold</span><span class="res-value" id="res-gold">0c</span></span></div>
         <div class="res-pill" data-label="Fuel" data-color="fuel" id="fuel-pill"><span class="res-icon sn-hex" style="--hxc:var(--red)"><span class="qi qi-fuel"></span></span><span class="res-body"><span class="res-lbl">Fuel</span><span class="res-value" id="res-fuel">100</span></span></div>
         <div class="res-pill" data-label="Credits" data-color="blue"><span class="res-icon sn-hex" style="--hxc:var(--violet)"><span class="qi qi-credits"></span></span><span class="res-body"><span class="res-lbl">Credits</span><span class="res-value" id="res-credits">0</span></span></div>
-        <div class="res-pill" data-label="Fragments" data-color="purple"><span class="res-icon sn-hex" style="--hxc:var(--purple)"><span class="qi qi-fragments"></span></span><span class="res-body"><span class="res-lbl">Fragments</span><span class="res-value" id="res-fragments">0</span></span></div>
+        <div class="res-pill clickable" data-label="Fragments" data-color="purple" id="frag-pill" title="Spend fragments"><span class="res-icon sn-hex" style="--hxc:var(--purple)"><span class="qi qi-fragments"></span></span><span class="res-body"><span class="res-lbl">Fragments</span><span class="res-value" id="res-fragments">0</span></span></div>
       </div>
 
       <div class="sn-sep"></div>
@@ -4779,7 +4826,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.111.0 — SYNLIGA FEL</div>
+        <div class="sn-ver">GENESIS v5.119.0 — FRAGMENTFONSTRET</div>
       </div>
     </div>
   </aside>
@@ -5093,6 +5140,42 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     </div>
   </div>
 
+  <!-- ================= FRAGMENTEN (v5.119.0) =================
+       Fragmenten hade ingen egen plats: de rakades i vansterspalten och
+       spenderades inne bland hjalparna, dar cachen lag inklamd ovanfor
+       samlingen. Nu bor bada cacharna har, och hjalparfonstret handlar bara
+       om hjalpare. -->
+  <div class="float-win" id="frag-overlay">
+    <div class="modal profile-modal frag-modal">
+      <div class="inv-titlebar">
+        <span class="inv-title">Fragments</span>
+        <button class="inv-x" id="frag-close">✕</button>
+      </div>
+      <div class="profile-body">
+        <div class="frag-have">
+          <span class="res-icon sn-hex" style="--hxc:var(--purple)"><span class="qi qi-fragments"></span></span>
+          <div><div class="frag-have-lbl">You have</div>
+               <div class="frag-have-val" id="frag-have">0</div></div>
+        </div>
+        <div class="cache-box">
+          <div class="cache-info">
+            <div class="cache-name" id="fc-helper-name">Helper Cache</div>
+            <div class="cache-sub" id="fc-helper-sub"></div>
+          </div>
+          <button class="cache-buy" id="fc-helper-buy">Open</button>
+        </div>
+        <div class="cache-box">
+          <div class="cache-info">
+            <div class="cache-name">Gear Cache</div>
+            <div class="cache-sub" id="fc-gear-sub">One piece of gear · rarity rolled on open</div>
+          </div>
+          <button class="cache-buy" id="fc-gear-buy">Open</button>
+        </div>
+        <div class="cache-reveal" id="frag-reveal"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="float-win" id="vault-overlay">
     <div class="modal inv-modal vault-modal">
       <div class="vt-picker">
@@ -5381,14 +5464,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <!-- Rullningen ligger på INNEHÅLLET, inte på fönstret: overflow på fönstret
            klipper bort emblemet som hänger utanför ramen. -->
       <div class="pets-scroll">
-        <div class="cache-box">
-          <div class="cache-info">
-            <div class="cache-name" id="cache-name">🧊 Cache</div>
-            <div class="cache-sub" id="cache-sub"></div>
-          </div>
-          <button class="cache-buy" id="cache-buy">Open</button>
-        </div>
-        <div class="cache-reveal" id="cache-reveal"></div>
+        <!-- [FLYTTAT v5.119.0] HAR LAG CACHEN. Den bor i fragmentfonstret nu,
+             tillsammans med den nya utrustningscachen - fragmenten spenderas
+             pa ett stalle, och det har fonstret handlar bara om hjalpare. -->
         <div class="section-label" id="pet-coll-label">Collection</div>
         <div class="pet-coll" id="pet-coll"></div>
         <div class="section-label">Your Helpers</div>
@@ -5565,7 +5643,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.111.0 — SYNLIGA FEL</div>
+            <div class="desc">GENESIS v5.119.0 — FRAGMENTFONSTRET</div>
           </div>
         </div>
       </div>
@@ -6124,6 +6202,18 @@ async function netSync(){
       nodeDropPopMany(clock.drops, 'var(--gold)');
       NET.lastStackPull = Date.now();
       netPullItems().then(() => { renderInventory && renderInventory(); }).catch(() => {});
+    }
+    /* [TILLAGT v5.119.0] Fragmenten ur tomgangen. Servern har redan bokfort dem
+       - talet kommer hem med klockan - sa har visas de bara: ut ur noden, tva
+       sekunder i luften, in i raden. Franvarons fragment hor till valkomstrutan
+       och kastas darfor inte ut har, precis som skrotet. */
+    if (clock && (clock.frags | 0) > 0){
+      /* Talet sätts ur serverns ABSOLUTA varde, inte genom att addera har.
+         Adderar bada sidor kan de rakna isar, och da visar raden ett tal som
+         inte finns pa servern. */
+      if (clock.fragments != null) S.frags = +clock.fragments;
+      if (!(firstSync && NET.awaySecs > 120)) fragFlyToPill(clock.frags | 0);
+      renderFragWin();
     }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
@@ -6955,7 +7045,17 @@ async function netVendorLookInto(regionId){
       S.vend[regionId] = {
         stock: r.stock.map(s => ({
           k: s.item, r: s.rarity | 0, sold: !!s.sold,
-          price: (s.price == null ? undefined : +s.price)
+          price: (s.price == null ? undefined : +s.price),
+          /* [TILLAGT v5.115.0] Pjaserna rullas nu redan nar hyllan fylls, sa
+             deras RIKTIGA siffror foljer med. Utan dem kunde boden bara visa
+             namn och sallsynthet, och det gick inte att se om nagot var battre
+             an det man bar. Formen ar densamma som en pjas i vaskan har, sa
+             samma jamforelseruta kan rita den. */
+          uid: s.item_id || null,
+          hp: s.hp | 0, pw: s.power | 0, dm: s.damage | 0,
+          lv: s.item_level | 0,
+          a: Array.isArray(s.affixes) ? s.affixes : [],
+          pve: s.pve_effect || null
         })),
         next: Date.now() + (+r.restock_in || 0) * 1000,
         /* Betald pafyllning: hur manga man redan kopt i den har perioden och
@@ -7561,6 +7661,18 @@ async function netOpenCache(){
   if (r && r.fragments != null) S.frags = +r.fragments;
   await netPullPets();
   renderPets(); renderPetPanel(); updateUI(true);
+  renderFragWin();
+  return r;
+}
+/* [TILLAGT v5.119.0] Utrustningscachen. Servern drar fragmenten, rullar pjasen
+   och lagger den i vaskan; harifran hamtas den bara hem och visas. */
+async function netOpenGearCache(){
+  if (!NET.on) return null;
+  const r = await srvRpc('open_gear_cache', {p_character: SRV.charId});
+  if (r && r.fragments != null) S.frags = +r.fragments;
+  await netPullItems();
+  renderInventory(); updateUI(true);
+  renderFragWin();
   return r;
 }
 async function netSetTeam(pet, slot){
@@ -7786,7 +7898,7 @@ async function netClaimExpedition(expId){
       const D = ITEMS[r.gear.item];
       bits.push((D ? D.name : 'Gear') + ' (' + GEAR_RAR[r.gear.rarity].name + ')');
     }
-    if (r.cell) bits.push('Warp Fuel Cell');
+    if (r.cell) bits.push('Fuel Cell');
     if (r.recipe && RECIPE_BY[r.recipe]) bits.push('Recipe: ' + RECIPE_BY[r.recipe].name);
     if (r.scrap) bits.push(r.scrap + ' Scrap');
     if (bits.length) spawnFloat({text: bits.join(' · ')});
@@ -7881,7 +7993,9 @@ async function netCheckAchievements(){
 /* [BORTTAGET v5.3.0] Har rakans vad ETT HACK gav i Data: en andel av
    produktionen, gangrat med Tap Power. Noden ger inte Data langre - den ger
    ARBETSSEKUNDER till det lankade yrket, och det talet star vid hallet sjalvt.
-   Utrustningens Tap Power lever vidare dar, som Core Assist. */
+   [ANDRAT v5.118.0] Har stod att utrustningens Tap Power levde vidare som Core
+   Assist. Nagon sadan finns inte i filen - egenskapen var helt urkopplad och
+   ar nu borttagen. */
 
 /* ---------- STATE ---------- */
 const SAVE_KEY = 'genesis-save-v1';
@@ -8526,14 +8640,14 @@ const RECIPE_BY = {}; RECIPES.forEach(r => RECIPE_BY[r.id] = r);
    fran att den har listan aterkommer oforandrad. */
 const FLASKS_ARE_LEGACY = true;
 const FLASKS = {
-  flask_data:      {name:'Data Flask',     ico:'🧪', boost:'idle'},
+  flask_data:      {name:'Chrono Flask',   ico:'⏱️', boost:'expspd'},
   flask_focus:     {name:'Focus Flask',    ico:'🔮', boost:'crit'},
   flask_impact:    {name:'Impact Flask',   ico:'💥', boost:'critdmg'},
   flask_trail:     {name:'Trail Flask',    ico:'💨', boost:'travel'},
   flask_learning:  {name:'Learning Flask', ico:'📘', boost:'xp'},
   flask_echo:      {name:'Echo Serum',     ico:'🐾', boost:'petxp'},
   flask_expedition:{name:'Expedition Catalyst',ico:'🧭', boost:'expspd'},
-  flask_genesis:   {name:'Genesis Compound',ico:'✨', boost:'idle'},
+  flask_genesis:   {name:'Genesis Compound',ico:'✨', boost:'expspd'},
   /* [BUG] LOOT LUCK SAKNADES BLAND FLASKORNA. Alla andra boostar hade sin flaska;
      turen hade bara handelsbodens flaska - och den var dessutom trasig i
      serverlage, for tabellen over pagaende boostar kravde att boosttypen fanns
@@ -8544,7 +8658,6 @@ function isFlask(key){ return !!FLASKS[key]; }
 /* Boostvarden per boostnyckel och raritet: langre OCH starkare med rariteten. En
    epic Genesis Compound haller riktigt lange - dess varde ar just langden. */
 const FLASK_BOOST = {
-  idle:      {name:'Data Surge',      ico:'🧪', pct:[60,90,140,240], mins:[10,15,25,60], what:'Data per second'},
   crit:      {name:'Focused',         ico:'🔮', pct:[20,30,45,70],   mins:[10,15,20,40], what:'Crit Chance'},
   critdmg:   {name:'Impact',          ico:'💥', pct:[25,40,60,90],   mins:[10,15,20,40], what:'Crit Damage'},
   travel:    {name:'Slipstream',      ico:'💨', pct:[15,20,30,45],   mins:[15,20,30,60], what:'shorter travel'},
@@ -8925,8 +9038,14 @@ const GEAR_RAR = [
    ALLA egenskaper ar nu byggda och kopplade till nagot verkligt (v0.73.0): Pet XP
    och Boost Duration var de sista som vantade pa sina system. Capsule Cost struken. */
 const AFFIXES = {
-  idle:    {name:'Idle Data',        lo:1.73, hi:2.27, sfx:'%'},
-  tap:     {name:'Tap Power',        lo:2.03, hi:2.67, sfx:'%'},
+  /* [BORTTAGET v5.116.0] IDLE DATA. Egenskapen gav "Data per sekund" och Data
+     finns inte i spelet langre - den var alltsa helt urkopplad, en siffra som
+     ritades men aldrig rakades med nagonstans. Pjaser som redan rullat den har
+     pa servern skrivits om till Expedition Speed, som gor nagot pa riktigt. */
+  /* [BORTTAGET v5.118.0] TAP POWER. Tappandet ar ingen mekanik i spelet langre,
+     sa egenskapen okade en siffra som ingenting laste. Pjaser som redan rullat
+     den har pa servern fatt en slumpad kvarvarande egenskap i stallet, med
+     samma varde - ingen blev fattigare. */
   crit:    {name:'Crit Chance',      lo:1.30, hi:1.70, sfx:'%'},
   /* Crit Damage förstärker SJÄLVA SMÄLLEN: grundträffen slår femfaldigt, och den
      här procenten läggs på multiplikatorn. Bandet ±14 % kring mitten 3,0 som
@@ -8935,7 +9054,9 @@ const AFFIXES = {
   frag:    {name:'Fragment Find',    lo:1.90, hi:2.50, sfx:'%'},
   luck:    {name:'Loot Luck',        lo:1.64, hi:2.16, sfx:'%'},
   xp:      {name:'Experience',       lo:3.46, hi:4.54, sfx:'%'},
-  offline: {name:'Offline Earnings', lo:2.38, hi:3.12, sfx:'%'},
+  /* [FLYTTAT v5.118.0] OFFLINE EARNINGS hor hemma i spelarens kommande
+     skilltrad, inte pa en pjas: det ar en egenskap hos SPELAREN, inte hos en
+     hjalm. Sparad dit; befintliga barare bytte till en kvarvarande egenskap. */
   /* Expedition Speed KORTAR uppdragets längd. Belöningarna räknas på den
      NOMINELLA längden (data, guld, fragment, droppchans läser def.mins), så en
      snabbare expedition tappar ingenting — den ger fler hämtningar per timme.
@@ -8952,7 +9073,10 @@ const AFFIXES = {
      alltsa en egenskap klienten inte kande igen, och hela kortet kraschade nar
      det skulle ritas - inget hovringskort, ingen hogerklicksruta, inga varden.
      Bandet ar samma form som de ovriga, mitten 3,0. */
-  expspd:  {name:'Expedition Speed', lo:2.58, hi:3.42, sfx:'%'},
+  /* [ANDRAT v5.118.0] Bandet stod 2,58-3,42 har och 1,90-2,50 pa servern. Det
+     ar SERVERN som rullar, sa dess band ar det som faktiskt hander - spelet
+     visade alltsa en styrka pjaserna aldrig kunde na. Nu sager de samma sak. */
+  expspd:  {name:'Expedition Speed', lo:1.90, hi:2.50, sfx:'%'},
   /* Flyttade hit fran husdjuren nar hjalparsystemet kom: de ar rena
      stridsvarden och hor hemma pa en pjas, inte i en produktion. */
   boostpot: {name:'Boost Strength',  lo:3.44, hi:4.56, sfx:'%'},
@@ -9600,7 +9724,7 @@ function rollItem(key, rarIdx, capFrac){
   /* Smycke: forsta egenskapen ar GARANTERAT krit, resten far komma ur bade
      kritparet och den vanliga poolen. Alla andra platser rullar enbart vanligt.
      DUBBLETTER AR TILLATNA (spelarens beslut) - poolen tommas inte langre pa det
-     som redan rullats. Tvartom: tva Idle Data pa samma pjas ar meningen, for da
+     som redan rullats. Tvartom: tva av samma egenskap pa en pjas ar meningen, for da
      betyder turen nagot igen. Med atta i den vanliga poolen och tre rullningar
      blir det 65,6 % tre olika, 32,8 % ett par och 1,6 % alla tre lika. */
   const pool = SPECIAL_SLOTS[D.slot] ? JEWEL_REST : NORMAL_KEYS;
@@ -10715,7 +10839,10 @@ function secSkillPct(eff){
   return sec ? skillPct(sec.id, eff) : 0;
 }
 function offlineRate(){
-  return Math.min(1, 0.40 + (gearBonus('offline') + secSkillPct('offline')) / 100);
+  /* [ANDRAT v5.118.0] Utrustningens del ar borta: Offline Earnings ar en
+     egenskap hos SPELAREN, inte hos en hjalm, och flyttar till det kommande
+     skilltradet. Sidoyrkets nod star kvar och gor samma jobb som forut. */
+  return Math.min(1, 0.40 + secSkillPct('offline') / 100);
 }
 function computeOffline(){
   /* SERVERLAGE: klienten far INTE rakna ut detta sjalv. Den raknade pa den
@@ -11911,7 +12038,11 @@ function collectTick(){
 /* Core Sync: tidsstampeln ar hela sanningen, precis som pa servern. */
 /* Fem minuter, pa ETT stalle. Talet stod forut inskrivet i aktiveringen och
    hade behovt skrivas en gang till for matarens nedrakning. */
-const CORE_SYNC_SECS = 300;
+/* [ANDRAT v5.112.0] 300 blev 1800. Fem minuter tvingade fram ett nytt tryck
+   var femte minut - det ar inte att sitta lugnt och lata spelet ga, det ar en
+   klocka som ropar. Servern sager samma tal; andras det ena maste det andra
+   folja med, annars ritar mataren en tid som inte finns. */
+const CORE_SYNC_SECS = 1800;
 function coreSyncLeft(){
   return S.syncUntil ? Math.max(0, (S.syncUntil - Date.now()) / 1000) : 0;
 }
@@ -11923,8 +12054,8 @@ function coreSyncActivate(){
       .then(r => { if (r && r.sync_until) S.syncUntil = new Date(r.sync_until).getTime(); })
       .catch(() => {});
   }
-  say(first ? 'CORE SYNC \u2014 all your professions run 15% faster for 5 minutes.'
-            : 'Core Sync restarted \u2014 5 minutes again.');
+  say(first ? 'CORE SYNC \u2014 all your professions run 15% faster for 30 minutes.'
+            : 'Core Sync restarted \u2014 30 minutes again.');
   Sound.play('ding');
 }
 
@@ -12745,12 +12876,10 @@ function charStatRows(){
      att nagot gar ned. */
   if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '%']);
   up('Crit Chance', gearBonus('crit'));
-  up('Idle Data', gearBonus('idle'));
-  up('Tap Power', gearBonus('tap'));
   up('Fragment Find', gearBonus('frag') + helperBonus('frag'));
   up('Loot Luck', gearBonus('luck') + boostPct('luck'));
   up('XP Bonus', gearBonus('xp'));
-  up('Offline Earnings', gearBonus('offline'));
+  up('Offline Earnings', secSkillPct('offline'));
   up('Pet XP', gearBonus('petxp') + helperBonus('petxp'));
   up('Crit Damage', gearBonus('critdmg'));
   up('Boost Strength', gearBonus('boostpot'));
@@ -12760,10 +12889,9 @@ function charStatRows(){
      fyra, varav en ('Dust Yield') pekade pa en formaga som inte finns langre och
      en ('Machine Cost') var en hardkodad nolla efter att den egenskapen pensionerades. */
   up('Scrap Find', helperBonus('scrap'));
-  up('Profession XP', helperBonus('profxp'));
   up('Expedition Speed', helperBonus('expspd'));
   up('Sell Value', helperBonus('sellvalue'));
-  up('Fuel Regen', helperBonus('fuel'));
+  up('Fuel Regen', skillPct('refiner', 'fuel_regen'));
   up('Cache Odds', helperBonus('cacheluck'));
   up('Gear Rarity', helperBonus('gearrar'));
   up('Token Yield', helperBonus('tokens'));
@@ -13664,7 +13792,7 @@ function showRewards(run, alreadyPaid){
       '<span class="rwg-txt"><b>' + (MATERIALS[k] ? MATERIALS[k].name : k) + '</b>' +
       '<i>' + (JUNK[k] ? JUNK[k].flavor : 'Junk') + '</i></span></div>';
   });
-  if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Warp Fuel Cell</b><i>Restores 25 fuel</i></span></div>';
+  if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Fuel Cell</b><i>Restores fuel</i></span></div>';
   /* [VAKT v5.6.0] Ett gammalt uppdrag kan bara ett receptfynd vars recept ar
      rivet. Utan vakten last raden rar och prof pa ingenting. */
   if (run.loot.recipe && RECIPE_BY[run.loot.recipe] && !recipeKnown(run.loot.recipe)){
@@ -13716,12 +13844,12 @@ function confirmClaim(){
   S.gold += goldAfterTax(run.loot.gold);
   S.frags += run.loot.frags;
   if (run.loot.cell){
-    if (!addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true})){
+    if (!addInvItem({key:'fuelcell', name:'Fuel Cell', ico:'⛽', stack:true})){
       addMail({
         from: 'Salvage Bay', src: 'overflow',
-        subject: 'Warp Fuel Cell held for you',
+        subject: 'Fuel Cell held for you',
         body: 'Your backpack was full when this came in from ' + (expZoneOf(run.id) || 'the field') + '.',
-        items: [{key: 'fuelcell', name: 'Warp Fuel Cell', ico: '⛽', qty: 1}]
+        items: [{key: 'fuelcell', name: 'Fuel Cell', ico: '⛽', qty: 1}]
       });
     }
   }
@@ -14379,7 +14507,7 @@ function say(text){
    sedan gar for att hitta saken.
    Falls snabbfacket inte finns (smal skarm) tas vaskknappen i stallet - annars
    hade animationen tyst uteblivit just dar den behovs mest. */
-function flyToBag(fromEl, ico){
+function flyToBag(fromEl, ico, key){
   const target = $('qa-inventory') || $('bag-btn');
   if (!fromEl || !target || !ico) return;
   const a = fromEl.getBoundingClientRect(), b = target.getBoundingClientRect();
@@ -14387,7 +14515,23 @@ function flyToBag(fromEl, ico){
   const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;
   const x1 = b.left + b.width / 2, y1 = b.top + b.height / 2;
   const el = document.createElement('div');
-  el.className = 'buy-fly'; el.textContent = ico;
+  el.className = 'buy-fly';
+  /* [ANDRAT v5.112.0] Den flygande pjasen var ALLTID ett tecken, aven for saker
+     som har en egen bild - sa ett hantverkssatt kom farande som en generisk
+     ikon. Nu ritas spelets egen bild nar den finns, och tecknet ar reserven
+     precis som overallt annars. Saknas bilden byter webblasaren till tecknet
+     av sig sjalv. */
+  const art = (typeof stackArtOf === 'function' && key) ? stackArtOf(key) : '';
+  if (art){
+    const img = document.createElement('img');
+    img.src = art; img.alt = ''; img.draggable = false;
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block';
+    img.onerror = () => { if (typeof artMiss === 'function') artMiss(art);
+                          img.remove(); el.textContent = ico; };
+    el.appendChild(img);
+  } else {
+    el.textContent = ico;
+  }
   el.style.left = '0px'; el.style.top = '0px';
   el.style.transform = 'translate(' + (x0 - 13) + 'px,' + (y0 - 13) + 'px)';
   document.body.appendChild(el);
@@ -14462,6 +14606,49 @@ function nodeDropPopMany(mats, colour){
   keys.slice(0, NODE_DROP_MAX).forEach((k, n) => {
     setTimeout(() => nodeDropPop(k, mats[k], colour), n * 220);
   });
+}
+/* [TILLAGT v5.119.0] FRAGMENTETS VAG. Ett fragment ur tomgangen kastas ut ur
+   noden som allt annat, men stannar sedan i luften i tva sekunder innan det
+   drar in i fragmentraden i vansterspalten. Poangen ar att man ska HINNA se
+   att man fick nagot, och sedan se VART det tog vagen - annars okar bara en
+   siffra langst borta i kanten utan att man forstar varfor. */
+function fragFlyToPill(n){
+  if (document.visibilityState !== 'visible') return;
+  const stage = nodeDropStage(), mal = $('frag-pill');
+  if (!stage || !mal) return;
+  const antal = Math.min(6, Math.max(1, n | 0));
+  for (let i = 0; i < antal; i++){
+    setTimeout(() => {
+      const sr = stage.getBoundingClientRect();
+      const el = document.createElement('div');
+      el.className = 'frag-fly';
+      el.innerHTML = '<span class="qi qi-fragments"></span>';
+      document.body.appendChild(el);
+      const w = 26, h = 26;
+      /* Startar i karnans mitt och far en liten spridning, sa flera fragment
+         inte ligger exakt pa varandra. */
+      const x0 = sr.left + sr.width / 2 - w / 2 + (i % 2 ? 1 : -1) * (10 + (i % 3) * 14);
+      const y0 = sr.top + sr.height / 2 - h / 2 - (14 + (i % 4) * 10);
+      el.style.left = Math.round(x0) + 'px';
+      el.style.top  = Math.round(y0) + 'px';
+      requestAnimationFrame(() => el.classList.add('hover'));
+      /* Tva sekunder i luften, sedan farden till raden. */
+      setTimeout(() => {
+        const mr = mal.getBoundingClientRect();
+        el.style.transition = 'transform .62s cubic-bezier(.5,-0.2,.35,1), opacity .62s ease';
+        el.style.transform = 'translate(' +
+          Math.round(mr.left + mr.width / 2 - x0 - w / 2) + 'px,' +
+          Math.round(mr.top + mr.height / 2 - y0 - h / 2) + 'px) scale(.55)';
+        el.style.opacity = '0';
+        setTimeout(() => {
+          el.remove();
+          mal.classList.remove('got');
+          void mal.offsetWidth;      /* tvingar om animationen sa den syns varje gang */
+          mal.classList.add('got');
+        }, 620);
+      }, 2000);
+    }, i * 260);
+  }
 }
 function spawnFloat(opts){
   /* Ett tal borjar med + eller ar en crit; allt annat ar ett meddelande. */
@@ -15239,7 +15426,7 @@ function cellPrice(regionId){
    själv är golvet som gör att ingen någonsin kan bli permanent strandad. */
 const FUEL_MAX_BASE = 100;
 const FUEL_REGEN_PER_MIN = 1;
-/* [ANDRAT v4.90.0] Cellen gav 25 och hette Warp Fuel Cell. Planen har TVA
+/* [ANDRAT v4.90.0] Cellen gav 25 och hette Fuel Cell. Planen har TVA
    celler: Warp pa 10 och Reinforced pa 25. Namnet var alltsa redan taget av fel
    styrka. Den gamla behaller sitt namn och sanks till 10 - det ar den handlaren
    saljer dyrt, det dyra skyddsnatet - och Reinforced ar den nya starka som bara
@@ -15262,9 +15449,15 @@ const ZONE_FUEL_COST = 2;
    straffas man för att råka klicka. Boostarna ligger i S.boosts som utgångstider,
    så de överlever omladdning och räknas ned även när fliken är stängd. */
 const BOOSTS = {
-  idle:   {name: 'Data Surge',    ico: '🧪', mins: 15, pct: 100, what: 'Data per second'},
-  expspd: {name: 'Chrono Draft',  ico: '⏱️', mins: 30, pct: 25,  what: 'shorter expeditions'},
-  luck:   {name: 'Fortune Vial',  ico: '🍀', mins: 20, pct: 50,  what: 'more Loot Luck'}
+  /* [ANDRAT v5.117.0] 25%/30min och 50%/20min blev 15%/60min och 20%/60min.
+     De lag forut mellan Uncommon och Rare bland Medicinarens flaskor, och
+     Fortune Vial slog till och med Rare - da fanns inget kvar att langta efter
+     nar det yrket kommer tillbaka. Nu ar de svagare men racker en hel timme:
+     en ANNAN sorts vara an de tillverkade, inte en samre.
+     Talen star ocksa pa servern. Andras det ena maste det andra folja med,
+     annars lovar rutan en styrka som kassan inte ger. */
+  expspd: {name: 'Chrono Draft',  ico: '⏱️', mins: 60, pct: 15,  what: 'shorter expeditions'},
+  luck:   {name: 'Fortune Vial',  ico: '🍀', mins: 60, pct: 20,  what: 'more Loot Luck'}
 };
 /* ---------- HUR MANGA BOOSTAR SOM FAR GA SAMTIDIGT (v4.35.0) ----------
    Tva fran borjan. Omstartstradets TRE noder oppnar en plats var, sa fem ar
@@ -15344,7 +15537,7 @@ function drinkFlask(idx){
   return true;
 }
 /* Flaskboostens bidrag (procent), noll nar den inte gar. Lasas av samma stallen
-   som gearBonus, sa en Data Flask och Idle Data-gear staplar. */
+   som gearBonus, sa en dryck och en pjas med samma egenskap staplar. */
 function flaskPct(boostKey){
   const b = S.flaskBoost && S.flaskBoost[boostKey];
   return (b && b.until > Date.now()) ? b.pct : 0;
@@ -15568,11 +15761,14 @@ function isJunk(key){ return !!JUNK[key]; }
 const HELPER_ABILITIES = {
   scrap:     {name:'Scrap Sense',    text: v => '+' + v + '% scrap found'},
   frag:      {name:'Fragment Nose',  text: v => '+' + v + '% fragments'},
-  profxp:    {name:'Apprentice',     text: v => '+' + v + '% profession XP'},
+  /* [FLYTTAT v5.118.0] APPRENTICE och COOLANT FLOW ar borttagna ur hjalparnas
+     pool och sparade till spelarens kommande skilltrad. Hjalpare som redan
+     rullat dem har pa servern bytt till en kvarvarande formaga med samma varde,
+     sa ingen blev fattigare. Namnen star kvar en bit ner sa ett gammalt kort
+     anda kan ritas - en formaga utan text far hela sidan att falla. */
   petxp:     {name:'Mentor',         text: v => '+' + v + '% helper XP'},
   expspd:    {name:'Trailblazer',    text: v => '+' + v + '% expedition speed'},
   sellvalue: {name:'Haggler',        text: v => '+' + v + '% sell value'},
-  fuel:      {name:'Coolant Flow',   text: v => '+' + v + '% fuel regen'},
   cacheluck: {name:'Cache Instinct', text: v => '+' + v + '% cache odds'},
   gearrar:   {name:'Prospector',     text: v => '+' + v + '% rarer gear drops'},
   /* [ANDRAT v5.6.0] Hette 'tokens' / Echo Reader och gav extra Tokens vid en
@@ -15580,7 +15776,13 @@ const HELPER_ABILITIES = {
      husdjurens formaga i samma andetag. FILEN GJORDE INTE DET, sa ett husdjur
      med den nya formagan slog upp ingenting har och punkten efter kastade hela
      sidan. Klient och server sa olika saker om samma nyckel. */
-  worksync:  {name:'Work Sync',      text: v => '+' + v + '% profession work speed'}
+  worksync:  {name:'Work Sync',      text: v => '+' + v + '% profession work speed'},
+  /* Utgangna, men texten star kvar. En hjalpare fran en gammal sparfil - eller
+     ett kort som ritas ur en cache - far annars slå upp ingenting, och punkten
+     efter kastar hela sidan. Det har hant en gang. De rullas aldrig pa nytt:
+     poolen ligger pa servern och de ar borta darifran. */
+  profxp:    {name:'Apprentice',     text: v => '+' + v + '% profession XP'},
+  fuel:      {name:'Coolant Flow',   text: v => '+' + v + '% fuel regen'}
 };
 /* Ingen formaga far sakna text. Slar nagot upp en nyckel som inte star har ska
    spelet saga det tyst, inte falla. */
@@ -15607,10 +15809,10 @@ function unlockedBy(what){ return ''; }
 
 const ITEM_DEFS = {
   fuelcell: {
-    name: 'Warp Fuel Cell',
+    name: 'Fuel Cell',
     ico: '⛽',
     kind: 'Consumable',
-    desc: 'A sealed charge of warp fuel. Use it to restore ' + FUEL_CELL_RESTORE + ' fuel — the tank never overflows, so a full tank refuses the cell instead of wasting it.',
+    desc: 'A sealed charge of fuel. Restores 10 fuel, and one more for every rank of Dense Charge — the tank never overflows, so a full tank refuses the cell instead of wasting it.',
     sell: GOLD(2.5)
   },
   /* ===== SIDOYRKENAS PRODUKTER (v4.90.0) =====
@@ -15658,17 +15860,14 @@ const ITEM_DEFS = {
     desc: 'Brings you back at 50% health when you fall in a dungeon. Reserved before the run — never used by hand.',
     sell: GOLD(10)
   },
-  boost_idle: {
-    name: BOOSTS.idle.name, ico: BOOSTS.idle.ico, kind: 'Consumable',
-    desc: 'Drink to double your Data per second for ' + BOOSTS.idle.mins +
-          ' minutes. Drinking another adds its time to the one already running.',
-    sell: GOLD(7)
-  },
   boost_expspd: {
     name: BOOSTS.expspd.name, ico: BOOSTS.expspd.ico, kind: 'Consumable',
     desc: 'Drink to finish expeditions ' + BOOSTS.expspd.pct + '% faster for ' +
           BOOSTS.expspd.mins + ' minutes. Runs already under way keep their own clock.',
-    /* Priset följde timmen; halverad tid, halverat värde. */
+    /* [ANDRAT v5.117.0] Stod "halverad tid, halverat varde" - fran en gang da
+       tiden kortades. Nu gar det at andra hallet: svagare men dubbelt sa lang.
+       Aterkopet lamnas dar det ar, for varan ar varken battre eller samre an
+       forut - den ar en annan sorts vara. */
     sell: GOLD(9)
   },
   boost_luck: {
@@ -15696,7 +15895,10 @@ const MELON_DROPS = 2;
 const MELON_TIER = 1;          // andra ringens odds (spelarens beslut)
 /* Fyra procent: exakt den andel en epic pjas har i forsta ringens tabell. */
 const MELON_CHANCE = 0.04;
-const BOOST_KEY_BY_ITEM = {boost_idle: 'idle', boost_expspd: 'expspd', boost_luck: 'luck'};
+/* [ANDRAT v5.116.0] boost_idle utgar - Chrono Draft ger redan exakt samma sak
+   som den skulle ha gett, och tva varor med identisk verkan hos samma handlare
+   ar bara forvirrande. */
+const BOOST_KEY_BY_ITEM = {boost_expspd: 'expspd', boost_luck: 'luck'};
 /* ---------- HANDLARENS PAKET ----------
    Vid femstjärnigt rykte skickar handlaren bud: kom förbi, jag har något åt dig.
    Paketet hämtas PÅ PLATS hos handlaren, läggs i väskan, och kan sparas hur länge
@@ -15945,7 +16147,9 @@ function fuelMax(){ return FUEL_MAX_BASE; }
    an verkligheten. */
 function fuelRegenPerMin(){
   /* [ANDRAT v5.86.0] Raffinaderiets Pressure Feed laggs pa har. */
-  return FUEL_REGEN_PER_MIN * (1 + (helperBonus('fuel') + skillPct('refiner', 'fuel_regen')) / 100)
+  /* [ANDRAT v5.118.0] Hjalparnas del ar borta - Coolant Flow ar sparad till
+     spelarens kommande skilltrad. Refiners nod star kvar och gor jobbet. */
+  return FUEL_REGEN_PER_MIN * (1 + skillPct('refiner', 'fuel_regen') / 100)
        * (1 + 0.10 * (NET.on ? perkLvl('fuelFlow') : 0));
 }
 function fuelBetween(fromId, toId){
@@ -16682,21 +16886,26 @@ function gmPick(o){
        kan aldrig bli en genvag forbi en regel. */
     case 'travel': {
       const api = gmWin();
-      if (o.zone){
+      /* Kartan laser sitt EGET val nar knappen trycks, och det valet kan ha
+         nollstallts av att spelet ritat om kartan i samma andetag - da kom
+         trycket in utan zon och ingenting hande. Spelet minns sjalvt vad som
+         senast valdes, sa det anvands nar kartans eget svar ar tomt. */
+      const zon = o.zone || (gmSel && gmSel.region === region ? gmSel.zone : null);
+      if (zon){
         /* Samma knapp gor tva saker beroende pa vad zonen behover: en okartlagd
            zon far en dronare, en kartlagd far ett hopp. */
-        if (!isZoneCharted(region, o.zone)){
+        if (!isZoneCharted(region, zon)){
           /* Sager startZoneScan nej hander INGENTING synligt - knappen ser ut
              att vara trasig. Sa den far tala om varfor. */
-          if (!startZoneScan(region, o.zone)){
+          if (!startZoneScan(region, zon)){
             if (S.zoneScan) say('The drone is already charting ' + S.zoneScan.zone + '.');
             else if (S.world.travel) say('You are travelling — the drone stays home.');
             else if (region !== S.world.current) say('Travel to that world before charting it.');
             else say('The drone could not be sent.');
           }
-        } else if (goToZone(region + '|' + o.zone)){
+        } else if (goToZone(region + '|' + zon)){
           /* Framme: nu ar zonens ruta ratt att oppna. */
-          const i = zi(o.zone);
+          const i = zi(zon);
           if (i >= 0) openZone(region, i);
         }
       } else if (region === S.world.current){
@@ -16732,6 +16941,34 @@ function gmHook(){
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
         e.preventDefault();
       });
+      /* [TILLAGT v5.114.0] SAMMA TELEFONSKYDD SOM SPELET. Kartan ligger i eget
+         fonster och arver ingenting: dar levde dubbeltryck-zoomen, luppen som
+         poppar upp vid langt tryck, textmarkeringen och studsen vid kanten
+         vidare. Speglas hit i stallet for att bes av Design - da overlever det
+         nasta gang de skickar en ny fil. */
+      const skydd = doc.createElement('style');
+      skydd.textContent =
+        'html,body{user-select:none;-webkit-user-select:none;' +
+        '-webkit-touch-callout:none;touch-action:manipulation;' +
+        'overscroll-behavior:contain;-webkit-tap-highlight-color:transparent}' +
+        '::selection{background:transparent}' +
+        'input,select,textarea{user-select:text;-webkit-user-select:text;' +
+        '-webkit-touch-callout:default}' +
+        'svg,img{-webkit-user-drag:none;-webkit-touch-callout:none}';
+      (doc.head || doc.documentElement).appendChild(skydd);
+      /* Tva fingrar som nyper ar Safaris egen zoom och stangs av separat -
+         touch-action racker inte for gester som borjar utanfor ett element. */
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(g =>
+        doc.addEventListener(g, e => e.preventDefault(), {passive: false}));
+      /* Dubbeltryck-zoomen: tva tryck inom en tredjedels sekund. touch-action
+         stoppar den i moderna Safari men inte i alla aldre, sa den fangas har
+         ocksa. Enkeltryck rors inte - kartan maste ga att klicka. */
+      let sisteTryck = 0;
+      doc.addEventListener('touchend', e => {
+        const nu = Date.now();
+        if (nu - sisteTryck < 330) e.preventDefault();
+        sisteTryck = nu;
+      }, {passive: false});
     }
   } catch (e){}
   gmLastSig = ''; gmShownRegion = null;   /* tvinga fram en forsta sandning */
@@ -16926,7 +17163,7 @@ function openZone(regionId, zi, keepNote){
   const gbtn = $('vendor-gift');
   if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); openZone(regionId, zi, true); });
   if (tbuy) tbuy.addEventListener('click', () => {
-    if (S.gold >= cellPrice(regionId)) flyToBag(tbuy, ITEM_DEFS.fuelcell.ico);
+    if (S.gold >= cellPrice(regionId)) flyToBag(tbuy, ITEM_DEFS.fuelcell.ico, 'fuelcell');
     buyCell(regionId); openZone(regionId, zi, true);
   });
   const rfr = $('vendor-refresh');
@@ -16941,16 +17178,50 @@ function openZone(regionId, zi, keepNote){
       .catch(e => { say(srvErrText(e)); rfr.disabled = false; });
   });
   $('region-body').querySelectorAll('[data-buykit]').forEach(b => b.addEventListener('click', () => {
-    if (buyCraftingKit(regionId, +b.dataset.buykit)) flyToBag(b, MATERIALS.crafting_kit.ico);
+    if (buyCraftingKit(regionId, +b.dataset.buykit)) flyToBag(b, MATERIALS.crafting_kit.ico, 'crafting_kit');
     openZone(regionId, zi, true);
   }));
   $('region-body').querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
     const D = ITEM_DEFS[b.dataset.buyboost];
-    if (D && S.gold >= boostPrice(b.dataset.buyboost, regionId)) flyToBag(b, D.ico);
+    if (D && S.gold >= boostPrice(b.dataset.buyboost, regionId)) flyToBag(b, D.ico, b.dataset.buyboost);
     buyBoost(regionId, b.dataset.buyboost);
     openZone(regionId, zi, true);
   }));
   /* Kortet ritas om efter varje köp — priser, råd och knapparnas läge ska stämma. */
+  /* [TILLAGT v5.115.0] Hyllans pjaser gar att peka pa. De ar rullade pa riktigt
+     nu, sa samma ruta som vaskan anvander ritar dem - med rott och gront mot
+     den man bar. Pa telefon finns ingen hovring: dar haller man kvar fingret. */
+  $('region-body').querySelectorAll('[data-vpeek]').forEach(el => {
+    const pjas = () => {
+      const s = vendorStock(regionId)[+el.dataset.vpeek];
+      if (!s || !s.a) return null;
+      const D = ITEMS[s.k];
+      if (!D) return null;
+      /* Samma form som en pjas i vaskan, sa jamforelserutan kanner igen den.
+         uid ar hyllans pjas - den kan aldrig krocka med en buren, sa raden
+         "du bar redan denna" kan inte trigga av misstag. */
+      return {uid: s.uid || ('vendor-' + regionId + '-' + el.dataset.vpeek),
+              t: s.k, s: D.slot, r: s.r,
+              hp: s.hp | 0, pw: s.pw | 0, dm: s.dm | 0,
+              lv: s.lv | 0, a: s.a || [], pve: s.pve || null};
+    };
+    el.addEventListener('mouseenter', e => {
+      const it = pjas();
+      if (it) showGearTip(it, e.clientX, e.clientY);
+    });
+    el.addEventListener('mousemove', e => moveGearTip(e.clientX, e.clientY));
+    el.addEventListener('mouseleave', hideGearTip);
+    let hall = null;
+    el.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return;
+      hall = setTimeout(() => {
+        const it = pjas();
+        if (it) showGearTip(it, e.clientX, e.clientY, true);
+      }, 380);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(h =>
+      el.addEventListener(h, () => { clearTimeout(hall); hideGearTip(); }));
+  });
   $('region-body').querySelectorAll('[data-vbuy]').forEach(b => b.addEventListener('click', () => {
     const st = vendorStock(regionId)[+b.dataset.vbuy];
     const p = st ? vendorGearPrice(st.r, regionId, st.price) : 0;
@@ -17239,7 +17510,7 @@ function buildTrader(regionId){
     btn('Buy 10 — ' + fmtMoney(kitPrice * 10), ' data-buykit="10"', S.gold >= kitPrice * 10) +
     '</div></div>';
   sup += '<div class="trader-row">' +
-    '<div class="tr-item">' + supIco('fuelcell', '\u26fd') + '<div><div class="tr-name">Warp Fuel Cell</div>' +
+    '<div class="tr-item">' + supIco('fuelcell', '\u26fd') + '<div><div class="tr-name">Fuel Cell</div>' +
     '<div class="tr-sub">Restores ' + FUEL_CELL_RESTORE + ' fuel · stackable</div></div></div>' +
     '<div class="tr-buy">' +
     (stars > 0 ? '<div class="tr-disc">★' + stars + ' rep — ' + (3 * stars) + '% off</div>' : '') +
@@ -17272,10 +17543,18 @@ function buildTrader(regionId){
   const row = (s, i) => {
     const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId, s);
     const full = vendorGearPrice(s.r);
-    return '<div class="trader-row" style="--rc:' + rarCol(s.r) + '">' +
+    /* [ANDRAT v5.115.0] Stod "rolled when you buy it" - sant forut, falskt nu.
+       Pjasen ar rullad redan i hyllan, sa den kan pekas pa och jamforas med
+       den man bar. Raden bar darfor sitt platsnummer, och hovringen visar
+       samma ruta som vaskan anvander. */
+    const kanVisas = s.a && s.hp != null;
+    return '<div class="trader-row' + (kanVisas ? ' vg-peek' : '') + '" style="--rc:' + rarCol(s.r) + '"' +
+      (kanVisas ? ' data-vpeek="' + i + '"' : '') + '>' +
       '<div class="tr-item"><span class="vg-art" style="background-image:url(\'' + itemArtFor(s.k, s.r) + '\')"></span>' +
       '<div><div class="tr-name" style="color:var(--rc)">' + D.name + '</div>' +
-      '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + ' · rolled when you buy it</div></div></div>' +
+      '<div class="tr-sub">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name +
+        (kanVisas ? ' · ' + (matchMedia('(hover: none)').matches ? 'hold to inspect' : 'hover to compare')
+                  : ' · rolled when you buy it') + '</div></div></div>' +
       '<div class="tr-buy">' +
       (p < full ? '<div class="tr-disc">★' + stars + ' rep — ' + fmtMoney(full - p) + ' off</div>' : '') +
       btn('Buy — ' + fmtMoney(p), ' data-vbuy="' + i + '"', S.gold >= p) +
@@ -17319,7 +17598,6 @@ let vendorTab = 'gear';    // vilken flik som visas hos handlaren
    billigare på allt, annars vore rabatten en gåta. */
 const VENDOR_BUY_PRICE = {
   fuelcell:     GOLD(12),
-  boost_idle:   GOLD(35),
   boost_expspd: GOLD(45),
   boost_luck:   GOLD(55)
 };
@@ -17378,11 +17656,11 @@ function buyCell(regionId){
      påbörjad stack nekar köpet i stället för att svälja guldet. */
   if (NET.on){
     netVendorBuyStack(regionId, 'fuelcell')
-      .then(() => { vendorNote = 'Bought Warp Fuel Cell.'; updateUI(true); })
+      .then(() => { vendorNote = 'Bought Fuel Cell.'; updateUI(true); })
       .catch(e => { vendorNote = 'The vendor refused the trade.'; updateUI(true); });
     return true;
   }
-  if (!addInvItem({key:'fuelcell', name:'Warp Fuel Cell', ico:'⛽', stack:true})) return false;
+  if (!addInvItem({key:'fuelcell', name:'Fuel Cell', ico:'⛽', stack:true})) return false;
   S.gold -= price;
   updateUI(true); save();
   return true;
@@ -18064,17 +18342,8 @@ function renderPetPanel(){
 }
 function renderPets(){
   const rid = S.world.current, pool = REGION_PETS[rid] || null, R = REGIONS[rid];
-  const buy = $('cache-buy');
-  $('cache-name').textContent = '🧊 ' + R.name + ' Cache';
-  if (pool){
-    $('cache-sub').textContent = pool.length + ' species live in this region — rarity is rolled when you open';
-    buy.textContent = 'Open — ' + cacheCost() + ' 🔷';
-    buy.disabled = S.frags < cacheCost();
-    buy.style.display = '';
-  } else {
-    $('cache-sub').textContent = 'No pet species charted in ' + R.name + ' yet';
-    buy.style.display = 'none';
-  }
+  /* [FLYTTAT v5.119.0] Cachens rad ritades har. Den bor i fragmentfonstret nu,
+     och ritas av renderFragWin. */
   $('pet-coll-label').textContent = 'Collection — ' + R.name;
   const coll = $('pet-coll');
   if (pool){
@@ -20309,7 +20578,8 @@ function recyclePet(uid){
   save(); renderPets(); renderPetPanel();
 }
 function showReveal(pet){
-  $('cache-reveal').innerHTML =
+  /* Fyndet visas dar cachen oppnades: i fragmentfonstret. */
+  $('frag-reveal').innerHTML =
     '<div class="rv-card" style="--rv-col:' + rarCol(pet.rar) + '">' +
     '<div class="pet-sprite" style="' + petSpriteVars(pet.sp, 84) + ';border-color:' + rarCol(pet.rar) + '">' + PETS[pet.sp].name[0] + '</div>' +
     '<div><div class="rv-name">' + PETS[pet.sp].name + '</div><div class="rv-rar">' + RARITIES[pet.rar].name + '</div>' +
@@ -20329,8 +20599,74 @@ function openCache(){
   /* Inget automatiskt insattande: spelaren valjer sjalv vem som jobbar var. */
   save(); renderPets(); renderPetPanel(); showReveal(pet);
 }
+/* ================= FRAGMENTFONSTRET (v5.119.0) =================
+   Fragmenten spenderas har, pa bada cacharna. Kostnaden for hjalparcachen kommer
+   fran samma funktion som forut; utrustningscachens ar fast pa tjugofem och
+   samma tal star pa servern - andras det ena maste det andra folja med. */
+const GEAR_CACHE_COST = 25;
+function renderFragWin(){
+  const have = $('frag-have');
+  if (!have) return;
+  have.textContent = fmt(S.frags || 0);
+  const rid = S.world.current, pool = REGION_PETS[rid] || null, R = REGIONS[rid];
+  const hb = $('fc-helper-buy');
+  $('fc-helper-name').textContent = R.name + ' Helper Cache';
+  if (pool){
+    $('fc-helper-sub').textContent = pool.length +
+      ' species live in this region · rarity is rolled when you open';
+    hb.textContent = 'Open — ' + cacheCost() + ' 🔷';
+    hb.disabled = (S.frags || 0) < cacheCost();
+    hb.style.display = '';
+  } else {
+    $('fc-helper-sub').textContent = 'No helper species charted in ' + R.name + ' yet';
+    hb.style.display = 'none';
+  }
+  const gb = $('fc-gear-buy');
+  gb.textContent = 'Open — ' + GEAR_CACHE_COST + ' 🔷';
+  gb.disabled = (S.frags || 0) < GEAR_CACHE_COST;
+}
+function openFragWin(){
+  $('frag-reveal').innerHTML = '';
+  renderFragWin();
+  const w = $('frag-overlay');
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open');
+  bringToFront(w);
+  const m = w.querySelector('.modal');
+  if (m && !wasOpen && !isNarrowScreen()){
+    const center = () => {
+      const now = m.getBoundingClientRect();
+      if (!now.width) return;
+      m.style.left = Math.round((parseFloat(m.style.left) || 0) +
+        (Math.round((window.innerWidth - now.width) / 2) - now.left)) + 'px';
+    };
+    center(); requestAnimationFrame(center);
+    m.style.top = '80px';
+  }
+}
+function closeFragWin(){ $('frag-overlay').classList.remove('open'); }
+/* Utrustningscachen. Utan server finns ingen pjas att rulla - servern ager
+   bade fragmenten och rullningen, sa offline sags det rakt ut i stallet for
+   att latsas att nagot hande. */
+function openGearCache(){
+  if (!NET.on){ say('The gear cache needs a connection to the server.'); return; }
+  if ((S.frags || 0) < GEAR_CACHE_COST){ say('Not enough fragments.'); return; }
+  netOpenGearCache()
+    .then(r => {
+      if (!r) return;
+      const D = ITEMS[r.item_key], R = GEAR_RAR[r.rarity | 0];
+      if (!D) return;
+      $('frag-reveal').innerHTML =
+        '<div class="rv-card" style="--rv-col:' + rarCol(r.rarity | 0) + '">' +
+        '<span class="vg-art" style="background-image:url(\'' + itemArtFor(r.item_key, r.rarity | 0) + '\')"></span>' +
+        '<div><div class="rv-name">' + D.name + '</div>' +
+        '<div class="rv-rar">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + '</div>' +
+        '<div class="rv-eff">Sent to your backpack</div></div></div>';
+    })
+    .catch(e => say(srvErrText(e)));
+}
 function openPetsModal(){
-  $('cache-reveal').innerHTML = '';
+  $('frag-reveal').innerHTML = '';
   petSelMode = false; petSel.clear();
   petSortOpen = false; closePetMenu();
   renderPets();
@@ -20450,7 +20786,6 @@ const SHOP_LIST = [
   {key: 'fuelcell',      price: 130000},
   {key: 'bandage',       price: 25000},
   {key: 'first_aid_kit', price: 60000},
-  {key: 'boost_idle',    price: 380000},
   {key: 'boost_expspd',  price: 480000},
   {key: 'boost_luck',    price: 580000}
 ];
@@ -20540,7 +20875,7 @@ $('pets-close').addEventListener('pointerdown', e => {
   $('pets-overlay').classList.remove('open');
 });
 $('pets-overlay').addEventListener('click', e => { if (e.target === $('pets-overlay')) $('pets-overlay').classList.remove('open'); });
-$('cache-buy').addEventListener('click', openCache);
+
 /* Ett klick i rutnatet betyder olika saker i de tva lagena, och bara de tva:
    normalt oppnar det husdjurets fonster, i atervinningslaget bockar det for. */
 $('pet-grid').addEventListener('click', e => {
@@ -21918,6 +22253,14 @@ document.querySelectorAll('#panel-data-res .res-pill[data-label], #panel-currenc
   });
   pill.addEventListener('mouseleave', hideBagTip);
 });
+/* [TILLAGT v5.119.0] Fragmentraden i vansterspalten oppnar fragmentfonstret.
+   Forut ledde vagen till fragmenten in bland hjalparna, dar cachen lag inklamd
+   ovanfor samlingen - nu handlar det fonstret bara om hjalpare. */
+$('frag-pill').addEventListener('click', () => toggleWindow('frag-overlay', openFragWin, closeFragWin));
+$('frag-close').addEventListener('click', closeFragWin);
+$('fc-helper-buy').addEventListener('click', openCache);
+$('fc-gear-buy').addEventListener('click', openGearCache);
+makeDraggable($('frag-overlay'), [$('frag-overlay').querySelector('.inv-titlebar'), $('frag-overlay')]);
 $('nav-inbox').addEventListener('click', () => toggleWindow('mail-overlay', openMail, () => {
   $('mail-overlay').classList.remove('open');
   document.querySelectorAll('.mail-note').forEach(n => n.remove());
@@ -24050,7 +24393,7 @@ function ahRenderPicker(){
       /* [BUGG, v4.47.2] Sorten slogs upp i ITEM_DEFS, som bara kanner nagra fa
          saker - branslecellen, boostarna, melonen. Skrot, skrap och allt
          material foll igenom och fick reservordet "Material", sa en Dead
-         Battery och en Warp Fuel Cell bada stod som material. itemDef kanner
+         Battery och en Fuel Cell bada stod som material. itemDef kanner
          ALLA sorter och ar samma uppslagning som vaskan anvander. */
       const D = itemDef(it);
       rows.push({kind: 'stack', key: it.key, rar: it.rar == null ? null : it.rar,
