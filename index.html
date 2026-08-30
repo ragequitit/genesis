@@ -4645,6 +4645,25 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .friends-modal{width:min(900px,95vw);max-width:95vw}
 .guild-modal{width:min(1080px,96vw);max-width:96vw}
 .node-modal{width:min(430px,94vw);max-width:94vw}
+/* ===== KARAKTARSSTENEN (v5.143.0) ===== */
+.gem-wrap{display:flex;align-items:center;gap:9px;margin:0 0 8px;padding:7px 9px;
+  border:1px solid var(--border);border-radius:11px;background:var(--bg-inset);cursor:pointer}
+.gem-wrap.empty{border-style:dashed;opacity:.72}
+.gem-ico{width:30px;height:30px;flex:0 0 auto;display:grid;place-items:center;font-size:17px;
+  border-radius:8px;border:1px solid var(--rc,var(--border-glow));background:var(--bg-row)}
+.gem-body{flex:1;min-width:0}
+.gem-name{font-size:11.5px;font-weight:800;color:var(--rc,var(--text));
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gem-line{font-size:9.5px;color:var(--text-dim);margin-top:1px}
+.gem-line b{color:var(--cyan)}
+.gem-good{color:#ffa63c;font-weight:900}
+.gem-good .star{margin-right:3px}
+.gem-cd{font-size:9px;color:#ffc542;margin-top:1px}
+.forge-row{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:8px;
+  border:1px solid var(--border);border-radius:11px;background:var(--bg-row)}
+.forge-row.ready{border-color:var(--cyan);background:rgba(56,232,255,.08)}
+.forge-row .nm{flex:1;min-width:0;font-size:12px;font-weight:800}
+.forge-row .sub{font-size:10px;color:var(--text-dim);font-weight:500;margin-top:2px}
 /* ===== MATARBALKEN (v5.137.0) =====
    Att anvanda nagot tar tid, och tiden ska synas. Balken ligger over spelet,
    fylls jamnt, och gar att avbryta anda till sista sekunden - med knappen,
@@ -5165,7 +5184,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.142.0 — SKARVORNA</div>
+        <div class="sn-ver">GENESIS v5.143.0 — KARAKTARSSTENEN</div>
       </div>
     </div>
   </aside>
@@ -5205,6 +5224,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
               <button id="fig-zout" title="Zoom out">−</button>
               <button id="fig-zreset" title="Reset zoom">○</button>
             </div>
+            <!-- [NYTT v5.143.0] KARAKTARSSTENEN. En egen plats, skild fran
+                 utrustningen och fran det kommande sockelsystemet - stenen ska
+                 aldrig konkurrera med nagot annat man bar. -->
+            <div class="gem-wrap" id="gem-wrap" title="Character Gem"></div>
             <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">100 HP</span></div>
           </div>
           <div class="equip-col">
@@ -6014,7 +6037,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.142.0 — SKARVORNA</div>
+            <div class="desc">GENESIS v5.143.0 — KARAKTARSSTENEN</div>
           </div>
         </div>
       </div>
@@ -8284,6 +8307,7 @@ async function netPullAll(){
   try { await netPveDungeonPull(); } catch (e){}
   try { await netMyProfile(); } catch (e){}
   try { await netGuildState(); renderGuildBadge(); } catch (e){}
+  try { await netGemState(); renderGemSlot(); } catch (e){}
   /* Vanlistan hamtas med allt annat, sa siffran pa knappen stammer fran forsta
      stund - inte forst nar man rakar oppna rutan. */
   try { await netFriendList(); renderFriendBadge(); } catch (e){}
@@ -9260,6 +9284,17 @@ function castThen(title, secs, fn){
 document.addEventListener('keydown', e => { if (e.key === 'Escape') castCancel(); });
 function useRecipeItem(idx){
   const row = S.inv[idx];
+  /* [NYTT v5.143.0] STENEN satts i sin EGEN plats, inte i utrustningen.
+     Servern haller reda pa dygnets karens; klienten skickar och visar svaret. */
+  if (row && row.gear && row.gear.uid && gemByKey(row.gear.t)){
+    if (!NET.on){ say('Gems need a live connection.'); return true; }
+    const uid = row.gear.uid;
+    srvRpc('gem_equip', {p_character: SRV.charId, p_item: uid})
+      .then(() => Promise.all([netPullItems(), netGemState()]))
+      .then(() => { say('Gem set.'); renderGemSlot(); renderInventory(); updateUI(true); })
+      .catch(e => say(srvErrText(e, 'Could not set that gem.')));
+    return true;
+  }
   /* [NYTT v5.136.0] RITNINGEN. Servern ager laget: den kontrollerar yrke,
      yrkesniva och att man inte redan kan receptet, forbrukar papperet och
      skriver in receptet. Klienten hamtar hem det nya laget efterat. */
@@ -9886,6 +9921,125 @@ function shards(){
   return out;
 }
 function shardOf(key){ return shards()[key] || null; }
+/* ===== STENARNA (v5.143.0) =====
+   Fem stenar, en per region. Varje sten har TVA formagor: en unik som inte gar
+   att jamfora med de andra, och en procentdel som rullas om vid varje smide.
+   Servern ager bade rullningen och effekterna - klienten visar bara laget. */
+const GEMS = {
+  voxholm:    {key:'gem_voxholm',    name:'Green Gem of Voxholm',
+               uniq:'One extra expedition slot',     pct:'player XP'},
+  drakemark:  {key:'gem_drakemark',  name:'Amber Gem of Drakemark',
+               uniq:'One extra crafting queue slot', pct:'faster crafting'},
+  cutlassbay: {key:'gem_cutlassbay', name:'Tide Gem of Cutlass Bay',
+               uniq:'Free auction house listings',   pct:'gold found'},
+  novacommand:{key:'gem_novacommand',name:'Void Gem of Nova Command',
+               uniq:'25% off every cache',           pct:'fragments found'},
+  quarantine: {key:'gem_quarantine', name:'Bloom Gem of The Quarantine',
+               uniq:'A fourth active contract',      pct:'quest rewards'}
+};
+function gemByKey(k){
+  for (const rid in GEMS) if (GEMS[rid].key === k) return Object.assign({region: rid}, GEMS[rid]);
+  return null;
+}
+let GEMSTATE = null;
+async function netGemState(){
+  if (!NET.on || !SRV.charId) return null;
+  GEMSTATE = await srvRpc('gem_state', {p_character: SRV.charId});
+  return GEMSTATE;
+}
+function renderGemSlot(){
+  const box = $('gem-wrap'); if (!box) return;
+  const g = GEMSTATE;
+  if (!g || !g.key){
+    box.className = 'gem-wrap empty';
+    box.innerHTML = '<span class="gem-ico">\u25c7</span>' +
+      '<div class="gem-body"><div class="gem-name">Character Gem</div>' +
+      '<div class="gem-line">Forge one from six shards of a region</div></div>';
+    return;
+  }
+  const d = gemByKey(g.key) || {};
+  box.className = 'gem-wrap';
+  box.style.setProperty('--rc', g.good ? '#ffa63c' : rarCol(3));
+  box.innerHTML = '<span class="gem-ico">\u25c6</span>' +
+    '<div class="gem-body"><div class="gem-name">' + esc(g.name || d.name || 'Gem') + '</div>' +
+    '<div class="gem-line">' + esc(g.unique_text || d.uniq || '') + '</div>' +
+    '<div class="gem-line' + (g.good ? ' gem-good' : '') + '">' +
+      (g.good ? '<span class="star">\u2605</span>' : '') +
+      '<b>+' + (+g.pct || 0) + '%</b> ' + esc(g.pct_text || d.pct || '') + '</div>' +
+    ((+g.swap_in_secs > 0)
+      ? '<div class="gem-cd">Can swap in ' + fmtDur(+g.swap_in_secs) + '</div>' : '') +
+    '</div>';
+}
+/* Smidet: sex skarvor fran samma region blir regionens sten. */
+/* Rutan for stenen: vad som sitter i, och vad som gar att smida. */
+function openGemWin(){
+  NODE = {kind: 'gem', region: null, zone: null, busy: false};
+  const w = $('node-overlay'); if (!w) return;
+  w.querySelector('.node-modal').classList.remove('wide');
+  $('node-title').textContent = 'Character Gem';
+  renderGemWin();
+  w.classList.add('open');
+  placeNodeWin(); bringToFront(w);
+  if (NET.on) netGemState().then(() => { renderGemWin(); renderGemSlot(); }).catch(() => {});
+}
+function renderGemWin(){
+  const box = $('node-body'); if (!box) return;
+  if (NODE.kind !== 'gem') return;
+  const g = GEMSTATE;
+  let h = '';
+  if (!NET.on){ box.innerHTML = '<div class="shelf-empty">Gems need a live connection.</div>'; return; }
+  if (g && g.key){
+    const d = gemByKey(g.key) || {};
+    h += '<div class="section-label">Equipped</div>' +
+      '<div class="forge-row ready"><span class="gem-ico">\u25c6</span>' +
+      '<div class="nm">' + esc(g.name || d.name) +
+      '<div class="sub">' + esc(g.unique_text || '') + '</div>' +
+      '<div class="sub' + (g.good ? ' gem-good' : '') + '">' +
+        (g.good ? '\u2605 ' : '') + '+' + (+g.pct || 0) + '% ' + esc(g.pct_text || '') + '</div>' +
+      '</div></div>';
+    if (+g.swap_in_secs > 0)
+      h += '<div class="desc">Swapping is locked for ' + fmtDur(+g.swap_in_secs) +
+           ' \u2014 the choice is meant to last a day.</div>';
+  } else {
+    h += '<div class="shelf-empty">No gem set. Forge one below, then tap it in your backpack.</div>';
+  }
+  h += '<div class="section-label" style="margin-top:12px">Forge</div>' + forgeRowsHTML() +
+    '<div class="mg-lock">Six shards from one region make its gem. The percentage rolls ' +
+    'again every time, so there is always a better one to chase.</div>' +
+    '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
+  box.innerHTML = h;
+  wireNodeWin();
+  box.querySelectorAll('[data-forge]').forEach(btn => btn.addEventListener('click', () => {
+    const rid = btn.dataset.forge;
+    btn.disabled = true;
+    castThen('Forging ' + (GEMS[rid] ? GEMS[rid].name : 'gem'), CAST_SECS.cache, () => {
+      srvRpc('forge_gem', {p_character: SRV.charId, p_region: rid})
+        .then(r => {
+          say((r && r.good ? '\u2605 ' : '') + 'Forged: ' + ((r && r.name) || 'a gem') +
+              ' \u2014 +' + ((r && r.pct) || 0) + '% ' + ((r && r.pct_of) || ''));
+          return Promise.all([netPullItems(), netGemState()]);
+        })
+        .then(() => { renderGemWin(); renderGemSlot(); renderInventory(); updateUI(true); })
+        .catch(e => { say(srvErrText(e, 'Could not forge that.')); btn.disabled = false; });
+    });
+  }));
+}
+function forgeRowsHTML(){
+  return Object.keys(GEMS).map(rid => {
+    const har = shardsHeld(rid).length, behovs = shardsNeeded(rid);
+    const klar = behovs > 0 && har >= behovs;
+    const R = REGIONS[rid] || {};
+    return '<div class="forge-row' + (klar ? ' ready' : '') + '">' +
+      '<span class="gem-ico">\u25c6</span>' +
+      '<div class="nm">' + esc(GEMS[rid].name) +
+      '<div class="sub">' + esc(GEMS[rid].uniq) + ' \u00b7 15\u201325% ' +
+        esc(GEMS[rid].pct) + '</div></div>' +
+      (klar
+        ? '<button class="btn-primary tiny" data-forge="' + rid + '">Forge</button>'
+        : '<span class="fr-sub">' + har + ' / ' + behovs + ' shards</span>') +
+      '</div>';
+  }).join('');
+}
 function shardsHeld(rid){
   const all = shards();
   return Object.keys(all).filter(k => all[k].region === rid &&
@@ -16680,6 +16834,13 @@ function itemDef(row){
     return {key: row.key, name: f.name, ico: f.ico, kind: 'Consumable',
             sell: (craftedStackValue(row.key, rar) || FLASK_SELL[Math.min(rar, FLASK_SELL.length - 1)]),
             desc: B ? ('+' + pct + '% ' + B.what + ' for ' + mins + ' minutes.') : undefined};
+  }
+  /* STENEN i vaskan. Den satts i sin egen plats, inte i utrustningen. */
+  if (row && row.gear && gemByKey(row.gear.t)){
+    const d = gemByKey(row.gear.t);
+    return {key: row.gear.t, name: d.name, ico: '\u25c6', kind: 'Character Gem', rar: 3,
+            sell: 250000,
+            desc: d.uniq + '. Tap to set it in your gem slot \u2014 the choice locks for a day.'};
   }
   /* SKARVAN: ett bevis pa att en viss expedition ar klarad. Sex fran samma
      region smids till regionens sten. */
@@ -26228,6 +26389,10 @@ $('guild-body').addEventListener('keydown', e => {
   }
 });
 $('qa-guild').addEventListener('click', openGuild);
+(function(){
+  const w = $('gem-wrap');
+  if (w) w.addEventListener('click', openGemWin);
+})();
 $('guild-close').addEventListener('pointerdown', e => {
   e.stopPropagation(); e.preventDefault(); closeGuild();
 });
