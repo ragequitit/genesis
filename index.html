@@ -551,7 +551,6 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .char-mid{display:flex;flex-direction:column;align-items:center;gap:6px;
   min-width:0;min-height:0;height:100%}
 .char-mid > .char-portrait{flex:1 1 auto;min-height:0;width:100%;margin:0}
-.char-mid > .hp-wrap{flex:0 0 auto;width:100%}
 /* Stenens plats ar en vanlig utrustningsruta, i samma matt som de andra, med
    sin egen bakgrundsbild precis som huvud, brost och ben har sin. */
 .gem-slot{flex:0 0 auto;position:relative;overflow:hidden}
@@ -577,13 +576,12 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 /* Figuren fyller rutan pa hojden och star centrerad. object-fit:contain gor att
    hela gestalten syns oavsett hur hog eller smal rutan blir. */
-/* [ANDRAT v5.150.0] Halsomataren ligger UNDER rutan nu, sa figuren behover inte
-   langre lamna 32 punkter i toppen. Den star mitt i sin ruta i stallet, och
-   grundskalan ar nedskruvad - forut var gubben sa inzoomad att underkanten
-   klipptes bort. */
+/* [ANDRAT v5.152.0] Figuren lamnar 30 punkter i UNDERKANTEN at halsomataren,
+   som ligger inne i ramen vid fotterna. Toppen ar fri - dar hanger ingenting
+   langre. Grundskalan ar nedskruvad sedan v5.150.0. */
 .char-figure{
-  position:absolute;inset:4px;
-  width:calc(100% - 8px);height:calc(100% - 8px);
+  position:absolute;inset:4px 4px 30px 4px;
+  width:calc(100% - 8px);height:calc(100% - 34px);
   object-fit:contain;object-position:center bottom;
   pointer-events:none;user-select:none;-webkit-user-drag:none;
   filter:drop-shadow(0 6px 14px rgba(0,0,0,.55));
@@ -630,9 +628,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
    pixlar hog och bar sin text UTANFOR sig sjalv i ljusgront mot ljus bakgrund.
    Nu ligger den OVANFOR huvudet, ar tillrackligt tjock for att rymma texten
    inuti, och ar gron med svart text - lasbar oavsett vad som star bakom. */
-/* [ANDRAT v5.150.0] Mataren satt absolut i portrattets ovankant. Nu ar den en
-   egen rad UNDER rutan, vid fotterna, dar den inte tar plats fran figuren. */
-.hp-wrap{position:relative;left:auto;right:auto;top:auto;bottom:auto;z-index:2}
+/* [ANDRAT v5.152.0] Mataren sitter i portrattets UNDERKANT, innanfor ramen. */
+.hp-wrap{position:absolute;left:8px;right:8px;bottom:7px;top:auto;z-index:2}
 .hp-bar{position:relative;width:100%;height:18px;border-radius:99px;
   background:rgba(4,7,16,.85);border:1px solid rgba(46,204,113,.55);overflow:hidden;
   box-shadow:0 0 12px -5px #2ecc71}
@@ -1969,7 +1966,11 @@ body.dragging *{cursor:grabbing !important}
   --jcb-ram:var(--jc-col, var(--cyan));
   --jcb-fyll:linear-gradient(180deg,rgba(10,20,36,.97),rgba(5,11,20,.99));
 }
-.prof-card .jc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+/* [ANDRAT v5.152.0] Raderna lag med fem punkters mellanrum OCH en trettio
+   punkters minimihojd pa statusraden - tillsammans lika mycket luft som en
+   extra textrad mellan varje rad. Nu ar de tre enkla radbrytningar, och da
+   ryms alla tre korten i rutan utan att den spiller over grannens kant. */
+.prof-card .jc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .prof-card .jc-name{font-size:15px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;line-height:1.1}
 /* [ANDRAT v5.87.0] Texterna i kortet var gra, tunna och sma mot en bakgrund som
    nu bar bade en farg och en bild. Storre, fetare och ljusare - lasbara. */
@@ -1989,14 +1990,15 @@ body.dragging *{cursor:grabbing !important}
    brytas, sa den kan inte krypa ner pa en TREDJE rad pa en smal skarm. Da ar
    hojden densamma oavsett hur bred rutan ar - och det var bredden mina matningar
    inte kunde forutse. */
-.prof-card .jc-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  min-height:30px;align-content:center;row-gap:1px}
+.prof-card .jc-line{display:flex;align-items:center;gap:10px;min-height:0;
+  align-content:center;row-gap:0}
 .prof-card .jc-status{max-width:100%;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .prof-card .jc-xp{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.04em}
 .prof-card .jc-status{font-size:11px;font-weight:700;color:rgba(255,255,255,.9);
   display:flex;align-items:center;gap:5px}
-.prof-card .jc-bar{height:5px;flex:0 0 5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
+.prof-card .jc-bar{height:5px;flex:0 0 5px;border-radius:3px;background:rgba(255,255,255,.10);
+  overflow:hidden;margin-top:5px}
 .prof-card .jc-fill{height:100%;border-radius:3px;transition:width .3s}
 /* [TILLAGT v5.56.0] Samlarens cykel, precis under XP-mataren. Samma form och
    samma fargresa som yrkessidans - blaa till guld medan den fylls - men tunnare,
@@ -4949,6 +4951,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 /* [TILLAGT v5.151.0] En hemkommen expedition ska synas i listan utan att man
    laser varje rad - den lyser som allt annat som vantar pa ett klick. */
 .nd-exp.done{border-color:var(--cyan);background:rgba(56,232,255,.08)}
+/* [TILLAGT v5.152.0] Tom plats och matare - bada flyttade in fran det rivna
+   fonstret. */
+.nd-exp.empty{border-style:dashed;color:var(--text-faint);text-align:center;
+  font-size:11.5px;letter-spacing:.08em;padding:14px 12px}
+.nd-exp .er-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.10);
+  overflow:hidden;margin:8px 0 2px}
+.nd-exp .er-fill{height:100%;border-radius:3px;background:var(--cyan);transition:width .4s}
+.nd-exp.done .er-fill{background:var(--green,#3dff9e)}
 .nd-exp .nm{font-weight:900;font-size:13px;letter-spacing:.02em}
 .nd-exp .wh{font-size:10px;color:var(--text-dim);letter-spacing:.06em;margin-top:2px}
 .nd-exp .mt{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text-dim);margin:7px 0}
@@ -5593,7 +5603,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.151.0 — DE SEX SKARVORNA</div>
+        <div class="sn-ver">GENESIS v5.152.0 — EN RUTA I STALLET FOR TVA</div>
       </div>
     </div>
   </aside>
@@ -5629,12 +5639,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
                underkanten inte hade rad med. -->
           <div class="char-mid">
             <div class="equip-slot gem-slot" id="gem-wrap" title="Character Gem"></div>
+            <!-- [ANDRAT v5.152.0] Halsomataren ligger INNE i ramen igen, men vid
+                 fotterna i stallet for over huvudet. Ramen slutar under den, sa
+                 mataren star i rutan och inte bredvid den. -->
             <div class="char-portrait">
               <img class="char-figure" src="assets/character/runner.png" alt="" draggable="false"
                    onerror="var q=this.parentNode;this.remove();q.classList.add('nofig')">
               <span class="char-fallback">🥷</span>
+              <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">100 HP</span></div>
             </div>
-            <div class="hp-wrap"><div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div><span class="hp-txt" id="hp-txt">100 HP</span></div>
           </div>
           <div class="equip-col">
             <div class="equip-slot" data-slot="3" title="Gloves"><i class="slot-bg" style="background-image:url('assets/slots/slot_hands.png')"></i></div>
@@ -5881,32 +5894,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= UPPDRAGEN (v5.105.0) =================
        Samma innehall som lag i mittkolumnen, nu i ett eget fonster. Oppnas
        fran snabbvalen eller genom att trycka pa en uppdragsnod pa kartan. -->
-  <div class="float-win" id="exp-overlay">
-    <div class="modal profile-modal exp-modal">
-      <div class="inv-titlebar">
-        <span class="inv-title">Expeditions</span>
-        <button class="inv-x" id="exp-close">✕</button>
-      </div>
-      <div class="profile-body">
-        <!-- Meddelandet sitter OVANFOR flikarna. Det lag inne i Active, sa den
-             som tryckte Start i Discovered fick svaret renderat i en dold ruta -
-             knappen sag ut att inte gora nagonting alls. -->
-        <div class="exp-note" id="exp-note" style="display:none"></div>
-        <div class="tabs" id="expedition-tabs">
-          <!-- Discovered star forst: man ar oftare pa jakt efter nasta uppdrag
-               an inne och tittar pa dem som redan loper. -->
-          <div class="tab active" data-pane="pane-exp-discovered">Discovered</div>
-          <div class="tab" data-pane="pane-exp-active">Active <span class="sub" style="text-transform:none">0/2</span></div>
-        </div>
-        <div class="tab-pane" id="pane-exp-discovered">
-          <div class="exp-found-list" id="exp-found-list"></div>
-        </div>
-        <div class="tab-pane" id="pane-exp-active" style="display:none">
-          <div class="exp-slots" id="exp-active-list"></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- [RIVET v5.152.0] DET GAMLA EXPEDITIONSFONSTRET. Tva rutor for samma sak
+       ar samre an en bra: den har hade historik och resemal som nodrutan
+       saknade, nodrutan hade zonen man stod i som den har saknade, och ingen av
+       dem gjorde hela jobbet. Allt bor i NODRUTAN nu - samma ruta oppnas fran
+       kartans expeditionsnod och fran snabbvalet. -->
 
   <!-- ================= FRAGMENTEN (v5.119.0) =================
        Fragmenten hade ingen egen plats: de rakades i vansterspalten och
@@ -6457,7 +6449,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.151.0 — DE SEX SKARVORNA</div>
+            <div class="desc">GENESIS v5.152.0 — EN RUTA I STALLET FOR TVA</div>
           </div>
         </div>
       </div>
@@ -15546,130 +15538,35 @@ let expPaneSig = '', discPaneSig = '';
    hoppar over ritningen nar innehallet ser likadant ut - men ett stangt fonster
    kan ha missat en andring, sa den nollas vid oppning. Utan det oppnas rutan
    med gammalt innehall, eller tom. */
+/* [OMBYGGT v5.152.0] Snabbvalet oppnar NODRUTAN, pa fliken Discovered - man
+   trycker pa Expeditions for att leta efter nasta uppdrag, inte for att titta pa
+   den zon man redan star i. Star man ingenstans oppnas den anda: de tva andra
+   flikarna bar hela varlden. */
 function openExpeditions(){
-  expPaneSig = ''; discPaneSig = '';
-  renderExpPanel();
-  const w = $('exp-overlay');
-  w.classList.add('open');
-  /* Fonstren har ingen gemensam placering - de hamnar dar de rakar sta i koden,
-     och det har hade lagt sig i vanstra kanten. Placeras EN gang, sa ett eget
-     drag inte nollas nasta gang man oppnar. Smala skarmar ligger som blad
-     underifran och ska inte flyttas alls. */
-  const m = w.querySelector('.modal');
-  if (m && !m.dataset.placed && !isNarrowScreen()){
-    /* Rutans left raknas fran fonstrets egen ram, inte fran skarmen, och den
-       ramen ligger dar den rakar hamna i koden. Matet tas darfor forst och
-       skillnaden laggs pa. Steget upprepas nar webblasaren raknat klart -
-       forsta matet tas i samma andetag som rutan blir synlig och slog fel. */
-    const center = () => {
-      const now = m.getBoundingClientRect();
-      if (!now.width) return;
-      const want = Math.round((window.innerWidth - now.width) / 2);
-      m.style.left = Math.round((parseFloat(m.style.left) || 0) + (want - now.left)) + 'px';
-    };
-    center();
-    requestAnimationFrame(center);
-    m.dataset.placed = '1';
-  }
-  bringToFront(w);
+  const r = S.world.current, z = S.world.zone;
+  openNodeWin('expedition', r, z || '');
+  NODE.etab = 'disc';
+  expPanelSig = '';
+  renderNodeWin();
 }
-function closeExpeditions(){ $('exp-overlay').classList.remove('open'); }
+function closeExpeditions(){ closeNodeWin(); }
+/* [OMBYGGT v5.152.0] Namnet star kvar - femton stallen i koden ropar pa det nar
+   nagot andrats - men det gamla fonstret finns inte langre. Anropet ritar om
+   NODRUTAN i stallet, om den star oppen pa expeditionsfliken.
+   SIGNATUREN ar avgorande: rutan ritades om varje sekund av klockan, och bytte
+   da ut knappen mitt under ett musklick. Nu ritas den bara nar innehallet
+   faktiskt skiljer sig - samma grepp som det gamla fonstret anvande. */
+let expPanelSig = '';
 function renderExpPanel(){
-  const noteBox = $('exp-note');
-  if (noteBox){
-    noteBox.textContent = expNote || '';
-    noteBox.style.display = expNote ? '' : 'none';
-  }
-  const act = $('exp-active-list');
-  const tab = document.querySelector('#expedition-tabs .tab[data-pane="pane-exp-active"]');
-  if (tab){
-    const claimable = S.exp.runs.some(r => Date.now() >= r.endsAt);
-    tab.innerHTML = 'Active ' + S.exp.runs.length + '/' + expSlots() + (claimable ? ' <span class="tab-dot">✓</span>' : '');
-  }
-  let h = '';
-  for (let i = 0; i < expSlots(); i++){
-    const run = S.exp.runs[i];
-    if (!run){
-      h += '<div class="exp-slot">＋<span>Empty Slot</span></div>';
-      continue;
-    }
-    const def = expDefById(run.id);
-    const left = Math.max(0, (run.endsAt - Date.now()) / 1000);
-    /* Mätarens helhet är den tid KÖRNINGEN faktiskt fick, inte katalogens — annars
-       ser en snabbad expedition ut att börja halvfull. Total räknas ur endsAt om
-       den finns sparad, med katalogtiden som golv för gamla körningar. */
-    const total = Math.max(1, (run.total || def.mins * 60));
-    const pct = Math.min(100, ((total - left) / total) * 100);
-    const done = left <= 0;
-    h += '<div class="exp-run' + (done ? ' done' : '') + '">' +
-      '<div class="er-head"><span class="er-name">' + def.name + '</span><span class="er-zone">' + def.zone + '</span></div>' +
-      '<div class="er-bar"><div class="er-fill" style="width:' + pct + '%"></div></div>' +
-      (done
-        ? '<button class="er-claim" data-claim="' + run.id + '">Claim</button>'
-        : '<div class="er-meta"><span>⏱ ' + fmtDur(left) + '</span><span>' +
-            MATERIALS[run.scrapKey || 'salvaged_scrap'].ico + ' ' + fmt(run.scrap || 0) + '</span></div>') +
-      '</div>';
-  }
-  /* Grundorsaken till att hämtknappen ibland inte reagerade: listan byggdes om varje
-     sekund, även när ingenting ändrats, och bytte ut knappen mitt under musklicket.
-     Nu ritas den bara när innehållet faktiskt skiljer sig. */
-  const html = h + (S.exp.runs.length === 0 ? '<div class="shelf-empty">No expeditions running</div>' : '');
-  if (html !== expPaneSig){ expPaneSig = html; act.innerHTML = html; }
-
-  const disc = $('exp-found-list');
-  if (S.exp.found.length === 0){
-    discPaneSig = '';
-    disc.innerHTML = '<div class="shelf-empty">No expeditions discovered yet — enter zones to survey them</div>';
-  } else {
-    // Sorteringen: din zon överst (startbar direkt), sen din region, sen resten
-    const defs = S.exp.found.map(expDefById).filter(Boolean);
-    const rank = d => (S.world.current === d.region && S.world.zone === d.zone) ? 0
-                    : (S.world.current === d.region) ? 1 : 2;
-    defs.sort((a, b) => rank(a) - rank(b) || a.lvl - b.lvl);
-    const lvl = levelInfo().lvl;
-    let lastRank = -1, h = '';
-    defs.forEach(def => {
-      const rk = rank(def);
-      if (rk !== lastRank){
-        lastRank = rk;
-        h += '<div class="section-label" style="margin:' + (h ? '8px' : '0') + ' 0 2px">' +
-          (rk === 0 ? '📍 ' + def.zone + ' — your zone' : rk === 1 ? REGIONS[def.region].name + ' — your region' : 'Farther out') + '</div>';
-      }
-      const running = expIsRunning(def.id);
-      /* rk 0 = din zon, MEN inte om du är på väg någon annanstans: då står den
-         gamla zonen kvar och skulle annars visa en aktiv Start-knapp. */
-      const here = rk === 0 && !S.world.travel;
-      let action = '';
-      let status = '';
-      /* Ar uppdraget ute star det i KNAPPEN, dar Start annars star. Forut stod
-         ordet i statusfaltet langst till vanster OCH knappen forsvann helt, sa
-         platsen man tittar pa blev tom - och trycker man da igen far man ett
-         felmeddelande i stallet for ett besked. */
-      if (running) action = '<button class="zx-btn running ef-travel" disabled>Running</button>';
-      else if (S.world.travel && rk === 0) status = '<span class="ef-status away">In transit…</span>';
-      else if (here){
-        if (lvl < def.lvl) action = '<button class="zx-btn cant ef-travel" disabled>Lv ' + def.lvl + '</button>';
-        else if (S.exp.runs.length >= expSlots()) action = '<button class="zx-btn cant ef-travel" disabled>Slots full</button>';
-        else action = '<button class="zx-btn ef-travel" data-start="' + def.id + '">Start</button>';
-      }
-      else if (rk === 1){
-        status = '<span class="ef-status here">In ' + def.zone + '</span>';
-        /* Samma region — inget att betala, inget att vänta på. Ett tryck flyttar dig dit. */
-        if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-gozone="' + def.region + '|' + def.zone + '">Travel</button>';
-      }
-      else {
-        status = '<span class="ef-status away">' + REGIONS[def.region].name + ' · ' + def.zone + '</span>';
-        if (!S.world.travel) action = '<button class="zx-btn ef-travel" data-travelto="' + def.region + '">Travel</button>';
-      }
-      h += '<div class="exp-found"><div class="ef-head"><span class="ef-name">' + def.name + '</span>' + status + '</div>' +
-        '<div class="ef-meta"><span>⏱ ' + expTimeText(def) + '</span><span>Lv ' + def.lvl + '</span><span>' + expCoinIco(def) + ' ' + expGoldText(def) + '</span><span>🔷 ' + expFragRange(def).join('-') + '</span>' + action + '</div></div>';
-    });
-    /* SAMMA SPARR SOM AKTIVA LISTAN, och den saknades har. Listan byggdes om
-       varje sekund aven nar ingenting andrats, sa Start-knappen revs bort mitt
-       under trycket och klicket forsvann. Uppmatt fore rattningen: ett tryck pa
-       700 ms registrerades 4 ganger av 12, ett pa 350 ms 8 av 12. */
-    if (h !== discPaneSig){ discPaneSig = h; disc.innerHTML = h; }
-  }
+  const w = document.getElementById('node-overlay');
+  if (!w || !w.classList.contains('open')) { expPanelSig = ''; return; }
+  if (!NODE || NODE.kind !== 'expedition') { expPanelSig = ''; return; }
+  const box = document.getElementById('node-body'); if (!box) return;
+  const html = nodeExpHTML();
+  if (html === expPanelSig) return;
+  expPanelSig = html;
+  box.innerHTML = html;
+  wireNodeWin();
 }
 
 /* ---------- LJUDMOTORN ----------
@@ -19792,18 +19689,9 @@ function updateTravelInfo(){
    faktiskt finns. Utan detta kastar sidan ett fel innan resten av kopplingarna
    hunnit satta sig, och da slutar allt DARUNDER att fungera. */
 if (travelSelect) travelSelect.addEventListener('change', updateTravelInfo);
-$('exp-active-list').addEventListener('pointerdown', e => {
-  const btn = e.target.closest('[data-claim]');
-  if (btn) claimExpedition(btn.dataset.claim);
-});
-$('exp-found-list').addEventListener('click', e => {
-  const zbtn = e.target.closest('[data-gozone]');
-  if (zbtn){ goToZone(zbtn.dataset.gozone); return; }
-  const tbtn = e.target.closest('[data-travelto]');
-  if (tbtn){ openTravelNow(tbtn.dataset.travelto); return; }
-  const sbtn = e.target.closest('[data-start]');
-  if (sbtn) startExpedition(sbtn.dataset.start);
-});
+/* [BORTTAGET v5.152.0] Lyssnarna pa det gamla fonstrets tva listor. Elementen
+   finns inte langre, och ett anrop pa null hade slagit ut ALLA kopplingar under
+   sig i samma svep. */
 /* Flytt inom den region du redan står i: kostar ingenting, tar ingen tid.
    Går bara till zoner i din egen region, och aldrig under en pågående resa. */
 function goToZone(pair){
@@ -23944,9 +23832,12 @@ $('qa-inbox').addEventListener('click', () => toggleWindow('mail-overlay', openM
   $('mail-overlay').classList.remove('open');
   document.querySelectorAll('.mail-note').forEach(n => n.remove());
 }));
-$('qa-expeditions').addEventListener('click', () => toggleWindow('exp-overlay', openExpeditions, closeExpeditions));
-$('exp-close').addEventListener('click', closeExpeditions);
-makeDraggable($('exp-overlay'), [$('exp-overlay').querySelector('.inv-titlebar'), $('exp-overlay')]);
+$('qa-expeditions').addEventListener('click', () =>
+  toggleWindow('node-overlay',
+    openExpeditions,
+    () => { if (NODE && NODE.kind === 'expedition') closeNodeWin(); else openExpeditions(); }));
+/* [BORTTAGET v5.152.0] Stangkrysset pa det rivna fonstret. */
+/* [BORTTAGET v5.152.0] Draget pa det rivna fonstret. */
 $('mail-close').addEventListener('click', () => { $('mail-overlay').classList.remove('open'); });
 $('mail-takeall').addEventListener('click', () => {
   const n = takeAllMail();
@@ -27354,8 +27245,15 @@ function nodeExpCard(def, showWhere){
     '<span>\uD83D\uDD37 <b>' + expFragRange(def).join('-') + '</b></span></div>' + btn + '</div>';
 }
 function nodeExpHTML(){
-  const tabs = [['this', 'This zone'], ['disc', 'Discovered'], ['active', 'Active']];
-  let h = '<div class="nd-tabs">' + tabs.map(t =>
+  const runs0 = S.exp.runs || [];
+  const klarNu = runs0.some(r => Date.now() >= (r.endsAt || 0));
+  const tabs = [['this', 'This zone'], ['disc', 'Discovered'],
+                ['active', 'Active ' + runs0.length + '/' + expSlots() + (klarNu ? ' \u2713' : '')]];
+  /* [TILLAGT v5.152.0] Serverns svar star OVANFOR flikarna, precis som i det
+     rivna fonstret: trycker man Start i Discovered ska beskedet synas dar man
+     star, inte i en flik man inte tittar pa. */
+  let h = (expNote ? '<div class="exp-note">' + esc(expNote) + '</div>' : '');
+  h += '<div class="nd-tabs">' + tabs.map(t =>
     '<div class="' + (NODE.etab === t[0] ? 'active' : '') + '" data-nd="etab:' + t[0] + '">' +
     t[1] + '</div>').join('') + '</div>';
   if (NODE.etab === 'this'){
@@ -27367,14 +27265,27 @@ function nodeExpHTML(){
       : '<div class="shelf-empty">Nothing charted here yet \u2014 send a drone to survey the zone.</div>';
   } else if (NODE.etab === 'disc'){
     const defs = S.exp.found.map(expDefById).filter(Boolean);
-    /* Din zon overst, sedan din region, sedan resten - samma ordning som i det
-       stora fonstret, sa listan kanns igen. */
+    /* Din zon overst, sedan din region, sedan resten. */
     const rank = d => (S.world.current === d.region && S.world.zone === d.zone) ? 0
                     : (S.world.current === d.region) ? 1 : 2;
     defs.sort((a, b) => rank(a) - rank(b) || a.lvl - b.lvl);
+    /* [TILLAGT v5.152.0] RUBRIKERNA fran det rivna fonstret. Utan dem ar listan
+       trettio rader i rad och man ser inte var granserna gar. */
+    let sist = -1, kropp = '';
+    defs.forEach(d => {
+      const rk = rank(d);
+      if (rk !== sist){
+        sist = rk;
+        kropp += '<div class="section-label" style="margin:' + (kropp ? '10px' : '0') + ' 0 4px">' +
+          (rk === 0 ? '\ud83d\udccd ' + esc(d.zone) + ' \u2014 your zone'
+           : rk === 1 ? esc((REGIONS[d.region] && REGIONS[d.region].name) || d.region) + ' \u2014 your region'
+           : 'Farther out') + '</div>';
+      }
+      kropp += nodeExpCard(d, true);
+    });
     h += '<div class="nd-scroll">' + (defs.length
-      ? defs.map(d => nodeExpCard(d, true)).join('')
-      : '<div class="shelf-empty">Nothing discovered yet.</div>') + '</div>';
+      ? kropp
+      : '<div class="shelf-empty">Nothing discovered yet \u2014 enter zones to survey them.</div>') + '</div>';
   } else {
     /* [OMBYGGT v5.151.0] AKTIV-FLIKEN BAR ALLT SJALV. Har stod forut en knapp
        som stangde rutan och oppnade det gamla fonstret - alltsa en genvag ut ur
@@ -27384,26 +27295,35 @@ function nodeExpHTML(){
     const platser = expSlots();
     h += '<div class="nd-where">Slots <b>' + runs.length + ' / ' + platser + '</b>' +
          (runs.length >= platser ? ' \u00b7 all busy' : '') + '</div>';
-    h += '<div class="nd-scroll">' + (runs.length
-      ? runs.map(r => {
-          const def = expDefById(r.id) || {name: r.id, region: r.region, zone: r.zone};
-          const left = Math.max(0, Math.round(((r.endsAt || 0) - Date.now()) / 1000));
-          const klar = left <= 0;
-          return '<div class="nd-exp' + (klar ? ' done' : '') + '">' +
-            '<div class="nm">' + esc(def.name) + '</div>' +
-            '<div class="wh">' +
-              esc((REGIONS[def.region] && REGIONS[def.region].name) || def.region || '') +
-              (def.zone ? ' \u00b7 ' + esc(def.zone) : '') + '</div>' +
-            '<div class="mt"><span>\u23f1 <b>' +
-              (klar ? 'Done' : fmtDur(left)) + '</b></span>' +
-              (def.lvl ? '<span>Lv <b>' + def.lvl + '</b></span>' : '') + '</div>' +
-            (klar
-              ? '<button class="btn-primary" data-nd="expclaim" data-e="' + esc(r.id) + '">Collect</button>'
-              : '<button class="btn-neutral" disabled>Still out</button>') +
-            '</div>';
-        }).join('')
-      : '<div class="shelf-empty">No expeditions running. Pick one from the two tabs beside this.</div>') +
-      '</div>';
+    /* [TILLAGT v5.152.0] MATAREN OCH SKROTET fran det rivna fonstret, och de
+       TOMMA PLATSERNA - utan dem sag man inte att det fanns en plats ledig. */
+    let kropp = '';
+    for (let i = 0; i < platser; i++){
+      const r = runs[i];
+      if (!r){ kropp += '<div class="nd-exp empty">\uff0b Empty slot</div>'; continue; }
+      const def = expDefById(r.id) || {name: r.id, region: r.region, zone: r.zone};
+      const left = Math.max(0, ((r.endsAt || 0) - Date.now()) / 1000);
+      /* Helheten ar den tid KORNINGEN fick, inte katalogens - annars ser en
+         snabbad expedition ut att borja halvfull. */
+      const total = Math.max(1, r.total || (def.mins ? def.mins * 60 : 60));
+      const pct = Math.min(100, Math.max(0, ((total - left) / total) * 100));
+      const klar = left <= 0;
+      const sk = MATERIALS[r.scrapKey || 'salvaged_scrap'];
+      kropp += '<div class="nd-exp' + (klar ? ' done' : '') + '">' +
+        '<div class="nm">' + esc(def.name) + '</div>' +
+        '<div class="wh">' +
+          esc((REGIONS[def.region] && REGIONS[def.region].name) || def.region || '') +
+          (def.zone ? ' \u00b7 ' + esc(def.zone) : '') + '</div>' +
+        '<div class="er-bar"><div class="er-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+        '<div class="mt"><span>\u23f1 <b>' + (klar ? 'Done' : fmtDur(left)) + '</b></span>' +
+          (def.lvl ? '<span>Lv <b>' + def.lvl + '</b></span>' : '') +
+          (r.scrap ? '<span>' + (sk ? sk.ico : '') + ' <b>' + fmt(r.scrap) + '</b></span>' : '') + '</div>' +
+        (klar
+          ? '<button class="btn-primary" data-nd="expclaim" data-e="' + esc(r.id) + '">Collect</button>'
+          : '<button class="btn-neutral" disabled>Still out</button>') +
+        '</div>';
+    }
+    h += '<div class="nd-scroll">' + kropp + '</div>';
   }
   h += '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
   return h;
