@@ -4894,6 +4894,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .forge-row{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:8px;
   border:1px solid var(--border);border-radius:11px;background:var(--bg-row);
   flex-wrap:wrap;cursor:default}
+/* Listan ar hojdlast: fem hopfallda rader far plats, och en utfalld lista
+   rullar inuti i stallet for att skjuta ramen isar. Uppmatt: en hopfalld rad ar
+   omkring 66 punkter, fem plus mellanrum drygt 350. Taket foljer skarmen sa den
+   inte tar over pa en lag ruta. */
+.forge-list{height:min(354px, 46vh);overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent;padding-right:4px}
+.forge-list::-webkit-scrollbar{width:5px}
+.forge-list::-webkit-scrollbar-track{background:transparent}
+.forge-list::-webkit-scrollbar-thumb{background:var(--cyan-dim);border-radius:99px}
 .fr-list{flex:1 1 100%;display:none;margin-top:9px;padding-top:8px;
   border-top:1px solid var(--border-soft)}
 /* Rutan far aldrig vaxa ur skarmen: den centreras av bladet och rullar inuti.
@@ -4916,7 +4925,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   color:var(--text-dim)}
 .fr-item .tick{flex:0 0 12px;color:var(--text-faint);font-size:9px}
 .fr-item.got{color:var(--text)}
-.fr-item.got .tick{color:var(--cyan)}
+.fr-item.got .tick{color:#3dff9e}
 .fr-item .ex{flex:1;min-width:0}
 .fr-item .zn{flex:0 0 auto;font-size:9.5px;color:var(--text-faint);text-align:right}
 .forge-row.ready{border-color:var(--cyan);background:rgba(56,232,255,.08)}
@@ -5603,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.152.0 — EN RUTA I STALLET FOR TVA</div>
+        <div class="sn-ver">GENESIS v5.153.0 — DE GULA NODERNA</div>
       </div>
     </div>
   </aside>
@@ -6449,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.152.0 — EN RUTA I STALLET FOR TVA</div>
+            <div class="desc">GENESIS v5.153.0 — DE GULA NODERNA</div>
           </div>
         </div>
       </div>
@@ -6880,7 +6889,15 @@ const NET = {
   on: false,            // ar vi i serverlage?
   syncing: false,
   lastSync: 0,
-  syncEvery: 20000,     // be servern om sanningen var tjugonde sekund
+  /* [ANDRAT v5.153.0] TJUGO SEKUNDER VAR FOR LANGT. Serverns arbetsklocka
+     rakar ut ALLT som tomgangen gav sedan forra varvet i ett svep - skrot,
+     malm, fragment - och klienten sag det forst nar varvet kom. Ett fynd som
+     skedde en sekund efter ett varv lag alltsa och vantade i nitton sekunder
+     innan bubblan poppade ur noden, och da poppade allt pa en gang.
+     Sex sekunder ar den kortaste takt som fortfarande ar EN forfragan per
+     samlarcykel i det snabbaste yrket (fem sekunder per fynd), sa antalet
+     serveranrop stiger inte utover ett per fynd. */
+  syncEvery: 6000,      // be servern om sanningen var sjatte sekund
   serverData: 0,        // senaste bekraftade tal fran servern
   predictedAt: 0,       // nar forutsagelsen borjade rakna
   dps: 0,               // serverns egen produktionssiffra
@@ -10679,7 +10696,13 @@ function renderGemWin(){
   } else {
     h += '<div class="shelf-empty">No gem set. Forge one below, then tap it in your backpack.</div>';
   }
-  h += '<div class="section-label" style="margin-top:12px">Forge</div>' + forgeRowsHTML() +
+  /* [ANDRAT v5.153.0] RUTAN FICK INTE VAXA. Forut var smidesraderna direkt i
+     bladet: fallde man ut en lista blev rutan hogre, och eftersom den centreras
+     lodratt flyttade sig HELA ramen - bade upp och ned - vid en hovring. Nu bor
+     raderna i en egen, hojdlast list som rullar. Ramen star still; listan
+     oppnas inuti den och trycks ned bakom kanten. */
+  h += '<div class="section-label" style="margin-top:12px">Forge</div>' +
+    '<div class="forge-list">' + forgeRowsHTML() + '</div>' +
     '<div class="mg-lock">Six shards from one region make its gem. The percentage rolls ' +
     'again every time, so there is always a better one to chase.</div>' +
     '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
@@ -18153,10 +18176,28 @@ function gmState(){
     level: (function(){ try { return levelInfo().lvl; } catch (e){ return 1; } })()
   };
 }
-/* Kontrakten far sina gula noder senare, nar platserna lart sig vilken zon de
-   ligger i. Tills dess star listan tom med flit - hellre ingen nod an en nod
-   pa fel stalle. */
-function gmQuestNodes(){ return []; }
+/* [BYGGT v5.153.0] DE GULA NODERNA. Funktionen har svarat med en TOM LISTA hela
+   tiden - kommentaren sa att platserna inte lart sig sin zon an, men det hade de:
+   varje erbjudande bar bade region och zon fran servern. Foljden var att inte en
+   enda gul nod nagonsin dok upp pa kartan.
+   Bara ERBJUDNA kontrakt far en nod - ett man redan tagit ar inte langre nagot
+   att hitta. Kartan har tre kroker per zon och valjer sjalv vilken, sa tva
+   kontrakt i samma zon krockar inte. */
+function gmQuestNodes(){
+  const st = QUESTS.state;
+  if (!st || !st.offers) return [];
+  const out = [];
+  st.offers.forEach(o => {
+    if (!o || o.status !== 'offered' || !o.quest_id) return;
+    if (!o.region || !o.zone) return;
+    /* Kartan ritar bara zoner den kanner till. Ett kontrakt i en zon som inte
+       star i varldsboken skulle bli en nod utan mark under. */
+    if (!REGIONS[o.region] || REGIONS[o.region].zones.indexOf(o.zone) < 0) return;
+    out.push({zone: o.region + '|' + o.zone, id: o.quest_id,
+              label: (o.name || 'Contract').toUpperCase()});
+  });
+  return out;
+}
 /* Vilar zonens mote? Servern skickar vilotid BARA for den zon man star i - den
    vet inte, och tillfragas inte om, de ovriga tjugonio. Darfor sags 'vaket' om
    alla andra. Att gissa vilande pa de ovriga vore ett dott varde som ser levande
@@ -18417,6 +18458,20 @@ function gmHook(){
          bara stilar pa plats, sa den kanns igen pa sin egen kombination:
          hogerstalld, halva hojden, z-index 50. Regionrutan (z-index 60) ror vi
          inte - den hor till resan mellan varldar. */
+      /* [TILLAGT v5.153.0] ETT VILANDE MOTE SKA INTE SYNAS ALLS. Kartan dimmar
+         det till 42 procent, sa noden star kvar och gar att trycka pa - och da
+         far man en ruta som bara sager att det ar tyst. Den doljs helt i
+         stallet. Kartan markerar sjalv varje nod med data-cooldown, och den
+         markningen skrivs om vid varje sandning, sa noden kommer tillbaka av
+         sig sjalv nar vilan ar over. En regel racker; ingen kod behover ticka. */
+      try {
+        if (!doc.getElementById('gm-cd-style')){
+          const cd = doc.createElement('style');
+          cd.id = 'gm-cd-style';
+          cd.textContent = 'g[data-poi="encounter"][data-cooldown="true"]{display:none}';
+          (doc.head || doc.documentElement).appendChild(cd);
+        }
+      } catch (e){}
       const gomZonruta = () => {
         try {
           doc.querySelectorAll('div[style*="z-index:50"]').forEach(el => {
@@ -24287,6 +24342,40 @@ document.addEventListener('contextmenu', e => {
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   e.preventDefault();
 });
+/* [TILLAGT v5.153.0] SNABBTANGENTER. Sex rutor pa var sin bokstav, samma vag
+   som ett tryck pa snabbvalet - alltsa oppnar OCH stanger, med samma
+   fonsterhantering. Skriver man i ett falt tillhor tangenten faltet, och ett
+   tryck med ctrl, alt eller cmd tillhor webblasaren. */
+/* Varje bokstav pekar pa sitt fonster och pa knappen som oppnar det. Somliga
+   snabbval OPPNAR bara - de stanger inte nar man trycker igen - sa tangenten
+   stanger sjalv i stallet for att trycka pa knappen en gang till. */
+const SNABBTANGENTER = {
+  b: {win: 'inv-overlay',    btn: 'qa-inventory'},
+  i: {win: 'inv-overlay',    btn: 'qa-inventory'},
+  f: {win: 'friends-overlay',btn: 'qa-friends'},
+  q: {win: 'quest-overlay',  btn: 'qa-quests'},
+  e: {win: 'node-overlay',   btn: 'qa-expeditions'},
+  p: {win: 'prof-overlay',   open: () => openProfessions()}
+};
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const d = SNABBTANGENTER[(e.key || '').toLowerCase()];
+  if (!d) return;
+  const w = document.getElementById(d.win);
+  if (!w) return;
+  e.preventDefault();
+  if (w.classList.contains('open')){
+    /* Expeditionsrutan delar blad med zonrutan och motet - star nagot ANNAT
+       dar ska E oppna expeditionerna, inte stanga det man tittar pa. */
+    if (d.win === 'node-overlay' && NODE && NODE.kind !== 'expedition'){ openExpeditions(); return; }
+    w.classList.remove('open');
+    return;
+  }
+  if (d.open) d.open();
+  else { const b = document.getElementById(d.btn); if (b) b.click(); }
+});
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   /* Sma menyer stangs FORST och avbryter dar - annars skulle ett tryck bade
@@ -27207,6 +27296,16 @@ function nodeZoneHTML(){
   const enc = (PVE.enc && PVE.enc.region === NODE.region && PVE.enc.zone === NODE.zone) ? PVE.enc : null;
   if (enc) what += '<div class="nd-what"><span class="ic">\u2694\uFE0F</span>' +
     '<span class="tx">' + esc(enc.name) + '<i>Encounter, level ' + enc.level + '</i></span></div>';
+  /* [TILLAGT v5.153.0] Motet raknades bara upp om det redan var FRAMLETAT. Star
+     man i en zon dar inget letats fram sag rutan ingenting alls om moten, trots
+     att kartan ritade en nod dar. Nu star raden sa fort zonen inte vilar. Vilar
+     den namns motet inte - da finns det ingenting att gora, och noden ar borta
+     fran kartan av samma skal. */
+  else if (NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone))
+    what += '<div class="nd-what"><span class="ic">\u2694\uFE0F</span>' +
+      '<span class="tx">Encounter<i>' +
+      (nodeHere() ? 'Search the zone to find it' : 'Something waits here') +
+      '</i></span></div>';
   const exps = (typeof expDefsForZone === 'function')
     ? (expDefsForZone(NODE.region, NODE.zone) || []) : [];
   if (exps && exps.length) what += '<div class="nd-what"><span class="ic">\uD83E\uDDED</span>' +
