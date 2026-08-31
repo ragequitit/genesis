@@ -5612,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.155.0 — VILAN OVER HELA KARTAN</div>
+        <div class="sn-ver">GENESIS v5.157.0 — RATT KONTRAKT</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.155.0 — VILAN OVER HELA KARTAN</div>
+            <div class="desc">GENESIS v5.157.0 — RATT KONTRAKT</div>
           </div>
         </div>
       </div>
@@ -18203,7 +18203,12 @@ function gmState(){
     current: {region: here, zone: hereZone},
     regions: regions, zones: zones, encounters: encounters,
     quests: gmQuestNodes(),
-    vaultOpen: false,
+    /* [RATTAT v5.156.0] STOD HARDKODAT FALSE. Kartan ritade darfor valvet som
+       LOCKED i all evighet, i alla fem varldarna - ett dott varde som sag levande
+       ut. Valvet ar ingen zon man reser till i det har spelet: det nas overallt
+       ifran, sa svaret ar alltid ja. Blir valvet en plats man maste sta vid
+       byts raden mot det villkoret, inte mot ett nytt fast varde. */
+    vaultOpen: true,
     level: (function(){ try { return levelInfo().lvl; } catch (e){ return 1; } })()
   };
 }
@@ -18374,7 +18379,10 @@ function gmPick(o){
     }
     case 'quest': {
       gmSel = {region: region, zone: o.zone || null}; gmSetTravel();
-      if (o.zone) openNodeWin('quest', region, o.zone);
+      /* [ANDRAT v5.157.0] KARTANS ID FOLJER MED. Tva kontrakt i samma zon far
+         var sin nod, men rutan fragade bara efter region och zon - och tog det
+         FORSTA den hittade. Tryckte man pa det andra oppnades det forsta. */
+      if (o.zone) openNodeWin('quest', region, o.zone, false, o.id);
       break;
     }
     case 'zone': {
@@ -27223,10 +27231,12 @@ function nodeWhereHTML(){
     (here ? '\u25cf YOU ARE HERE' : '\u27a4 ' + esc(NODE.zone || '').toUpperCase() +
      ' \u00b7 ' + esc(R ? R.name : '').toUpperCase()) + '</div>';
 }
-function openNodeWin(kind, region, zone, keep){
+function openNodeWin(kind, region, zone, keep, id){
   { const _w = $('node-overlay'); if (_w) _w.classList.remove('gemwin'); }
   const sameKind = NODE.kind === kind;
-  NODE = {kind: kind, region: region, zone: zone, busy: false,
+  /* qid: VILKET kontrakt noden gallde. Utan det kan tva kontrakt i samma zon
+     inte skiljas at, och rutan visar alltid det forsta. */
+  NODE = {kind: kind, region: region, zone: zone, busy: false, qid: id || null,
           etab: sameKind ? (NODE.etab || 'this') : 'this'};
   const w = $('node-overlay'); if (!w) return;
   w.querySelector('.node-modal').classList.toggle('wide', kind === 'expedition');
@@ -27293,10 +27303,24 @@ function nodeEncounterHTML(){
     '<button class="btn-neutral" data-nd="close">Close</button></div>';
 }
 /* ---- Uppdraget: erbjudandet i zonen ---- */
+/* Alla erbjudna kontrakt i nodens zon, i serverns ordning. */
+function nodeQuestsAt(){
+  const st = QUESTS.state; if (!st) return [];
+  return (st.offers || []).filter(o => o.quest_id && o.status === 'offered' &&
+    o.region === NODE.region && o.zone === NODE.zone);
+}
+/* [ANDRAT v5.157.0] Det kontrakt noden faktiskt gallde. Tryckte man pa den
+   andra av tva noder i samma zon fick man forut det forsta - funktionen tog
+   bara det den hittade forst. Nu vinner id:t fran noden; saknas det (rutan
+   oppnad fran nagot annat hall) faller den tillbaka pa det forsta, som forr. */
 function nodeQuestAt(){
-  const st = QUESTS.state; if (!st) return null;
-  return (st.offers || []).find(o => o.quest_id && o.status === 'offered' &&
-    o.region === NODE.region && o.zone === NODE.zone) || null;
+  const list = nodeQuestsAt();
+  if (!list.length) return null;
+  if (NODE.qid){
+    const exakt = list.find(o => o.quest_id === NODE.qid);
+    if (exakt) return exakt;
+  }
+  return list[0];
 }
 function nodeQuestHTML(){
   let h = nodeWhereHTML();
@@ -27334,9 +27358,11 @@ function nodeZoneHTML(){
   }
   /* Vad finns att gora har? Bara det som faktiskt ar uppe raknas upp. */
   let what = '';
-  const q = nodeQuestAt();
-  if (q) what += '<div class="nd-what"><span class="ic">\uD83D\uDCDC</span>' +
-    '<span class="tx">' + esc(q.name) + '<i>Contract waiting</i></span></div>';
+  /* [ANDRAT v5.157.0] Zonrutan namnde ETT kontrakt aven nar tva vantade. */
+  nodeQuestsAt().forEach(q => {
+    what += '<div class="nd-what"><span class="ic">\uD83D\uDCDC</span>' +
+      '<span class="tx">' + esc(q.name) + '<i>Contract waiting</i></span></div>';
+  });
   const enc = (PVE.enc && PVE.enc.region === NODE.region && PVE.enc.zone === NODE.zone) ? PVE.enc : null;
   if (enc) what += '<div class="nd-what"><span class="ic">\u2694\uFE0F</span>' +
     '<span class="tx">' + esc(enc.name) + '<i>Encounter, level ' + enc.level + '</i></span></div>';
