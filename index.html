@@ -556,10 +556,10 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .gem-slot{flex:0 0 auto;position:relative;overflow:hidden}
 .gem-slot .slot-bg{position:absolute;inset:5px;background-size:contain;
   background-position:center;background-repeat:no-repeat;opacity:.34}
-.gem-slot.filled .slot-bg{opacity:0}
-.gem-slot .gem-face{position:absolute;inset:0;display:grid;place-items:center;
-  font-size:24px;line-height:1;color:var(--rc,var(--cyan));
-  text-shadow:0 0 14px var(--rc,var(--cyan))}
+/* Siluetten ligger kvar UNDER stenens bild, dampad - da star rutan aldrig tom
+   om bildfilen skulle saknas. */
+.gem-slot.filled .slot-bg{opacity:.22}
+/* [BORTTAGET v5.154.0] Den ritade romben. Platsen bar sin egen bild nu. */
 .gem-slot.filled{border-color:var(--rc,var(--cyan));
   box-shadow:0 0 16px -4px var(--rc,var(--cyan))}
 .gem-slot .gem-cdmark{position:absolute;right:2px;bottom:1px;font-size:8px;
@@ -5612,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.153.0 — DE GULA NODERNA</div>
+        <div class="sn-ver">GENESIS v5.154.0 — STENENS EGEN BILD</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.153.0 — DE GULA NODERNA</div>
+            <div class="desc">GENESIS v5.154.0 — STENENS EGEN BILD</div>
           </div>
         </div>
       </div>
@@ -10648,7 +10648,9 @@ function renderGemSlot(){
     box.className = 'equip-slot gem-slot empty';
     box.style.removeProperty('--rc');
     box.title = 'Character Gem \u2014 forge one from six shards of a region';
-    box.innerHTML = bg + '<span class="gem-face">\u25c7</span>';
+    /* [ANDRAT v5.154.0] Den ritade romben ar borta. Platsen bar Chris egen
+       siluettbild nu, precis som huvud, brost och ben gor. */
+    box.innerHTML = bg;
     return;
   }
   const d = gemByKey(g.key) || {};
@@ -10659,7 +10661,12 @@ function renderGemSlot(){
     '\n+' + (+g.pct || 0) + '% ' + (g.pct_text || d.pct || '') +
     (g.good ? '  \u2605 best roll' : '') +
     ((+g.swap_in_secs > 0) ? '\nCan swap in ' + fmtDur(+g.swap_in_secs) : '');
-  box.innerHTML = bg + '<span class="gem-face">\u25c6</span>' +
+  /* Buren sten ritar STENENS EGEN BILD, samma vag som en utrustad pjas. Saknas
+     filen faller den tillbaka pa platsens siluett - aldrig en tom ruta, och
+     aldrig en ritad form. */
+  box.innerHTML = bg +
+    '<div class="eq-img" style="background-image:url(\'assets/items/gems/' +
+      encodeURIComponent(g.key) + '.png\')"></div>' +
     ((+g.swap_in_secs > 0) ? '<span class="gem-cdmark">\u23f1</span>' : '');
 }
 /* Smidet: sex skarvor fran samma region blir regionens sten. */
