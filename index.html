@@ -4887,8 +4887,36 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gem-good{color:#ffa63c;font-weight:900}
 .gem-good .star{margin-right:3px}
 .gem-cd{font-size:9px;color:#ffc542;margin-top:1px}
+/* [ANDRAT v5.151.0] Raden ar en tva-radig ruta nu: overst samma rad som forut,
+   under den listan over de sex expeditionerna som gommer sig bakom "2 / 6". */
 .forge-row{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:8px;
-  border:1px solid var(--border);border-radius:11px;background:var(--bg-row)}
+  border:1px solid var(--border);border-radius:11px;background:var(--bg-row);
+  flex-wrap:wrap;cursor:default}
+.fr-list{flex:1 1 100%;display:none;margin-top:9px;padding-top:8px;
+  border-top:1px solid var(--border-soft)}
+/* Rutan far aldrig vaxa ur skarmen: den centreras av bladet och rullar inuti.
+   Regeln galler BARA stenrutan - samma blad bar zonrutan, motet och uppdraget,
+   och de ar korta nog som de ar. Uppmatt utan den: 88 punkter utanfor
+   underkanten pa 1280x800 med en lista utfalld. */
+#node-overlay.gemwin{inset:0;left:0 !important;top:0 !important;
+  display:none;align-items:center;justify-content:center;padding:8px;
+  pointer-events:none}
+#node-overlay.gemwin.open{display:flex}
+#node-overlay.gemwin > .node-modal{pointer-events:auto;position:relative;
+  top:auto;left:auto;right:auto;bottom:auto;transform:none;margin:0;
+  max-height:calc(100vh - 16px);display:flex;flex-direction:column}
+#node-overlay.gemwin > .node-modal > #node-body{flex:1 1 auto;min-height:0;overflow-y:auto}
+.forge-row:hover .fr-list,
+.forge-row.open .fr-list{display:block}
+.fr-listh{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--text-faint);font-weight:800;margin-bottom:6px}
+.fr-item{display:flex;align-items:baseline;gap:8px;font-size:10.5px;line-height:1.5;
+  color:var(--text-dim)}
+.fr-item .tick{flex:0 0 12px;color:var(--text-faint);font-size:9px}
+.fr-item.got{color:var(--text)}
+.fr-item.got .tick{color:var(--cyan)}
+.fr-item .ex{flex:1;min-width:0}
+.fr-item .zn{flex:0 0 auto;font-size:9.5px;color:var(--text-faint);text-align:right}
 .forge-row.ready{border-color:var(--cyan);background:rgba(56,232,255,.08)}
 .forge-row .nm{flex:1;min-width:0;font-size:12px;font-weight:800}
 .forge-row .sub{font-size:10px;color:var(--text-dim);font-weight:500;margin-top:2px}
@@ -4918,6 +4946,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .nd-tabs > div.active{color:var(--cyan);background:rgba(56,232,255,.1)}
 .nd-exp{border:1px solid var(--border);border-radius:11px;background:var(--bg-row);
   padding:10px 12px;margin-bottom:9px}
+/* [TILLAGT v5.151.0] En hemkommen expedition ska synas i listan utan att man
+   laser varje rad - den lyser som allt annat som vantar pa ett klick. */
+.nd-exp.done{border-color:var(--cyan);background:rgba(56,232,255,.08)}
 .nd-exp .nm{font-weight:900;font-size:13px;letter-spacing:.02em}
 .nd-exp .wh{font-size:10px;color:var(--text-dim);letter-spacing:.06em;margin-top:2px}
 .nd-exp .mt{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text-dim);margin:7px 0}
@@ -5562,7 +5593,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.150.0 — STENEN OVER HUVUDET</div>
+        <div class="sn-ver">GENESIS v5.151.0 — DE SEX SKARVORNA</div>
       </div>
     </div>
   </aside>
@@ -6426,7 +6457,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.150.0 — STENEN OVER HUVUDET</div>
+            <div class="desc">GENESIS v5.151.0 — DE SEX SKARVORNA</div>
           </div>
         </div>
       </div>
@@ -10627,6 +10658,7 @@ function renderGemSlot(){
 function openGemWin(){
   NODE = {kind: 'gem', region: null, zone: null, busy: false};
   const w = $('node-overlay'); if (!w) return;
+  w.classList.add('gemwin');
   w.querySelector('.node-modal').classList.remove('wide');
   $('node-title').textContent = 'Character Gem';
   renderGemWin();
@@ -10661,6 +10693,17 @@ function renderGemWin(){
     '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
   box.innerHTML = h;
   wireNodeWin();
+  /* [TILLAGT v5.151.0] PA TELEFON FINNS INGEN HOVRING. Ett tryck pa raden faller
+     ut de sex expeditionerna; ett till faller ihop den. Smidesknappen far inte
+     rakas trycka pa vagen, sa den star utanfor. */
+  box.querySelectorAll('.forge-row').forEach(rad => rad.addEventListener('click', ev => {
+    if (ev.target.closest('[data-forge]')) return;
+    const pa = rad.classList.contains('open');
+    /* EN i taget. Fem utfallda listor ar 30 rader, och da vaxer rutan ur
+       skarmen - uppmatt 40 punkter utanfor pa 1280x800. */
+    box.querySelectorAll('.forge-row.open').forEach(r => r.classList.remove('open'));
+    if (!pa) rad.classList.add('open');
+  }));
   box.querySelectorAll('[data-forge]').forEach(btn => btn.addEventListener('click', () => {
     const rid = btn.dataset.forge;
     btn.disabled = true;
@@ -10689,8 +10732,35 @@ function forgeRowsHTML(){
       (klar
         ? '<button class="btn-primary tiny" data-forge="' + rid + '">Forge</button>'
         : '<span class="fr-sub">' + har + ' / ' + behovs + ' shards</span>') +
+      /* [TILLAGT v5.151.0] LISTAN OVER DE SEX. Raden sa bara "2 / 6", vilket inte
+         berattade VILKA tva man hade eller var de fyra andra fanns. Nu star alla
+         sex expeditioner med bock eller tom ruta, och zonen de ligger i. Listan
+         fälls ut vid hovring pa bordsskarm och vid tryck pa telefon - den ska
+         inte ta plats fran de fem raderna nar man bara vill se laget. */
+      shardListHTML(rid) +
       '</div>';
   }).join('');
+}
+/* De sex skarvornas expeditioner, i den ordning man moter dem. Byggd ur samma
+   tabell som skarvorna sjalva, sa den kan aldrig hamna i otakt med varlden. */
+function shardListHTML(rid){
+  const all = shards();
+  const zoner = (typeof EXPEDITIONS !== 'undefined' && EXPEDITIONS[rid]) || {};
+  const rader = [];
+  for (const zon in zoner){
+    (zoner[zon] || []).forEach(e => {
+      const key = 'shard_' + e.id;
+      if (!all[key]) return;
+      const har = (S.inv || []).some(r => r && r.key === key);
+      rader.push('<div class="fr-item' + (har ? ' got' : '') + '">' +
+        '<span class="tick">' + (har ? '\u2714' : '\u25a1') + '</span>' +
+        '<span class="ex">' + esc(e.name) + '</span>' +
+        '<span class="zn">' + esc(zon) + '</span></div>');
+    });
+  }
+  if (!rader.length) return '';
+  return '<div class="fr-list">' +
+    '<div class="fr-listh">The six expeditions</div>' + rader.join('') + '</div>';
 }
 function shardsHeld(rid){
   const all = shards();
@@ -27130,6 +27200,7 @@ function nodeWhereHTML(){
      ' \u00b7 ' + esc(R ? R.name : '').toUpperCase()) + '</div>';
 }
 function openNodeWin(kind, region, zone, keep){
+  { const _w = $('node-overlay'); if (_w) _w.classList.remove('gemwin'); }
   const sameKind = NODE.kind === kind;
   NODE = {kind: kind, region: region, zone: zone, busy: false,
           etab: sameKind ? (NODE.etab || 'this') : 'this'};
@@ -27150,7 +27221,12 @@ function placeNodeWin(){
   w.style.left = Math.round((window.innerWidth - (r.width || 430)) / 2) + 'px';
   w.style.top = winTop(120) + 'px';
 }
-function closeNodeWin(){ $('node-overlay').classList.remove('open'); }
+function closeNodeWin(){
+  const w = $('node-overlay');
+  w.classList.remove('open');
+  /* Stenrutans egen centrering far inte halla i sig till nasta fonster. */
+  w.classList.remove('gemwin');
+}
 function renderNodeWin(){
   const box = $('node-body'); if (!box) return;
   if (NODE.kind === 'encounter') box.innerHTML = nodeEncounterHTML();
@@ -27300,19 +27376,36 @@ function nodeExpHTML(){
       ? defs.map(d => nodeExpCard(d, true)).join('')
       : '<div class="shelf-empty">Nothing discovered yet.</div>') + '</div>';
   } else {
+    /* [OMBYGGT v5.151.0] AKTIV-FLIKEN BAR ALLT SJALV. Har stod forut en knapp
+       som stangde rutan och oppnade det gamla fonstret - alltsa en genvag ut ur
+       den ruta man just oppnat. Nu star slotraden, tiden kvar och hamta-knappen
+       har, och det gamla fonstret behovs inte langre for att kora en expedition. */
     const runs = S.exp.runs || [];
+    const platser = expSlots();
+    h += '<div class="nd-where">Slots <b>' + runs.length + ' / ' + platser + '</b>' +
+         (runs.length >= platser ? ' \u00b7 all busy' : '') + '</div>';
     h += '<div class="nd-scroll">' + (runs.length
       ? runs.map(r => {
-          const def = expDefById(r.id) || {name: r.id};
+          const def = expDefById(r.id) || {name: r.id, region: r.region, zone: r.zone};
           const left = Math.max(0, Math.round(((r.endsAt || 0) - Date.now()) / 1000));
-          return '<div class="nd-exp"><div class="nm">' + esc(def.name) + '</div>' +
-            '<div class="wh">' + (left > 0 ? 'Returns in ' + fmtDur(left) : 'Ready to collect') + '</div></div>';
+          const klar = left <= 0;
+          return '<div class="nd-exp' + (klar ? ' done' : '') + '">' +
+            '<div class="nm">' + esc(def.name) + '</div>' +
+            '<div class="wh">' +
+              esc((REGIONS[def.region] && REGIONS[def.region].name) || def.region || '') +
+              (def.zone ? ' \u00b7 ' + esc(def.zone) : '') + '</div>' +
+            '<div class="mt"><span>\u23f1 <b>' +
+              (klar ? 'Done' : fmtDur(left)) + '</b></span>' +
+              (def.lvl ? '<span>Lv <b>' + def.lvl + '</b></span>' : '') + '</div>' +
+            (klar
+              ? '<button class="btn-primary" data-nd="expclaim" data-e="' + esc(r.id) + '">Collect</button>'
+              : '<button class="btn-neutral" disabled>Still out</button>') +
+            '</div>';
         }).join('')
-      : '<div class="shelf-empty">No expeditions running.</div>') + '</div>' +
-      '<div class="nd-acts"><button class="btn-neutral" data-nd="expwin">Open expedition window</button></div>';
+      : '<div class="shelf-empty">No expeditions running. Pick one from the two tabs beside this.</div>') +
+      '</div>';
   }
-  if (NODE.etab !== 'active')
-    h += '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
+  h += '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
   return h;
 }
 /* ---- Knapparna ---- */
@@ -27356,7 +27449,14 @@ function wireNodeWin(){
       return;
     }
     if (a.indexOf('etab:') === 0){ NODE.etab = a.slice(5); renderNodeWin(); return; }
-    if (a === 'expwin'){ closeNodeWin(); openExpeditions(); return; }
+    /* [BORTTAGET v5.151.0] Genvagen till det gamla fonstret. */
+    if (a === 'expclaim'){
+      btn.disabled = true;
+      claimExpedition(btn.dataset.e);
+      /* Hamtningen ar ett servervarv; rutan ritas om nar svaret kommit. */
+      setTimeout(() => { if ($('node-overlay').classList.contains('open')) renderNodeWin(); }, 900);
+      return;
+    }
     if (a === 'expstart' || a === 'exptravelstart'){
       const eid = btn.dataset.e;
       const go = () => { btn.disabled = true; startExpedition(eid); closeNodeWin(); };
