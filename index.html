@@ -4774,6 +4774,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgc-fact .hi{color:var(--acc)}
 
 /* ---- Valknappen ---- */
+/* [TILLAGT v5.149.0] Tva knappar i bredd nar ett lopp gar, och varningsraden
+   under. Varningen ar gul, inte rod: att lamna ar ett val, inte ett fel. */
+.dgc-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dgc-pick.leave{border-color:#ffc542;color:#ffc542;background:rgba(255,197,66,.08)}
+.dgc-pick.leave:hover:not(:disabled){background:rgba(255,197,66,.18)}
+.dgc-pick.asking{border-color:#ffc542;color:#061018;background:#ffc542}
+.dgc-warn{margin-top:7px;font-size:10.5px;line-height:1.45;text-align:center;color:#ffc542;
+  letter-spacing:.02em}
 .dgc-pick{width:100%;padding:13px 10px;font-size:13px;font-weight:900;letter-spacing:.16em;
   text-transform:uppercase;color:#fff;cursor:pointer;border-radius:4px;
   border:1px solid color-mix(in srgb,var(--acc) 70%,transparent);
@@ -5283,6 +5291,30 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    efter all tightning. Dar faller de tva sista bytesraderna bort - signaturer
    och skrot star kvar i sallsynthetsspannet anda, och spannet ar det man
    faktiskt valjer efter. Allt annat behalls. */
+/* [TILLAGT v5.149.0] VARNINGSTEXTEN GJORDE RUTAN FOR HOG. Uppmatt: 10 punkter
+   over pa 1280x720 och 60 pa 360x780. Nar en fraga star oppen ar bilden det
+   minst viktiga i rutan - man laser en mening och svarar - sa den viker undan
+   pa laga skarmar. Regeln star efter telefonblocket med flit: den ska vinna. */
+@media (max-height:860px){
+  /* En oppen fraga, eller ett pagaende lopp med sin extra knappraded, ar bada
+     hogre an grundlaget. Bilden viker undan - man laser en mening och svarar. */
+  .dgc-frame.asking .dgc-art,
+  .dgc-frame.running .dgc-art{display:none}
+}
+/* Lag skarm: bilden far inte plats i nagot lage. */
+@media (max-height:740px){
+  .dgc-art{display:none}
+}
+/* Telefon: heroiska kortet bar en fjarde faktarad, och de tva tunga lagena -
+   oppen fraga och pagaende lopp - lagger till en rad till. Uppmatt fattas
+   9-20 punkter dar. Bossportratten kortas; namnen star kvar. */
+@media (max-width:760px){
+  .dgc-card.heroic .dgc-fact:nth-child(4){display:none}
+  .dgc-frame.asking .dgc-bcell .dgc-boss,
+  .dgc-frame.running .dgc-bcell .dgc-boss{height:clamp(22px,3.2vh,34px)}
+  .dgc-frame.asking .dgc-facts,
+  .dgc-frame.running .dgc-facts{margin:4px 0 4px}
+}
 @media (max-width:380px){
   .dgc-fact:nth-child(2),.dgc-fact:nth-child(3){display:none}
   .dgc-art{height:clamp(30px,4.4vh,58px)}
@@ -5512,7 +5544,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.148.0 — RETRATTEN</div>
+        <div class="sn-ver">GENESIS v5.149.0 — FRAGAN FORE</div>
       </div>
     </div>
   </aside>
@@ -6386,7 +6418,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.148.0 — RETRATTEN</div>
+            <div class="desc">GENESIS v5.149.0 — FRAGAN FORE</div>
           </div>
         </div>
       </div>
@@ -7693,6 +7725,11 @@ function dgcBossSrc(id, n){ return 'assets/dungeons/bosses/' + id + '_' + n + '.
 
 let DGC = null;              /* serverns svar, eller null */
 let DGC_SIDE = 'normal';     /* [v5.147.0] vilket kort vaxeln visar pa telefon */
+/* [NYTT v5.149.0] Tva bekraftelser i rutan. 'enter' fragar innan en korning
+   borjar - forut startade den pa forsta klicket, och en heroisk karens pa tre
+   timmar ar for dyr for ett felklick. 'leave' fragar innan en pagaende korning
+   avbryts. Bada nollstalls varje gang rutan oppnas. */
+let DGC_ASK = null;          /* null | 'normal' | 'heroic' | 'leave' */
 let DGC_BUSY = false;
 async function netDungeonChoices(){
   if (!NET.on || !SRV.charId) return null;
@@ -7701,7 +7738,7 @@ async function netDungeonChoices(){
 }
 function openDgChoice(){
   const w = $('dgc-overlay'); if (!w) return;
-  DGC_BUSY = false;
+  DGC_BUSY = false; DGC_ASK = null;
   renderDgChoice();
   w.classList.add('open');
   placeDgcWin(); bringToFront(w);
@@ -7789,11 +7826,48 @@ function dgcCardHTML(dg, d, heroic){
       '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.boss + '</i>' + n +
         (heroic ? ' Heroic Bosses' : ' Bosses') + '</span>' +
     '</div>' +
-    '<button class="dgc-pick" data-dgc-pick="' + (heroic ? 'heroic' : 'normal') + '"' +
-      (disabled || DGC_BUSY ? ' disabled' : '') + '>' +
-      (heroic ? 'Select Heroic' : 'Select Dungeon') + '</button>' +
-    (why ? '<div class="dgc-why">' + esc(why) + '</div>' : '') +
+    /* [OMBYGGT v5.149.0] Knappraden. Star en korning igang byts valet mot en
+       LAMNA-knapp bredvid, och bada fragar en gang extra innan de gor nagot. */
+    dgcButtonsHTML(heroic, disabled, why) +
     '</div>';
+}
+/* Knapparna langst ned i ett kort. Tre lagen:
+   - inget lopp igang: ENTER DUNGEON / ENTER HEROIC, med en fraga fore start
+   - lopp igang i DEN HAR svarighetsgraden: ENTER slacks och LEAVE DUNGEON star bredvid
+   - lopp igang i den andra: bada slackta, med skalet under */
+function dgcButtonsHTML(heroic, disabled, why){
+  const run = PVE.dg && PVE.dg.run;
+  const igang = !!(run && !pveDgDone());
+  const dennaKor = igang && !!run.heroic === !!heroic;
+  const sida = heroic ? 'heroic' : 'normal';
+  const namn = heroic ? 'Enter Heroic' : 'Enter Dungeon';
+
+  if (igang && !dennaKor){
+    return '<button class="dgc-pick" disabled>' + namn + '</button>' +
+      '<div class="dgc-why">A run is already going</div>';
+  }
+  if (dennaKor){
+    return '<div class="dgc-acts">' +
+      '<button class="dgc-pick" disabled>' + namn + '</button>' +
+      '<button class="dgc-pick leave" data-dgc-leave="1"' + (DGC_BUSY ? ' disabled' : '') + '>' +
+        (DGC_ASK === 'leave' ? 'Yes \u2014 leave now' : 'Leave Dungeon') + '</button>' +
+      '</div>' +
+      (DGC_ASK === 'leave'
+        ? '<div class="dgc-warn">Leaving ends the run where you stand. You keep everything ' +
+          'you have already won \u2014 everything deeper down is lost.</div>'
+        : '<div class="dgc-why">Run in progress</div>');
+  }
+  const fragar = (DGC_ASK === sida);
+  return '<button class="dgc-pick' + (fragar ? ' asking' : '') + '" data-dgc-pick="' + sida + '"' +
+      (disabled || DGC_BUSY ? ' disabled' : '') + '>' +
+      (fragar ? 'Yes \u2014 start now' : namn) + '</button>' +
+    (fragar
+      ? '<div class="dgc-warn">' +
+        (heroic
+          ? 'Heroic locks for three hours the moment you enter. Gear and supplies lock too. Sure?'
+          : 'Gear and supplies lock the moment you enter. Sure?') +
+        '</div>'
+      : (why ? '<div class="dgc-why">' + esc(why) + '</div>' : ''));
 }
 /* Forradsraden. Antalen MASTE ga att andra, annars kan man inte packa - darfor
    sitter en liten stegare vid varje tal. Taket for aterupplivningar foljer det
@@ -7859,7 +7933,9 @@ function renderDgChoice(){
     return;
   }
   const hu = !!(DGC.heroic && DGC.heroic.unlocked);
-  box.innerHTML = '<div class="dgc-frame show-' + DGC_SIDE + '">' +
+  const _kor = !!(PVE.dg && PVE.dg.run && !pveDgDone());
+  box.innerHTML = '<div class="dgc-frame show-' + DGC_SIDE +
+      (DGC_ASK ? ' asking' : '') + (_kor ? ' running' : '') + '">' +
     '<div class="dgc-head">Choose Difficulty</div>' +
     '<div class="dgc-switch">' +
       '<button data-dgcsw="normal"' + (DGC_SIDE === 'normal' ? ' class="on"' : '') + '>Dungeon</button>' +
@@ -18249,6 +18325,8 @@ function gmPick(o){
     case 'dungeon': {
       gmSel = {region: region, zone: o.zone || null};
       gmSetTravel();
+      /* [ANDRAT v5.149.0] Noden oppnar valet aven MEDAN ett lopp gar - dar star
+         nu lamna-knappen. Forut ledde den till zonrutan i det laget. */
       if (region === S.world.current && o.zone === S.world.zone){
         openDgChoice();
       } else if (region === S.world.current){
@@ -18352,6 +18430,27 @@ function gmHook(){
         '-webkit-touch-callout:default}' +
         'svg,img{-webkit-user-drag:none;-webkit-touch-callout:none}';
       (doc.head || doc.documentElement).appendChild(skydd);
+      /* [TILLAGT v5.149.0] KARTANS EGEN ZONRUTA SLACKS. Kartan ritar en egen
+         panel nar man trycker pa en zon eller en nod, och spelet oppnar sin
+         egen i samma andetag - tva rutor for ett klick. Spelets ruta ager
+         innehallet, sa kartans ar den som gar. Den har varken id eller klass,
+         bara stilar pa plats, sa den kanns igen pa sin egen kombination:
+         hogerstalld, halva hojden, z-index 50. Regionrutan (z-index 60) ror vi
+         inte - den hor till resan mellan varldar. */
+      const gomZonruta = () => {
+        try {
+          doc.querySelectorAll('div[style*="z-index:50"]').forEach(el => {
+            const st = el.getAttribute('style') || '';
+            if (st.indexOf('right:42px') >= 0 && st.indexOf('top:50%') >= 0){
+              el.style.setProperty('display', 'none', 'important');
+            }
+          });
+        } catch (e){}
+      };
+      gomZonruta();
+      /* Kartan bygger om sin panel nar man klickar, sa den maste slackas igen. */
+      try { new (doc.defaultView.MutationObserver)(gomZonruta)
+              .observe(doc.body, {childList: true, subtree: true}); } catch (e){}
       /* Tva fingrar som nyper ar Safaris egen zoom och stangs av separat -
          touch-action racker inte for gester som borjar utanfor ett element. */
       ['gesturestart', 'gesturechange', 'gestureend'].forEach(g =>
@@ -27278,12 +27377,27 @@ $('dgc-body').addEventListener('click', ev => {
     renderDgChoice(); return;
   }
   const sw = ev.target.closest('[data-dgcsw]');
-  if (sw){ DGC_SIDE = sw.dataset.dgcsw; renderDgChoice(); return; }
+  if (sw){ DGC_SIDE = sw.dataset.dgcsw; DGC_ASK = null; renderDgChoice(); return; }
+  const leave = ev.target.closest('[data-dgc-leave]');
+  if (leave){
+    if (DGC_BUSY) return;
+    if (DGC_ASK !== 'leave'){ DGC_ASK = 'leave'; renderDgChoice(); return; }
+    DGC_BUSY = true; DGC_ASK = null; renderDgChoice();
+    netPveDungeonAbandon()
+      .then(() => netPveDungeonPull())
+      .then(() => { DGC_BUSY = false; closeDgChoice(); redrawAll(); })
+      .catch(e => { DGC_BUSY = false; say(srvErrText(e)); renderDgChoice(); });
+    return;
+  }
   const pick = ev.target.closest('[data-dgc-pick]');
   if (pick){
     if (DGC_BUSY) return;
+    const sida = pick.dataset.dgcPick;
+    /* Forsta klicket fragar, andra startar. */
+    if (DGC_ASK !== sida){ DGC_ASK = sida; renderDgChoice(); return; }
+    DGC_ASK = null;
     DGC_BUSY = true; renderDgChoice();
-    const heroic = pick.dataset.dgcPick === 'heroic';
+    const heroic = sida === 'heroic';
     netPveDungeonStart(st, heroic)
       .then(() => netPullItems())
       .then(() => {
