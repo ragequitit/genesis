@@ -1961,7 +1961,9 @@ body.dragging *{cursor:grabbing !important}
 /* [ANDRAT v5.87.0] Texterna i kortet var gra, tunna och sma mot en bakgrund som
    nu bar bade en farg och en bild. Storre, fetare och ljusare - lasbara. */
 .prof-card .jc-lvl{font-size:10.5px;font-weight:800;letter-spacing:.12em;
-  text-transform:uppercase;color:rgba(255,255,255,.72)}
+  text-transform:uppercase;color:rgba(255,255,255,.72);white-space:nowrap}
+/* [TILLAGT v5.147.0] Nivan och XP-talet ar EN rad nu, atskilda av en punkt. */
+.prof-card .jc-line .jc-lvl + .jc-xp::before{content:'\00b7';margin-right:7px;opacity:.5}
 .prof-card .jc-tag{font-size:8.5px;font-weight:800;letter-spacing:.16em;
   color:rgba(255,255,255,.55);margin-left:7px}
 /* [ANDRAT v5.111.0] Raden fick brytas fritt, och gjorde det forst nar yrket
@@ -2359,7 +2361,12 @@ body.dragging *{cursor:grabbing !important}
   /* Rutan far inte klippa - lankflikarna ska hanga utanfor kanten - sa den
      maste i stallet vara HOG NOG for sitt innehall. Med fast hojd rann korten
      rakt ut i luften sa fort ett tredje yrke laste upp. */
-  #panel-professions{height:396px; overflow-y:auto; overflow-x:hidden}
+  /* [ANDRAT v5.147.0] Rutan RULLADE. Med nivan inflyttad pa xp-raden krymper
+     varje kort, och innehallet ryms med marginal - sa rullningen ar borta.
+     Uppmatt pa 1920/1440/1280 med tre yrken: hogst 355 punkters innehall i en
+     ruta pa 396. Klipp i stallet for rull, sa ett fjarde yrke aldrig skulle
+     kunna smyga in en rullist utan att synas i provet. */
+  #panel-professions{height:396px; overflow:hidden}
   #panel-professions > .panel-title{margin-bottom:6px}
   /* [ANDRAT v5.55.0] Snabbvalen lag under expeditionerna och holl dem korta.
      Nu ar spalten fri, sa expeditionsrutan far vaxa ned till samma underkant
@@ -4649,25 +4656,44 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    Tva kort sida vid sida: det vanliga i cyan, det heroiska i magenta. Ramarna
    ar ritade med clip-path sa hornen ar avskurna som pa bilden, och varje kort
    bar sin egen accentfarg i EN variabel - byts den byter hela kortet farg. */
-.dgc-modal{width:min(1180px,96vw);max-width:96vw}
+/* [ANDRAT v5.147.0] Rutan poppade upp 70 punkter fran toppen med fast bredd,
+   och innehallet var hogre an det som fick plats - man fick rulla for att na
+   forradet och valknapparna. Nu tar den den hojd skarmen ger och centreras
+   lodratt av placeDgcWin. Bladet slutar rulla: allt ska rymmas. */
+/* [ANDRAT v5.147.0] Rutan centreras av BLADET, inte av en uppmatt siffra.
+   JS matte hojden innan bilderna hunnit falla tillbaka pa sina ritade ramar,
+   fick ett for litet tal, och satte toppkanten for langt ned - uppmatt 38
+   punkter utanfor skarmens underkant. En centrerande ram kan inte rakna fel. */
+#dgc-overlay.float-win{inset:0;left:0 !important;top:0 !important;
+  display:none;align-items:center;justify-content:center;padding:8px;
+  pointer-events:none}
+#dgc-overlay.float-win.open{display:flex}
+/* Rutan arver 'position:absolute' och en toppkant i procent fran de andra
+   fonstren. Bada maste bort, annars kan den centrerande ramen inte flytta den. */
+#dgc-overlay .dgc-modal{pointer-events:auto;position:relative;
+  top:auto;left:auto;right:auto;bottom:auto;transform:none;margin:0}
+.dgc-modal{width:min(1240px,96vw);max-width:96vw;max-height:calc(100vh - 16px);
+  display:flex;flex-direction:column}
+.dgc-modal > .profile-body{flex:1 1 auto;min-height:0;overflow:hidden}
 .dgc-modal > .profile-body{padding:0}
 .dgc-frame{
   --acc:var(--cyan);
-  position:relative;padding:16px 18px 12px;
+  /* [ANDRAT v5.147.0] Tightare pa hojden - rutan far inte rulla. */
+  position:relative;padding:12px 16px 10px;
   border:1px solid rgba(120,190,255,.32);
   background:#080d1c;
   clip-path:polygon(22px 0,calc(100% - 22px) 0,100% 22px,100% calc(100% - 22px),
     calc(100% - 22px) 100%,22px 100%,0 calc(100% - 22px),0 22px);
 }
-.dgc-head{text-align:center;font-size:23px;font-weight:900;letter-spacing:.16em;
-  color:#eaf4ff;text-transform:uppercase;margin:2px 0 16px;
+.dgc-head{text-align:center;font-size:19px;font-weight:900;letter-spacing:.16em;
+  color:#eaf4ff;text-transform:uppercase;margin:0 0 10px;
   text-shadow:0 0 18px rgba(120,190,255,.35)}
 .dgc-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
 /* ---- Ett kort ---- */
 .dgc-card{
   --acc:#38e8ff;
-  position:relative;padding:22px 15px 14px;
+  position:relative;padding:13px 14px 12px;
   border:1px solid color-mix(in srgb,var(--acc) 45%,transparent);
   background:linear-gradient(180deg,rgba(10,16,34,.85),rgba(6,10,22,.92));
   clip-path:polygon(18px 0,calc(100% - 18px) 0,100% 18px,100% calc(100% - 18px),
@@ -4676,19 +4702,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 }
 .dgc-card.heroic{--acc:#c06cff}
 .dgc-card.locked{opacity:.55;filter:saturate(.45)}
-/* Hexemblemet: vanliga kortet mitt uppe, heroiska uppe till hoger. */
-.dgc-hex{position:absolute;top:-16px;left:50%;transform:translateX(-50%);
-  width:32px;height:34px;display:grid;place-items:center;font-size:15px;color:var(--acc);
-  background:rgba(6,10,22,.96);border:1px solid color-mix(in srgb,var(--acc) 65%,transparent);
-  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
-.dgc-card.heroic .dgc-hex{left:auto;right:14px;top:14px;transform:none;width:36px;height:39px}
+/* [BORTTAGET v5.147.0] HEXEMBLEMEN. Ett hangde over vanliga kortets ovankant
+   och blev avklippt av ramen; ett satt i heroiska kortets hogra horn och
+   krockade med stangkrysset. Bada ar borta pa Chris begaran. */
 .dgc-kind{text-align:center;font-size:11px;font-weight:900;letter-spacing:.22em;
-  text-transform:uppercase;color:var(--acc);margin-top:2px}
-.dgc-title{text-align:center;font-size:25px;font-weight:900;letter-spacing:.05em;
-  text-transform:uppercase;color:#fff;margin:3px 0 12px;line-height:1.05}
+  text-transform:uppercase;color:var(--acc);margin-top:0}
+.dgc-title{text-align:center;font-size:22px;font-weight:900;letter-spacing:.05em;
+  text-transform:uppercase;color:#fff;margin:2px 0 9px;line-height:1.05}
 
 /* ---- Bilden. Filen kan saknas - da star en ritad ram i stallet. ---- */
-.dgc-art{position:relative;width:100%;aspect-ratio:16/7;overflow:hidden;
+/* [ANDRAT v5.147.0] Bilden och bossportratten mattes forut ur BREDDEN. Pa en
+   bred men lag skarm (1280x720) blev de darfor jattestora samtidigt som hojden
+   tog slut, och rutan maste rulla. Nu foljer de skarmens HOJD med ett tak och
+   ett golv, sa hela rutan krymper jamnt nar det ar trangt. */
+.dgc-art{position:relative;width:100%;height:clamp(48px,8.4vh,120px);overflow:hidden;
   border:1px solid color-mix(in srgb,var(--acc) 30%,transparent);border-radius:4px;
   background:radial-gradient(120% 120% at 50% 100%,
     color-mix(in srgb,var(--acc) 22%,transparent),rgba(6,10,22,.96) 68%)}
@@ -4699,7 +4726,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgc-art.noart .ph{display:grid}
 
 /* ---- De tre brickorna ---- */
-.dgc-pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 9px}
+.dgc-pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 11px}
 .dgc-pill{display:flex;align-items:center;justify-content:center;gap:7px;
   padding:8px 6px;border-radius:8px;font-size:10.5px;font-weight:800;letter-spacing:.1em;
   text-transform:uppercase;color:#dbe8f7;
@@ -4724,7 +4751,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
      ordet mitt itu. Med sin egen skrivning ryms det pa en rad. */
   overflow-wrap:break-word}
 .dgc-bcell.final .dgc-bname{color:var(--acc)}
-.dgc-boss{position:relative;aspect-ratio:1/1.13;overflow:hidden;border-radius:4px;
+.dgc-boss{position:relative;height:clamp(34px,6.3vh,88px);overflow:hidden;border-radius:4px;
   border:1px solid color-mix(in srgb,var(--acc) 40%,transparent);
   background:linear-gradient(180deg,rgba(18,26,48,.9),rgba(8,12,24,.95))}
 .dgc-boss img{width:100%;height:100%;object-fit:cover;display:block}
@@ -4734,11 +4761,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgc-boss.noart .ph{display:grid}
 .dgc-boss.final{border-width:2px;box-shadow:0 0 14px -5px var(--acc)}
 
-/* ---- Tva faktarader ---- */
-.dgc-facts{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-.dgc-fact{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;
-  letter-spacing:.1em;text-transform:uppercase;color:#c9d8ea}
-.dgc-fact .ic{font-size:13px;line-height:1;color:var(--acc);flex:0 0 auto}
+/* ---- BYTET, overst under bilden (v5.147.0) ----
+   Har stod tid, antal bossar och realtid - tre uppgifter man laser en gang.
+   Nu star det man kommer FOR: vad korningen kan ge. Siffrorna har flyttat ned
+   under bossarna. */
+.dgc-facts{display:flex;flex-direction:column;gap:5px;margin:10px 0 11px}
+.dgc-fact{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;
+  letter-spacing:.08em;text-transform:uppercase;color:#c9d8ea}
+.dgc-fact .ic{font-size:13px;line-height:1;color:var(--acc);flex:0 0 auto;
+  display:flex;align-items:center}
 .dgc-fact .lo{color:#9fb2c8}
 .dgc-fact .hi{color:var(--acc)}
 
@@ -4756,8 +4787,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   text-transform:uppercase;color:#ffc542;font-weight:800}
 
 /* ---- Underdelen: forraden ---- */
-.dgc-prepwrap{position:relative;margin-top:26px}
-.dgc-prep{position:relative;padding:22px 16px 12px;
+/* [ANDRAT v5.147.0] Forradsrutan ar tightare pa hojden - rutan far inte rulla. */
+.dgc-prepwrap{position:relative;margin-top:18px}
+.dgc-prep{position:relative;padding:16px 14px 9px;
   border:1px solid rgba(120,190,255,.26);
   clip-path:polygon(16px 0,calc(100% - 16px) 0,100% 16px,100% calc(100% - 16px),
     calc(100% - 16px) 100%,16px 100%,0 calc(100% - 16px),0 16px);
@@ -4768,8 +4800,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   text-transform:uppercase;color:var(--cyan);white-space:nowrap}
 .dgc-sup{display:grid;grid-template-columns:repeat(3,1fr)}
 .dgc-sup > div + div{border-left:1px solid rgba(120,190,255,.16)}
-.dgc-item{display:flex;align-items:center;gap:12px;padding:4px 14px}
-.dgc-item .pic{width:62px;height:62px;flex:0 0 auto;display:grid;place-items:center;
+.dgc-item{display:flex;align-items:center;gap:11px;padding:2px 12px}
+.dgc-item .pic{width:46px;height:46px;flex:0 0 auto;display:grid;place-items:center;
   border:1px solid rgba(120,190,255,.3);border-radius:8px;background:rgba(10,16,34,.7);overflow:hidden}
 .dgc-item .pic img{width:100%;height:100%;object-fit:contain}
 .dgc-item .tx{min-width:0}
@@ -4778,8 +4810,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 /* Antalet MASTE ga att andra - annars kan man inte packa nagot. Stegarna ar
    sma och tysta sa raden ser ut som pa ritningen tills man pekar pa den. */
 .dgc-qty{display:flex;align-items:center;gap:6px;margin-top:3px}
-.dgc-qty b{font-family:var(--font-mono);font-size:20px;font-weight:900;color:var(--cyan);
-  min-width:34px}
+.dgc-qty b{font-family:var(--font-mono);font-size:17px;font-weight:900;color:var(--cyan);
+  min-width:30px}
 .dgc-qty button{width:22px;height:22px;border-radius:6px;cursor:pointer;line-height:1;
   font-size:13px;font-weight:900;color:#cfe2f5;
   background:rgba(8,13,28,.85);border:1px solid rgba(120,190,255,.32)}
@@ -4789,7 +4821,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
 /* ---- Laketrosklarna: en lag rad, samma ruta ---- */
 .dgc-heal{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
-  gap:8px 18px;margin-top:12px;padding-top:11px;border-top:1px solid rgba(120,190,255,.16)}
+  gap:6px 18px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(120,190,255,.16)}
 .dgc-heal .lb{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);
   font-weight:800}
 .dgc-heal .opts{display:flex;gap:5px}
@@ -4799,13 +4831,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgc-heal button.on{color:#061018;background:var(--cyan);border-color:var(--cyan)}
 
 .dgc-lock{display:flex;align-items:center;justify-content:center;gap:9px;
-  margin-top:11px;font-size:12px;color:#a9bdd4}
+  margin-top:8px;font-size:11px;color:#a9bdd4}
 .dgc-lock .ic{font-size:13px;color:#8fa6bd}
 .dgc-low{margin-top:10px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.12em;
   text-transform:uppercase;color:#ff5d7a}
 
 /* ---- Nedersta listen ---- */
-.dgc-foot{display:flex;align-items:center;justify-content:center;gap:11px;margin-top:12px}
+.dgc-foot{display:flex;align-items:center;justify-content:center;gap:11px;margin-top:9px}
 .dgc-foot::before,.dgc-foot::after{content:'';flex:1;height:1px;
   background:linear-gradient(90deg,transparent,rgba(192,108,255,.5),transparent)}
 .dgc-foot .tag{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;
@@ -5153,6 +5185,18 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .gd-cards2{grid-template-columns:1fr}
 }
 
+/* Vaxeln finns bara pa smal skarm - pa bordsskarm star bada korten bredvid
+   varandra och behover ingen.
+   [VIKTIGT] Regeln star FORE telefonblocket. Lades den efter vann dess
+   'display:none' over telefonens 'display:grid' och vaxeln blev osynlig aven
+   pa telefon - samma fallucka som redan bitit projektet en gang. */
+.dgc-switch{display:none;gap:8px;margin-bottom:12px}
+.dgc-switch button{padding:10px 6px;border-radius:8px;cursor:pointer;
+  font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
+  color:#b9cbdf;background:rgba(8,13,28,.85);border:1px solid rgba(120,190,255,.26)}
+.dgc-switch button.on{color:#061018;background:var(--cyan);border-color:var(--cyan)}
+.dgc-switch button.on[data-dgcsw="heroic"]{background:#c06cff;border-color:#c06cff}
+
 /* ===== SVARIGHETSVALET PA TELEFON (v5.145.0) =====
    Korten under varandra, forraden under varandra, och rutan rullar i sig sjalv
    som alla andra blad. Bordsskarmen ror vi inte. */
@@ -5169,7 +5213,54 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .dgc-modal > .profile-body{overflow-y:auto}
   .dgc-frame{padding:12px 11px 10px;clip-path:none;border-radius:0}
   .dgc-head{font-size:17px;letter-spacing:.12em;margin-bottom:22px}
-  .dgc-cards{grid-template-columns:1fr;gap:26px}
+  /* [ANDRAT v5.147.0] TVA KORT STAPLADE RYMS INTE PA EN TELEFON. Uppmatt:
+     1 300 punkter innehall i en skarm pa 844. Ingen tightning i varlden loser
+     det. Korten visas darfor ETT i taget, med en vaxel overst - da slipper man
+     rulla, vilket var hela poangen. */
+  /* [ANDRAT v5.147.0] TVA KORT PLUS FORRADET RYMS INTE PA EN TELEFON. Uppmatt:
+     1 300 punkter innehall i en skarm pa 844, och 573 aven med bara ETT kort.
+     Ingen tightning loser det. Vaxeln har darfor TRE lagen - vanligt, heroiskt
+     och forradet - och ett i taget syns. Da slipper man rulla, vilket var hela
+     poangen. */
+  .dgc-cards{grid-template-columns:1fr;gap:0}
+  .dgc-cards > .dgc-card{display:none}
+  .dgc-frame.show-normal .dgc-cards > .dgc-card:not(.heroic){display:block}
+  .dgc-frame.show-heroic .dgc-cards > .dgc-card.heroic{display:block}
+  .dgc-frame.show-prep .dgc-cards{display:none}
+  .dgc-frame:not(.show-prep) .dgc-prepwrap{display:none}
+  .dgc-frame.show-prep .dgc-foot{display:none}
+  .dgc-switch{display:grid;grid-template-columns:repeat(3,1fr)}
+  .dgc-pills{grid-template-columns:repeat(3,1fr);gap:5px}
+  .dgc-pill{padding:6px 3px;font-size:8.5px;letter-spacing:.04em;gap:4px}
+  /* [ANDRAT v5.147.0] BOSSARNA GAR TILLBAKA TILL FEM I BREDD PA TELEFON.
+     Listlaget infordes for att "Quartermaster" inte rymdes i en femtedel av ett
+     HALVT kort. Har visas ETT kort i taget over hela rutans bredd, sa cellen ar
+     omkring 60 punkter i stallet for 51 - och da ryms ordet. Listan sparade
+     lasbarhet men kostade 136 punkters hojd, och hojden ar det vi inte har. */
+  /* Telefonregeln kapade rutan till 86 % av skarmen. For svarighetsvalet ar
+     det 102 punkter vi behover - rutan far ga anda ut. */
+  #dgc-overlay.float-win.open > .dgc-modal{max-height:calc(100vh - 16px)}
+  .dgc-bosses{grid-template-columns:repeat(5,1fr);gap:4px}
+  .dgc-bcell{flex-direction:column;align-items:stretch;gap:4px}
+  .dgc-bcell .dgc-boss{width:auto;height:clamp(30px,4.6vh,54px)}
+  .dgc-bname{font-size:8px;line-height:1.2;text-align:center;letter-spacing:0}
+  .dgc-title{font-size:17px;margin:2px 0 7px}
+  .dgc-art{height:clamp(38px,5.8vh,76px)}
+  .dgc-fact{font-size:9.5px;letter-spacing:0}
+  .dgc-facts{gap:3px;margin:6px 0 6px}
+  /* De sista punkterna: kortets och ramens luft, samt valknappen. */
+  .dgc-card{padding:10px 11px 10px}
+  .dgc-frame{padding:10px 11px 8px}
+  .dgc-head{font-size:15px;margin-bottom:8px}
+  .dgc-switch{margin-bottom:8px}
+  .dgc-switch button{padding:8px 4px;font-size:10px;letter-spacing:.08em}
+  .dgc-pick{padding:10px 0;font-size:10.5px}
+  /* Bytesraden ar tre rader text pa telefon. Pa den smalaste skarmen ryms de
+     inte tillsammans med allt annat - dar racker sallsynthetsspannet, som ar
+     det man faktiskt valjer efter. */
+  .dgc-bname{font-size:7.5px}
+  .dgc-kind{font-size:9.5px}
+  .dgc-pills{margin-bottom:8px}
   .dgc-card{padding:22px 12px 13px}
   .dgc-title{font-size:20px}
   .dgc-pills{grid-template-columns:1fr;gap:6px}
@@ -5177,7 +5268,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .dgc-sup{grid-template-columns:1fr}
   .dgc-sup > div + div{border-left:none;border-top:1px solid rgba(120,190,255,.16)}
   .dgc-item{padding:9px 4px}
-  .dgc-item .pic{width:48px;height:48px}
+  .dgc-item .pic{width:44px;height:44px}
   .dgc-heal{flex-direction:column;align-items:stretch;gap:8px}
   .dgc-heal .opts{justify-content:space-between}
   .dgc-heal button{flex:1}
@@ -5187,6 +5278,21 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .dgc-bosses{gap:6px}
   .dgc-foot::before,.dgc-foot::after{display:none}
 }
+
+/* [TILLAGT v5.147.0] DEN SMALASTE TELEFONEN. Vid 360x780 fattas 57 punkter aven
+   efter all tightning. Dar faller de tva sista bytesraderna bort - signaturer
+   och skrot star kvar i sallsynthetsspannet anda, och spannet ar det man
+   faktiskt valjer efter. Allt annat behalls. */
+@media (max-width:380px){
+  .dgc-fact:nth-child(2),.dgc-fact:nth-child(3){display:none}
+  .dgc-art{height:clamp(30px,4.4vh,58px)}
+  .dgc-bcell .dgc-boss{height:clamp(26px,3.8vh,44px)}
+  .dgc-title{font-size:15px;margin:1px 0 5px}
+  .dgc-bname{font-size:7px}
+  .dgc-pills{margin-bottom:6px}
+  .dgc-facts{margin:5px 0 5px}
+}
+
 
 /* ===== BOSSRADEN NAR KORTET BLIR SMALT (v5.146.0) =====
    Fem portratt i bredd kraver en cell pa minst 76 punkter for att rymma det
@@ -5200,7 +5306,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 @media (max-width:1000px){
   .dgc-bosses{grid-template-columns:1fr;gap:6px}
   .dgc-bcell{flex-direction:row;align-items:center;gap:10px}
-  .dgc-bcell .dgc-boss{flex:0 0 auto;width:46px;aspect-ratio:1/1.13}
+  .dgc-bcell .dgc-boss{flex:0 0 auto;width:46px;height:52px}
   .dgc-bname{flex:1;min-width:0;font-size:11px;line-height:1.3;
     text-align:left;letter-spacing:.01em}
 }
@@ -5406,7 +5512,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.146.0 — BOSSARNAS NAMN</div>
+        <div class="sn-ver">GENESIS v5.147.0 — RUTORNA SLIPPER RULLA</div>
       </div>
     </div>
   </aside>
@@ -6280,7 +6386,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.146.0 — BOSSARNAS NAMN</div>
+            <div class="desc">GENESIS v5.147.0 — RUTORNA SLIPPER RULLA</div>
           </div>
         </div>
       </div>
@@ -7576,7 +7682,6 @@ const DGC_ICONS = {
   revive:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.2S3.9 15.4 3.9 9.8A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 8.1 2.2c0 5.6-8.1 10.4-8.1 10.4Z"/><path d="M12 10.2v3.6M10.2 12h3.6" stroke-linecap="round"/></svg>',
   lock:  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5" y="10.4" width="14" height="9.4" rx="2"/><path d="M8.4 10.4V7.8a3.6 3.6 0 0 1 7.2 0v2.6"/></svg>',
   open:  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5" y="10.4" width="14" height="9.4" rx="2"/><path d="M8.4 10.4V7.8a3.6 3.6 0 0 1 6.6-2"/></svg>',
-  hex:   '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.2 19.4 7v10L12 20.8 4.6 17V7Z"/><path d="M12 8.6 15.4 10.5v3.8L12 16.2 8.6 14.3v-3.8Z"/></svg>'
 };
 /* Bilderna finns inte an. Vagarna star HAR, en per rad, sa dagen konsten ar
    klar racker det att lagga filerna pa plats - ingen kod behover roras.
@@ -7587,6 +7692,7 @@ function dgcArtSrc(id, heroic){
 function dgcBossSrc(id, n){ return 'assets/dungeons/bosses/' + id + '_' + n + '.png'; }
 
 let DGC = null;              /* serverns svar, eller null */
+let DGC_SIDE = 'normal';     /* [v5.147.0] vilket kort vaxeln visar pa telefon */
 let DGC_BUSY = false;
 async function netDungeonChoices(){
   if (!NET.on || !SRV.charId) return null;
@@ -7604,12 +7710,29 @@ function openDgChoice(){
     .catch(e => { say(srvErrText(e)); });
 }
 function closeDgChoice(){ $('dgc-overlay').classList.remove('open'); }
-function placeDgcWin(){
+/* [ANDRAT v5.147.0] Placeringen gors av bladet nu - se regeln for rutan.
+   Funktionen star kvar som en dov stubbe sa de tre anropen inte behover roras. */
+function placeDgcWin(){ }
+function placeDgcWinGammal(){
   const w = $('dgc-overlay'), m = w.querySelector('.modal');
   if (!m || isNarrowScreen()) return;
   const r = m.getBoundingClientRect();
   w.style.left = Math.round((window.innerWidth - (r.width || 1000)) / 2) + 'px';
-  w.style.top = winTop(70) + 'px';
+  /* [ANDRAT v5.147.0] MITT PA SKARMEN, inte 70 punkter fran toppen. Rutan ar
+     hog, och med en fast toppkant hangde underkanten - och darmed valknapparna
+     - nedanfor skarmen. Golvet pa 8 punkter haller titelraden inne aven nar
+     rutan ar nastan lika hog som skarmen.
+     Matningen gors TVA ganger. Forsta gangen har bilderna och stilarna annu
+     inte satt sig, sa hojden ar for liten och rutan hamnar for langt ned -
+     uppmatt 180 punkter fran toppen pa en skarm dar den skulle statt pa 94.
+     Andra matningen sker nasta bildruta, nar rutan ar fardigvuxen. */
+  const mitt = () => {
+    const rr = m.getBoundingClientRect();
+    w.style.top = Math.max(8,
+      Math.round((window.innerHeight - (rr.height || 700)) / 2)) + 'px';
+  };
+  mitt();
+  requestAnimationFrame(mitt);
 }
 /* Ett kort. 'd' ar serverns halva av svaret, inget raknas om har. */
 function dgcCardHTML(dg, d, heroic){
@@ -7634,26 +7757,33 @@ function dgcCardHTML(dg, d, heroic){
   } else if (heroic && (+d.cooldown_secs > 0)){
     disabled = true; why = 'Heroic ready in ' + fmtDur(+d.cooldown_secs);
   }
+  /* [OMBYGGT v5.147.0] ORDNINGEN AR VAND. Overst under bilden star det man
+     kommer FOR - vad korningen kan ge. Siffrorna man laser en gang sitter
+     langst ned, under bossarnas namn.
+     Raderna listar bara det servern FAKTISKT delar ut vid uthamtning: gear i
+     sallsynthetsspannet, bossarnas egna signaturpjaser, skrot, erfarenhet och
+     - bara om man tar sig hela vagen - en ritning. */
   return '<div class="' + cls + '" data-dgc-card="' + (heroic ? 'heroic' : 'normal') + '">' +
-    '<span class="dgc-hex">' + DGC_ICONS.hex + '</span>' +
     '<div class="dgc-kind">' + (heroic ? 'Heroic Dungeon' : 'Dungeon') + '</div>' +
     '<div class="dgc-title">' + esc((DGC && DGC.name) || 'Dungeon') + '</div>' +
     '<div class="dgc-art">' +
       '<img src="' + dgcArtSrc(dg, heroic) + '" alt="" draggable="false"' +
       ' onerror="this.closest(\'.dgc-art\').classList.add(\'noart\')">' +
       '<span class="ph">Art pending</span></div>' +
+    '<div class="dgc-facts">' +
+      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.gem + '</i>Gear \u00b7 ' +
+        '<span class="lo">' + esc(d.rar_low) + '</span>\u2014<span class="hi">' + esc(d.rar_high) + '</span></div>' +
+      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.boss + '</i>Boss signature pieces</div>' +
+      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.live + '</i>Scrap, XP \u00b7 ' +
+        (heroic ? 'Epic schematics' : 'Schematics') + ' on a full clear</div>' +
+    '</div>' +
+    '<div class="dgc-bosses">' + bossar + '</div>' +
     '<div class="dgc-pills">' +
+      '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.revive + '</i>' +
+        (+d.revives) + (+d.revives === 1 ? ' Revive' : ' Revives') + '</span>' +
       '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.clock + '</i>' + (+d.minutes) + ' min</span>' +
       '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.boss + '</i>' + n +
         (heroic ? ' Heroic Bosses' : ' Bosses') + '</span>' +
-      '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.live + '</i>Real-time</span>' +
-    '</div>' +
-    '<div class="dgc-bosses">' + bossar + '</div>' +
-    '<div class="dgc-facts">' +
-      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.gem + '</i>' +
-        '<span class="lo">' + esc(d.rar_low) + '</span>\u2014<span class="hi">' + esc(d.rar_high) + '</span></div>' +
-      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.revive + '</i>' +
-        (+d.revives) + (+d.revives === 1 ? ' Revive' : ' Revives') + '</div>' +
     '</div>' +
     '<button class="dgc-pick" data-dgc-pick="' + (heroic ? 'heroic' : 'normal') + '"' +
       (disabled || DGC_BUSY ? ' disabled' : '') + '>' +
@@ -7725,8 +7855,13 @@ function renderDgChoice(){
     return;
   }
   const hu = !!(DGC.heroic && DGC.heroic.unlocked);
-  box.innerHTML = '<div class="dgc-frame">' +
+  box.innerHTML = '<div class="dgc-frame show-' + DGC_SIDE + '">' +
     '<div class="dgc-head">Choose Difficulty</div>' +
+    '<div class="dgc-switch">' +
+      '<button data-dgcsw="normal"' + (DGC_SIDE === 'normal' ? ' class="on"' : '') + '>Dungeon</button>' +
+      '<button data-dgcsw="heroic"' + (DGC_SIDE === 'heroic' ? ' class="on"' : '') + '>Heroic</button>' +
+      '<button data-dgcsw="prep"' + (DGC_SIDE === 'prep' ? ' class="on"' : '') + '>Supplies</button>' +
+    '</div>' +
     '<div class="dgc-cards">' +
       dgcCardHTML(DGC.dungeon, DGC.normal, false) +
       dgcCardHTML(DGC.dungeon, DGC.heroic, true) +
@@ -18091,8 +18226,23 @@ function gmPick(o){
       if (o.zone) openNodeWin('zone', region, o.zone);
       break;
     }
-    case 'vendor':
+    /* [TILLAGT v5.147.0] DUNGEONNODEN OPPNAR SVARIGHETSVALET DIREKT. Forut
+       oppnade den zonrutan, och darifran fick man leta sig vidare till valet -
+       tva steg for en nod vars hela mening ar att starta en korning. Star man
+       nagon annanstans oppnas zonrutan som forr, for da gar det anda inte att
+       borja. */
     case 'dungeon': {
+      gmSel = {region: region, zone: o.zone || null};
+      gmSetTravel();
+      if (region === S.world.current && o.zone === S.world.zone){
+        openDgChoice();
+      } else if (region === S.world.current){
+        const i = zi(o.zone);
+        if (i >= 0) openZone(region, i);
+      }
+      break;
+    }
+    case 'vendor': {
       gmSel = {region: region, zone: o.zone || null};
       gmSetTravel();
       /* [ATERSTALLT v5.111.0] Spelets EGEN zonruta oppnas igen vid sidan av
@@ -21184,8 +21334,12 @@ function profPanelCardHTML(p, linked){
         '<span class="jc-name" style="color:' + col + '">' +
           (secondary ? p.station : p.name) + '</span>' +
         (secondary ? '<span class="jc-tag">SECONDARY</span>' : '') + '</div>' +
-      '<div class="jc-lvl">Level ' + info.lvl + '</div>' +
-      '<div class="jc-line"><span class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span>' +
+      /* [ANDRAT v5.147.0] Nivan hade en EGEN rad ovanfor XP-raden. Tre kort
+         gav da 400 punkters innehall i en 394 punkters ruta - sex punkter att
+         rulla. Nivan star nu forst PA xp-raden. Bada behaller sina egna
+         markningar, sa den lopande uppdateringen skriver i dem precis som forr. */
+      '<div class="jc-line"><span class="jc-lvl">Level ' + info.lvl + '</span>' +
+        '<span class="jc-xp">' + fmt(info.into) + ' / ' + fmt(info.need) + ' XP</span>' +
         '<span class="jc-status">' + profCardStatus(p, info) + '</span></div>' +
       '<div class="jc-bar"><div class="jc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
       /* [TILLAGT v5.56.0] SAMLARENS EGEN CYKEL, speglad fran yrkessidans ruta.
@@ -27108,6 +27262,8 @@ $('dgc-body').addEventListener('click', ev => {
     if (st.under >= st.until) st.under = st.until === 50 ? 40 : (st.until === 75 ? 50 : 75);
     renderDgChoice(); return;
   }
+  const sw = ev.target.closest('[data-dgcsw]');
+  if (sw){ DGC_SIDE = sw.dataset.dgcsw; renderDgChoice(); return; }
   const pick = ev.target.closest('[data-dgc-pick]');
   if (pick){
     if (DGC_BUSY) return;
