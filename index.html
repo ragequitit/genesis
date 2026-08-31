@@ -5512,7 +5512,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.147.0 — RUTORNA SLIPPER RULLA</div>
+        <div class="sn-ver">GENESIS v5.148.0 — RETRATTEN</div>
       </div>
     </div>
   </aside>
@@ -6386,7 +6386,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.147.0 — RUTORNA SLIPPER RULLA</div>
+            <div class="desc">GENESIS v5.148.0 — RETRATTEN</div>
           </div>
         </div>
       </div>
@@ -7776,6 +7776,10 @@ function dgcCardHTML(dg, d, heroic){
       '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.boss + '</i>Boss signature pieces</div>' +
       '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.live + '</i>Scrap, XP \u00b7 ' +
         (heroic ? 'Epic schematics' : 'Schematics') + ' on a full clear</div>' +
+      /* [TILLAGT v5.148.0] Heroiskt foljer spelarens niva. Utan raden ser det ut
+         som att en gammal region blir gratis - den blir det inte langre. */
+      (heroic ? '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.boss +
+        '</i>Scales to your level</div>' : '') +
     '</div>' +
     '<div class="dgc-bosses">' + bossar + '</div>' +
     '<div class="dgc-pills">' +
@@ -7916,7 +7920,7 @@ function dgFeedHTML(run){
     const boss = ev.kind !== 'trash';
     if (!ev.win){
       return '<div class="dg-ev dead">min ' + ev.m + ' \u00b7 ' + ev.name +
-        ' \u2014 you went down. The run is over.</div>';
+        ' \u2014 out of supplies. You pulled out here.</div>';
     }
     return '<div class="dg-ev' + (boss ? ' boss' : '') + '">min ' + ev.m + ' \u00b7 ' +
       ev.name + ' \u2014 down \u00b7 ' + ev.hp + '% health' +
@@ -7947,8 +7951,12 @@ function buildDgRun(run){
     '</div>';
 }
 function buildDgClaim(run){
+  /* [ANDRAT v5.148.0] RETRATT, INTE DOD. Tar sjukvarden slut vander man om och
+     gar ut - allt som redan vunnits foljer med. Texten sa forut att man barits
+     ut med en enda halsopoang, vilket lat som en total forlust; den var det
+     aldrig, for bytet delades ut anda. */
   const head = run.died
-    ? 'It ended at the bottom \u2014 you were carried out with 1 HP.'
+    ? 'You ran out of supplies and pulled out. Everything you won is yours.'
     : 'Run complete. The spoils are waiting.';
   return '<div class="pve-card">' +
     '<div class="pve-name">' + run.name + '</div>' +
@@ -7967,7 +7975,7 @@ function showDungeonSummary(r){
   const bosses = (r.boss_loot || []).map(b => {
     let row = '<div class="dg-ev boss">' + b.name +
       (b.win ? ' \u2014 +' + fmt(b.xp || 0) + ' XP \u00b7 +' + (b.scrap || 0) + ' ' +
-        ((MATERIALS[b.sk] || {}).name || 'scrap') : ' \u2014 you went down here') + '</div>';
+        ((MATERIALS[b.sk] || {}).name || 'scrap') : ' \u2014 you turned back here') + '</div>';
     if (b.gear){
       const D = ITEMS[b.gear.key] || {name: b.gear.key};
       const R = RARITIES[b.gear.rarity] || RARITIES[0];
@@ -7986,9 +7994,16 @@ function showDungeonSummary(r){
   ov.id = 'pve-overlay';
   ov.innerHTML = '<div class="pve-stage">' +
     '<div class="pve-result"><b class="' + (r.died ? 'loss' : 'win') + '">' +
-    (r.died ? 'CARRIED OUT' : 'DUNGEON CLEARED') + '</b>' +
+    (r.died ? 'PULLED OUT' : 'DUNGEON CLEARED') + '</b>' +
     '<span>' + r.bosses + ' bosses down \u00b7 +' + fmt(r.xp || 0) + ' XP' +
     (scraps ? ' \u00b7 ' + scraps : '') + '</span></div>' +
+    /* [TILLAGT v5.148.0] Sager rakt ut att en avbruten korning inte ar en
+       forlorad korning. Utan raden lasar man 5 bossar som malet och 2 som ett
+       misslyckande - men de tva ar betalda och kvar. */
+    (r.died
+      ? '<div class="dg-sub">Supplies ran out. You walked out with everything you had won, ' +
+        'and at a quarter health.</div>'
+      : '') +
     (bosses || '<div class="dg-ev">No bosses were reached.</div>') +
     (r.bosses > 0 && !(r.boss_loot || []).some(b => b.gear)
       ? '<div class="dg-ev">No gear this time \u2014 it is never guaranteed.</div>' : '') +
