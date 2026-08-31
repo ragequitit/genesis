@@ -5612,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.154.0 — STENENS EGEN BILD</div>
+        <div class="sn-ver">GENESIS v5.155.0 — VILAN OVER HELA KARTAN</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.154.0 — STENENS EGEN BILD</div>
+            <div class="desc">GENESIS v5.155.0 — VILAN OVER HELA KARTAN</div>
           </div>
         </div>
       </div>
@@ -7479,7 +7479,12 @@ async function netBuyOfflineCap(hours){
 const PVE = {
   pct: 100, at: 0, max: 0, regen: 0,
   enc: null, cd: 0, canSearch: false, reason: '',
-  fighting: false
+  fighting: false,
+  /* [NYTT v5.155.0] ALLA VILANDE ZONER, inte bara den man star i. Servern
+     skickar zon -> sekunder kvar; har sparas SLUTTIDEN i stallet, sa klockan
+     kan rakna ned pa plats. Utan den kom noden inte tillbaka forran nasta
+     hamtning, och det ar inte "live". */
+  rest: {}, restAt: 0
 };
 /* Vad lakevarorna ger. Bara visningstext - servern har sin egen tabell och
    avgor sjalv. Revive Kit star med flit INTE har: den anvands aldrig for hand,
@@ -7515,6 +7520,15 @@ async function netPvePull(){
     PVE.cd = Math.max(0, Math.floor(+r.cooldown_secs) || 0);
     PVE.canSearch = !!r.can_search;
     PVE.reason = r.reason || '';
+    /* Sekunderna blir en TIDPUNKT. Ett tal som bara raknades hem vid varje
+       hamtning hade statt stilla mellan varven - och da hade noden legat kvar
+       tills nasta svar rakade komma. */
+    const nu = Date.now(), vila = {};
+    if (r.resting) for (const k in r.resting){
+      const sek = Math.max(0, Math.floor(+r.resting[k]) || 0);
+      if (sek > 0) vila[k] = nu + sek * 1000;
+    }
+    PVE.rest = vila; PVE.restAt = nu;
   }
   return r;
 }
@@ -16422,7 +16436,17 @@ function updateUI(force){
   renderPremiumBags(); renderPremiumVaultBags();
   /* Expeditionslistan ritas om en gång per sekund — nedräkningen visar sekunder,
      och tätare ritning river knappar under fingret på mobil. */
-  if (performance.now() - expGate > 1000){ expGate = performance.now(); renderExpPanel(); renderCharStats(); pveDungeonTick(); }
+  if (performance.now() - expGate > 1000){
+    expGate = performance.now();
+    renderExpPanel(); renderCharStats(); pveDungeonTick();
+    /* [TILLAGT v5.155.0] KARTAN FAR SITT LAGE VARJE SEKUND. Sandningen satt
+       bara i renderMap, som kors nar nagot HANT - en vila som tar slut ar
+       ingen handelse, sa noden kom tillbaka forst nasta gang spelaren rorde
+       nagot. Nu ar nedrakningen sjalv handelsen.
+       gmPush skickar bara nar laget faktiskt andrats, sa den har raden kostar
+       en jamforelse i sekunden och ingenting mer. */
+    gmPush();
+  }
 
   if (S.world.travel){
     /* [ANDRAT v5.108.0] Resefaltets text och knapp ar rivna. Reseanimeringens
@@ -18211,9 +18235,22 @@ function gmQuestNodes(){
    ut, och det ar en av de aterkommande buggarna i det har projektet.
    Vill vi visa vila pa hela kartan behover servern skicka listan - en egen
    andring, inte nagot som kan fejkas har. */
+/* [OMBYGGT v5.155.0] VILAR ZONENS MOTE?
+   Forut svarade den JA bara for den zon man stod i, och NEJ for de ovriga
+   tjugonio - for servern skickade inte deras vilotid. Foljden var precis den
+   Chris sag: man slog ihjal motet, noden forsvann, man reste vidare, och da dok
+   den upp igen fast den fortfarande vilade.
+   Nu bar svaret hela listan. Talen ar sluttider, sa nedrakningen sker HAR - och
+   noden kommer tillbaka i samma sekund vilan ar over, utan omladdning. */
 function pveZoneResting(regionId, zone){
-  if (regionId !== S.world.current || zone !== S.world.zone) return false;
-  try { return (PVE.cd || 0) > 0; } catch (e){ return false; }
+  try {
+    const t = PVE.rest && PVE.rest[regionId + '|' + zone];
+    if (t) return Date.now() < t;
+    /* Faller listan bort - gammal server, tappat svar - galler det gamla
+       beskedet for den zon man star i. Hellre halva sanningen an ingen. */
+    if (regionId === S.world.current && zone === S.world.zone) return (PVE.cd || 0) > 0;
+    return false;
+  } catch (e){ return false; }
 }
 function gmPush(){
   const api = gmWin();
