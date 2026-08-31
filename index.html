@@ -5612,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.157.0 — RATT KONTRAKT</div>
+        <div class="sn-ver">GENESIS v5.160.0 — EXPEDITIONERNAS LAGE</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.157.0 — RATT KONTRAKT</div>
+            <div class="desc">GENESIS v5.160.0 — EXPEDITIONERNAS LAGE</div>
           </div>
         </div>
       </div>
@@ -6897,7 +6897,16 @@ const NET = {
      Sex sekunder ar den kortaste takt som fortfarande ar EN forfragan per
      samlarcykel i det snabbaste yrket (fem sekunder per fynd), sa antalet
      serveranrop stiger inte utover ett per fynd. */
-  syncEvery: 6000,      // be servern om sanningen var sjatte sekund
+  /* [ANDRAT v5.159.0] Sex sekunder blev TRE. Kontrollerat att det ar ofarligt:
+     arbetsklockan raknar ur FORFLUTEN TID sedan forra varvet och ur den narvaro
+     klienten rapporterar in - narvaron ar en summa som samlas varje bildruta och
+     nollas vid varje varv. Tatare anrop delar alltsa upp samma summa i fler
+     bitar; de skapar inte mer. Provkort: tjugo anrop over samma minut ger inte
+     mer an ett.
+     Priset ar serveranrop: 1 200 i timmen per spelare i stallet for 600.
+     Med noll spelare kostar det ingenting, men det ar talet att komma ihag om
+     det nagon gang blir trangt. */
+  syncEvery: 3000,      // be servern om sanningen var tredje sekund
   serverData: 0,        // senaste bekraftade tal fran servern
   predictedAt: 0,       // nar forutsagelsen borjade rakna
   dps: 0,               // serverns egen produktionssiffra
@@ -10645,6 +10654,15 @@ function gemByKey(k){
   return null;
 }
 let GEMSTATE = null;
+/* [TILLAGT v5.158.0] STENENS UNIKA FORMAGA, LAST AV KLIENTEN.
+   Servern har kunnat alla fem sedan de byggdes, men klienten fragade aldrig -
+   den raknade med sina egna fasta tal. Foljden var att fyra av fem stenar var
+   osynliga i granssnittet, och tre av dem SPARRADE spelaren fran det servern
+   redan skulle ha slappt igenom. Nyckeln kommer i gem_state; ingen
+   serverandring behovs. */
+function gemPower(key){
+  return !!(GEMSTATE && GEMSTATE.key && GEMSTATE.unique_key === key);
+}
 async function netGemState(){
   if (!NET.on || !SRV.charId) return null;
   GEMSTATE = await srvRpc('gem_state', {p_character: SRV.charId});
@@ -13787,7 +13805,12 @@ const EXP_SLOTS_BASE = 2;
 /* Antalet platser ar inte langre en konstant: omstartsformånen hojer det.
    Klienten trodde alltid 2 medan servern raknade ratt - samma spel, tva
    sanningar. Nu fragar bada samma stalle. */
-function expSlots(){ return EXP_SLOTS_BASE + (NET.on ? perkLvl('expSlot') : 0); }
+/* [RATTAT v5.158.0] Stod fast pa tva. Med Voxholms sten slapper servern igenom
+   en tredje, men rutan sa "Slots 2 / 2 - all busy" och slackte Start-knappen. */
+function expSlots(){
+  return EXP_SLOTS_BASE + (NET.on ? perkLvl('expSlot') : 0) +
+         (gemPower('exp_slot') ? 1 : 0);
+}
 
 /* Varje uppdrag far med sig VAR det ligger, precis som expDefById gor. Utan det
    visste zonpanelen inte vilken ring uppdraget hor till, och guldet raknades som
@@ -18257,6 +18280,54 @@ function pveZoneResting(regionId, zone){
     return false;
   } catch (e){ return false; }
 }
+/* ===== EXPEDITIONSNODERNAS LAGE (v5.160.0) =====
+   Kartan ritade varje expeditionsnod likadan oavsett om den var oupptackt,
+   igang eller startklar - till skillnad fran motet, som doljs nar det vilar,
+   och kontrakten, som kommer och gar. Man sag alltsa aldrig pa kartan vilken
+   expedition man faktiskt kunde starta.
+   Kartan markerar redan varje nod med sitt expeditions-id, sa laget kan sattas
+   harifran med en stilregel per nod - ingen andring i kartfilen behovs.
+   Tre lagen:
+     igang        - ute pa uppdrag, gar inte att starta: kraftigt dampad
+     ur rackhall  - for lag niva, eller alla platser upptagna: halvdampad
+     startklar    - full styrka
+   Regeln skrivs om vid varje sandning, alltsa varje sekund, sa noden byter lage
+   i samma stund laget gor det. */
+let gmExpCss = '';
+function gmExpStyle(){
+  if (typeof EXPEDITIONS === 'undefined') return '';
+  const lvl = (function(){ try { return levelInfo().lvl; } catch (e){ return 1; } })();
+  const platserFulla = (S.exp && S.exp.runs) ? S.exp.runs.length >= expSlots() : false;
+  const igang = [], utom = [];
+  for (const rid in EXPEDITIONS){
+    const zoner = EXPEDITIONS[rid];
+    for (const z in zoner) (zoner[z] || []).forEach(d => {
+      if (!expIsFound(d.id)) { utom.push(d.id); return; }
+      if (expIsRunning(d.id)) { igang.push(d.id); return; }
+      if (lvl < d.lvl || platserFulla) utom.push(d.id);
+    });
+  }
+  const sel = ids => ids.map(i => 'g[data-expedition="' + i + '"]').join(',');
+  let css = '';
+  if (igang.length) css += sel(igang) + '{opacity:.32 !important}';
+  if (utom.length)  css += sel(utom)  + '{opacity:.55 !important}';
+  return css;
+}
+function gmPushExpStyle(){
+  const css = gmExpStyle();
+  if (css === gmExpCss) return;
+  gmExpCss = css;
+  try {
+    const doc = $('map-frame').contentDocument;
+    if (!doc) return;
+    let el = doc.getElementById('gm-exp-style');
+    if (!el){
+      el = doc.createElement('style'); el.id = 'gm-exp-style';
+      (doc.head || doc.documentElement).appendChild(el);
+    }
+    el.textContent = css;
+  } catch (e){}
+}
 function gmPush(){
   const api = gmWin();
   if (!api || typeof api.setState !== 'function') return;
@@ -18264,6 +18335,9 @@ function gmPush(){
      medan allt annat star still - sa den far inte ligga bakom sparren nedan.
      Lag den dar forut och klockan stod stilla i rutan. */
   gmSetTravel();
+  /* Nodernas lage star i en egen stilregel och far darfor inte ligga bakom
+     signaturspärren nedan - den jamfor bara kartans egna varden. */
+  gmPushExpStyle();
   const st = gmState();
   /* Skickas bara nar nagot faktiskt andrats. Kartan ritar om sig vid varje
      sandning, och spelet ritar om ofta - utan detta skulle kartan blinka. */
@@ -20434,9 +20508,12 @@ function skillPct(prof){
   return sum;
 }
 /* Koplatserna: bas 2, Expanded Workbench ger 3-5. Yrken utan trad behaller 5. */
+/* [RATTAT v5.158.0] Taket kande inte till Drakemarks sten, som ger en plats
+   till. Knappen stod "Queue full" medan servern hade tagit emot bestallningen. */
 function woCap(prof){
-  if (!SKILL_TREES[prof]) return 5;
-  return Math.min(5, 2 + skillPct(prof, 'slots'));
+  const gem = gemPower('craft_slot') ? 1 : 0;
+  if (!SKILL_TREES[prof]) return 5 + gem;
+  return Math.min(5, 2 + skillPct(prof, 'slots')) + gem;
 }
 function skillEffText(n, ranks){
   const now = n.per * ranks, next = n.per * (ranks + 1);
@@ -22196,6 +22273,12 @@ function openCache(){
    fran samma funktion som forut; utrustningscachens ar fast pa tjugofem och
    samma tal star pa servern - andras det ena maste det andra folja med. */
 const GEAR_CACHE_COST = 25;
+/* [RATTAT v5.158.0] Priset stod fast pa 25. The Last Armadas sten drar 25 % pa
+   servern - alltsa 19 - men knappen visade 25 OCH var slackt anda till man hade
+   25. Rabatten var betald men gick inte att anvanda. */
+function gearCacheCost(){
+  return gemPower('cache_disc') ? Math.ceil(GEAR_CACHE_COST * 0.75) : GEAR_CACHE_COST;
+}
 function renderFragWin(){
   const have = $('frag-have');
   if (!have) return;
@@ -22214,8 +22297,8 @@ function renderFragWin(){
     hb.style.display = 'none';
   }
   const gb = $('fc-gear-buy');
-  gb.textContent = 'Open — ' + GEAR_CACHE_COST + ' 🔷';
-  gb.disabled = (S.frags || 0) < GEAR_CACHE_COST;
+  gb.textContent = 'Open — ' + gearCacheCost() + ' 🔷';
+  gb.disabled = (S.frags || 0) < gearCacheCost();
 }
 function openFragWin(){
   $('frag-reveal').innerHTML = '';
@@ -22242,7 +22325,7 @@ function closeFragWin(){ $('frag-overlay').classList.remove('open'); }
    att latsas att nagot hande. */
 function openGearCache(){
   if (!NET.on){ say('The gear cache needs a connection to the server.'); return; }
-  if ((S.frags || 0) < GEAR_CACHE_COST){ say('Not enough fragments.'); return; }
+  if ((S.frags || 0) < gearCacheCost()){ say('Not enough fragments.'); return; }
   castThen('Opening gear cache', CAST_SECS.cache, () => {
   netOpenGearCache()
     .then(r => {
@@ -25815,6 +25898,10 @@ function ahSaleTaxPct(){
   return Math.max(AH_SALE_TAX_FLOOR, AH_SALE_TAX_BASE - (NET.on ? perkLvl('ahFee') : 0));
 }
 function ahListingFeeCopper(totalGold){
+  /* [RATTAT v5.158.0] Cutlass Bays sten ger gratis listning - servern drar noll.
+     Rutan visade avgiften anda, och SLACKTE knappen om man inte hade rad med en
+     avgift som aldrig skulle tas ut. */
+  if (ahFeeFree()) return 0;
   return Math.max(AH_FEE_MIN, Math.ceil(totalGold * COPPER_PER_GOLD * AH_FEE_BASE[AH.hours] / 100));
 }
 /* De fyra talen ritas om pa ETT stalle. Forut stod samma uttryck pa fyra
@@ -25834,6 +25921,9 @@ function ahRefreshMoneyRows(){
     btn.textContent = fee > 0 ? 'LIST ITEM — PAY ' + moneyText(fee) : 'LIST ITEM';
   }
 }
+/* [RATTAT v5.158.0] Cutlass Bays sten ger gratis listning pa servern, men rutan
+   visade avgiften anda. Talet var inte falskt - det bara drogs aldrig. */
+function ahFeeFree(){ return gemPower('free_listing'); }
 function ahFeePct(hours){
   return AH_FEE_BASE[hours];
 }
