@@ -5621,7 +5621,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.165.0 — GRON BOCK PA AVKLARAT</div>
+        <div class="sn-ver">GENESIS v5.169.0 — ROD ETTA PA KLART</div>
       </div>
     </div>
   </aside>
@@ -5742,7 +5742,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
                  ocksa i vanstersp alten, men det ar den man oftast vill at
                  direkt nar nagot landat dar. Tio knappar fyller tva hela rader
                  pa fem kolumner - ingen ensam knapp pa en tredje rad. -->
-            <div class="qa-btn" id="qa-expeditions"><span class="ico"><span class="qi qi-daily"></span></span><span class="lbl">Expeditions</span></div>
+            <div class="qa-btn" id="qa-expeditions"><span class="ico"><span class="qi qi-daily"></span></span><span class="lbl">Expeditions</span><span class="notif" id="qa-exped-badge" style="display:none">0</span></div>
             <div class="qa-btn" id="qa-inbox"><span class="ico"><span class="qi qi-inbox"></span></span><span class="lbl">Inbox</span><span class="notif" id="qa-mail-badge" style="display:none">0</span></div>
           </div>
         </div>
@@ -6467,7 +6467,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.165.0 — GRON BOCK PA AVKLARAT</div>
+            <div class="desc">GENESIS v5.169.0 — ROD ETTA PA KLART</div>
           </div>
         </div>
       </div>
@@ -6849,6 +6849,8 @@ const SRV_ERRORS = {
   not_at_this_vendor:       'You have to be standing at this vendor to trade.',
   still_travelling:         'You are still travelling.',
   zone_not_charted:         'Send a drone to chart that zone before you travel there.',
+  session_replaced:         'This account was opened somewhere else \u2014 reload to take over.',
+  session_other_character:  'Another character on this account is playing \u2014 reload to switch.',
   /* [TILLAGT v5.42.0] Resefelen sa "The server said no" for att de saknade
      text. Nu sager de VAD som ar fel - punkt 3 pa listan. */
   already_travelling:       'You are already on your way somewhere — wait until you arrive.',
@@ -13414,6 +13416,15 @@ function openMailNote(id){
     note.remove();
   });
 }
+/* [TILLAGT v5.169.0] ROD ETTA NAR EN EXPEDITION AR KLAR ATT HAMTA. Raknar
+   korningar vars sluttid passerat - samma villkor som Collect-knappen anvander.
+   Star i uppdateringsslingan, sa den tands och slacks live. */
+function renderExpBadge(){
+  const b = $('qa-exped-badge'); if (!b) return;
+  const runs = (S.exp && S.exp.runs) || [];
+  const n = runs.filter(r => r && Date.now() >= (r.endsAt || 0)).length;
+  b.textContent = n; b.style.display = n ? '' : 'none';
+}
 function renderMailBadge(){
   /* Märket räknar OHÄMTADE saker i första hand — det är det som brådskar — och
      faller tillbaka på olästa meddelanden. */
@@ -14146,7 +14157,14 @@ const GATHER_ALL_KEYS = (() => {
   Object.keys(GATHER_DEFS).forEach(id => gatherKeysOf(id).forEach(k => { set[k] = true; }));
   return set;
 })();
-function isGatherKey(k){ return !!GATHER_ALL_KEYS[k]; }
+/* [ANDRAT v5.167.0] SKARVORNA HOR HEMMA I GATHERING-VASKAN. Servern flyttade
+   dem dit (is_gathered_key), men KLIENTEN avgor vilken vaska en hog hamnar i med
+   DEN HAR funktionen - en annan an serverns - och den kande bara till
+   GATHER_ALL_KEYS. De tva var i otakt: servern la skarvan i gathering-vaskan,
+   klienten drog tillbaka den till den vanliga. En rad, precis som pa servern,
+   och alla sex stallen som fragar (vilken vaska den laddas i, om den far dras
+   dit, om vaskan tar emot den) foljer med. */
+function isGatherKey(k){ return !!k && (k.indexOf('shard_') === 0 || !!GATHER_ALL_KEYS[k]); }
 function isGatherRow(row){ return !!(row && row.stack && !row.gear && isGatherKey(row.key)); }
 /* Sorterna dina LARDA samlaryrken kan hitta. */
 function gbagKinds(){
@@ -16518,6 +16536,7 @@ function redrawAll(){
   call(renderRecipeBook);
   call(renderMail);
   call(renderMailBadge);
+  call(renderExpBadge);
   call(renderFriendBadge);
   call(renderBoostBar);
   call(renderExpPanel);
@@ -23925,6 +23944,8 @@ function attachDragHandle(win, handle){
        man vill flytta, inte fönstret. */
     if (e.target.closest('button')) return;
     if (e.target.closest('[data-inv], [data-vault], [data-bag], [data-vaultbag], [data-pet]')) return;
+    /* [TILLAGT v5.168.0] Stenrutan centreras av bladet - lat den vara. */
+    if (win.classList.contains('gemwin')) return;
     bringToFront(win);
     const r = win.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
@@ -26726,7 +26747,17 @@ async function guildDo(fn, args, done){
     try { await netMyProfile(); } catch (e){}
     renderGuild(); renderGuildBadge(); renderFrMe();
     if (done) say(done);
-  } catch (e){ say(srvErrText(e, 'Could not do that.')); }
+  } catch (e){
+    /* [RATTAT v5.166.0] Ett sessionsfel maste kora utloggningsflodet, inte
+       gommas bakom "Could not do that". guildDo fangade allt sjalv och nadde
+       aldrig srvRpc:s egen hantering. */
+    const m = String(e && e.message || e);
+    if (m.indexOf('session_replaced') >= 0 || m.indexOf('session_other_character') >= 0){
+      sessionReplaced(m.indexOf('session_other_character') >= 0);
+    } else {
+      say(srvErrText(e, 'Could not do that.'));
+    }
+  }
   GUILD.busy = false;
 }
 function guildClaimState(st, op, ms){
@@ -27860,6 +27891,12 @@ $('dgc-body').addEventListener('click', ev => {
     return;
   }
 });
+/* [RATTAT v5.168.0] NODFONSTRET GICK INTE ATT DRA. Varje annat flytande fonster
+   registreras med makeDraggable pa sin titelrad; det har ett gjorde det aldrig.
+   Nu drar titelraden fonstret som de ovriga.
+   Stenrutan delar samma overlay men centreras av bladet (klassen gemwin) - att
+   dra da skulle slass mot centreringen, sa handtaget avstar i det laget. */
+makeDraggable($('node-overlay'), $('node-overlay').querySelector('.inv-titlebar'));
 $('node-close').addEventListener('pointerdown', e => {
   e.stopPropagation(); e.preventDefault(); closeNodeWin();
 });
