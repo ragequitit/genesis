@@ -5612,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.160.0 — EXPEDITIONERNAS LAGE</div>
+        <div class="sn-ver">GENESIS v5.162.0 — EN FLIK, EN KARAKTAR</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.160.0 — EXPEDITIONERNAS LAGE</div>
+            <div class="desc">GENESIS v5.162.0 — EN FLIK, EN KARAKTAR</div>
           </div>
         </div>
       </div>
@@ -6634,6 +6634,54 @@ function srvHasStoredSession(){
     return !!(d && d.refresh);
   } catch (e){ return false; }
 }
+/* [NYTT v5.161.0] EN AKTIV SESSION PER KONTO.
+   Varje gang spelet startar tar den har fliken en FARSK nyckel och lamnar den
+   till servern. Servern sparar den pa kontot, sa den nyckel nagon annan enhet
+   lamnade blir ogiltig i samma stund.
+   Nyckeln foljer med i arbetsklockan - den enda vagen tomgangen ger nagot. En
+   utkastad enhet far darfor ingenting, aven om den ignorerar utloggningen.
+   KORNINGAR SOM REDAN STARTAT ROR VI INTE. En dungeon och en expedition bor pa
+   servern och tickar vidare oavsett vilken enhet som tittar pa dem - att kastas
+   ut kostar alltsa aldrig ett pagaende lopp. */
+let SESSION_TOKEN = null;
+function newSessionToken(){
+  try { return crypto.randomUUID(); }
+  catch (e){
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, ch => {
+      const r = Math.random() * 16 | 0;
+      return (ch === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+}
+async function srvClaimSession(){
+  if (!SRV.online) return;
+  SESSION_TOKEN = newSessionToken();
+  try { await srvRpc('session_claim', {p_token: SESSION_TOKEN, p_character: SRV.charId}); }
+  catch (e){ SESSION_TOKEN = null; }   /* gammal server: kor vidare som forr */
+}
+/* Servern sa att nagon annan tagit over kontot. Da ar det sant, och det finns
+   ingenting att forhandla om - sessionen slapps och rutan sager varfor. */
+let SESSION_LOST = false;
+function sessionReplaced(annanKaraktar){
+  if (SESSION_LOST) return;
+  SESSION_LOST = true;
+  SESSION_TOKEN = null;
+  SRV.online = false;
+  try { srvClearSession(); } catch (e){}
+  try { say(annanKaraktar
+    ? 'Signed out \u2014 another character on this account is playing.'
+    : 'Signed out \u2014 this account was opened somewhere else.'); } catch (e){}
+  try {
+    const g = $('gate');
+    if (g){
+      g.classList.remove('done');
+      const m = g.querySelector('.gate-msg') || g.querySelector('.gate-sub');
+      if (m) m.textContent = annanKaraktar
+        ? 'Another character on this account is playing. Reload to take over.'
+        : 'This account was opened somewhere else. Reload to sign in again.';
+    }
+  } catch (e){}
+}
 function srvClearSession(){
   SRV.token = SRV.refresh = SRV.user = SRV.charId = SRV.charName = null;
   SRV.expires = 0; SRV.online = false;
@@ -6649,6 +6697,12 @@ async function srvCall(path, opts){
     'apikey': SRV.key,
     'Content-Type': 'application/json'
   }, opts.headers || {});
+  /* [TILLAGT v5.162.0] Sessionsnyckeln reser som en RUBRIK i varje anrop.
+     Servern jamfor den i owned_character - den choken som nastan varje anrop
+     redan gar igenom - sa hela ytan tacks utan att nagon funktion behover en ny
+     parameter. En flik som blivit utkastad kan darfor inte langre handla, hamta
+     eller slass, bara sluta tjana pa tomgang. */
+  if (SESSION_TOKEN) headers['x-genesis-session'] = SESSION_TOKEN;
   if (SRV.token && !opts.noAuth) headers['Authorization'] = 'Bearer ' + SRV.token;
 
   let res;
@@ -6726,7 +6780,18 @@ async function srvSignOut(){
    "har ar mitt nya guld", alltid "jag oppnade en cache". */
 async function srvRpc(fn, args){
   await srvEnsureSession();
-  return srvCall('/rest/v1/rpc/' + fn, {method: 'POST', body: args || {}});
+  try {
+    return await srvCall('/rest/v1/rpc/' + fn, {method: 'POST', body: args || {}});
+  } catch (e){
+    /* [TILLAGT v5.162.0] Ett enda stalle for beskedet att kontot oppnats nagon
+       annanstans. Forut fangades det bara vid arbetsklockan, sa en utkastad
+       flik fortsatte trycka pa knappar och fick obegripliga fel. */
+    const m = String(e && e.message || e);
+    if (m.indexOf('session_replaced') >= 0 || m.indexOf('session_other_character') >= 0){
+      sessionReplaced(m.indexOf('session_other_character') >= 0);
+    }
+    throw e;
+  }
 }
 /* Las ur en tabell. Radnivasakerheten ser till att man bara ser sitt eget. */
 /* SERVERNS SKAL, I ORD.
@@ -7063,7 +7128,14 @@ async function netSync(){
        karaktarens tal hamtas separat direkt efterat. */
     /* Klockans svar bar med sig VAD tiden gav - fynden och yrkesarbetet. Utan
        det kunde valkomstrutan bara visa en klocka. */
-    const clock = await srvRpc('work_clock', {p_character: SRV.charId, p_visible_secs: seen});
+    let clock;
+    try {
+      clock = await srvRpc('work_clock', {p_character: SRV.charId, p_visible_secs: seen,
+                                          p_session: SESSION_TOKEN});
+    } catch (e){
+      if (String(e && e.message || e).indexOf('session_replaced') >= 0){ sessionReplaced(); return; }
+      throw e;
+    }
     /* [TILLAGT v5.48.0] Klockan ar motorn nu: den bar samlarens fynd och Core
        Syncens klocka. Fynden visas och staplarna hamtas hem direkt - inte
        forst nar minutregeln rakar slappa igenom dem. */
@@ -8994,6 +9066,10 @@ async function netArrive(){
 
 /* Allt pa en gang - anvands nar man gar in i spelet. */
 async function netPullAll(){
+  /* [TILLAGT v5.161.0] Nyckeln tas HAR, forst av allt, varje gang spelet hamtar
+     hem sig sjalvt. Da ar det alltid den senast oppnade enheten som ager kontot,
+     och de tidigare slutar fa nagot av tomgangen. */
+  await srvClaimSession();
   await netPull();
   await netPullMilestones();
   await netPullBagSlots();
