@@ -4960,6 +4960,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 /* [TILLAGT v5.151.0] En hemkommen expedition ska synas i listan utan att man
    laser varje rad - den lyser som allt annat som vantar pa ett klick. */
 .nd-exp.done{border-color:var(--cyan);background:rgba(56,232,255,.08)}
+/* [TILLAGT v5.165.0] AVKLARAD EXPEDITION. Gron bock efter namnet och en liten
+   rad under, sa man ser pa en gang vilka man redan tagit skarvan fran. Gront,
+   inte cyan: cyan betyder "klar att hamta" har redan, gront betyder "gjord". */
+.nd-exp.exp-done{border-color:rgba(61,255,158,.4)}
+.nd-exp .exp-tick{display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;margin-left:7px;border-radius:99px;font-size:9px;
+  color:#04120a;background:#3dff9e;vertical-align:middle;font-weight:900}
+.nd-exp .exp-donenote{margin-top:2px;font-size:10px;font-weight:800;
+  letter-spacing:.06em;color:#3dff9e}
 /* [TILLAGT v5.152.0] Tom plats och matare - bada flyttade in fran det rivna
    fonstret. */
 .nd-exp.empty{border-style:dashed;color:var(--text-faint);text-align:center;
@@ -5612,7 +5621,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.163.0 — RATT SKAL, RATT ZON</div>
+        <div class="sn-ver">GENESIS v5.165.0 — GRON BOCK PA AVKLARAT</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6467,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.163.0 — RATT SKAL, RATT ZON</div>
+            <div class="desc">GENESIS v5.165.0 — GRON BOCK PA AVKLARAT</div>
           </div>
         </div>
       </div>
@@ -11285,6 +11294,10 @@ function stackArtOf(key){
     return artUnlessMissing('assets/junk/' + key + '.png');
   if (typeof MATERIALS !== 'undefined' && MATERIALS[key])
     return artUnlessMissing('assets/materials/' + key + '.png');
+  /* [TILLAGT v5.164.0] Skarvorna har ingen post i MATERIALS - de byggs ur
+     expeditionslistan. De far sin bild ur assets/items/shards/. */
+  if (key && key.indexOf('shard_') === 0)
+    return artUnlessMissing('assets/items/shards/' + key + '.png');
   return '';
 }
 const ART_MISS = new Set();
@@ -11300,6 +11313,7 @@ function stackIcoOf(key, fallbackIco){
   if (M && M.ico) return M.ico;
   const F = (typeof FLASKS !== 'undefined' && FLASKS[key]) || null;
   if (F && F.ico) return F.ico;
+  if (key && key.indexOf('shard_') === 0) return '\u25c8';   /* romb tills bilden finns */
   return fallbackIco || '\ud83d\udce6';
 }
 /* Ritar bilden plus en gomd reserv. Faller bilden bort satts klassen 'noart'
@@ -15439,7 +15453,10 @@ function claimExpedition(id){
             gear:  r.gear ? netGearFromClaim(r.gear) : null,
             cell:  !!r.cell,
             recipe: r.recipe || null,
-            scrap: +r.scrap || 0
+            scrap: +r.scrap || 0,
+            /* [TILLAGT v5.164.0] Skarvan syntes inte alls i complete-rutan, fast
+               servern delade ut den. Nu bars nyckeln hit och far en egen rad. */
+            shard: r.shard || null
           }
         }, true);
         renderExpPanel(); updateUI(true);
@@ -15515,6 +15532,20 @@ function showRewards(run, alreadyPaid){
       '<i>' + (JUNK[k] ? JUNK[k].flavor : 'Junk') + '</i></span></div>';
   });
   if (run.loot.cell) found += '<div class="rw-gear" style="--rc:var(--cyan)"><span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">⛽</span><span class="rwg-txt"><b>Fuel Cell</b><i>Restores fuel</i></span></div>';
+  /* [TILLAGT v5.164.0] SKARVAN. Ett bevis pa en avklarad expedition och det
+     enda garanterade fyndet forsta gangen - den ska aldrig ga att missa. Egen
+     magentaton, och texten sager var den hamnat sa ingen letar i vanliga
+     vaskan: den ligger i gathering-vaskan nu. */
+  if (run.loot.shard){
+    const sd = shardOf(run.loot.shard);
+    const art = stackArtOf(run.loot.shard);
+    found += '<div class="rw-gear" style="--rc:#c06cff">' +
+      (art
+        ? '<span class="rwg-art" style="background-image:url(\'' + art + '\')"></span>'
+        : '<span class="rwg-art" style="font-size:22px;display:flex;align-items:center;justify-content:center">\u25c8</span>') +
+      '<span class="rwg-txt"><b>' + ((sd && sd.name) || 'Region Shard') +
+        '</b><i>Expedition shard \u00b7 in your gathering bag</i></span></div>';
+  }
   /* [VAKT v5.6.0] Ett gammalt uppdrag kan bara ett receptfynd vars recept ar
      rivet. Utan vakten last raden rar och prof pa ingenting. */
   if (run.loot.recipe && RECIPE_BY[run.loot.recipe] && !recipeKnown(run.loot.recipe)){
@@ -15530,7 +15561,7 @@ function showRewards(run, alreadyPaid){
         ? ' is waiting in your inbox.'
         : ' had to be left behind.') + '</div>' : '';
   $('rw-found').innerHTML = missed +
-    (found ? '<div class="section-label">Gear found</div>' + found : '');
+    (found ? '<div class="section-label">Found</div>' + found : '');
   /* Hovra fyndet och se exakt vad det ger — utan att först behöva hämta och leta. */
   const rg = $('rw-found').querySelector('[data-rwgear]');
   if (rg && run.loot.gear){
@@ -27564,7 +27595,17 @@ function nodeZoneHTML(){
   return h;
 }
 /* ---- Expeditionen: tre flikar ---- */
+/* [TILLAGT v5.165.0] Ager man skarvan for den har expeditionen? Skarvan ligger
+   som en hog i vaskan med nyckeln shard_<expid> - hittas den ar expeditionen
+   avklarad minst en gang. Servern ger skarvan garanterat forsta klaringen, sa
+   den ar ett palitligt "gjord"-marke. */
+function hasExpShard(expId){
+  const key = 'shard_' + expId;
+  for (const row of S.inv) if (row && row.stack && row.key === key) return true;
+  return false;
+}
 function nodeExpCard(def, showWhere){
+  const done = hasExpShard(def.id);
   const here = S.world.current === def.region && S.world.zone === def.zone && !S.world.travel;
   const running = expIsRunning(def.id);
   const lvl = levelInfo().lvl;
@@ -27576,7 +27617,11 @@ function nodeExpCard(def, showWhere){
   else if (here) btn = '<button class="btn-primary" data-nd="expstart" data-e="' + def.id + '">Start</button>';
   else btn = '<button class="btn-primary" data-nd="exptravelstart" data-e="' + def.id +
     '" data-z="' + esc(def.region) + '|' + esc(def.zone) + '">Travel and start</button>';
-  return '<div class="nd-exp"><div class="nm">' + esc(def.name) + '</div>' +
+  return '<div class="nd-exp' + (done ? ' exp-done' : '') + '">' +
+    '<div class="nm">' + esc(def.name) +
+      (done ? '<span class="exp-tick" title="Shard collected">\u2714</span>' : '') +
+    '</div>' +
+    (done ? '<div class="exp-donenote">\u2714 Shard gathered</div>' : '') +
     (showWhere ? '<div class="wh">' + esc(REGIONS[def.region] ? REGIONS[def.region].name : def.region) +
        ' \u00b7 ' + esc(def.zone) + (here ? ' \u00b7 YOU ARE HERE' : '') + '</div>' : '') +
     '<div class="mt"><span>\u23f1 <b>' + expTimeText(def) + '</b></span>' +
