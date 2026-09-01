@@ -5612,7 +5612,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.162.0 — EN FLIK, EN KARAKTAR</div>
+        <div class="sn-ver">GENESIS v5.163.0 — RATT SKAL, RATT ZON</div>
       </div>
     </div>
   </aside>
@@ -6458,7 +6458,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.162.0 — EN FLIK, EN KARAKTAR</div>
+            <div class="desc">GENESIS v5.163.0 — RATT SKAL, RATT ZON</div>
           </div>
         </div>
       </div>
@@ -6839,6 +6839,7 @@ const SRV_ERRORS = {
   nothing_in_slot:          'The shelf is empty there.',
   not_at_this_vendor:       'You have to be standing at this vendor to trade.',
   still_travelling:         'You are still travelling.',
+  zone_not_charted:         'Send a drone to chart that zone before you travel there.',
   /* [TILLAGT v5.42.0] Resefelen sa "The server said no" for att de saknade
      text. Nu sager de VAD som ar fel - punkt 3 pa listan. */
   already_travelling:       'You are already on your way somewhere — wait until you arrive.',
@@ -19970,10 +19971,14 @@ function goToZone(pair){
      visade att man redan var framme. Vantan bor pa dronaren i stallet, en gang
      per zon, och sjalva hoppet ar ett svisch. */
   if (NET.on){
-    netEnterZone(zone)
-      .then(() => { S.world.zone = zone; afterZoneHop(regionId, zone); })
-      .catch(() => say('Not enough fuel.'));
-    return true;
+    /* [RATTAT v5.163.0] .catch() sa "Not enough fuel" pa VARJE serverfel. En zon
+       som inte var kartlagd, en pagaende resa, en dungeon man satt i - allt blev
+       "slut pa bransle", fast branslet var fullt. Nu visas serverns RIKTIGA
+       skal, och funktionen lovar ett loste sa den som ville "resa OCH soka"
+       inte kor sokningen nar resan aldrig gick igenom. */
+    return netEnterZone(zone)
+      .then(() => { S.world.zone = zone; afterZoneHop(regionId, zone); return true; })
+      .catch(e => { say(srvErrText(e)); return false; });
   }
   S.fuel -= ZONE_FUEL_COST;
   S.world.zone = zone;
@@ -27664,14 +27669,22 @@ function nodeExpHTML(){
   return h;
 }
 /* ---- Knapparna ---- */
+/* [OMBYGGT v5.163.0] Vantar in resan innan den gor nasta sak. goToZone ar en
+   loftesreturnerande funktion i natlaget nu; forut korde den har after() med en
+   gang, alltsa medan man annu inte flyttat - och da skickades sokningen fran fel
+   zon, servern svarade not_in_zone, och for spelaren sag det ut som att knappen
+   inte gjorde nagot. */
 function nodeTravelThen(after){
   if (NODE.busy) return;
   NODE.busy = true;
-  const ok = goToZone(NODE.region + '|' + NODE.zone);
-  NODE.busy = false;
-  if (!ok){ say('Could not travel there right now.'); return; }
-  updateUI(true);
-  if (after) after();
+  Promise.resolve(goToZone(NODE.region + '|' + NODE.zone))
+    .then(ok => {
+      NODE.busy = false;
+      if (!ok) return;              /* goToZone har redan sagt varfor */
+      updateUI(true);
+      if (after) after();
+    })
+    .catch(() => { NODE.busy = false; });
 }
 function wireNodeWin(){
   const box = $('node-body'); if (!box) return;
