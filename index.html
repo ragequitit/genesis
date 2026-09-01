@@ -5631,7 +5631,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.173.0 — STENEN I VASKAN, TANGENTERNA OCH RECEPTEN</div>
+        <div class="sn-ver">GENESIS v5.174.0 — GILLETS BELONING SYNS I INKORGEN</div>
       </div>
     </div>
   </aside>
@@ -6477,7 +6477,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.173.0 — STENEN I VASKAN, TANGENTERNA OCH RECEPTEN</div>
+            <div class="desc">GENESIS v5.174.0 — GILLETS BELONING SYNS I INKORGEN</div>
           </div>
         </div>
       </div>
@@ -10860,9 +10860,15 @@ function openGemWin(){
   renderGemWin();
   w.classList.add('open');
   placeNodeWin(); bringToFront(w);
-  /* Har man dragit undan rutan och sedan andrat fonsterstorlek kan det gamla
-     laget ligga utanfor kanten. En kontroll vid oppning racker. */
-  { const ruta = w.querySelector('.node-modal'); if (ruta) clampGemWin(ruta); }
+  /* Platsen fran forra gangen laggs tillbaka, och kantvakten kors ifall skarmen
+     krympt sedan dess. Har man aldrig dragit rutan ar forskjutningen noll och
+     bladet centrerar den som forut. */
+  { const ruta = w.querySelector('.node-modal');
+    if (ruta){
+      const p = gemWinPosLoad();
+      ruta.style.left = p.x + 'px'; ruta.style.top = p.y + 'px';
+      clampGemWin(ruta);
+    } }
   if (NET.on) netGemState().then(() => { renderGemWin(); renderGemSlot(); }).catch(() => {});
 }
 function renderGemWin(){
@@ -24180,6 +24186,25 @@ function clampToViewport(el){
 /* [TILLAGT v5.173.0] Stenrutan flyttas som en FORSKJUTNING fran mitten, sa den
    vanliga kantvakten (som skriver absoluta tal) skulle kasta den langt bort.
    Den har raknar tillbaka forskjutningen tills rutan ligger innanfor kanten. */
+/* [TILLAGT v5.173.0] STENRUTAN MINNS VAR DU LA DEN (Chris beslut).
+   Rutan centreras fortfarande som utgangslage forsta gangen, men har man knuffat
+   undan den ligger den kvar dar - ocksa efter en omladdning. Platsen ar en
+   FORSKJUTNING fran mitten, inte ett absolut lage, sa den foljer med nar
+   fonstret byter storlek i stallet for att hamna utanfor kanten. Kantvakten kors
+   anda vid varje oppning, ifall skarmen krympt sedan sist. */
+const GEMWIN_POS_KEY = 'genesis.gemwinpos';
+function gemWinPosLoad(){
+  try {
+    const d = JSON.parse(localStorage.getItem(GEMWIN_POS_KEY) || 'null');
+    if (d && isFinite(d.x) && isFinite(d.y)) return {x: +d.x, y: +d.y};
+  } catch (e){}
+  return {x: 0, y: 0};
+}
+function gemWinPosSave(ruta){
+  if (!ruta) return;
+  const p = {x: parseFloat(ruta.style.left) || 0, y: parseFloat(ruta.style.top) || 0};
+  try { localStorage.setItem(GEMWIN_POS_KEY, JSON.stringify(p)); } catch (e){}
+}
 function clampGemWin(ruta){
   const r = ruta.getBoundingClientRect();
   let dx = parseFloat(ruta.style.left) || 0, dy = parseFloat(ruta.style.top) || 0;
@@ -24231,7 +24256,7 @@ function attachDragHandle(win, handle){
       const slapp = () => {
         document.removeEventListener('pointermove', flytta);
         document.removeEventListener('pointerup', slapp);
-        if (drar) clampGemWin(ruta);
+        if (drar){ clampGemWin(ruta); gemWinPosSave(ruta); }
       };
       document.addEventListener('pointermove', flytta);
       document.addEventListener('pointerup', slapp);
@@ -27037,6 +27062,18 @@ async function guildDo(fn, args, done){
     GUILD.confirm = null;
     await netGuildState();
     try { await netMyProfile(); } catch (e){}
+    /* [TILLAGT v5.174.0] POSTEN HAMTAS OCKSA.
+       "Reward claimed - the goods are in your mailbox" var sant pa servern och
+       osynligt i spelet: gillets Claim skriver ett brev, men guildDo hamtade bara
+       gillestillstandet och profilen. Market pa inkorgen rors bara av sex
+       handelser, och ingen av dem var en gillesknapp - alltsa satt man med ett
+       brev man blivit lovad tills nagot annat rakade hamta posten, eller tills
+       man laddade om. Uppmatt hos Chris: tva brev pa servern, noll pa skarmen.
+       Hamtningen ar OVILLKORLIG och inte bunden till just Claim. En lista over
+       "vilka gillesanrop kan ge post" ar precis en sadan lista som blir fel nasta
+       gang nagon lagger till ett anrop - och kostnaden ar en lasning pa ett
+       knapptryck man anda gjorde tva anrop for. Auktionshuset gor redan likadant. */
+    try { await netPullMailbox(); renderMailBadge(); } catch (e){}
     renderGuild(); renderGuildBadge(); renderFrMe();
     if (done) say(done);
   } catch (e){
