@@ -5631,7 +5631,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.172.0 — CHEVRON I STALLET FOR HOVER</div>
+        <div class="sn-ver">GENESIS v5.173.0 — STENEN I VASKAN, TANGENTERNA OCH RECEPTEN</div>
       </div>
     </div>
   </aside>
@@ -6477,7 +6477,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.172.0 — CHEVRON I STALLET FOR HOVER</div>
+            <div class="desc">GENESIS v5.173.0 — STENEN I VASKAN, TANGENTERNA OCH RECEPTEN</div>
           </div>
         </div>
       </div>
@@ -8486,7 +8486,14 @@ function netGearFromRow(row){
     tune: row.tune_count | 0,
     tprev: row.tune_prev || null,
     /* PvE-effekten (v5.36.0) - signaturpjasernas klartextrad. */
-    pve:  row.pve_effect || null
+    pve:  row.pve_effect || null,
+    /* [TILLAGT v5.173.0] STENENS EGEN RULLNING. Procenten sitter pa PJASEN, inte
+       pa sorten - tva stenar av samma region kan vara 15,3 % och 30 %. Utan de
+       har tre falten hade kortet inte kunnat skilja dem at, och spelaren hade
+       fatt gissa vilken av dem som ar den fina. */
+    greg:  row.gem_region || null,
+    gpct:  +row.gem_pct || 0,
+    ggood: !!row.gem_good
   };
 }
 
@@ -8526,7 +8533,7 @@ async function netPullItemsSafe(){
 async function netPullItemsRun(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,tune_count,tune_prev,pve_effect');
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,tune_count,tune_prev,pve_effect,gem_region,gem_pct,gem_good');
 
   S.equip = {};
   /* VILKEN VASKA SOM SITTER I VILKET FACK KOMMER NU FRAN SERVERN.
@@ -10096,15 +10103,11 @@ function useRecipeItem(idx){
   const row = S.inv[idx];
   /* [NYTT v5.143.0] STENEN satts i sin EGEN plats, inte i utrustningen.
      Servern haller reda pa dygnets karens; klienten skickar och visar svaret. */
-  if (row && row.gear && row.gear.uid && gemByKey(row.gear.t)){
-    if (!NET.on){ say('Gems need a live connection.'); return true; }
-    const uid = row.gear.uid;
-    srvRpc('gem_equip', {p_character: SRV.charId, p_item: uid})
-      .then(() => Promise.all([netPullItems(), netGemState()]))
-      .then(() => { say('Gem set.'); renderGemSlot(); renderInventory(); updateUI(true); })
-      .catch(e => say(srvErrText(e, 'Could not set that gem.')));
-    return true;
-  }
+  /* [ANDRAT v5.173.0] Den har vagen skickade det LOKALA loptalet till servern i
+     stallet for pjasens server-id, sa den hade aldrig kunnat fungera - och den
+     gick inte heller att na fran nagot klick. Dod kod som sag levande ut. Nu
+     gar den genom samma enda funktion som alla andra vagar. */
+  if (row && row.gear && isGemItem(row.gear)){ setGemFromBag(row.gear); return true; }
   /* [NYTT v5.136.0] RITNINGEN. Servern ager laget: den kontrollerar yrke,
      yrkesniva och att man inte redan kan receptet, forbrukar papperet och
      skriver in receptet. Klienten hamtar hem det nya laget efterat. */
@@ -10751,6 +10754,53 @@ function gemByKey(k){
   for (const rid in GEMS) if (GEMS[rid].key === k) return Object.assign({region: rid}, GEMS[rid]);
   return null;
 }
+/* [TILLAGT v5.173.0] STENEN VAR "UNKNOWN ITEM" MED HUVUDET SOM PLATS.
+   Servern lagger den smidda stenen i vaskan som ett RIKTIGT foremal (egen rad i
+   items, med sin procent och sitt tal pa). Men KATALOGEN i klienten hade ingen
+   rad for de fem stenarna, och ett foremal utan katalograd faller tillbaka pa
+   tva reserver: namnet blir "Unknown item" och platsen blir nummer noll - som
+   ar HUVUDET. Darav bade det tomma namnet och de negativa talen: kortet visade
+   skillnaden mot hjalmen man bar.
+   Samma tva-sanningar-familj som skarvorna: servern visste, klienten inte.
+   Stenarna far darfor en egen plats (-1). Den ar med FLIT utanfor kroppens
+   platslista - en sten hor hemma i sin egen ruta over figuren, inte pa en
+   kroppsdel, och en plats som inte finns i listan kan aldrig rakas bli mal for
+   en utrustning. Droplistan lamnas TOM, sa ingen sten kan falla ur varlden. */
+const SLOT_GEM = -1;
+(function defineraStenarna(){
+  for (const rid in GEMS){
+    const g = GEMS[rid];
+    defItem(g.key, g.name, SLOT_GEM, 'assets/items/gems/' + g.key + '.png', [3], []);
+    ITEMS[g.key].gem = rid;
+  }
+})();
+/* En sten kanns igen pa katalograden, inte pa nyckelns form - sa en framtida
+   sten med annat namn foljer med utan att en enda rad behover andras. */
+function isGemItem(g){ return !!(g && g.t && ITEMS[g.t] && ITEMS[g.t].gem); }
+/* [TILLAGT v5.173.0] ATT SATTA PA SIG EN STEN, fran vaskan eller fran stenrutan.
+   VIKTIGT: servern vill ha PJASENS SERVER-ID (sid). Den gamla vagen skickade
+   det LOKALA loptalet (uid), som servern aldrig har sett - alltsa hade den
+   aldrig kunnat fungera. Den vagen gick heller inte att na fran nagot klick;
+   den var dod kod. */
+function setGemFromBag(g){
+  if (!NET.on){ say('Gems need a live connection.'); return; }
+  if (!g || !g.sid){ say('That gem is not on the server yet — reload and try again.'); return; }
+  srvRpc('gem_equip', {p_character: SRV.charId, p_item: g.sid})
+    .then(() => Promise.all([netPullItems(), netGemState()]))
+    .then(() => {
+      say('Gem set.');
+      renderGemSlot(); renderInventory();
+      if (NODE && NODE.kind === 'gem') renderGemWin();
+      updateUI(true);
+    })
+    .catch(e => say(srvErrText(e, 'Could not set that gem.')));
+}
+/* Stenar som ligger LOSA i vaskan, i den ordning de star dar. */
+function gemsInBag(){
+  const ut = [];
+  (S.inv || []).forEach(row => { if (row && row.gear && isGemItem(row.gear)) ut.push(row.gear); });
+  return ut;
+}
 let GEMSTATE = null;
 /* [TILLAGT v5.158.0] STENENS UNIKA FORMAGA, LAST AV KLIENTEN.
    Servern har kunnat alla fem sedan de byggdes, men klienten fragade aldrig -
@@ -10810,6 +10860,9 @@ function openGemWin(){
   renderGemWin();
   w.classList.add('open');
   placeNodeWin(); bringToFront(w);
+  /* Har man dragit undan rutan och sedan andrat fonsterstorlek kan det gamla
+     laget ligga utanfor kanten. En kontroll vid oppning racker. */
+  { const ruta = w.querySelector('.node-modal'); if (ruta) clampGemWin(ruta); }
   if (NET.on) netGemState().then(() => { renderGemWin(); renderGemSlot(); }).catch(() => {});
 }
 function renderGemWin(){
@@ -10831,7 +10884,26 @@ function renderGemWin(){
       h += '<div class="desc">Swapping is locked for ' + fmtDur(+g.swap_in_secs) +
            ' \u2014 the choice is meant to last a day.</div>';
   } else {
-    h += '<div class="shelf-empty">No gem set. Forge one below, then tap it in your backpack.</div>';
+    h += '<div class="shelf-empty">No gem set.</div>';
+  }
+  /* [TILLAGT v5.173.0] STENAR DU REDAN HAR STAR HAR.
+     Rutan sa forut "forge one below, then tap it in your backpack" - alltsa: leta
+     sjalv bland allt annat du bar. Stenen har en egen plats pa skarmen, och da
+     ska den ocksa ga att satta pa fran den platsen. Listan visar bara LOSA
+     stenar; den burna star redan overst. */
+  const losa = gemsInBag();
+  if (losa.length){
+    h += '<div class="section-label" style="margin-top:12px">In your backpack</div>' +
+      '<div class="forge-list">' + losa.map((g, i) => {
+        const d = gemByKey(g.t) || {};
+        return '<div class="forge-row ready"><span class="gem-ico">\u25c6</span>' +
+          '<div class="nm">' + esc(d.name || 'Gem') +
+          '<div class="sub">' + esc(d.uniq || '') + '</div>' +
+          '<div class="sub' + (g.ggood ? ' gem-good' : '') + '">' +
+            (g.ggood ? '\u2605 ' : '') + '+' + (+g.gpct || 0) + '% ' + esc(d.pct || '') + '</div>' +
+          '</div>' +
+          '<button class="btn-primary tiny" data-setgem="' + i + '">Set</button></div>';
+      }).join('') + '</div>';
   }
   /* [ANDRAT v5.153.0] RUTAN FICK INTE VAXA. Forut var smidesraderna direkt i
      bladet: fallde man ut en lista blev rutan hogre, och eftersom den centreras
@@ -10857,6 +10929,14 @@ function renderGemWin(){
        skarmen - uppmatt 40 punkter utanfor pa 1280x800. */
     box.querySelectorAll('.forge-row.open').forEach(r => r.classList.remove('open'));
     if (!pa) rad.classList.add('open');
+  }));
+  /* Sätt-knapparna far sin egen lyssnare, och listan hamtas OM vid klicket -
+     vaskan kan ha ritats om medan rutan stod uppe. */
+  box.querySelectorAll('[data-setgem]').forEach(btn => btn.addEventListener('click', () => {
+    const g = gemsInBag()[+btn.dataset.setgem];
+    if (!g){ say('That gem is no longer in your backpack.'); renderGemWin(); return; }
+    btn.disabled = true;
+    setGemFromBag(g);
   }));
   box.querySelectorAll('[data-forge]').forEach(btn => btn.addEventListener('click', () => {
     const rid = btn.dataset.forge;
@@ -13268,6 +13348,8 @@ function vaultIsOpen(){ const w = $('vault-overlay'); return !!w && w.classList.
 function quickEquipFromInv(idx){
   const row = S.inv[idx];
   if (!row || !row.gear) return false;
+  /* Skift far aldrig saga nagot annat an vansterklicket - samma regel, ett stalle. */
+  if (isGemItem(row.gear)){ setGemFromBag(row.gear); return true; }
   /* Väskor snabbsätts i första lediga fack — deras "plats" är väskraden. */
   if (ITEMS[row.gear.t] && ITEMS[row.gear.t].bag){ equipBag(idx, freeBagSocket()); return true; }
   /* [ANDRAT v5.150.0] En upptagen plats stoppade forut snabbvagen helt. Nu byter
@@ -13280,6 +13362,9 @@ function quickEquipFromVault(i){
   if (!row || !row.gear) return false;
   const g = row.gear;
   if (ITEMS[g.t] && ITEMS[g.t].bag) return false; // väskfacken bor i väskfönstret
+  /* En sten i valvet satts inte harifran: den maste forst hem i vaskan, precis
+     som allt annat servern vill ha en vagd flytt for. */
+  if (isGemItem(g)){ say('Move the gem to your backpack first.'); return false; }
   if (S.equip[g.s]) return false;
   /* Samma nivakrav som overallt annars - annars vore valvet en genvag forbi det. */
   if (g.lv && g.lv > levelInfo().lvl){
@@ -14700,6 +14785,10 @@ function targetSlotFor(g, want){
 function equipGear(idx, want){
   const row = S.inv[idx];
   if (!row || !row.gear) return;
+  /* [TILLAGT v5.173.0] EN STEN GAR INTE PA KROPPEN. Utan den har raden slog
+     vansterklicket upp plats -1, foll tillbaka pa noll och forsokte satta
+     stenen pa HUVUDET. Nu gar den dit den hor: sin egen ruta, via servern. */
+  if (isGemItem(row.gear)){ setGemFromBag(row.gear); return; }
   /* Nivakravet: en pjas rullas pa den niva agaren hade nar den foll, och kan
      bara baras av den som natt dit. Kollas har OCKSA, sa man far ett begripligt
      besked i stallet for serverns felkod. */
@@ -18807,6 +18896,27 @@ function gmHook(){
         if (nu - sisteTryck < 330) e.preventDefault();
         sisteTryck = nu;
       }, {passive: false});
+      /* [TILLAGT v5.173.0] SNABBTANGENTERNA DOG SA FORT MAN RORT KARTAN.
+         Kartan ar ett EGET dokument. Klickar man i den - for att resa, oppna en
+         nod eller dra kartan - flyttar tangentbordet dit, och spelets lyssnare
+         sitter pa spelets dokument. Darfor slutade B, I, F, P, Q och E fungera
+         ALLA PA EN GANG efter forsta kartklicket, och kom tillbaka forst nar man
+         rakade klicka nagon annanstans. Uppmatt: med fokus i kartan oppnar B
+         ingenting; ett klick i spelet och den fungerar igen.
+         Losningen ar att kartan skickar vidare trycket till spelet. Vi speglar
+         HELA tangenten i stallet for en lista med bokstaver - da foljer bade
+         Escape och varje framtida snabbtangent med utan att nagon behover minnas
+         det har stallet. Skrivfalt undantas, som overallt annars. */
+      doc.addEventListener('keydown', e => {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        try {
+          document.dispatchEvent(new KeyboardEvent('keydown', {
+            key: e.key, code: e.code, ctrlKey: e.ctrlKey, altKey: e.altKey,
+            metaKey: e.metaKey, shiftKey: e.shiftKey, bubbles: true
+          }));
+        } catch (err){}
+      });
     }
   } catch (e){}
   gmLastSig = ''; gmShownRegion = null;   /* tvinga fram en forsta sandning */
@@ -21195,6 +21305,30 @@ function ppBookRows(profId){
     if (q && dispName.toLowerCase().indexOf(q) < 0 &&
         (!D || D.name.toLowerCase().indexOf(q) < 0)) return '';
     const R = GEAR_RAR[r.rar];
+    /* [RATTAT v5.173.0] HELA YRKESSIDAN KRASCHADE PA EN LAST RECEPTRAD.
+       Den lasta raden ritar samma bild som den upplasta (v5.130.0) - men de tva
+       varden den ritar med raknades fram TJUGO RADER LANGRE NED. En variabel som
+       deklareras med let finns inte att lasa forran raden korts, sa den lasta
+       raden kastade ett fel rakt ut genom receptboken, yrkessidan och oppningen.
+       FOLJDEN: aga ett recept over sin egen yrkesniva - vilket man gor sa fort
+       man laser en ritning tidigt - och yrkessidan slutade oppna sig helt. Det
+       ar det Chris sett: "trycker man pa recepten inne i yrket oppnas ingenting."
+       Rakningen ar flyttad hit upp, fore bada raderna. */
+    const conArt = stackArtOf(r.item);
+    let artStyle, artInner;
+    if (isFlask(r.item)){
+      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
+      artInner = FLASKS[r.item].ico;
+    } else if (conArt){
+      artStyle = '--rc:' + rarCol(r.rar);
+      artInner = artWithFallback(conArt, stackIcoOf(r.item, ''));
+    } else if (!D){
+      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
+      artInner = stackIcoOf(r.item, '');
+    } else {
+      artStyle = '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
+      artInner = '';
+    }
     if (!recipeLevelOk(r.id)){
       /* [RATTAT v5.130.0] Den lasta raden ritade en TOM ruta - man sag namnet
          men inte vad man jobbade mot. Nu visas samma bild som pa den upplasta
@@ -21210,26 +21344,12 @@ function ppBookRows(profId){
       return '<span class="rc-mat' + (have >= need ? '' : ' short') + '">' + MATERIALS[k].ico + ' ' +
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
-    const isFl = isFlask(r.item);
     /* [ANDRAT v5.47.0] SAMMA RITNING SOM DEN ANDRA RECEPTBOKEN. Det finns tva
        stallen som ritar en receptrad, och bara ETT av dem fick bilden forst -
        det som INTE ar det som yrkessidan faktiskt visar. Uppmatt: raderna kom
        harifran. Bada gar nu samma vag, sa de inte kan glida isar igen. */
-    const conArt = stackArtOf(r.item);
-    let artStyle, artInner;
-    if (isFl){
-      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
-      artInner = FLASKS[r.item].ico;
-    } else if (conArt){
-      artStyle = '--rc:' + rarCol(r.rar);
-      artInner = artWithFallback(conArt, stackIcoOf(r.item, ''));
-    } else if (!D){
-      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
-      artInner = stackIcoOf(r.item, '');
-    } else {
-      artStyle = '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
-      artInner = '';
-    }
+    /* [FLYTTAT v5.173.0] Bilden raknas fram langre upp nu, sa den lasta raden
+       ocksa kan anvanda den utan att kasta ett fel. */
     return '<div class="recipe-row' + (afford ? '' : ' cant') + '">' +
       '<div class="rr-art" style="' + artStyle + '">' + artInner + '</div>' +
       '<div class="rr-body">' +
@@ -21267,6 +21387,30 @@ function openProfPage(profId){
   const s = $('ppb-search');
   if (s) s.addEventListener('input', () => { QB.q = s.value; ppRedrawBook(); });
 }
+/* [TILLAGT v5.173.0] YRKESKORTETS TVA KNAPPAR AR VAXLAR NU.
+   Tva fel i ett. Ett: yrkessidan MINNS vilken flik man var pa sist, och den
+   minnesraden overlever att fonstret stangs. Skilltradsknappen SATTE fliken;
+   Recipes-knappen satte ingenting alls. Alltsa: hade man nagon gang tryckt
+   Skill Tree oppnade Recipes skilltradet for all framtid - knappen ljog om vad
+   den gjorde. Nu sager BADA knapparna vilken flik de vill ha.
+   Tva: ett andra tryck pa samma knapp gjorde ingenting synligt (rutan var redan
+   oppen pa den fliken). Nu stanger det rutan, precis som ett andra tryck pa
+   snabbvalen gor - samma knapp in och ut. Byter man DAREMOT knapp, eller yrke,
+   stannar rutan oppen och byter innehall i stallet for att blinka. */
+function profCardOpen(id, tab){
+  const p = PROF_BY[id];
+  if (!p) return;
+  const w = $('profpage-overlay');
+  const oppen = !!(w && w.classList.contains('open'));
+  if (oppen && profPageRef === id && ppTab === tab){
+    w.classList.remove('open'); profPageRef = null; profPageSig = '';
+    return;
+  }
+  ppTab = tab;
+  PPT.buyArm = null; PPT.resetArmed = false;
+  if (p.kind === 'secondary') openStation(id); else openProfPage(id);
+  ppForceRender();
+}
 function ppRedrawBook(){
   const box = document.querySelector('#pp-body .ppb-list');
   if (box && profPageRef) box.innerHTML = ppBookRows(profPageRef);
@@ -21284,7 +21428,12 @@ function renderProfPage(){
   /* [ANDRAT v5.41.0] Signaturen ar KONS rader + utlamningen. Klockan i forsta
      raden skrivs PA PLATS varje bildruta (buggfamilj 7); byggs om gors bara
      nar en rad kommit, gatt eller blivit fardig. */
-  const sig = profPageRef + '|' + linkedProf() + '|' + q.map(r => r.id).join(',') +
+  /* [TILLAGT v5.173.0] FLIKEN STOD INTE I SIGNATUREN. Omritningen bygger bara om
+     rutan nar signaturen andrats, och fliken - det enda som styr hela hogerspalten
+     - var inte med. Det holl sa lange varje flikbyte sjalv nollade signaturen,
+     men det ar precis en sadan tyst koppling som gar sonder nasta gang nagon
+     byter flik fran ett nytt stalle. Nu star den dar. */
+  const sig = profPageRef + '|' + ppTab + '|' + linkedProf() + '|' + q.map(r => r.id).join(',') +
               '|h' + (S.held || 0) + '|' + QB.tab +
               '|' + (sh && sh.ends > Date.now() ? 'work' : (sh && sh.ready ? 'ready' : 'idle'));
   if (sig !== profPageSig){ profPageSig = sig; $('pp-body').innerHTML = profPageHTML(p);
@@ -22281,9 +22430,7 @@ document.addEventListener('click', e => {
   if (tbtn){
     const tid = tbtn.dataset.opentree;
     if (!PROF_BY[tid] || !SKILL_TREES[tid]){ say('That profession has no skill tree.'); return; }
-    ppTab = 'tree';
-    if (PROF_BY[tid].kind === 'secondary') openStation(tid); else openProfPage(tid);
-    ppForceRender();
+    profCardOpen(tid, 'tree');
     return;
   }
   const btn = e.target.closest('[data-openprof]');
@@ -22294,7 +22441,7 @@ document.addEventListener('click', e => {
        huvudyrkena sin yrkessida. Det gemensamma fonstret ar kvar for valet. */
     const id = btn.dataset.openprof;
     if (!PROF_BY[id]){ openProfessions(); return; }
-    if (PROF_BY[id].kind === 'secondary') openStation(id); else openProfPage(id);
+    profCardOpen(id, 'book');
     return;
   }
   /* [ANDRAT v5.8.0] Plustecknet oppnade bara fonstret, och man fick klicka en
@@ -22996,6 +23143,25 @@ function gearTipHTML(it){
       line('Sells for', fmtMoney(gearGold(it))) +
       hint;
   }
+  /* [TILLAGT v5.173.0] STENENS EGET KORT. En sten har varken halsa eller power,
+     och den hor inte till en kroppsdel - att visa den i gearmallen gav "Level 43
+     HEAD, −271 Health, −60 Power", dar talen var skillnaden mot hjalmen. Nu star
+     det stenen faktiskt gor: den unika formagan och den rullade procenten. */
+  if (D && D.gem){
+    const gd = GEMS[D.gem] || {};
+    const buren = !!(GEMSTATE && GEMSTATE.key === it.t);
+    return name +
+      '<div class="gt-rar">Character Gem</div>' +
+      '<div class="gt-sep"></div>' +
+      '<div class="gt-aff">' + esc(gd.uniq || '') + '</div>' +
+      '<div class="gt-aff' + (it.ggood ? ' gem-good' : '') + '">' +
+        (it.ggood ? '\u2605 ' : '') + '+' + (+it.gpct || 0) + '% ' + esc(gd.pct || '') + '</div>' +
+      (buren ? '<div class="gt-aff">Currently set</div>' : '') +
+      '<div class="gt-sep"></div>' +
+      line('Sells for', fmtMoney(gearGold(it))) +
+      '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
+        ? 'Tap for options' : 'Click to set this gem') + '</div>';
+  }
   /* Skillnaden räknas mot pjäsen man BÄR på samma plats. Bär man ingen, eller
      hovrar man den burna själv, finns inget att jämföra — då står raden ren. */
   const cur = S.equip[it.s];
@@ -23251,6 +23417,23 @@ function itemWinHTML(it, worn){
       '</div>' +
       '<div class="item-actions"></div>';
   }
+  /* [TILLAGT v5.173.0] Stenens kort, samma undantag som vaskan gor. */
+  if (D && D.gem){
+    const gd = GEMS[D.gem] || {};
+    return head +
+      '<div class="item-top">' + art +
+        '<div class="item-head">' +
+          '<div class="gt-rar">Character Gem</div>' +
+          '<div class="iw-affs">' +
+            '<div class="af">' + esc(gd.uniq || '') + '</div>' +
+            '<div class="af' + (it.ggood ? ' gem-good' : '') + '">' +
+              (it.ggood ? '\u2605 ' : '') + '+' + (+it.gpct || 0) + '% ' + esc(gd.pct || '') + '</div>' +
+            '<div class="af iw-price">Sells for ' + fmtMoney(gearGold(it)) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="item-actions"></div>';
+  }
   return head +
     '<div class="item-top">' + art +
       '<div class="item-head">' +
@@ -23306,6 +23489,12 @@ function itemWinActions(win, uid){
     box.innerHTML = '<button class="ia-sell" data-act="sell">Sell</button>';
   } else if (found.where === 'equip'){
     box.innerHTML = '<button class="ia-cancel" data-act="unequip">Unequip</button>';
+  } else if (isGemItem(found.it)){
+    /* [TILLAGT v5.173.0] Stenen utrustas inte pa en kroppsdel - den gar till sin
+       egen ruta over figuren, och servern haller karensen. */
+    box.innerHTML =
+      '<button class="ia-equip" data-act="setgem">Set gem<span>Character</span></button>' +
+      '<button class="ia-sell" data-act="sell">Sell</button>';
   } else {
     box.innerHTML =
       '<button class="ia-equip" data-act="equip">Equip<span>' + GEAR_SLOTS[found.it.s].name + '</span></button>' +
@@ -23452,6 +23641,7 @@ function spawnItemWin(uid, nearX, nearY){
        inte langre finns. Ett kort utan foremal ska stanga sig. */
     if (!cur){ hideGearTip(); win.remove(); return; }
     if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
+    else if (btn.dataset.act === 'setgem'){ setGemFromBag(cur.it); win.remove(); }
     else if (btn.dataset.act === 'unvault'){ if (fromVault(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unbag'){ if (unequipBag(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unequip'){ if (unequipGear(cur.idx)) win.remove(); }
@@ -23579,6 +23769,10 @@ function openGearMenu(uid, x, y){
       h += '<button class="pm-item" data-act="unvault">To backpack</button>';
     } else if (f.where === 'bag'){
       h += '<button class="pm-item" data-act="unbag">Take out</button>';
+    } else if (isGemItem(it)){
+      /* [TILLAGT v5.173.0] Stenen har ingen kroppsdel att sta pa - att sla upp
+         platsen har var dessutom det som gjorde raden till "Equip · Head". */
+      h += '<button class="pm-item" data-act="setgem">Set gem</button>';
     } else if (!isBag){
       h += '<button class="pm-item" data-act="equip">Equip \u00b7 ' + GEAR_SLOTS[it.s].name + '</button>';
     }
@@ -23614,6 +23808,7 @@ function openGearMenu(uid, x, y){
     if (!f){ closeStackMenu(); return; }
     const act = b.dataset.act;
     if (act === 'equip'){ equipGear(f.idx); closeStackMenu(); }
+    else if (act === 'setgem'){ setGemFromBag(f.it); closeStackMenu(); }
     else if (act === 'unequip'){ unequipGear(f.idx); closeStackMenu(); }
     else if (act === 'unvault'){ fromVault(f.idx); closeStackMenu(); }
     else if (act === 'unbag'){ unequipBag(f.idx); closeStackMenu(); }
@@ -23982,6 +24177,18 @@ function clampToViewport(el){
   let y = Math.min(Math.max(r.top, 8), window.innerHeight - 40);
   el.style.left = x + 'px'; el.style.top = y + 'px';
 }
+/* [TILLAGT v5.173.0] Stenrutan flyttas som en FORSKJUTNING fran mitten, sa den
+   vanliga kantvakten (som skriver absoluta tal) skulle kasta den langt bort.
+   Den har raknar tillbaka forskjutningen tills rutan ligger innanfor kanten. */
+function clampGemWin(ruta){
+  const r = ruta.getBoundingClientRect();
+  let dx = parseFloat(ruta.style.left) || 0, dy = parseFloat(ruta.style.top) || 0;
+  if (r.left < 8) dx += 8 - r.left;
+  if (r.right > window.innerWidth - 8) dx -= r.right - (window.innerWidth - 8);
+  if (r.top < 8) dy += 8 - r.top;
+  if (r.bottom > window.innerHeight - 8) dy -= r.bottom - (window.innerHeight - 8);
+  ruta.style.left = dx + 'px'; ruta.style.top = dy + 'px';
+}
 function makeDraggable(win, handle){
   /* Ett eller flera handtag drar samma fönster. Emblemet uppe i vänstra hörnet är
      ett lika naturligt grepp som titelraden — det STICKER UT och ser flyttbart ut. */
@@ -23999,8 +24206,38 @@ function attachDragHandle(win, handle){
        man vill flytta, inte fönstret. */
     if (e.target.closest('button')) return;
     if (e.target.closest('[data-inv], [data-vault], [data-bag], [data-vaultbag], [data-pet]')) return;
-    /* [TILLAGT v5.168.0] Stenrutan centreras av bladet - lat den vara. */
-    if (win.classList.contains('gemwin')) return;
+    /* [ANDRAT v5.173.0] STENRUTAN GAR ATT DRA NU - UTAN ATT TAPPA CENTRERINGEN.
+       Den star inte dar de andra star: bladet ar utspant over hela skarmen och
+       centrerar sjalva rutan inuti sig. Att flytta BLADET gjorde darfor
+       ingenting alls, och darfor stangdes draget av har i v5.168.
+       Nu flyttas RUTAN i stallet, som en forskjutning fran sitt centrerade lage.
+       Centreringen ar alltsa kvar som utgangslage - man knuffar bara undan
+       rutan darifran, och den hittar tillbaka nasta gang sidan laddas. */
+    if (win.classList.contains('gemwin')){
+      const ruta = win.querySelector('.node-modal');
+      if (!ruta) return;
+      bringToFront(win);
+      const bx = parseFloat(ruta.style.left) || 0, by = parseFloat(ruta.style.top) || 0;
+      const sx0 = e.clientX, sy0 = e.clientY;
+      let drar = false;
+      const flytta = ev => {
+        if (!drar){
+          if (Math.abs(ev.clientX - sx0) < 5 && Math.abs(ev.clientY - sy0) < 5) return;
+          drar = true;
+        }
+        ruta.style.left = (bx + ev.clientX - sx0) + 'px';
+        ruta.style.top  = (by + ev.clientY - sy0) + 'px';
+      };
+      const slapp = () => {
+        document.removeEventListener('pointermove', flytta);
+        document.removeEventListener('pointerup', slapp);
+        if (drar) clampGemWin(ruta);
+      };
+      document.addEventListener('pointermove', flytta);
+      document.addEventListener('pointerup', slapp);
+      e.preventDefault();
+      return;
+    }
     bringToFront(win);
     const r = win.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
@@ -27520,7 +27757,7 @@ function nodeWhereHTML(){
      ' \u00b7 ' + esc(R ? R.name : '').toUpperCase()) + '</div>';
 }
 function openNodeWin(kind, region, zone, keep, id){
-  { const _w = $('node-overlay'); if (_w) _w.classList.remove('gemwin'); }
+  { const _w = $('node-overlay'); if (_w){ _w.classList.remove('gemwin'); gemWinOffsetClear(_w); } }
   const sameKind = NODE.kind === kind;
   /* qid: VILKET kontrakt noden gallde. Utan det kan tva kontrakt i samma zon
      inte skiljas at, och rutan visar alltid det forsta. */
@@ -27548,6 +27785,15 @@ function closeNodeWin(){
   w.classList.remove('open');
   /* Stenrutans egen centrering far inte halla i sig till nasta fonster. */
   w.classList.remove('gemwin');
+  gemWinOffsetClear(w);
+}
+/* [TILLAGT v5.173.0] Stenrutan och zonrutan DELAR samma ruta i sidan. Har man
+   dragit undan stenrutan ligger forskjutningen kvar pa elementet, och nasta
+   expeditions- eller zonruta hade oppnats lika langt fran mitten som stenrutan
+   stod. Den nollas darfor sa fort stenlaget lamnas. */
+function gemWinOffsetClear(w){
+  const ruta = w && w.querySelector('.node-modal');
+  if (ruta){ ruta.style.removeProperty('left'); ruta.style.removeProperty('top'); }
 }
 function renderNodeWin(){
   const box = $('node-body'); if (!box) return;
