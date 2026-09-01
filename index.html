@@ -4893,7 +4893,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    under den listan over de sex expeditionerna som gommer sig bakom "2 / 6". */
 .forge-row{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:8px;
   border:1px solid var(--border);border-radius:11px;background:var(--bg-row);
-  flex-wrap:wrap;cursor:default}
+  flex-wrap:wrap;cursor:pointer}
+/* [TILLAGT v5.172.0] Chevron-knappen som visar de sex expeditionerna. Vriden
+   nedat nar listan ar utfalld, sa laget syns utan att man behover oppna. */
+.forge-row .fr-toggle{flex:0 0 auto;width:26px;height:26px;display:grid;
+  place-items:center;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-inset);color:var(--text-dim);font-size:11px;cursor:pointer;
+  transition:transform .18s,color .18s}
+.forge-row .fr-toggle:hover{color:var(--text);border-color:var(--cyan-dim)}
+.forge-row.open .fr-toggle{transform:rotate(180deg);color:var(--cyan)}
 /* Listan ar hojdlast: fem hopfallda rader far plats, och en utfalld lista
    rullar inuti i stallet for att skjuta ramen isar. Uppmatt: en hopfalld rad ar
    omkring 66 punkter, fem plus mellanrum drygt 350. Taket foljer skarmen sa den
@@ -4917,7 +4925,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   top:auto;left:auto;right:auto;bottom:auto;transform:none;margin:0;
   max-height:calc(100vh - 16px);display:flex;flex-direction:column}
 #node-overlay.gemwin > .node-modal > #node-body{flex:1 1 auto;min-height:0;overflow-y:auto}
-.forge-row:hover .fr-list,
+/* [ANDRAT v5.172.0] HOVER OPPNADE LISTAN, vilket kandes som att korten
+   flaxade nar man rorde musen over dem. Nu oppnar BARA klick - via
+   chevron-knappen eller ett tryck pa raden. */
 .forge-row.open .fr-list{display:block}
 .fr-listh{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--text-faint);font-weight:800;margin-bottom:6px}
@@ -5621,7 +5631,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.171.0 — ETTAN SLACKS EFTER CLAIM</div>
+        <div class="sn-ver">GENESIS v5.172.0 — CHEVRON I STALLET FOR HOVER</div>
       </div>
     </div>
   </aside>
@@ -6467,7 +6477,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.171.0 — ETTAN SLACKS EFTER CLAIM</div>
+            <div class="desc">GENESIS v5.172.0 — CHEVRON I STALLET FOR HOVER</div>
           </div>
         </div>
       </div>
@@ -10839,6 +10849,8 @@ function renderGemWin(){
      ut de sex expeditionerna; ett till faller ihop den. Smidesknappen far inte
      rakas trycka pa vagen, sa den star utanfor. */
   box.querySelectorAll('.forge-row').forEach(rad => rad.addEventListener('click', ev => {
+    /* Smidesknappen far aldrig rakas oppna listan. Chevron OCH resten av raden
+       gor det - hela kortet ar ett greppbart handtag. */
     if (ev.target.closest('[data-forge]')) return;
     const pa = rad.classList.contains('open');
     /* EN i taget. Fem utfallda listor ar 30 rader, och da vaxer rutan ur
@@ -10874,6 +10886,8 @@ function forgeRowsHTML(){
       (klar
         ? '<button class="btn-primary tiny" data-forge="' + rid + '">Forge</button>'
         : '<span class="fr-sub">' + har + ' / ' + behovs + ' shards</span>') +
+      /* [TILLAGT v5.172.0] Chevron: oppnar/stanger listan med de sex. */
+      '<button class="fr-toggle" data-fr-toggle title="Show the six expeditions">\u25be</button>' +
       /* [TILLAGT v5.151.0] LISTAN OVER DE SEX. Raden sa bara "2 / 6", vilket inte
          berattade VILKA tva man hade eller var de fyra andra fanns. Nu star alla
          sex expeditioner med bock eller tom ruta, och zonen de ligger i. Listan
