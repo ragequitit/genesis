@@ -5621,7 +5621,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.169.0 — ROD ETTA PA KLART</div>
+        <div class="sn-ver">GENESIS v5.171.0 — ETTAN SLACKS EFTER CLAIM</div>
       </div>
     </div>
   </aside>
@@ -6467,7 +6467,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.169.0 — ROD ETTA PA KLART</div>
+            <div class="desc">GENESIS v5.171.0 — ETTAN SLACKS EFTER CLAIM</div>
           </div>
         </div>
       </div>
@@ -13422,7 +13422,9 @@ function openMailNote(id){
 function renderExpBadge(){
   const b = $('qa-exped-badge'); if (!b) return;
   const runs = (S.exp && S.exp.runs) || [];
-  const n = runs.filter(r => r && Date.now() >= (r.endsAt || 0)).length;
+  /* Bara korningar med en GILTIG, passerad sluttid raknas. En rad utan endsAt
+     (NaN) far aldrig lysa - da hade market kunnat sta kvar for evigt. */
+  const n = runs.filter(r => r && isFinite(+r.endsAt) && Date.now() >= +r.endsAt).length;
   b.textContent = n; b.style.display = n ? '' : 'none';
 }
 function renderMailBadge(){
@@ -15606,6 +15608,10 @@ function confirmClaim(){
   if (NET.on){
     pendingClaimId = null;
     $('reward-overlay').classList.remove('open');
+    /* [RATTAT v5.171.0] Market satt kvar. Hamtningen gors av knappen pa raden,
+       men rewardrutans Close gick sin egen vag och ritade aldrig om market -
+       sa den roda ettan stod kvar tills nasta annan omritning. Rita om det har. */
+    renderExpBadge();
     return;
   }
   if (pendingClaimId == null) return;
@@ -16589,6 +16595,7 @@ function updateUI(force){
   if (performance.now() - expGate > 1000){
     expGate = performance.now();
     renderExpPanel(); renderCharStats(); pveDungeonTick();
+    gmMarkDungeonReady();
     /* [TILLAGT v5.155.0] KARTAN FAR SITT LAGE VARJE SEKUND. Sandningen satt
        bara i renderMap, som kors nar nagot HANT - en vila som tar slut ar
        ingen handelse, sa noden kom tillbaka forst nasta gang spelaren rorde
@@ -18440,6 +18447,31 @@ function gmExpStyle(){
   if (utom.length)  css += sel(utom)  + '{opacity:.55 !important}';
   return css;
 }
+/* [TILLAGT v5.170.0] Markerar dungeon-noden i den zon dar en fardig korning
+   vantar pa att hamtas. Korningen bar bara sitt NAMN ("The Deepshaft"), sa
+   zonen slas upp ur samma tabell som teaser-texten. Bara EN kan vara klar at
+   gangen - man kor en dungeon i taget - sa alla noder rensas forst och hogst en
+   far markningen. Rensningen ar viktig: annars star pulsen kvar nar man hamtat. */
+let gmDgReadyKey = null;
+function dgZoneForName(nm){
+  for (const k in DUNGEON_TEASER) if (DUNGEON_TEASER[k] === nm) return k;
+  return null;
+}
+function gmMarkDungeonReady(){
+  let want = null;
+  if (pveDgDone() && PVE.dg && PVE.dg.run) want = dgZoneForName(PVE.dg.run.name);
+  if (want === gmDgReadyKey) return;
+  gmDgReadyKey = want;
+  try {
+    const doc = $('map-frame').contentDocument; if (!doc) return;
+    doc.querySelectorAll('g[data-poi="dungeon"][data-dgready="true"]')
+       .forEach(g => g.removeAttribute('data-dgready'));
+    if (want){
+      doc.querySelectorAll('g[data-poi="dungeon"][data-zone="' + want + '"]')
+         .forEach(g => g.setAttribute('data-dgready', 'true'));
+    }
+  } catch (e){}
+}
 function gmPushExpStyle(){
   const css = gmExpStyle();
   if (css === gmExpCss) return;
@@ -18465,6 +18497,7 @@ function gmPush(){
   /* Nodernas lage star i en egen stilregel och far darfor inte ligga bakom
      signaturspärren nedan - den jamfor bara kartans egna varden. */
   gmPushExpStyle();
+  gmDgReadyKey = null;   /* [v5.170.0] noderna ritas om vid sandning - marker igen */
   const st = gmState();
   /* Skickas bara nar nagot faktiskt andrats. Kartan ritar om sig vid varje
      sandning, och spelet ritar om ofta - utan detta skulle kartan blinka. */
@@ -18721,7 +18754,15 @@ function gmHook(){
         if (!doc.getElementById('gm-cd-style')){
           const cd = doc.createElement('style');
           cd.id = 'gm-cd-style';
-          cd.textContent = 'g[data-poi="encounter"][data-cooldown="true"]{display:none}';
+          cd.textContent = 'g[data-poi="encounter"][data-cooldown="true"]{display:none}' +
+            /* [TILLAGT v5.170.0] EN FARDIG DUNGEON PULSAR. Noden ropar pa sig
+               sjalv nar korningen ar klar att hamta - samma kanal som motets
+               vila, en attributmarkering spelet skriver. */
+            '@keyframes gm-dgready{0%,100%{opacity:.55;transform:scale(1)}' +
+            '50%{opacity:1;transform:scale(1.28)}}' +
+            'g[data-poi="dungeon"][data-dgready="true"]{' +
+            'animation:gm-dgready 1.1s ease-in-out infinite;transform-box:fill-box;' +
+            'transform-origin:center;filter:drop-shadow(0 0 8px #f43f5e)}';
           (doc.head || doc.documentElement).appendChild(cd);
         }
       } catch (e){}
