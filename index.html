@@ -4522,6 +4522,21 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .shop-row.shop-quest{border-color:rgba(255,199,89,.5);background:rgba(255,199,89,.06)}
 .shop-row.shop-quest .sr-body em{color:var(--gold)}
 .pve-starter{display:block;margin-top:3px;color:#7ddc5a;font-weight:800}
+/* [TILLAGT v5.202.0] Jamforelsen: dem till vanster, du till hoger. */
+.pve-cmp{display:flex;align-items:stretch;gap:8px;margin:8px 0 2px;width:100%}
+.pve-cmp .pvc-side{flex:1 1 0;display:flex;flex-direction:column;gap:2px;padding:7px 9px;border-radius:9px;
+  background:rgba(0,0,0,.28);border:1px solid var(--border-soft);min-width:0}
+.pve-cmp .pvc-mid{flex:0 0 auto;align-self:center}
+.pve-cmp .pvc-side b{font-size:11px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pve-cmp .pvc-side span{font-size:10.5px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.pve-cmp .them{border-color:rgba(244,63,94,.35)}
+.pve-cmp .them b{color:#f43f5e}
+.pve-cmp .you{border-color:rgba(56,232,255,.35);text-align:right}
+.pve-cmp .you b{color:var(--cyan)}
+.pve-cmp .pvc-mid{font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--text-faint)}
+@media (max-width:420px){.pve-cmp{gap:5px}
+  .pve-cmp .pvc-side{padding:6px 7px}
+  .pve-cmp .pvc-side b{font-size:10px}.pve-cmp .pvc-side span{font-size:9.5px}}
 .pve-low{font-size:9.5px;font-weight:900;letter-spacing:.14em;color:#ff5964}
 .pve-btns{display:flex;gap:8px}
 .pve-fight,.pve-leave,.pve-search{
@@ -5999,7 +6014,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.200.0 — FYRA STARTKONTRAKT OCH VAROR I HYLLAN</div>
+        <div class="sn-ver">GENESIS v5.203.0 — KONTRAKTSVARORNA HAR NAMN I MALET</div>
       </div>
     </div>
   </aside>
@@ -6908,7 +6923,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.200.0 — FYRA STARTKONTRAKT OCH VAROR I HYLLAN</div>
+            <div class="desc">GENESIS v5.203.0 — KONTRAKTSVARORNA HAR NAMN I MALET</div>
           </div>
         </div>
       </div>
@@ -8043,7 +8058,8 @@ const PVE = {
      skickar zon -> sekunder kvar; har sparas SLUTTIDEN i stallet, sa klockan
      kan rakna ned pa plats. Utan den kom noden inte tillbaka forran nasta
      hamtning, och det ar inte "live". */
-  rest: {}, restAt: 0
+  rest: {}, restAt: 0,
+  attack: 0, baseAttack: 0
 };
 /* Vad lakevarorna ger. Bara visningstext - servern har sin egen tabell och
    avgor sjalv. Revive Kit star med flit INTE har: den anvands aldrig for hand,
@@ -8062,6 +8078,26 @@ function pveHpPct(){
   return Math.min(100, PVE.pct + h * PVE.regen);
 }
 function pveHpCur(){ return Math.max(1, Math.floor(totalHP() * pveHpPct() / 100)); }
+/* [TILLAGT v5.202.0] MOTET SOM EN JAMFORELSE (Chris). Kortet sa fiendens niva
+   och ett betyg, men aldrig VAD man mote. Nu star bada sidor bredvid varandra -
+   deras halsa och slag mot dina - sa betyget far ett skal man kan se.
+   Alla fyra talen kommer FRAN SERVERN, som ocksa raknar striden och satter
+   betyget, sa kortet och slaget kan inte sta olika. */
+function pveVsHTML(enc){
+  if (!enc || enc.enemy_hp == null || enc.your_hp == null) return '';
+  /* [ANDRAT v5.202.0] Klassen hette forst pve-vs - men det namnet var REDAN
+     taget av striduppspelningen, vars regel ligger langre ned och vann. Foljden:
+     korten staplades pa hojden i stallet for att sta bredvid varandra. Eget namn
+     nu. */
+  return '<div class="pve-cmp">' +
+    '<div class="pvc-side them"><b>' + esc(enc.name || 'Enemy') + '</b>' +
+      '<span>' + fmt(enc.enemy_hp) + ' HP</span><span>' + fmt(enc.enemy_atk) + ' ATK</span></div>' +
+    '<div class="pvc-mid">vs</div>' +
+    '<div class="pvc-side you"><b>You</b>' +
+      '<span>' + fmt(enc.your_hp) + ' / ' + fmt(enc.your_hp_max) + ' HP</span>' +
+      '<span>' + fmt(enc.your_atk) + ' ATK</span></div>' +
+  '</div>';
+}
 function pveLowHealth(){ return NET.on && pveHpPct() < 25; }
 function pveApplyHp(hp){
   if (!hp) return;
@@ -8079,6 +8115,12 @@ async function netPvePull(){
     PVE.cd = Math.max(0, Math.floor(+r.cooldown_secs) || 0);
     PVE.canSearch = !!r.can_search;
     PVE.reason = r.reason || '';
+    /* [TILLAGT v5.201.0] SERVERNS ANFALLSTAL. All power och all skada kommer
+       fran utrustning, sa en naken karaktar visade noll - men slass med
+       handerna for ett grundtal. Talet kommer FRAN SERVERN, som ocksa raknar
+       striden, sa rutan och slaget aldrig kan sta olika. */
+    PVE.attack = +r.attack || 0;
+    PVE.baseAttack = +r.base_attack || 0;
     /* Sekunderna blir en TIDPUNKT. Ett tal som bara raknades hem vid varje
        hamtning hade statt stilla mellan varven - och da hade noden legat kvar
        tills nasta svar rakade komma. */
@@ -8153,6 +8195,7 @@ function buildZoneEncounter(regionId, zone){
       '<div class="pve-blurb">' + enc.blurb + '</div>' +
       '<div class="pve-row"><span>Encounter Level ' + enc.level + ' \u00b7 ' + enc.type_name + '</span>' +
       '<span class="pve-rate" style="color:' + rt.col + ';border-color:' + rt.col + '">' + rt.name + '</span></div>' +
+      pveVsHTML(enc) +
       (pveLowHealth() ? '<div class="pve-low">LOW HEALTH</div>' : '') +
       (here
         ? '<div class="pve-btns"><button class="pve-fight" id="zone-pve-fight">Fight</button>' +
@@ -8215,7 +8258,7 @@ function showFightPlayback(enc, r){
       const rw = r.rewards || {};
       const scrap = rw.scrap_qty
         ? ' \u00b7 +' + rw.scrap_qty + ' ' + ((MATERIALS[rw.scrap_key] || {}).name || 'scrap') : '';
-      const sgt = starterGearText(rw.starter_gear);
+      const sgt = [starterGearText(rw.starter_gear), starterGearText(rw.gear)].filter(Boolean).join(' \u00b7 ');
       res.innerHTML = '<b class="win">VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + scrap +
         (sgt ? '</span><span class="pve-starter">' + esc(sgt) : '') + '</span>';
     } else {
@@ -15338,6 +15381,12 @@ function charStatRows(){
   r.push(['Power', fmt(totalPower())]);
   r.push(['HP', fmt(totalHP())]);
   if (totalDamage() > 0) r.push(['Damage', fmt(totalDamage())]);
+  /* [TILLAGT v5.201.0] Anfallet i strid. Bar man ingenting star Power pa noll,
+     och da sag det ut som att man inte kunde slass alls - men handerna raknas.
+     Raden visas bara nar grundtalet ar det som galler, sa den inte skrapar
+     skarmen for den som redan har utrustning. */
+  if (PVE.attack && PVE.attack > totalPower() + totalDamage())
+    r.push(['Attack', fmt(PVE.attack) + ' (unarmed)']);
   /* r.push(['Hit', fmt(totalHit())]);  <- vantar pa PvE */
   /* Bara talet, som alla andra rader. Ordet "time" sa att lagre ar battre, men
      kostade en radbrytning i varje karaktarsruta - och minustecknet sager redan
@@ -26290,11 +26339,18 @@ function questObjText(q){
        samlar det, eller 'any' for sadant som faller overallt - sa raden byggs
        ur samma data och kan inte hamna i otakt med droppen. */
     case 'deliver': {
+      /* [RATTAT v5.203.0] Malet slog bara upp MATERIALLISTAN, sa allt som inte ar
+         ett samlarmaterial visade sin RA NYCKEL: de fyra kontraktsvarorna stod
+         som "Deliver 1 x q_spare_toolkit". Katalogen far fraga vidare nu, i
+         samma ordning som resten av spelet gor det. */
       const M = MATERIALS[q.key] || {};
+      const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[q.key]) || {};
+      const namn = M.name || C.name || q.key;
       const varifran = M.prof === 'any' ? ' \u2014 found on expeditions and encounters'
         : (M.prof && PROF_BY[M.prof]) ? ' \u2014 gathered by ' + PROF_BY[M.prof].name
+        : (C.kind === 'Contract item') ? ' \u2014 on the trader\u2019s shelf while this contract runs'
         : '';
-      return 'Deliver ' + q.qty + ' \u00d7 ' + (M.name || q.key) + varifran;
+      return 'Deliver ' + q.qty + ' \u00d7 ' + namn + varifran;
     }
     /* [ANDRAT v5.101.0] Tre PvE-varianter i samma mal: regionen (ingen nyckel),
        zonen (nyckeln 'zone'), eller en FIENDETYP (allt annat). Typerna finns pa
@@ -26472,7 +26528,7 @@ $('quest-body').addEventListener('click', async (e) => {
       const r = await srvRpc('quest_claim', {p_character: SRV.charId, p_quest: t.dataset.qclaim});
       if (r && r.reward){
         const rw = questRewPlain(Object.assign({}, r.reward, r.frags != null ? {frags: r.frags} : {}));
-        const sgt = starterGearText(r.starter_gear);
+        const sgt = [starterGearText(r.starter_gear), starterGearText(r.gear)].filter(Boolean).join(' \u00b7 ');
         say('Quest complete: ' + qname + (rw ? ' \u2014 ' + rw : '') + (sgt ? ' \u00b7 ' + sgt : ''));
         const row = await srvCharacterRow();
         if (row){ S.gold = +row.gold_copper || S.gold; S.frags = +row.fragments || S.frags;
@@ -29630,6 +29686,7 @@ function nodeEncounterHTML(){
       '<div class="pve-blurb">' + esc(enc.blurb) + '</div>' +
       '<div class="pve-row"><span>Encounter Level ' + enc.level + ' \u00b7 ' + esc(enc.type_name) + '</span>' +
       '<span class="pve-rate" style="color:' + rt.col + ';border-color:' + rt.col + '">' + rt.name + '</span></div>' +
+      pveVsHTML(enc) +
       (pveLowHealth() ? '<div class="pve-low">LOW HEALTH</div>' : '') + '</div>';
     h += '<div class="nd-acts">' +
       '<button class="btn-primary" data-nd="' + (here ? 'fight' : 'travelfight') + '">' +
