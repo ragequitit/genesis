@@ -2958,6 +2958,9 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .cst-row b{font-weight:800}
 .cst-row span{color:var(--cyan);font-family:var(--font-mono);font-size:10.5px}
 .cst-row.off span,.cst-row.off b{color:var(--text-dim)}
+/* [TILLAGT v5.185.0] Sammanfattningsraden overst: vad synken ger, i klartext. */
+.cst-row.sum{border-bottom:1px solid var(--border-soft);padding-bottom:6px;margin-bottom:4px}
+.cst-row.sum span{color:var(--gold);font-family:inherit;font-size:10.5px;font-weight:800;line-height:1.35}
 /* (cst-foot ar borttagen v5.68.1) */
 .boost-chip .bc-ico{
   width:28px;height:28px;flex:0 0 auto;border-radius:50%;
@@ -5909,7 +5912,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.184.0 — FORSTA YRKET KOSTAR ETT GULD, TAVLAN UTAN REGIONNAMN</div>
+        <div class="sn-ver">GENESIS v5.185.0 — YRKESPRIS, TAVLAN, KARNSYNKENS XP</div>
       </div>
     </div>
   </aside>
@@ -6818,7 +6821,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.184.0 — FORSTA YRKET KOSTAR ETT GULD, TAVLAN UTAN REGIONNAMN</div>
+            <div class="desc">GENESIS v5.185.0 — YRKESPRIS, TAVLAN, KARNSYNKENS XP</div>
           </div>
         </div>
       </div>
@@ -16966,7 +16969,10 @@ function loopBody(now){
          synk, och nivan foll tillbaka. */
       NET.visibleSecs += dt;
     } else {
-      xpAcc += 0.06 * dt * ringMult();
+      /* [ANDRAT v5.185.0] Core Sync ger 15 % aven pa narvaro-XP nu. Servern
+         raknar det pa sin sida; offlinelaget maste rakna likadant, annars ger
+         samma minut olika mycket beroende pa om man ar uppkopplad. */
+      xpAcc += 0.06 * dt * ringMult() * (coreSyncLeft() > 0 ? 1.15 : 1);
       if (xpAcc >= 1){ const w = Math.floor(xpAcc); xpAcc -= w; grantXP(w); }
     }
   }
@@ -20270,10 +20276,14 @@ function coreSyncTipHTML(){
     rows.push('<div class="cst-row"><b>' + sec.station + '</b>' +
       '<span>production ' + (15 + core) + '% faster</span></div>');
   }
-  if (!rows.length) rows.push('<div class="cst-row off"><span>Learn a profession to feel this.</span></div>');
+  /* [TILLAGT v5.185.0] Synken ger tva saker nu, och kortet sa bara det ena. */
+  rows.push('<div class="cst-row"><b>Idle production</b><span>+15% XP</span></div>');
+  if (rows.length === 1) rows.push('<div class="cst-row off"><span>Learn a profession to feel more of this.</span></div>');
   /* [BORTTAGET v5.68.1] Fotnoten om att ett nytt hall borjar om de fem
      minuterna. Kortet ska saga vad man FAR, inte forklara mekaniken. */
-  return '<div class="cst-head">CORE SYNC</div>' + rows.join('');
+  return '<div class="cst-head">CORE SYNC</div>' +
+    '<div class="cst-row sum"><span>+15% profession output \u00b7 +15% XP from idle production</span></div>' +
+    rows.join('');
 }
 let syncTipEl = null;
 function showSyncTip(x, y){
