@@ -4684,6 +4684,264 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    JS matte hojden innan bilderna hunnit falla tillbaka pa sina ritade ramar,
    fick ett for litet tal, och satte toppkanten for langt ned - uppmatt 38
    punkter utanfor skarmens underkant. En centrerande ram kan inte rakna fel. */
+
+/* ================= DAILY REWARDS — MONTHLY TRANSMISSION (v5.175.0) =================
+   En rullande 30-dagarstavla i ett stort popupfonster, centrerat av bladet precis
+   som svarighetsvalet. Fem rader = spelets fem regioner, i nivaordning, med
+   regionens EGEN farg ur kartan som ton. Statusar: claimed (dampad + bock),
+   available (cyan glow), locked (morkare men lasbar), milestone (violett ram),
+   dag 30 (guld, tavlans tydligaste ruta). Pa telefon: regionnamnet ovanfor raden,
+   sex rutor i bredd, aldrig vagrat rullning. */
+
+/* ================= CHATTEN v1 (v5.180.0) =================
+   Liten, diskret, halvgenomskinlig ruta nere till hoger (menyn ar till vanster).
+   Tre lagen: minimerad (bara ikon + olasta), kompakt (5-7 rader + falt), utokad
+   (full historik, flikar, samtalslista). Pa telefon: ikon -> blad underifran.
+   Kanalfarger: kramvit vanlig text, guld Trade, turkos Guild, lila Whispers,
+   dampad orange System. Lankade foremal i sin sallsynthetsfarg. */
+.chat-root{position:fixed;right:14px;bottom:14px;z-index:1150;font-size:12px;--cop:.92;--csz:12px;
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.chat-root > *{pointer-events:auto}
+.chat-fab{position:relative;width:46px;height:46px;border-radius:12px;border:1px solid rgba(56,232,255,.35);
+  background:rgba(14,18,36,var(--cop));color:var(--cyan);font-size:20px;cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 14px rgba(56,232,255,.15);display:none;align-items:center;justify-content:center}
+.chat-fab .notif{position:absolute;top:-6px;right:-6px}
+.chat-root.mode-min .chat-fab{display:flex}
+.chat-root.mode-min .chat-panel{display:none}
+.chat-panel{width:440px;max-width:calc(100vw - 28px);display:flex;flex-direction:column;
+  background:rgba(12,16,32,var(--cop));border:1px solid rgba(56,232,255,.28);border-radius:12px;
+  box-shadow:0 0 0 1px rgba(123,108,255,.14),0 14px 40px rgba(0,0,0,.6);backdrop-filter:blur(8px);
+  font-size:var(--csz);overflow:hidden;transition:opacity .25s}
+.chat-root.mode-compact .chat-panel{height:248px}
+.chat-root.mode-expanded .chat-panel{width:560px;height:min(520px,calc(100vh - 40px))}
+.chat-root.idle .chat-panel{opacity:.35}
+.chat-root.idle:hover .chat-panel{opacity:1}
+.chat-tabs{display:flex;align-items:center;gap:2px;padding:6px 8px 0;border-bottom:1px solid rgba(255,255,255,.07);flex:0 0 auto}
+.chat-tab{position:relative;background:none;border:0;color:var(--text-dim);font:inherit;font-weight:900;letter-spacing:.12em;
+  text-transform:uppercase;font-size:10px;padding:7px 10px 8px;cursor:pointer;border-bottom:2px solid transparent;min-height:32px}
+.chat-tab.on{color:#fff;border-bottom-color:var(--cyan)}
+.chat-tab[data-ctab=trade].on{border-bottom-color:var(--gold)}
+.chat-tab[data-ctab=guild].on{border-bottom-color:#2dd4bf}
+.chat-tab[data-ctab=whisper].on{border-bottom-color:var(--purple)}
+.chat-tab .ct-n{display:none;position:absolute;top:2px;right:0;min-width:15px;height:15px;padding:0 4px;border-radius:8px;
+  font-size:9px;line-height:15px;text-align:center;color:#fff;background:var(--purple)}
+.chat-tab[data-ctab=trade] .ct-n{background:var(--gold);color:#000}
+.chat-tab[data-ctab=guild] .ct-n{background:#2dd4bf;color:#000}
+.chat-tab .ct-n.on{display:block}
+.chat-tab.locked{opacity:.45}
+.chat-tools{margin-left:auto;display:flex;gap:2px}
+.chat-tools button{background:none;border:0;color:var(--text-dim);font-size:14px;cursor:pointer;width:30px;height:30px;border-radius:6px}
+.chat-tools button:hover{background:rgba(255,255,255,.07);color:#fff}
+.chat-pin{display:none;padding:6px 10px;background:rgba(45,212,191,.1);border-bottom:1px solid rgba(45,212,191,.3);
+  color:#cffcf5;font-size:11px;line-height:1.35}
+.chat-pin.on{display:flex;gap:8px;align-items:flex-start}
+.chat-pin b{color:#2dd4bf;flex:0 0 auto}
+.chat-pin button{margin-left:auto;background:none;border:0;color:var(--text-dim);cursor:pointer;font-size:12px}
+.chat-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px 10px;display:flex;flex-direction:column;gap:3px;
+  scrollbar-width:thin;scrollbar-color:rgba(56,232,255,.35) transparent;position:relative}
+.chat-lock{margin:auto;text-align:center;color:var(--text-dim);padding:14px;line-height:1.5}
+.chat-msg{display:flex;gap:6px;line-height:1.4;color:#f1ecdd;word-break:break-word;animation:chatIn .2s ease-out}
+@keyframes chatIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.chat-msg .when{color:var(--text-faint);flex:0 0 auto;font-variant-numeric:tabular-nums;font-size:.9em}
+.chat-msg .who{flex:0 0 auto;font-weight:800;color:var(--cyan);cursor:pointer}
+.chat-msg .who:hover{text-decoration:underline}
+.chat-msg .who .tag{color:var(--text-dim);font-weight:600;font-size:.85em;margin-left:3px}
+.chat-msg .txt{flex:1 1 auto;min-width:0}
+.chat-msg.trade .txt{color:var(--gold)}
+.chat-msg.guild .txt{color:#a7f3e9}
+.chat-msg.whisper .txt{color:#d8c4ff}
+.chat-msg.whisper .who{color:var(--purple)}
+.chat-msg.sys{color:#e0a060;font-style:italic}
+.chat-msg.sys .txt{color:#e0a060}
+.chat-msg.announce{background:rgba(45,212,191,.12);border-left:3px solid #2dd4bf;padding:4px 8px;border-radius:6px}
+.chat-msg.announce .txt{color:#fff;font-weight:700}
+.chat-msg.mention{background:rgba(164,92,255,.14);border-radius:6px;padding:2px 6px;margin:0 -6px}
+.chat-msg .mention-at{color:var(--purple);font-weight:900}
+.chat-link{color:var(--rc);font-weight:800;cursor:pointer;border-bottom:1px dotted currentColor}
+.chat-link.dead{opacity:.6;text-decoration:line-through}
+.chat-newer{display:none;position:sticky;bottom:4px;align-self:center;background:var(--purple);color:#fff;border:0;
+  border-radius:12px;padding:4px 12px;font-size:10px;font-weight:900;letter-spacing:.1em;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.chat-newer.on{display:block}
+.chat-older{align-self:center;background:none;border:1px solid var(--border-soft);color:var(--text-dim);border-radius:8px;
+  padding:3px 10px;font-size:10px;cursor:pointer;margin-bottom:4px}
+.chat-conv{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.chat-conv:hover{background:rgba(255,255,255,.05)}
+.chat-conv .dot{width:8px;height:8px;border-radius:50%;background:var(--text-faint);flex:0 0 auto}
+.chat-conv .dot.on{background:#7ddc5a;box-shadow:0 0 6px #7ddc5a}
+.chat-conv .nm{font-weight:800;color:var(--purple)}
+.chat-conv .last{color:var(--text-dim);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-conv .n{background:var(--purple);color:#fff;border-radius:8px;min-width:16px;text-align:center;font-size:9px;padding:1px 4px}
+.chat-convhead{display:flex;align-items:center;gap:8px;padding:4px 10px;background:rgba(164,92,255,.1);border-bottom:1px solid rgba(164,92,255,.3);font-size:11px}
+.chat-convhead button{background:none;border:0;color:var(--text-dim);cursor:pointer}
+.chat-input{display:flex;align-items:center;gap:6px;padding:7px 8px;border-top:1px solid rgba(255,255,255,.07);flex:0 0 auto}
+.chat-input .chat-mode{width:34px;height:34px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-inset);
+  color:var(--cyan);cursor:pointer;font-size:15px;flex:0 0 auto}
+.chat-input input{flex:1 1 auto;min-width:0;height:34px;border-radius:8px;border:1px solid var(--border-soft);
+  background:rgba(0,0,0,.35);color:#fff;padding:0 10px;font:inherit;font-size:var(--csz)}
+.chat-input input:focus{outline:0;border-color:var(--cyan)}
+.chat-input .chat-count{font-size:9px;color:var(--text-faint);min-width:26px;text-align:right}
+.chat-input .chat-count.warn{color:var(--gold)}
+.chat-input .chat-ico{width:34px;height:34px;border-radius:8px;border:1px solid var(--border-soft);background:var(--bg-inset);
+  color:var(--text-dim);cursor:pointer;font-size:14px;flex:0 0 auto}
+.chat-input .chat-ico:hover{color:#fff;border-color:var(--cyan)}
+.chat-input .chat-send{height:34px;padding:0 14px;border-radius:8px;border:1px solid rgba(56,232,255,.4);
+  background:linear-gradient(90deg,var(--bg-panel-2),var(--bg-panel));color:#fff;font-weight:900;letter-spacing:.12em;
+  font-size:10px;cursor:pointer;flex:0 0 auto}
+.chat-input .chat-send:hover{border-color:var(--cyan);box-shadow:0 0 10px rgba(56,232,255,.3)}
+.chat-draftlinks{display:flex;gap:4px;flex-wrap:wrap;padding:0 10px 4px}
+.chat-draftlinks span{font-size:10px;padding:2px 7px;border-radius:6px;border:1px solid var(--rc);color:var(--rc);background:rgba(0,0,0,.3)}
+.chat-draftlinks span i{margin-left:5px;cursor:pointer;font-style:normal;opacity:.7}
+.chat-menu{position:fixed;z-index:1400;background:rgba(14,18,36,.98);border:1px solid rgba(56,232,255,.3);border-radius:10px;
+  padding:6px;min-width:170px;box-shadow:0 14px 40px rgba(0,0,0,.6)}
+.chat-menu .hd{font-weight:900;color:var(--cyan);padding:4px 8px 6px;border-bottom:1px solid var(--border-soft);margin-bottom:4px}
+.chat-menu button{display:block;width:100%;text-align:left;background:none;border:0;color:#f1ecdd;padding:8px 10px;
+  border-radius:6px;cursor:pointer;font:inherit;min-height:34px}
+.chat-menu button:hover{background:rgba(255,255,255,.07)}
+.chat-menu button.danger{color:#ff7b7b}
+.chat-settings{display:none;position:absolute;right:0;bottom:0;width:300px;max-height:min(70vh,520px);overflow-y:auto;
+  background:rgba(12,16,32,.98);border:1px solid rgba(56,232,255,.35);border-radius:12px;padding:12px;z-index:2;
+  box-shadow:0 14px 40px rgba(0,0,0,.6)}
+.chat-settings.on{display:block}
+.chat-settings h4{margin:0 0 8px;font-size:11px;letter-spacing:.14em;color:var(--cyan)}
+.chat-settings label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:11px;
+  border-bottom:1px solid rgba(255,255,255,.05);min-height:32px}
+.chat-settings select,.chat-settings input[type=range]{max-width:140px}
+.chat-settings .grp{margin-top:10px;font-size:9px;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase}
+.chat-picker{position:absolute;left:8px;right:8px;bottom:54px;max-height:220px;overflow-y:auto;background:rgba(12,16,32,.98);
+  border:1px solid rgba(56,232,255,.35);border-radius:10px;padding:8px;z-index:3;display:none}
+.chat-picker.on{display:block}
+.chat-picker .row{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:6px;cursor:pointer;min-height:40px}
+.chat-picker .row:hover{background:rgba(255,255,255,.06)}
+.chat-picker .nm{color:var(--rc);font-weight:800}
+.chat-picker .grp{font-size:9px;letter-spacing:.14em;color:var(--text-dim);margin:6px 4px 2px}
+.chat-gearcard-close{display:none}
+@media (max-width:760px){
+  .chat-root{right:10px;bottom:10px}
+  .chat-root:not(.mode-min) .chat-panel{position:fixed;left:0;right:0;bottom:0;width:100%;max-width:100%;
+    height:min(78vh,620px) !important;border-radius:14px 14px 0 0}
+  .chat-root.mode-compact .chat-panel{height:min(60vh,480px) !important}
+  .chat-tab{padding:9px 8px;font-size:9px;min-height:44px}
+  .chat-tools button,.chat-input .chat-ico,.chat-input .chat-mode{width:44px;height:44px}
+  .chat-input input,.chat-input .chat-send{height:44px}
+  .chat-fab{width:52px;height:52px}
+  .chat-settings{position:fixed;left:10px;right:10px;bottom:10px;width:auto}
+  .chat-gearcard-close{display:block;position:fixed;z-index:1401;right:14px;bottom:14px;background:var(--purple);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:900}
+}
+#daily-overlay.float-win{inset:0;left:0 !important;top:0 !important;
+  display:none;align-items:center;justify-content:center;padding:8px;pointer-events:none}
+#daily-overlay.float-win.open{display:flex}
+#daily-overlay .daily-modal{pointer-events:auto;position:relative;
+  top:auto;left:auto;right:auto;bottom:auto;transform:none;margin:0}
+.daily-modal{width:min(1040px,96vw);max-width:96vw;max-height:calc(100vh - 16px);
+  display:flex;flex-direction:column;padding:14px 16px 12px;
+  border-color:rgba(56,232,255,.28);
+  box-shadow:0 0 0 1px rgba(123,108,255,.18), 0 24px 70px rgba(0,0,0,.7), 0 0 40px rgba(56,232,255,.08)}
+.dr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.dr-title{font-size:clamp(17px,2.4vw,26px);font-weight:900;letter-spacing:.2em;text-transform:uppercase;
+  background:linear-gradient(90deg,#fff,var(--cyan) 60%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.dr-sub{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);margin-top:3px;font-weight:800}
+.dr-day{font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:900;color:var(--text);white-space:nowrap;margin-top:4px}
+.dr-day b{color:var(--cyan)}
+.dr-x{position:static;transform:none;margin-left:6px}
+.dr-headr{display:flex;align-items:center;gap:8px}
+.dr-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px;
+  scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent}
+.dr-row{display:grid;grid-template-columns:150px repeat(6,minmax(0,1fr));gap:6px;
+  padding:6px;margin-bottom:7px;border-radius:12px;
+  border:1px solid color-mix(in srgb,var(--rh) 34%,var(--border-soft));
+  background:linear-gradient(90deg,color-mix(in srgb,var(--rh) 11%,transparent),transparent 34%),var(--bg-inset)}
+.dr-region{display:flex;align-items:center;gap:8px;padding:0 6px;min-width:0}
+.dr-region .sn-hex{--hxc:var(--rh);flex:0 0 auto}
+.dr-region-nm{font-size:9.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--rh);line-height:1.25;min-width:0}
+.dr-cell{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:3px;padding:7px 5px 6px;min-height:104px;border-radius:9px;
+  border:1px solid var(--border-soft);background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  text-align:center;min-width:0;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+.dr-cell:hover{transform:translateY(-1px)}
+.dr-num{position:absolute;left:7px;top:5px;font-size:12px;font-weight:900;color:var(--text-dim);letter-spacing:.02em}
+.dr-mark{position:absolute;right:6px;top:5px;width:16px;height:16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;
+  border:1px solid var(--border-soft);color:var(--text-faint);background:var(--bg-inset)}
+.dr-icos{display:flex;align-items:center;justify-content:center;gap:2px;margin-top:16px;height:40px}
+.dr-ico{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1}
+.dr-ico img{width:38px;height:38px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+.dr-icos.two .dr-ico,.dr-icos.two .dr-ico img{width:30px;height:30px;font-size:22px}
+.dr-ico .qi{width:30px;height:30px;display:inline-block;background-size:contain;background-repeat:no-repeat;background-position:center}
+.dr-lbl{font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text);line-height:1.2;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;width:100%}
+.dr-qty{font-size:10.5px;font-weight:900;color:var(--cyan);margin-top:auto}
+/* Statusarna */
+.dr-cell.claimed{opacity:.5}
+.dr-cell.claimed .dr-mark{border-color:var(--cyan);color:var(--cyan);background:rgba(56,232,255,.12)}
+.dr-cell.locked{opacity:.78}
+.dr-cell.locked .dr-icos{filter:saturate(.55) brightness(.85)}
+.dr-cell.avail{opacity:1;border-color:var(--cyan);cursor:pointer;
+  box-shadow:0 0 0 1px rgba(56,232,255,.35),0 0 18px rgba(56,232,255,.35),inset 0 0 22px rgba(56,232,255,.08);
+  animation:drPulse 1.6s ease-in-out infinite}
+.dr-cell.avail .dr-num{color:var(--cyan)}
+@keyframes drPulse{0%,100%{box-shadow:0 0 0 1px rgba(56,232,255,.35),0 0 14px rgba(56,232,255,.3)}
+  50%{box-shadow:0 0 0 1px rgba(56,232,255,.6),0 0 26px rgba(56,232,255,.55)}}
+.dr-cell.milestone{border-color:rgba(164,92,255,.7);background:linear-gradient(180deg,rgba(164,92,255,.12),var(--bg-panel))}
+.dr-cell.milestone .dr-num{color:var(--purple)}
+.dr-cell.milestone.avail{border-color:var(--purple);
+  box-shadow:0 0 0 1px rgba(164,92,255,.4),0 0 20px rgba(164,92,255,.45)}
+.dr-cell.day30{border-color:var(--gold);grid-column:span 1;
+  background:linear-gradient(180deg,rgba(255,197,66,.16),rgba(164,92,255,.1) 60%,var(--bg-panel));
+  box-shadow:0 0 0 1px rgba(255,197,66,.35),0 0 22px rgba(255,197,66,.25)}
+.dr-cell.day30 .dr-num,.dr-cell.day30 .dr-lbl{color:var(--gold)}
+.dr-cell.day30 .dr-qty{color:var(--gold);font-size:8px;letter-spacing:.04em;font-weight:800;white-space:normal;line-height:1.3}
+.dr-cell.day30.avail{animation:drPulseGold 1.6s ease-in-out infinite}
+@keyframes drPulseGold{0%,100%{box-shadow:0 0 0 1px rgba(255,197,66,.4),0 0 18px rgba(255,197,66,.3)}
+  50%{box-shadow:0 0 0 1px rgba(255,197,66,.8),0 0 34px rgba(255,197,66,.6)}}
+.dr-cell.claimed.day30{opacity:.62}
+/* Foten */
+.dr-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
+  margin-top:6px;padding-top:10px;border-top:1px solid var(--border-soft)}
+.dr-prog{display:flex;align-items:center;gap:10px;min-width:0}
+.dr-prog .sn-hex{--hxc:var(--cyan);flex:0 0 auto}
+.dr-prog-n{font-size:15px;font-weight:900;letter-spacing:.08em}
+.dr-prog-n b{color:var(--cyan)}
+.dr-prog-sub{font-size:9.5px;color:var(--text-dim);line-height:1.3}
+.dr-claim{min-width:220px;padding:13px 26px;font-size:14px;letter-spacing:.14em;font-weight:900;text-transform:uppercase;
+  background:linear-gradient(90deg,var(--violet),var(--purple));border-color:rgba(164,92,255,.7);
+  box-shadow:0 0 22px rgba(123,108,255,.45)}
+.dr-claim[disabled]{opacity:.5;box-shadow:none;cursor:default}
+.dr-claim.done{background:linear-gradient(90deg,#3a3f66,#2a2f4d);border-color:var(--border-soft)}
+.dr-next{font-size:10px;letter-spacing:.06em;color:var(--text-dim);text-align:right;line-height:1.5}
+.dr-next b{color:var(--cyan);font-variant-numeric:tabular-nums;font-size:12px}
+.dr-note{font-size:9px;color:var(--text-faint);text-align:right;margin-top:2px}
+.dr-sum{margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid rgba(56,232,255,.35);
+  background:rgba(56,232,255,.06);font-size:11px;line-height:1.5;display:none}
+.dr-sum.on{display:block;animation:drSumIn .3s ease-out}
+.dr-sum b{color:var(--cyan)}
+.dr-sum .mail{color:var(--gold)}
+@keyframes drSumIn{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+@media (max-width:980px){
+  .dr-row{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .dr-region{grid-column:1 / -1;padding:2px 4px 0}
+  .dr-cell{min-height:96px}
+}
+@media (max-width:760px){
+  .float-win.open > .daily-modal{max-height:92vh}
+  .float-win.open > .daily-modal > .dr-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .daily-modal{padding:12px 10px 10px}
+  .dr-row{gap:4px;padding:4px}
+  .dr-cell{min-height:86px;padding:6px 3px 5px;border-radius:7px}
+  .dr-num{font-size:10px;left:5px;top:4px}
+  .dr-mark{width:13px;height:13px;font-size:8px;right:4px;top:4px}
+  .dr-icos{height:30px;margin-top:12px}
+  .dr-ico,.dr-ico img{width:28px;height:28px;font-size:20px}
+  .dr-icos.two .dr-ico,.dr-icos.two .dr-ico img{width:22px;height:22px;font-size:16px}
+  .dr-ico .qi{width:24px;height:24px}
+  .dr-lbl{font-size:7px;letter-spacing:.06em}
+  .dr-qty{font-size:9px}
+  .dr-foot{grid-template-columns:1fr;gap:8px;text-align:center}
+  .dr-prog{justify-content:center}
+  .dr-next,.dr-note{text-align:center}
+  .dr-claim{width:100%}
+  .dr-title{letter-spacing:.12em}
+}
+@media (prefers-reduced-motion:reduce){.dr-cell.avail,.dr-cell.day30.avail{animation:none}}
 #dgc-overlay.float-win{inset:0;left:0 !important;top:0 !important;
   display:none;align-items:center;justify-content:center;padding:8px;
   pointer-events:none}
@@ -5613,7 +5871,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="nav-btn" id="nav-inbox"><span class="ico sn-hex" style="--hxc:var(--cyan)"><span class="qi qi-inbox"></span></span><span class="lbl">Inbox</span><span class="notif" id="mail-badge" style="display:none">0</span></div>
         <div class="nav-btn" id="nav-ach"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-achievements"></span></span><span class="lbl">Achievements</span><span class="notif" id="ach-badge" style="display:none">0</span></div>
         <div class="nav-btn"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-events"></span></span><span class="lbl">Events<small>2d 14h</small></span></div>
-        <div class="nav-btn glow-gold"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-daily"></span></span><span class="lbl">Daily Rewards</span></div>
+        <div class="nav-btn" id="nav-daily"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-daily"></span></span><span class="lbl">Daily Rewards</span><span class="notif" id="daily-badge" style="display:none">1</span></div>
         <div class="nav-btn" id="nav-shop"><span class="ico sn-hex" style="--hxc:var(--cyan)"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
         <div class="nav-btn"><span class="ico sn-hex" style="--hxc:var(--violet)"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
         <div class="nav-btn" id="nav-settings"><span class="ico sn-hex" style="--hxc:var(--cyan)"><span class="qi qi-settings"></span></span><span class="lbl">Settings</span></div>
@@ -5631,7 +5889,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.174.0 — GILLETS BELONING SYNS I INKORGEN</div>
+        <div class="sn-ver">GENESIS v5.180.2 — GILLET: BUGGSVEP</div>
       </div>
     </div>
   </aside>
@@ -5999,6 +6257,69 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
   <!-- ================= BRAGDERNA ================= -->
   <!-- ================= INKORGEN ================= -->
+
+  <!-- DAILY REWARDS — MONTHLY TRANSMISSION (v5.175.0). Centreras av bladet som
+       svarighetsvalet; pa telefon ett blad underifran som rullar inuti. -->
+  <div class="float-win" id="daily-overlay">
+    <div class="modal daily-modal">
+      <div class="dr-head">
+        <div>
+          <div class="dr-title">Monthly Transmission</div>
+          <div class="dr-sub">30 rewards · one claim per day · missed days do not reset</div>
+        </div>
+        <div class="dr-headr">
+          <div class="dr-day" id="dr-day">Day <b>1</b> / 30</div>
+          <button class="inv-x dr-x" id="daily-close" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="dr-body" id="dr-body"><div class="shelf-empty">Loading…</div></div>
+      <div class="dr-foot">
+        <div class="dr-prog">
+          <span class="res-icon sn-hex"><span class="qi qi-daily"></span></span>
+          <div><div class="dr-prog-n" id="dr-prog"><b>0</b> / 30 claimed</div>
+               <div class="dr-prog-sub">Your progress continues even if you miss a day.</div></div>
+        </div>
+        <button class="btn-primary dr-claim" id="dr-claim" disabled>Claim</button>
+        <div>
+          <div class="dr-next" id="dr-next"></div>
+          <div class="dr-note">If your backpack is full, rewards are sent to your Inbox.</div>
+        </div>
+      </div>
+      <div class="dr-sum" id="dr-sum"></div>
+    </div>
+  </div>
+
+  <!-- CHATTEN v1 (v5.180.0) -->
+  <div class="chat-root mode-compact" id="chat-root" style="display:none">
+    <div class="chat-panel" id="chat-panel">
+      <div class="chat-tabs">
+        <button class="chat-tab on" data-ctab="general">General<span class="ct-n"></span></button>
+        <button class="chat-tab" data-ctab="trade">Trade<span class="ct-n"></span></button>
+        <button class="chat-tab" data-ctab="guild">Guild<span class="ct-n"></span></button>
+        <button class="chat-tab" data-ctab="whisper">Whispers<span class="ct-n"></span></button>
+        <span class="chat-tools">
+          <button id="chat-btn-set" title="Chat settings">⚙</button>
+          <button id="chat-btn-exp" title="Expand">⤢</button>
+          <button id="chat-btn-min" title="Minimize">—</button>
+        </span>
+      </div>
+      <div class="chat-pin" id="chat-pin"></div>
+      <div class="chat-convhead" id="chat-convhead" style="display:none"></div>
+      <div class="chat-body" id="chat-body"></div>
+      <button class="chat-newer" id="chat-newer">New messages ↓</button>
+      <div class="chat-draftlinks" id="chat-draftlinks"></div>
+      <div class="chat-input">
+        <button class="chat-mode" id="chat-btn-mode" title="Compact / expanded">💬</button>
+        <input id="chat-text" maxlength="240" placeholder="Say something…" autocomplete="off">
+        <span class="chat-count" id="chat-count"></span>
+        <button class="chat-ico" id="chat-btn-link" title="Link an item (or Shift+click gear while typing)">🔗</button>
+        <button class="chat-send" id="chat-btn-send">SEND</button>
+      </div>
+      <div class="chat-picker" id="chat-picker"></div>
+      <div class="chat-settings" id="chat-settings"></div>
+    </div>
+    <button class="chat-fab" id="chat-fab" title="Chat">💬<span class="notif" id="chat-fab-n" style="display:none">0</span></button>
+  </div>
   <div class="float-win" id="mail-overlay">
     <div class="modal inv-modal mail-modal">
       <div class="inv-emblem">📩</div>
@@ -6477,7 +6798,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.174.0 — GILLETS BELONING SYNS I INKORGEN</div>
+            <div class="desc">GENESIS v5.180.2 — GILLET: BUGGSVEP</div>
           </div>
         </div>
       </div>
@@ -6703,6 +7024,7 @@ function sessionReplaced(annanKaraktar){
 }
 function srvClearSession(){
   SRV.token = SRV.refresh = SRV.user = SRV.charId = SRV.charName = null;
+  try { chatSockClose(); if (CHAT.poll){ clearInterval(CHAT.poll); CHAT.poll = null; } chatSet(false); } catch (e){}
   SRV.expires = 0; SRV.online = false;
   try { localStorage.removeItem(SRV_STORE); } catch (e){}
 }
@@ -6942,6 +7264,22 @@ const SRV_ERRORS = {
      raderna visades nyckeln som ratext mitt i spelet. */
   use_gem_slot:             'The Character Gem has its own place \u2014 set it there, not in a gear slot.',
   gem_is_equipped:          'That gem is worn right now. Take it off first.',
+  daily_already_claimed:    'You already claimed today \u2014 come back tomorrow.',
+  chat_too_fast:            'Slow down a little.',
+  chat_duplicate:           'You just said that.',
+  chat_too_long:            'Messages are 240 characters at most.',
+  chat_empty:               'Nothing to send.',
+  chat_trade_locked:        'Trade chat unlocks at level 5.',
+  chat_blocked:             'You cannot message that player.',
+  chat_whisper_refused:     'That player is not accepting whispers from you.',
+  chat_self:                'Talking to yourself?',
+  chat_no_target:           'Pick someone to whisper.',
+  link_item_not_owned:      'You no longer own that item, so it could not be linked.',
+  link_listing_gone:        'That auction listing is gone.',
+  chat_too_many_links:      'At most three links per message.',
+  no_permission:            'You do not have permission for that.',
+  daily_cycle_complete:     'The board is complete \u2014 a new one starts tomorrow.',
+  not_a_cache:              'That is not a cache.',
   cannot_be_listed:         'That cannot be put up for auction.',
   cannot_be_sold:           'That cannot be sold.',
   heroic_locked:            'Clear this dungeon on the normal difficulty first.',
@@ -7537,6 +7875,9 @@ async function netUseStackItem(key){
   if (!NET.on) return null;
   const r = await srvRpc('use_stack_item', {p_character: SRV.charId, p_key: key});
   await netPull(); await netPullItems(); await netPullBoosts();
+  /* [TILLAGT v5.179.0] En boost mitt i en korning raknar om sluttiden pa servern
+     (Chris beslut) - hamta hem de nya klockorna nar nagot pagar. */
+  if (S.exp && S.exp.runs && S.exp.runs.length){ try { await netPullRunsInto(); } catch (e){} renderExpPanel(); }
   renderInventory(); renderBoostBar(); updateUI(true);
   return r;
 }
@@ -8711,6 +9052,10 @@ async function netEquip(gear, slot){
     const r = await srvRpc('equip_item',
       {p_character: SRV.charId, p_item: gear.sid, p_slot: (slot == null ? null : slot)});
     await netPullItems();
+    /* [TILLAGT v5.178.0] Utrustningsbyten raknar om pagaende expeditioner pa
+       servern (Chris beslut) - hamta hem de nya sluttiderna. Bara nar nagot
+       faktiskt pagar, sa vanliga byten inte kostar ett anrop extra. */
+    if (S.exp && S.exp.runs && S.exp.runs.length){ try { await netPullRunsInto(); } catch (e){} renderExpPanel(); }
     renderEquip(); renderInventory(); updateUI(true);
     return r;
   } catch (e){
@@ -8726,6 +9071,7 @@ async function netUnequip(gear){
   try {
     const r = await srvRpc('unequip_item', {p_character: SRV.charId, p_item: gear.sid});
     await netPullItems();
+    if (S.exp && S.exp.runs && S.exp.runs.length){ try { await netPullRunsInto(); } catch (e){} renderExpPanel(); }
     renderEquip(); renderInventory(); updateUI(true);
     return r;
   } catch (e){
@@ -8961,7 +9307,12 @@ async function netSetTeam(pet, slot){
   const r = await srvRpc('set_team_slot',
     {p_character: SRV.charId, p_pet: pet.sid, p_slot: (slot == null ? null : slot)});
   await netPullPets();
-  renderPets(); renderPetPanel(); updateUI(true);
+  /* [TILLAGT v5.177.0] HJALPARBYTET RAKNAR OM PAGAENDE EXPEDITIONER (Chris
+     beslut). Servern flyttar sluttiden at bada hall - en snabbare hjalpare kortar,
+     en langsammare forlanger. Klienten maste hamta hem de nya sluttiderna, annars
+     star klockan pa den gamla tills nasta omladdning. */
+  try { await netPullRunsInto(); } catch (e){}
+  renderPets(); renderPetPanel(); renderExpPanel(); updateUI(true);
   return r;
 }
 /* [BORTTAGET v5.84.0] netFeedPet. Matningen ar riven bade har och pa servern -
@@ -9128,6 +9479,10 @@ async function netPullAll(){
   /* Vanlistan hamtas med allt annat, sa siffran pa knappen stammer fran forsta
      stund - inte forst nar man rakar oppna rutan. */
   try { await netFriendList(); renderFriendBadge(); } catch (e){}
+  /* [TILLAGT v5.175.0] Dagens belöning: sa knappen lyser fran forsta stund. */
+  try { await netDailyState(); } catch (e){}
+  /* [TILLAGT v5.180.0] Chatten vaknar nar karaktaren ar hemma. */
+  try { await chatStart(); } catch (e){}
   /* Hamtade vi hem allt ritar vi ocksa om allt. Det ar den enda regel som
      haller: den som hamtar behover inte veta vilka rutor som pavarkas. */
   redrawAll();
@@ -12578,7 +12933,7 @@ function load(){
                    celler ur en färdig expedition vid omladdning. */
                 if (r.loot.gear){ const g = readGear(r.loot.gear); if (g){ if (typeof r.loot.gear.src === 'string' && r.loot.gear.src.length < 80) g.src = r.loot.gear.src; run.loot.gear = g; } }
                 if (r.loot.cell) run.loot.cell = true;
-                if (r.junk && Object.keys(r.junk).length) run.loot.junk = r.junk;
+                if (r.junk && Object.keys(r.junk).length){ run.loot.junk = Object.assign({}, r.junk); delete run.loot.junk._lost; }
                 if (typeof r.loot.recipe === 'string' && RECIPE_BY[r.loot.recipe]) run.loot.recipe = r.loot.recipe;
               }
               return run;
@@ -14857,6 +15212,9 @@ function useInvItem(idx){
     return !!(got && got.length);
   }
   if (row.key === MELON_KEY) return openMelon(idx);
+  /* [TILLAGT v5.175.0] Cache-biljetten: samma kastbalk som en kopt cache, sedan
+     servern. Hjalparen visas i hjalparlistan, pjasen hamnar i vaskan. */
+  if (isCacheTicket(row.key)){ useCacheTicket(row.key); return true; }
   const bk = BOOST_KEY_BY_ITEM[row.key];
   if (bk){
     if (!boostSlotsFree(bk)){
@@ -15473,9 +15831,16 @@ function expTimeText(def){
   return fmtDur(s) + ' ⚡';
 }
 function expRunSeconds(def){
-  /* Boosten läggs till utrustningens egen förkortning; golvet på 30 sekunder gäller
-     fortfarande, så en körning kan aldrig bli ögonblicklig. */
-  return Math.max(30, Math.round(def.mins * 60 * (1 - (gearBonus('expspd') + boostPct('expspd') + flaskPct('expspd')) / 100)));
+  /* [RATTAT v5.176.0] SAMMA FORMEL SOM SERVERN - TVA SANNINGAR IGEN.
+     Servern raknar utrustning + boost + HJALPARE och tar hogst 80 %. Klienten
+     raknade utrustning + boost + de gamla flaskorna, utan hjalpare och utan tak.
+     Med en hjalpare som ger expeditionsfart lovade kortet darfor en LANGRE tid an
+     den man faktiskt fick, och med mycket fart kunde kortet lova under golvet.
+     Precis det "helper-farten" i lardomarna handlade om: regeln uppdaterad pa
+     servern men inte har. Nu speglas serverns rad ordagrant.
+     Golvet pa 30 sekunder ar samma pa bada sidor. */
+  const spd = Math.min(0.80, (gearBonus('expspd') + boostPct('expspd') + helperBonus('expspd')) / 100);
+  return Math.max(30, Math.round(def.mins * 60 * (1 - spd)));
 }
 function relTier(def){ const R = REGIONS[def.region]; return R ? (R.tier | 0) : 0; }
 function gearDropChance(def){
@@ -15576,7 +15941,16 @@ function claimExpedition(id){
              raden nedan talar om att de vantar i inkorgen. */
           missed:   (r.missed && r.missed.length) ? r.missed.slice() : null,
           mailed:   !!r.mailed,
+          /* [TILLAGT v5.177.0] Skrot som inte fick plats. Tappas med flit (Chris
+             beslut) - men det ska SAGAS, inte tigas om. */
+          junkLost: (r.junk && Array.isArray(r.junk._lost) && r.junk._lost.length) ? r.junk._lost.slice() : null,
           loot: {
+            /* [RATTAT v5.177.0] SKROTET SYNTES ALDRIG I RUTAN ONLINE. Servern
+               rullade det, la det i vaskan och skickade det i svaret - men
+               klienten laste bara skrot ur den lokala sparfilen. Dott varde som
+               sag levande ut. Nu bars det hit, utan "_lost"-listan. */
+            junk: (() => { if (!r.junk) return null; const j = Object.assign({}, r.junk); delete j._lost;
+                           return Object.keys(j).length ? j : null; })(),
             gold:  +(r.loot && r.loot.gold) || 0,
             frags: +r.frags || 0,
             gear:  r.gear ? netGearFromClaim(r.gear) : null,
@@ -15689,7 +16063,13 @@ function showRewards(run, alreadyPaid){
       run.missed.join(', ') + (run.mailed
         ? ' is waiting in your inbox.'
         : ' had to be left behind.') + '</div>' : '';
-  $('rw-found').innerHTML = missed +
+  /* [TILLAGT v5.177.0] Tappat skrot: en egen varning, aldrig posten. */
+  const junkLost = (run && run.junkLost && run.junkLost.length)
+    ? '<div class="rw-missed">\u26A0 Backpack full \u2014 ' + run.junkLost.length +
+      ' piece' + (run.junkLost.length > 1 ? 's' : '') + ' of junk left behind (' +
+      run.junkLost.map(k => MATERIALS[k] ? MATERIALS[k].name : k).join(', ') +
+      '). Empty your bag before the next run!</div>' : '';
+  $('rw-found').innerHTML = missed + junkLost +
     (found ? '<div class="section-label">Found</div>' + found : '');
   /* Hovra fyndet och se exakt vad det ger — utan att först behöva hämta och leta. */
   const rg = $('rw-found').querySelector('[data-rwgear]');
@@ -16290,6 +16670,9 @@ function sayAtPoint(x, y, text){
 }
 function say(text){
   if (!text) return;
+  /* [TILLAGT v5.180.0] Varje besked speglas som en SYSTEMRAD i chatten (Chris
+     beslut): de gula rutorna overst missas latt, chatten ligger kvar. */
+  try { chatSys(text); } catch (e){}
   let box = document.getElementById('say-box');
   if (!box){
     box = document.createElement('div');
@@ -17571,6 +17954,21 @@ const ITEM_DEFS = {
        Aterkopet lamnas dar det ar, for varan ar varken battre eller samre an
        forut - den ar en annan sorts vara. */
     sell: GOLD(9)
+  },
+  /* [TILLAGT v5.175.0] CACHE-BILJETTERNA. Daily Rewards delar ut en FARDIG cache,
+     inte fragment: foremalet oppnar cachen utan kostnad nar man anvander det.
+     Servern forskotterar exakt cachens pris och oppningen drar det igen, sa
+     rullningen ar densamma som nar man betalar sjalv. Kan varken saljas eller
+     listas. Bilder: assets/items/caches/<nyckel>.png, emoji tills de finns. */
+  cache_helper: {
+    name: 'Helper Cache', ico: '\ud83d\udce6', art: 'assets/items/caches/cache_helper.png', kind: 'Consumable',
+    desc: 'A sealed helper cache from the Monthly Transmission. Open it to roll a new helper from your current region \u2014 no fragments needed.',
+    sell: 0, noSell: true
+  },
+  cache_gear: {
+    name: 'Gear Cache', ico: '\ud83e\uddf0', art: 'assets/items/caches/cache_gear.png', kind: 'Consumable',
+    desc: 'A sealed gear cache from the Monthly Transmission. Open it to roll one piece of gear \u2014 no fragments needed. Needs one free backpack slot.',
+    sell: 0, noSell: true
   },
   boost_luck: {
     name: BOOSTS.luck.name, ico: BOOSTS.luck.ico, kind: 'Consumable',
@@ -23717,6 +24115,9 @@ function stackWinActions(win, key){
     h += '<button class="ia-equip" data-act="use"' + (full ? ' disabled style="opacity:.5"' : '') + '>' +
       (full ? 'Tank is full' : 'Use') + '<span>+' + FUEL_CELL_RESTORE + ' fuel</span></button>';
   }
+  if (isCacheTicket(key)){
+    h += '<button class="ia-equip" data-act="use">Open<span>' + (key === 'cache_gear' ? 'one piece of gear' : 'one helper') + '</span></button>';
+  }
   if (row.recipe && RECIPE_BY[row.recipe]){
     const already = recipeKnown(row.recipe);
     h += '<button class="ia-equip" data-act="learn"' + (already ? ' disabled style="opacity:.5"' : '') + '>' +
@@ -23878,6 +24279,9 @@ function openStackMenu(key, x, y){
       h += '<button class="pm-item" data-act="use"' + (full ? ' disabled' : '') + '>' +
         (full ? 'Tank is full' : 'Use \u00b7 +' + FUEL_CELL_RESTORE + ' fuel') + '</button>';
     }
+    if (isCacheTicket(key)){
+      h += '<button class="pm-item" data-act="use">Open the cache</button>';
+    }
     /* [TILLAGT v5.33.0] Lakevarorna far sin Use-rad. Pa full halsa star skalet
        pa knappen i stallet for att den forsvinner - samma satt som tanken. */
     if (MEDICAL_HEAL[key]){
@@ -23898,6 +24302,8 @@ function openStackMenu(key, x, y){
        Raden om varfor star i stallet - kort, och sann. */
     if (shardOf(key)){
       h += '<div class="pm-note">Proof of an expedition. It cannot be sold or traded.</div>';
+    } else if (def && def.noSell){
+      h += '<div class="pm-note">A reward. It cannot be sold or traded \u2014 open it instead.</div>';
     } else if (def){
       h += '<button class="pm-item" data-act="sell1">Sell one \u00b7 ' + moneyText(def.sell) + '</button>';
       if (r.qty > 1)
@@ -27520,8 +27926,18 @@ function guildChatHTML(st){
 }
 /* Rutan har en hogsta hojd; spalterna far exakt det som blir over nar
    rubriken och vaxlingsknappen tagit sitt. Da rullar ingenting. */
+function gdHookLinks(){
+  /* Rutan byggs om med innerHTML nar panelen ritas - kroken maste sitta pa
+     det element som faktiskt star dar nu, inte pa ett gammalt. */
+  const box = $('gd-msgs'); if (!box || box.dataset.hooked) return; box.dataset.hooked = '1';
+  const find = el => { const m = GUILD.chat.find(x => String(x.id) === el.dataset.gditem); return m && m.item && m.item.hp != null ? m.item : null; };
+  box.addEventListener('mouseover', e => { const l = e.target.closest('[data-gditem]'); if (!l || isTouchInput()) return; const a = find(l); if (a) chatShowCard(a, e.clientX, e.clientY, false); });
+  box.addEventListener('mouseout', e => { if (!isTouchInput() && e.target.closest && e.target.closest('[data-gditem]')) hideGearTip(); });
+  box.addEventListener('click', e => { const l = e.target.closest('[data-gditem]'); if (!l || !isTouchInput()) return; const a = find(l); if (a) chatShowCard(a, e.clientX, e.clientY, true); });
+}
 function renderGuildChatMsgs(){
   const box = $('gd-msgs'); if (!box) return;
+  gdHookLinks();
   if (!GUILD.chat.length){
     box.innerHTML = '<div class="gd-sys">NO MESSAGES YET \u2014 start the conversation.</div>';
     return;
@@ -27529,11 +27945,14 @@ function renderGuildChatMsgs(){
   const stick = (box.scrollHeight - box.scrollTop - box.clientHeight) < 60;
   box.innerHTML = GUILD.chat.map(m => {
     if (m.kind === 'sys') return '<div class="gd-sys">' + esc(m.body) + '</div>';
-    const item = m.item ? '<span class="gd-itemlink" style="--rc:' +
-      (GRARC[m.item.rarity] || GRARC[0]) + '">' + esc(gItemName(m.item.key)) + '</span>' : '';
-    return '<div class="gd-msg"><span class="who ' + (m.role || '') + '">' + esc(m.handle || '?') +
+    /* [ANDRAT v5.180.2] Samma rad som chattrutan: announce markerad, lankad pjas
+       ar en snapshot (hovra = kortet), inte bara ett namn. */
+    const item = m.item ? '<span class="gd-itemlink chat-link" data-gditem="' + m.id + '" style="--rc:' +
+      (GRARC[m.item.rarity] || GRARC[0]) + '">[' + esc(gItemName(m.item.key)) + ']</span>' : '';
+    const ann = m.kind === 'announce';
+    return '<div class="gd-msg' + (ann ? ' chat-msg announce' : '') + '"><span class="who ' + (m.role || '') + '">' + (ann ? '\ud83d\udce3 ' : '') + esc(m.handle || '?') +
       '</span><span class="when">' + fmtDur(m.at_secs) + ' ago</span>' +
-      '<div class="txt">' + esc(m.body) + item + '</div></div>';
+      '<div class="txt">' + esc(m.body) + ' ' + item + '</div></div>';
   }).join('');
   if (stick) box.scrollTop = box.scrollHeight;
 }
@@ -27765,6 +28184,711 @@ $('guild-body').addEventListener('keydown', e => {
     const b = $('guild-body').querySelector('[data-g="findgo"]'); if (b) b.click();
   }
 });
+
+/* ================= DAILY REWARDS — MONTHLY TRANSMISSION (v5.175.0) =================
+   Servern ager allt: vilken dag man star pa, om dagen ar hamtad, vad den ger och
+   hur mycket guld cachen ar vard pa ens niva. Klienten ritar tavlan ur serverns
+   svar, raknar ned till nasta UTC-dygn med serverns klocka som facit, och
+   skickar ETT anrop nar man trycker Claim. Tavlan (30 rader) och guldskalningen
+   bor i tva konfigtabeller pa servern - inget av det star har.
+   Dygnet ar UTC-dygnet, samma for alla spelare oavsett var de bor. */
+const DAILY_REGION_ROWS = ['voxholm', 'drakemark', 'cutlassbay', 'novacommand', 'quarantine'];
+/* Regionernas egna farger, tagna ur kartan (hue per region) - inga pahittade. */
+const DAILY_REGION_HUE = {voxholm: '#7ddc5a', drakemark: '#a78bfa', cutlassbay: '#2dd4bf',
+                          novacommand: '#8fb8ff', quarantine: '#f0b64a'};
+const DAILY_GOLD_NAME = {small: 'Small Gold Cache', medium: 'Medium Gold Cache',
+                         large: 'Large Gold Cache', genesis: 'Genesis Gold Cache'};
+let DAILY = null;          /* serverns senaste svar */
+let DAILY_SKEW = 0;        /* serverklocka minus klientklocka, ms */
+let dailyTimer = null;
+let dailyBusy = false;
+function isCacheTicket(key){ return key === 'cache_helper' || key === 'cache_gear'; }
+async function netDailyState(){
+  if (!NET.on || !SRV.charId) return null;
+  const r = await srvRpc('daily_state', {p_character: SRV.charId});
+  if (r){
+    DAILY = r;
+    if (r.server_now) DAILY_SKEW = new Date(r.server_now).getTime() - Date.now();
+  }
+  renderDailyBadge();
+  return r;
+}
+/* Hur en belöning ser ut i en ruta: bild (eller emoji), namn och mangd. */
+function dailyRewardView(r){
+  const emo = e => '<span class="dr-ico">' + e + '</span>';
+  const art = (src, e) => src ? '<span class="dr-ico">' + artWithFallback(src, e) + '</span>' : emo(e);
+  const qi  = cls => '<span class="dr-ico"><span class="qi ' + cls + '"></span></span>';
+  if (r.kind === 'gold')
+    return {name: DAILY_GOLD_NAME[r.size] || 'Gold Cache', qty: moneyText(+r.gold || 0),
+            ico: art('assets/items/daily/gold_cache_' + r.size + '.png', '\ud83d\udcb0')};
+  if (r.kind === 'frags')
+    return {name: 'Fragments', qty: '\u00d7' + r.qty, ico: qi('qi-fragments')};
+  if (r.kind === 'credits')
+    return {name: 'Credits', qty: '\u00d7' + r.qty, ico: qi('qi-credits')};
+  const d = ITEM_DEFS[r.key] || MATERIALS[r.key] || {name: r.key, ico: '\ud83d\udce6'};
+  return {name: d.name, qty: '\u00d7' + r.qty, ico: art(stackArtOf(r.key), d.ico || '\ud83d\udce6')};
+}
+function dailyCellHTML(e, st){
+  const views = (e.rewards || []).map(dailyRewardView);
+  const is30 = e.day === 30;
+  let cls = 'dr-cell ' + st + (e.milestone ? ' milestone' : '') + (is30 ? ' day30' : '');
+  let icos, lbl, qty;
+  if (is30){
+    icos = '<div class="dr-icos">' +
+      '<span class="dr-ico">' + artWithFallback('assets/items/daily/genesis_cache.png', '\ud83c\udf81') + '</span></div>';
+    lbl = 'Genesis Cache';
+    /* Innehallet pa en rad: "25 Credits · 15 Fragments · Vial + Draft · 160g" */
+    const rest = views.filter(v => !/Gold Cache/.test(v.name) && !/Vial|Draft/.test(v.name))
+      .map(v => v.qty.replace('\u00d7', '') + ' ' + v.name);
+    const guld = views.find(v => /Gold Cache/.test(v.name));
+    qty = rest.concat(['Vial + Draft'], guld ? [guld.qty] : []).join(' \u00b7 ');
+  } else if (views.length > 1){
+    icos = '<div class="dr-icos two">' + views.map(v => v.ico).join('') + '</div>';
+    lbl = e.label;
+    qty = views.every(v => v.qty === views[0].qty) ? views[0].qty + ' each' : views.map(v => v.qty).join(' + ');
+  } else {
+    const v = views[0] || {ico: '', name: e.label, qty: ''};
+    icos = '<div class="dr-icos">' + v.ico + '</div>';
+    lbl = v.name; qty = v.qty;
+  }
+  const mark = st === 'claimed' ? '\u2713' : (st === 'locked' ? '\ud83d\udd12' : '');
+  return '<div class="' + cls + '" data-drday="' + e.day + '" title="Day ' + e.day + ' \u2014 ' + esc(e.label) + '">' +
+    '<span class="dr-num">' + e.day + '</span>' +
+    (mark ? '<span class="dr-mark">' + mark + '</span>' : '') +
+    icos + '<div class="dr-lbl">' + esc(lbl) + '</div>' +
+    '<div class="dr-qty">' + esc(qty) + '</div></div>';
+}
+function renderDaily(){
+  const body = $('dr-body'); if (!body) return;
+  const d = DAILY;
+  if (!NET.on){ body.innerHTML = '<div class="shelf-empty">Daily rewards need a live connection.</div>'; return; }
+  if (!d || !d.board){ body.innerHTML = '<div class="shelf-empty">Loading\u2026</div>'; return; }
+  const cur = d.completed ? 31 : d.day;
+  let h = '';
+  for (let r = 0; r < 5; r++){
+    const rid = DAILY_REGION_ROWS[r], R = REGIONS[rid] || {name: rid};
+    h += '<div class="dr-row" style="--rh:' + DAILY_REGION_HUE[rid] + '">' +
+      '<div class="dr-region"><span class="res-icon sn-hex"><span class="qi qi-daily"></span></span>' +
+      '<span class="dr-region-nm">' + esc(R.name) + '</span></div>';
+    for (let c = 0; c < 6; c++){
+      const day = r * 6 + c + 1, e = d.board[day - 1];
+      if (!e) continue;
+      const st = day < cur ? 'claimed' : (day === cur && d.claimable ? 'avail' : 'locked');
+      h += dailyCellHTML(e, st);
+    }
+    h += '</div>';
+  }
+  body.innerHTML = h;
+  $('dr-day').innerHTML = 'Day <b>' + (d.completed ? 30 : d.day) + '</b> / 30';
+  $('dr-prog').innerHTML = '<b>' + d.claimed_count + '</b> / 30 claimed';
+  const btn = $('dr-claim');
+  btn.classList.remove('done');
+  if (d.completed){ btn.textContent = 'Board complete'; btn.disabled = true; btn.classList.add('done'); }
+  else if (d.claimable){ btn.textContent = 'Claim Day ' + d.day; btn.disabled = dailyBusy; }
+  else { btn.textContent = 'Day ' + d.day + ' claimed'; btn.disabled = true; }
+  dailyCountdown();
+  /* Den lysande rutan gar ocksa att trycka pa - samma sak som knappen. */
+  body.querySelectorAll('.dr-cell.avail').forEach(el => el.addEventListener('click', dailyClaim));
+}
+/* Nedrakningen: serverns dygnsgrans, klientens klocka rattad med serverns. */
+let dailyRefetchAt = 0;
+function dailyCountdown(){
+  const el = $('dr-next'); if (!el || !DAILY) return;
+  /* [RATTAT v5.175.1] KLOCKAN TICKADE VIDARE EFTER ESCAPE. Krysset och bakgrunden
+     gar via closeDaily och stanger av tickaren - men Escape tar bara bort
+     "open" fran rutan, och tickaren stod kvar och skrev i ett dolt falt varje
+     sekund. Nu stanger den sig sjalv sa fort rutan inte langre ar oppen. */
+  const w = $('daily-overlay');
+  if (!w || !w.classList.contains('open')){ if (dailyTimer){ clearInterval(dailyTimer); dailyTimer = null; } return; }
+  if (DAILY.claimable && !DAILY.completed){ el.innerHTML = 'Current reward: <b>Day ' + DAILY.day + '</b>'; return; }
+  const left = Math.max(0, new Date(DAILY.next_at).getTime() - (Date.now() + DAILY_SKEW));
+  const s = Math.floor(left / 1000);
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0'),
+        mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
+        ss = String(s % 60).padStart(2, '0');
+  el.innerHTML = (DAILY.completed ? 'New board in: ' : 'Next reward available in: ') + '<b>' + hh + ':' + mm + ':' + ss + '</b>';
+  /* Passerar gransen medan rutan star oppen hamtas laget om - da tands rutan. */
+  /* [RATTAT v5.175.1] Ligger klientens klocka fore serverns kunde den har raden
+     fraga servern VARJE SEKUND tills servern hollt med om att dygnet bytt. Nu
+     hogst var trettionde sekund. */
+  if (left <= 0 && !dailyBusy && Date.now() > dailyRefetchAt){
+    dailyRefetchAt = Date.now() + 30000; dailyBusy = true;
+    netDailyState().then(() => { dailyBusy = false; renderDaily(); }).catch(() => { dailyBusy = false; });
+  }
+}
+function openDaily(){
+  const w = $('daily-overlay'); if (!w) return;
+  $('dr-sum').classList.remove('on');
+  w.classList.add('open'); bringToFront(w);
+  renderDaily();
+  if (NET.on) netDailyState().then(renderDaily).catch(e => say(srvErrText(e, 'Could not load the board.')));
+  if (dailyTimer) clearInterval(dailyTimer);
+  dailyTimer = setInterval(dailyCountdown, 1000);
+}
+function closeDaily(){
+  const w = $('daily-overlay'); if (!w) return;
+  w.classList.remove('open');
+  if (dailyTimer){ clearInterval(dailyTimer); dailyTimer = null; }
+}
+/* HAMTNINGEN. Ett anrop; servern delar ut allt eller inget och sager vad som
+   hande. Knappen las medan det pagar. Efterat hamtas valutor, vaska och - om
+   vaskan var full - posten, sa inkorgens etta tands direkt. */
+function dailyClaim(){
+  if (dailyBusy || !DAILY || !DAILY.claimable || DAILY.completed) return;
+  if (!NET.on){ say('Daily rewards need a live connection.'); return; }
+  dailyBusy = true;
+  const btn = $('dr-claim'); btn.disabled = true; btn.textContent = 'Claiming\u2026';
+  srvRpc('daily_claim', {p_character: SRV.charId})
+    .then(async r => {
+      const views = (r.rewards || []).map(dailyRewardView);
+      const txt = views.map(v => v.qty.replace('\u00d7', '') + ' ' + v.name).join(', ');
+      const sum = $('dr-sum');
+      sum.innerHTML = '<b>Day ' + r.day + ' claimed</b> \u2014 ' + esc(txt) +
+        (r.mailed ? ' <span class="mail">\u00b7 your backpack was full, so the items went to your Inbox.</span>' : '') +
+        (r.completed ? ' <b>Board complete \u2014 a new one starts tomorrow.</b>' : '');
+      sum.classList.add('on');
+      spawnFloat({text: 'Day ' + r.day + ': ' + txt});
+      try { await netPull(); } catch (e){}
+      try { await netPullItems(); } catch (e){}
+      if (r.mailed){ try { await netPullMailbox(); renderMailBadge(); } catch (e){} }
+      renderInventory(); updateUI(true);
+      await netDailyState();
+    })
+    .catch(e => say(srvErrText(e, 'Could not claim that.')))
+    .finally(() => { dailyBusy = false; renderDaily(); });
+}
+/* Menyknappen lyser guld och bar en etta nar dagens belöning vantar. */
+function renderDailyBadge(){
+  const b = $('daily-badge'), nav = $('nav-daily');
+  const on = !!(DAILY && DAILY.claimable && !DAILY.completed && NET.on);
+  if (b) b.style.display = on ? '' : 'none';
+  if (nav) nav.classList.toggle('glow-gold', on);
+}
+/* CACHE-BILJETTEN ur vaskan. */
+function useCacheTicket(key){
+  if (!NET.on){ say('Caches need a live connection.'); return; }
+  const gear = key === 'cache_gear';
+  castThen('Opening ' + (gear ? 'gear cache' : 'helper cache'), CAST_SECS.cache, () => {
+    srvRpc('use_cache_item', {p_character: SRV.charId, p_key: key})
+      .then(async r => {
+        if (gear){
+          await netPullItems();
+          const D = ITEMS[r && r.item_key], R = GEAR_RAR[(r && r.rarity) | 0];
+          spawnFloat({text: 'Gear cache: ' + (D ? D.name : 'a piece of gear') + (R ? ' (' + R.name + ')' : '')});
+        } else {
+          await netPullPets(); renderPets(); renderPetPanel();
+          const sp = (typeof PETS !== 'undefined') && PETS[r && r.species];
+          spawnFloat({text: 'Helper cache: ' + (sp ? sp.name : 'a new helper') + ' joined you'});
+        }
+        await netPullItems();
+        renderInventory(); updateUI(true);
+      })
+      .catch(e => say(srvErrText(e, 'Could not open that cache.')));
+  });
+}
+$('nav-daily').addEventListener('click', () => toggleWindow('daily-overlay', openDaily, closeDaily));
+$('daily-close').addEventListener('click', closeDaily);
+$('dr-claim').addEventListener('click', dailyClaim);
+$('daily-overlay').addEventListener('click', e => { if (e.target === $('daily-overlay')) closeDaily(); });
+/* Etta pa knappen aven nar rutan ar stangd: laget fragas var femte minut, sa
+   gransen vid midnatt (UTC) tander knappen utan omladdning. */
+setInterval(() => { if (NET.on && SRV.charId && !dailyBusy) netDailyState().catch(() => {}); }, 5 * 60 * 1000);
+
+/* ================= CHATTEN v1 (v5.180.0) =================
+   Fyra kanaler. General/Trade/Whispers bor i en egen tabell pa servern; Guild
+   ATERANVANDER gillets chatt (samma tabell som gillespanelen). Allt server-
+   auktoritativt: identitet ur sessionen, langd, takt, dubbletter, Trade-niva,
+   medlemskap, whisper-sekretess, blockeringar. Varje lankat foremal verifieras
+   pa servern och FRYSES som en snapshot i meddelandet - kortet visar pjasen som
+   den sag ut nar den skickades. Ingen region, zon eller position nagonstans.
+   Realtid: samma WebSocket-monster som gillets chatt, med avstamning var 5:e s. */
+const CHAT_MAX = 240, CHAT_TRADE_LEVEL = 5, CHAT_HISTORY = 50, CHAT_KEEP = 200;
+const CHAT = {mode: 'compact', tab: 'general', conv: null, convName: null,
+  msgs: {general: [], trade: [], guild: [], whisper: []}, sys: [],
+  unread: {general: 0, trade: 0, guild: 0, whisper: 0}, whispers: [], pin: null,
+  oldest: {}, lastGuild: 0, lastSeen: {}, sock: null, hb: null, poll: null, armed: false, armT: null,
+  links: [], atBottom: true, idleT: null, busy: false, ready: false, menuEl: null};
+const CHAT_DEF = {opacity: 0.92, size: 'm', stamps: true, sys: true, profanity: false, autoscroll: true,
+  hideIdle: false, sndWhisper: true, sndGuild: true, mentions: true, mode: 'compact',
+  compact: {general: true, trade: false, guild: true, whisper: true}};
+let CHAT_CFG = Object.assign({}, CHAT_DEF);
+function chatCfgLoad(){
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem('genesis.chat') || '{}') || {}; } catch (e){}
+  CHAT_CFG = Object.assign({}, CHAT_DEF, d, {compact: Object.assign({}, CHAT_DEF.compact, d.compact || {})});
+  /* [RATTAT v5.180.1] PA TELEFON BORJADE CHATTEN OPPEN och tackte halva
+     skarmen vid forsta inloggningen. Utan SPARAT lage: minimerad pa smal skarm
+     (standardvardet i CHAT_DEF far inte racka - det ar just det som gjorde att
+     valet aldrig foll igenom). */
+  CHAT.mode = d.mode || (isNarrowScreen() ? 'min' : 'compact');
+}
+function chatCfgSave(){ CHAT_CFG.mode = CHAT.mode; try { localStorage.setItem('genesis.chat', JSON.stringify(CHAT_CFG)); } catch (e){} }
+function chatApplyCfg(){
+  const r = $('chat-root'); if (!r) return;
+  r.style.setProperty('--cop', CHAT_CFG.opacity);
+  r.style.setProperty('--csz', ({s: '11px', m: '12px', l: '14px'})[CHAT_CFG.size] || '12px');
+  r.className = 'chat-root mode-' + CHAT.mode;
+}
+const CHAT_BAD = ['fuck', 'shit', 'cunt', 'bitch', 'asshole'];
+function chatFilter(t){
+  if (!CHAT_CFG.profanity) return t;
+  return t.replace(new RegExp('\\b(' + CHAT_BAD.join('|') + ')\\b', 'gi'), m => m[0] + '*'.repeat(m.length - 1));
+}
+function chatSet(v){ if (!$('chat-root')) return; $('chat-root').style.display = v ? '' : 'none'; }
+function chatSys(text){
+  if (!CHAT.ready) return;
+  CHAT.sys.push({sys: true, body: String(text), at: Date.now()});
+  if (CHAT.sys.length > 60) CHAT.sys.shift();
+  if (CHAT_CFG.sys) chatRender(true);
+}
+/* --- foremal ur en snapshot: samma kort som i vaskan, byggt via samma radomvandlare --- */
+function chatGearFromSnap(a){
+  return netGearFromRow({id: null, item_key: a.key, rarity: a.rarity, affixes: a.affixes || [], hp: a.hp, gold_value: 0,
+    crafted: !!a.crafted, location: 'bag', slot_idx: a.slot, power: a.power, damage: a.damage, item_level: a.lvl,
+    socket_kind: a.socket, socket_idx: null, tune_count: a.tune, tune_prev: null, pve_effect: a.pve,
+    gem_region: a.gem, gem_pct: a.gem_pct, gem_good: a.gem_good});
+}
+function chatLinkName(a){
+  if (a.kind === 'gear'){ const D = ITEMS[a.key]; return D ? D.name : a.key; }
+  if (a.kind === 'stack'){ const d = ITEM_DEFS[a.key] || MATERIALS[a.key]; return d ? d.name : a.key; }
+  if (a.kind === 'ah'){ const D = ITEMS[a.key], d = ITEM_DEFS[a.key] || MATERIALS[a.key]; return (D ? D.name : d ? d.name : a.key) + ' (auction)'; }
+  return '?';
+}
+function chatLinkColor(a){ return a.rarity != null ? rarCol(a.rarity) : 'var(--text)'; }
+function chatFmtBody(m){
+  let body = esc(chatFilter(m.body || ''));
+  const att = Array.isArray(m.attach) ? m.attach : (m.item ? [m.item] : []);
+  let used = 0;
+  body = body.replace(/\[\[([^\]]{1,60})\]\]/g, (_, nm) => {
+    const a = att[used++]; if (!a) return esc(nm);
+    return '<span class="chat-link" data-clink="' + (used - 1) + '" style="--rc:' + chatLinkColor(a) + '">[' + esc(chatLinkName(a)) + ']</span>';
+  });
+  for (; used < att.length; used++){
+    const a = att[used];
+    body += ' <span class="chat-link" data-clink="' + used + '" style="--rc:' + chatLinkColor(a) + '">[' + esc(chatLinkName(a)) + ']</span>';
+  }
+  if (CHAT_CFG.mentions && SRV.charName){
+    const re = new RegExp('@' + SRV.charName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    body = body.replace(re, x => '<span class="mention-at">' + x + '</span>');
+  }
+  return body;
+}
+function chatIsMention(m){ return !!(CHAT_CFG.mentions && SRV.charName && m.body && m.body.toLowerCase().indexOf('@' + SRV.charName.toLowerCase()) >= 0); }
+function chatStamp(t){ const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function chatRowHTML(m, chan){
+  if (m.kind === 'sys') m = {sys: true, body: m.body, at: m.at_secs != null ? Date.now() - m.at_secs * 1000 : Date.now()};
+  if (m.sys) return '<div class="chat-msg sys">' + (CHAT_CFG.stamps ? '<span class="when">' + chatStamp(m.at) + '</span>' : '') +
+    '<span class="txt">' + esc(m.body) + '</span></div>';
+  const cls = 'chat-msg ' + chan + (m.kind === 'announce' ? ' announce' : '') + (chatIsMention(m) ? ' mention' : '');
+  const who = esc(m.sender_name || m.handle || '?');
+  const handle = esc(m.sender_handle || m.handle || '');
+  const tag = m.sender_tag ? '<span class="tag">[' + esc(m.sender_tag) + ']</span>' : '';
+  const at = m.created_at ? new Date(m.created_at).getTime() : (m.at_secs != null ? Date.now() - m.at_secs * 1000 : Date.now());
+  return '<div class="' + cls + '" data-cid="' + (m.id || '') + '" data-csrc="' + (chan === 'guild' ? 'guild' : 'chat') + '">' +
+    (CHAT_CFG.stamps ? '<span class="when">' + chatStamp(at) + '</span>' : '') +
+    '<span class="who" data-cwho="' + who + '" data-chandle="' + handle + '" data-cchar="' + esc(m.sender_char || '') + '">' +
+    (m.kind === 'announce' ? '\ud83d\udce3 ' : '') + who + tag + ':</span>' +
+    '<span class="txt">' + chatFmtBody(m) + '</span></div>';
+}
+function chatFeed(){
+  /* Kompakt: de valda kanalerna blandat, i tidsordning. Utokad: bara fliken. */
+  const rows = [];
+  const add = (list, chan) => list.forEach(m => rows.push({m, chan, t: m.created_at ? new Date(m.created_at).getTime() : (m.at_secs != null ? Date.now() - m.at_secs * 1000 : m.at || 0)}));
+  if (CHAT.mode === 'compact' && CHAT.tab !== 'whisper'){
+    ['general', 'trade', 'guild'].forEach(c => { if (CHAT_CFG.compact[c] || c === CHAT.tab) add(CHAT.msgs[c], c); });
+    if (CHAT_CFG.compact.whisper) add(CHAT.msgs.whisper.filter(m => CHAT.conv && (m.sender_char === CHAT.conv || m.to_char === CHAT.conv)), 'whisper');
+  } else if (CHAT.tab === 'whisper'){
+    add(CHAT.msgs.whisper, 'whisper');
+  } else add(CHAT.msgs[CHAT.tab], CHAT.tab);
+  if (CHAT_CFG.sys) CHAT.sys.forEach(m => rows.push({m, chan: 'sys', t: m.at}));
+  rows.sort((a, b) => a.t - b.t);
+  return rows.slice(-CHAT_KEEP);
+}
+function chatRender(keepScroll){
+  const box = $('chat-body'); if (!box) return;
+  const wasBottom = CHAT.atBottom;
+  const tabs = document.querySelectorAll('.chat-tab');
+  tabs.forEach(b => {
+    b.classList.toggle('on', b.dataset.ctab === CHAT.tab);
+    const n = CHAT.unread[b.dataset.ctab] | 0, el = b.querySelector('.ct-n');
+    el.textContent = n > 99 ? '99+' : n; el.classList.toggle('on', n > 0);
+    if (b.dataset.ctab === 'guild') b.classList.toggle('locked', !(SRV.guild && SRV.guild.id));
+    if (b.dataset.ctab === 'trade') b.classList.toggle('locked', levelInfo().lvl < CHAT_TRADE_LEVEL);
+  });
+  const total = (CHAT.unread.general | 0) + (CHAT.unread.trade | 0) + (CHAT.unread.guild | 0) + (CHAT.unread.whisper | 0);
+  const fn = $('chat-fab-n'); if (fn){ fn.textContent = total > 99 ? '99+' : total; fn.style.display = total > 0 ? '' : 'none'; }
+  const pin = $('chat-pin');
+  if (CHAT.tab === 'guild' && CHAT.pin && CHAT.pin.body){
+    pin.innerHTML = '<b>\ud83d\udccc Pinned</b><span>' + esc(CHAT.pin.body) + ' <i style="color:var(--text-dim)">\u2014 ' + esc(CHAT.pin.by || '') + '</i></span>' +
+      (chatIsOfficer() ? '<button data-cunpin="1" title="Remove pin">\u2715</button>' : '');
+    pin.classList.add('on');
+  } else pin.classList.remove('on');
+  const ch = $('chat-convhead');
+  if (CHAT.tab === 'whisper' && CHAT.conv){
+    ch.style.display = 'flex';
+    ch.innerHTML = '<button data-cback="1">\u2190</button><b style="color:var(--purple)">' + esc(CHAT.convName || '') + '</b>';
+  } else ch.style.display = 'none';
+  /* Lasta lagen */
+  if (CHAT.tab === 'guild' && !(SRV.guild && SRV.guild.id)){
+    box.innerHTML = '<div class="chat-lock">\ud83d\udd12 Join a Guild to unlock Guild Chat</div>'; return;
+  }
+  if (CHAT.tab === 'trade' && levelInfo().lvl < CHAT_TRADE_LEVEL){
+    box.innerHTML = '<div class="chat-lock">\ud83d\udd12 Trade chat unlocks at level ' + CHAT_TRADE_LEVEL + '</div>'; return;
+  }
+  if (CHAT.tab === 'whisper' && !CHAT.conv){
+    box.innerHTML = CHAT.whispers.length ? CHAT.whispers.map(w =>
+      '<div class="chat-conv" data-cconv="' + esc(w.other_char) + '" data-cname="' + esc(w.other_name) + '">' +
+      '<span class="dot' + (w.online ? ' on' : '') + '" title="' + (w.online ? 'online' : 'offline') + '"></span>' +
+      '<span class="nm">' + esc(w.other_name) + '</span><span class="last">' + esc(w.last_body || '') + '</span>' +
+      (w.unread > 0 ? '<span class="n">' + w.unread + '</span>' : '') + '</div>').join('')
+      : '<div class="chat-lock">No whispers yet. Click a name in chat to whisper.</div>';
+    return;
+  }
+  const rows = chatFeed();
+  let h = '';
+  if (CHAT.mode === 'expanded' && CHAT.tab !== 'guild' && CHAT.msgs[CHAT.tab === 'whisper' ? 'whisper' : CHAT.tab].length >= CHAT_HISTORY)
+    h += '<button class="chat-older" data-colder="1">Load older</button>';
+  h += rows.map(r => chatRowHTML(r.m, r.chan)).join('');
+  if (!rows.length) h = '<div class="chat-lock">Quiet in here.</div>';
+  box.innerHTML = h;
+  if (wasBottom || !keepScroll || CHAT_CFG.autoscroll && wasBottom){ box.scrollTop = box.scrollHeight; $('chat-newer').classList.remove('on'); }
+  else if (keepScroll) $('chat-newer').classList.add('on');
+}
+function chatIsOfficer(){ return !!(SRV.guild && (SRV.guild.role === 'leader' || SRV.guild.role === 'officer')); }
+/* --- natet --- */
+async function chatFetchTab(tab, older){
+  if (!NET.on || !SRV.charId) return;
+  if (tab === 'guild'){
+    if (!(SRV.guild && SRV.guild.id)) return;
+    const rows = await srvRpc('guild_chat_fetch', {p_character: SRV.charId, p_after: older ? 0 : CHAT.lastGuild});
+    (rows || []).forEach(r => { if (r.id > CHAT.lastGuild) CHAT.lastGuild = r.id; });
+    if (rows && rows.length){
+      if (older) CHAT.msgs.guild = rows.slice(-CHAT_KEEP);
+      else {
+        const known = new Set(CHAT.msgs.guild.map(m => m.id));
+        const fresh = rows.filter(r => !known.has(r.id));
+        CHAT.msgs.guild = CHAT.msgs.guild.concat(fresh).slice(-CHAT_KEEP);
+        /* [RATTAT v5.180.1] Gillets olasta raknades bara nar chatten var
+           minimerad. Nu ocksa nar man star pa en annan flik. */
+        if (CHAT.tab !== 'guild') CHAT.unread.guild += fresh.filter(r => r.kind !== 'sys').length;
+        fresh.forEach(r => chatNotify(r, 'guild'));
+      }
+    }
+    try { CHAT.pin = await srvRpc('guild_chat_pin_get', {p_character: SRV.charId}); } catch (e){}
+    return;
+  }
+  const list = CHAT.msgs[tab];
+  const before = older && list.length ? list[0].id : null;
+  const rows = await srvRpc('chat_fetch', {p_character: SRV.charId, p_channel: tab, p_before: before,
+    p_to: tab === 'whisper' ? CHAT.conv : null, p_limit: CHAT_HISTORY});
+  if (!rows) return;
+  if (older) CHAT.msgs[tab] = rows.concat(list).slice(-CHAT_KEEP * 2);
+  else {
+    const known = new Set(list.map(m => m.id));
+    const fresh = rows.filter(r => !known.has(r.id));
+    CHAT.msgs[tab] = list.concat(fresh).sort((a, b) => a.id - b.id).slice(-CHAT_KEEP);
+    fresh.forEach(m => chatNotify(m, tab));
+    /* [RATTAT v5.180.1] Det man SER ar last: annars stod samma rader som olasta
+       vid nasta inloggning fast man tittade rakt pa dem. */
+    if (fresh.length && tab === CHAT.tab && CHAT.mode !== 'min') CHAT.needRead = true;
+  }
+}
+function chatNotify(m, chan){
+  if (m.mine) return;
+  if (chan === 'whisper' && CHAT_CFG.sndWhisper) chatBeep(660);
+  else if (chan === 'guild' && m.kind === 'announce' && CHAT_CFG.sndGuild) chatBeep(520);
+  else if (chatIsMention(m) && CHAT_CFG.mentions) chatBeep(880);
+}
+let chatAC = null;
+function chatBeep(f){
+  try { chatAC = chatAC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = chatAC.createOscillator(), g = chatAC.createGain(); o.frequency.value = f; g.gain.value = 0.04;
+    o.connect(g); g.connect(chatAC.destination); o.start(); o.stop(chatAC.currentTime + 0.12); } catch (e){}
+}
+async function chatSync(){
+  if (!NET.on || !SRV.charId || CHAT.busy) return;
+  CHAT.busy = true;
+  try {
+    const u = await srvRpc('chat_unread', {p_character: SRV.charId});
+    if (u && u.privacy) S.chatPrivacy = u.privacy;
+    if (u){ ['general', 'trade', 'whisper'].forEach(k => { if (!(CHAT.tab === k && CHAT.mode !== 'min' && (k !== 'whisper' || CHAT.conv))) CHAT.unread[k] = +u[k] || 0; }); }
+    const open = CHAT.mode !== 'min';
+    if (open){
+      await chatFetchTab(CHAT.tab);
+      if (CHAT.mode === 'compact') for (const c of ['general', 'trade', 'guild']) if (c !== CHAT.tab && CHAT_CFG.compact[c]) await chatFetchTab(c);
+      if (CHAT.tab === 'whisper' && !CHAT.conv) CHAT.whispers = (await srvRpc('chat_whispers', {p_character: SRV.charId})) || [];
+      if (CHAT.tab === 'guild' && SRV.guild && SRV.guild.id) CHAT.unread.guild = 0;
+    } else {
+      /* minimerad: gillets olasta raknas mot senast sedda id */
+      if (SRV.guild && SRV.guild.id){ const rows = await srvRpc('guild_chat_fetch', {p_character: SRV.charId, p_after: CHAT.lastGuild});
+        if (rows && rows.length){ CHAT.unread.guild += rows.filter(r => r.kind !== 'sys').length; rows.forEach(r => { if (r.id > CHAT.lastGuild) CHAT.lastGuild = r.id; });
+          CHAT.msgs.guild = CHAT.msgs.guild.concat(rows).slice(-CHAT_KEEP); rows.forEach(r => chatNotify(r, 'guild')); } }
+    }
+    chatRender(true);
+    if (CHAT.needRead){ CHAT.needRead = false; chatMarkRead(); }
+  } catch (e){} finally { CHAT.busy = false; }
+}
+async function chatMarkRead(){
+  if (!NET.on || !SRV.charId) return;
+  const t = CHAT.tab; if (t === 'guild'){ CHAT.unread.guild = 0; return; }
+  if (t === 'whisper' && !CHAT.conv) return;
+  CHAT.unread[t] = 0;
+  try { await srvRpc('chat_mark_read', {p_character: SRV.charId, p_channel: t, p_conv_char: t === 'whisper' ? CHAT.conv : null}); } catch (e){}
+  if (t === 'whisper') CHAT.unread.whisper = Math.max(0, CHAT.unread.whisper);
+}
+function chatSockOpen(){
+  chatSockClose();
+  if (!NET.on || !SRV.url || !SRV.token) return;
+  try {
+    const ws = new WebSocket(SRV.url.replace('https', 'wss') + '/realtime/v1/websocket?apikey=' + SRV.key + '&vsn=1.0.0');
+    CHAT.sock = ws;
+    ws.onopen = () => {
+      const chg = [{event: 'INSERT', schema: 'public', table: 'chat_messages'}];
+      if (SRV.guild && SRV.guild.id) chg.push({event: 'INSERT', schema: 'public', table: 'guild_chat', filter: 'guild_id=eq.' + SRV.guild.id});
+      ws.send(JSON.stringify({topic: 'realtime:chat', event: 'phx_join', ref: '1', payload: {config: {postgres_changes: chg}, access_token: SRV.token}}));
+      ws.send(JSON.stringify({topic: 'realtime:chat', event: 'access_token', ref: '2', payload: {access_token: SRV.token}}));
+      CHAT.hb = setInterval(() => { try { ws.send(JSON.stringify({topic: 'phoenix', event: 'heartbeat', ref: String(Date.now()), payload: {}})); } catch (e){} }, 25000);
+    };
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e){ return; } if (m.event === 'postgres_changes') chatSync(); };
+    ws.onclose = () => { CHAT.sock = null; };
+  } catch (e){ CHAT.sock = null; }
+}
+function chatSockClose(){ if (CHAT.hb){ clearInterval(CHAT.hb); CHAT.hb = null; } if (CHAT.sock){ try { CHAT.sock.close(); } catch (e){} CHAT.sock = null; } }
+async function chatStart(){
+  chatCfgLoad(); chatApplyCfg(); chatSet(NET.on && !!SRV.charId); CHAT.ready = true;
+  if (!NET.on || !SRV.charId) return;
+  await chatSync(); chatSockOpen();
+  if (CHAT.poll) clearInterval(CHAT.poll);
+  CHAT.poll = setInterval(chatSync, 5000);
+  chatRender();
+}
+/* --- skicka --- */
+function chatDraftLinksRender(){
+  const box = $('chat-draftlinks'); if (!box) return;
+  box.innerHTML = CHAT.links.map((l, i) => '<span style="--rc:' + chatLinkColor(l.att) + '">' + esc(chatLinkName(l.att)) + '<i data-cunlink="' + i + '">\u2715</i></span>').join('');
+}
+function chatInsertLink(att, ids){
+  const inp = $('chat-text'); if (!inp) return;
+  const token = '[[' + chatLinkName(att) + ']]';
+  if (CHAT.links.length >= 3){ say('At most three links per message.'); return; }
+  if ((inp.value + token).length > CHAT_MAX){ say('No room for that link in this message.'); return; }
+  const a = inp.selectionStart != null ? inp.selectionStart : inp.value.length, b = inp.selectionEnd != null ? inp.selectionEnd : a;
+  inp.value = inp.value.slice(0, a) + token + inp.value.slice(b);
+  CHAT.links.push(Object.assign({att, token}, ids));
+  chatDraftLinksRender(); chatCount();
+  inp.focus(); inp.setSelectionRange(a + token.length, a + token.length);
+  chatArm();
+}
+function chatArm(){ CHAT.armed = true; if (CHAT.armT) clearTimeout(CHAT.armT); }
+function chatDisarmSoon(){ if (CHAT.armT) clearTimeout(CHAT.armT); CHAT.armT = setTimeout(() => { CHAT.armed = false; }, 1500); }
+function chatCount(){
+  const inp = $('chat-text'), c = $('chat-count'); if (!inp || !c) return;
+  const n = inp.value.length; c.textContent = n >= CHAT_MAX - 40 ? n + '/' + CHAT_MAX : ''; c.classList.toggle('warn', n >= CHAT_MAX - 10);
+}
+async function chatSend(){
+  const inp = $('chat-text'); if (!inp) return;
+  let text = inp.value;
+  if (!NET.on){ say('Chat needs a live connection.'); return; }
+  if (CHAT.tab === 'guild' && !(SRV.guild && SRV.guild.id)){ say('Join a guild to use guild chat.'); return; }
+  if (CHAT.tab === 'whisper' && !CHAT.conv){ say('Pick a conversation first.'); return; }
+  /* bara lankar vars token ar kvar i texten skickas, i textens ordning */
+  const live = CHAT.links.filter(l => text.indexOf(l.token) >= 0).sort((a, b) => text.indexOf(a.token) - text.indexOf(b.token));
+  if (!text.trim() && !live.length) return;
+  const btn = $('chat-btn-send'); btn.disabled = true;
+  try {
+    if (CHAT.tab === 'guild'){
+      const it = live.find(l => l.item);
+      const announce = /^\/announce\s+/i.test(text) && chatIsOfficer();
+      if (announce) text = text.replace(/^\/announce\s+/i, '');
+      if (/^\/pin\s+/i.test(text) && chatIsOfficer()){ await srvRpc('guild_chat_pin', {p_character: SRV.charId, p_body: text.replace(/^\/pin\s+/i, '')}); }
+      else await srvRpc('guild_chat_send', {p_character: SRV.charId, p_body: text, p_item: it ? it.item : null, p_kind: announce ? 'announce' : 'msg'});
+    } else {
+      await srvRpc('chat_send', {p_character: SRV.charId, p_channel: CHAT.tab, p_body: text,
+        p_to: CHAT.tab === 'whisper' ? CHAT.conv : null,
+        p_items: live.filter(l => l.item).map(l => l.item), p_stacks: live.filter(l => l.stack).map(l => l.stack), p_ah: live.filter(l => l.ah).map(l => l.ah)});
+    }
+    inp.value = ''; CHAT.links = []; chatDraftLinksRender(); chatCount();
+    CHAT.atBottom = true;
+    await chatSync();
+  } catch (e){
+    const m = String(e && e.message || '');
+    if (m.indexOf('link_item_not_owned') >= 0){ CHAT.links = []; chatDraftLinksRender(); }
+    say(srvErrText(e, 'Could not send that.'));
+  } finally { btn.disabled = false; inp.focus(); }
+}
+/* --- Shift+klick pa gear medan man skriver: LANKA, inte flytta --- */
+function chatShiftCapture(e){
+  if (!e.shiftKey || !CHAT.armed || CHAT.mode === 'min') return;
+  const slot = e.target.closest && e.target.closest('.equip-slot');
+  const cell = e.target.closest && e.target.closest('[data-inv]');
+  let g = null;
+  if (slot){ g = S.equip[+slot.dataset.slot]; }
+  else if (cell){ const row = S.inv[+cell.dataset.inv]; g = row && row.gear; if (row && row.stack && !g){
+      if (e.type === 'click'){ chatInsertLink({kind: 'stack', key: row.key, rarity: row.rar}, {stack: row.key}); }
+      e.stopPropagation(); e.preventDefault(); return; } }
+  if (!g || !g.sid) return;
+  e.stopPropagation(); e.preventDefault();
+  if (e.type === 'click') chatInsertLink({kind: 'gear', key: g.t, rarity: g.r}, {item: g.sid});
+}
+['pointerdown', 'mousedown', 'click'].forEach(ev => document.addEventListener(ev, chatShiftCapture, true));
+/* --- mobilens valjare --- */
+function chatPickerOpen(){
+  const box = $('chat-picker'); if (!box) return;
+  let h = '<div class="grp">Equipped</div>';
+  Object.keys(S.equip || {}).forEach(k => { const g = S.equip[k]; if (g && g.sid) h += '<div class="row" data-cpick="e:' + k + '"><span class="nm" style="--rc:' + gearRarCol(g) + '">' + esc(gearName(g)) + '</span></div>'; });
+  h += '<div class="grp">Backpack</div>';
+  (S.inv || []).forEach((row, i) => {
+    if (row && row.gear && row.gear.sid) h += '<div class="row" data-cpick="i:' + i + '"><span class="nm" style="--rc:' + gearRarCol(row.gear) + '">' + esc(gearName(row.gear)) + '</span></div>';
+    else if (row && row.stack) h += '<div class="row" data-cpick="s:' + i + '"><span class="nm" style="--rc:' + (row.rar != null ? rarCol(row.rar) : 'var(--text)') + '">' + esc((ITEM_DEFS[row.key] || MATERIALS[row.key] || {name: row.key}).name) + ' \u00d7' + row.stack + '</span></div>';
+  });
+  box.innerHTML = h || '<div class="grp">Nothing to link.</div>'; box.classList.toggle('on');
+}
+/* --- gearkortet ur en snapshot --- */
+let chatCardEl = null;
+function chatShowCard(a, x, y, pinned){
+  if (a.kind === 'gear'){ const g = chatGearFromSnap(a); showGearTip(g, x, y); }
+  else { showGearTip({t: a.key, r: a.rarity, a: [], hp: 0, pw: 0, dm: 0, lv: 0, g: 0, s: -1, ggood: false, gpct: 0}, x, y); }
+  if (pinned){
+    if (!chatCardEl){ chatCardEl = document.createElement('button'); chatCardEl.className = 'chat-gearcard-close'; chatCardEl.textContent = 'Close'; document.body.appendChild(chatCardEl);
+      chatCardEl.addEventListener('click', chatHideCard); }
+    chatCardEl.style.display = 'block';
+  }
+}
+function chatHideCard(){ hideGearTip(); if (chatCardEl) chatCardEl.style.display = 'none'; }
+/* --- spelarmenyn: aldrig Ambush, aldrig position --- */
+function chatMenuClose(){ if (CHAT.menuEl){ CHAT.menuEl.remove(); CHAT.menuEl = null; } }
+function chatMenuOpen(el, x, y){
+  chatMenuClose();
+  const name = el.dataset.cwho, handle = el.dataset.chandle, cid = el.dataset.cchar;
+  const row = el.closest('.chat-msg'); const mid = row ? row.dataset.cid : null, src = row ? row.dataset.csrc : 'chat';
+  const me = cid && cid === SRV.charId;
+  let h = '<div class="hd">' + esc(name) + '</div>';
+  if (!me){
+    if (cid) h += '<button data-cm="whisper">Whisper</button>';
+    if (handle) h += '<button data-cm="friend">Add Friend</button>';
+    if (handle && chatIsOfficer()) h += '<button data-cm="invite">Invite to Guild</button>';
+    if (cid && typeof openDuelChallenge === 'function') h += '<button data-cm="duel">Invite to Duel</button>';
+    if (handle) h += '<button data-cm="block" class="danger">Block</button>';
+    if (mid) h += '<button data-cm="report" class="danger">Report</button>';
+  } else h += '<button disabled style="opacity:.5">That is you</button>';
+  const m = document.createElement('div'); m.className = 'chat-menu'; m.innerHTML = h; document.body.appendChild(m); CHAT.menuEl = m;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(6, Math.min(x, innerWidth - r.width - 6)) + 'px';
+  m.style.top = Math.max(6, Math.min(y - r.height, innerHeight - r.height - 6)) + 'px';
+  m.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-cm]'); if (!b) return; const act = b.dataset.cm; chatMenuClose();
+    if (act === 'whisper'){ chatOpenConv(cid, name); }
+    else if (act === 'friend'){ socialDo('friend_request', {p_handle: handle}, 'Friend request sent.'); }
+    else if (act === 'invite'){ guildDo('guild_invite', {p_handle: handle}, 'Invite sent.'); }
+    else if (act === 'duel'){ try { openDuelChallenge(cid, name); } catch (e){} }
+    else if (act === 'block'){ if (confirm('Block ' + name + '? You will not see each other\'s messages.')) socialDo('block_player', {p_handle: handle}, 'Blocked.').then(chatSync); }
+    else if (act === 'report'){ const why = prompt('Report this message \u2014 why?', ''); if (why != null) srvRpc('chat_report', {p_character: SRV.charId, p_source: src, p_message_id: +mid, p_reason: why}).then(() => say('Reported. Thank you.')).catch(e => say(srvErrText(e, 'Could not report.'))); }
+  });
+}
+function chatOpenConv(cid, name){
+  CHAT.tab = 'whisper'; CHAT.conv = cid; CHAT.convName = name; CHAT.msgs.whisper = [];
+  if (CHAT.mode === 'min') chatMode('compact');
+  chatSync().then(() => { chatMarkRead(); chatRender(); });
+  const inp = $('chat-text'); if (inp) inp.focus();
+}
+function chatMode(m){ CHAT.mode = m; chatApplyCfg(); chatCfgSave(); if (m !== 'min'){ chatSync().then(() => chatMarkRead()); } chatRender(); }
+function chatSettingsRender(){
+  const b = $('chat-settings'); if (!b) return;
+  const on = (k) => CHAT_CFG[k] ? ' checked' : '';
+  b.innerHTML = '<h4>CHAT SETTINGS</h4>' +
+    '<label>Opacity<input type="range" min="0.4" max="1" step="0.05" data-cs="opacity" value="' + CHAT_CFG.opacity + '"></label>' +
+    '<label>Text size<select data-cs="size"><option value="s"' + (CHAT_CFG.size === 's' ? ' selected' : '') + '>Small</option><option value="m"' + (CHAT_CFG.size === 'm' ? ' selected' : '') + '>Medium</option><option value="l"' + (CHAT_CFG.size === 'l' ? ' selected' : '') + '>Large</option></select></label>' +
+    '<label>Timestamps<input type="checkbox" data-cs="stamps"' + on('stamps') + '></label>' +
+    '<label>System messages<input type="checkbox" data-cs="sys"' + on('sys') + '></label>' +
+    '<label>Profanity filter<input type="checkbox" data-cs="profanity"' + on('profanity') + '></label>' +
+    '<label>Auto-scroll<input type="checkbox" data-cs="autoscroll"' + on('autoscroll') + '></label>' +
+    '<label>Fade when idle<input type="checkbox" data-cs="hideIdle"' + on('hideIdle') + '></label>' +
+    '<label>Sound: whispers<input type="checkbox" data-cs="sndWhisper"' + on('sndWhisper') + '></label>' +
+    '<label>Sound: guild announcements<input type="checkbox" data-cs="sndGuild"' + on('sndGuild') + '></label>' +
+    '<label>Highlight @mentions<input type="checkbox" data-cs="mentions"' + on('mentions') + '></label>' +
+    '<div class="grp">Compact feed shows</div>' +
+    ['general', 'trade', 'guild', 'whisper'].map(c => '<label>' + c[0].toUpperCase() + c.slice(1) + '<input type="checkbox" data-csc="' + c + '"' + (CHAT_CFG.compact[c] ? ' checked' : '') + '></label>').join('') +
+    '<div class="grp">Whisper privacy</div>' +
+    '<label>Who can whisper me<select data-cpriv="1"><option value="everyone">Everyone</option><option value="friends_guild">Friends &amp; Guild</option><option value="nobody">Nobody</option></select></label>' +
+    '<div class="grp">Blocked players</div><label>Managed in Friends \u2192 Blocked<button class="btn-neutral tiny" data-cfriends="1">Open</button></label>';
+  const sel = b.querySelector('[data-cpriv]'); if (sel && S.chatPrivacy) sel.value = S.chatPrivacy;
+}
+/* --- kopplingar --- */
+document.querySelectorAll('.chat-tab').forEach(b => b.addEventListener('click', () => {
+  CHAT.tab = b.dataset.ctab; if (CHAT.tab !== 'whisper'){ CHAT.conv = null; }
+  $('chat-settings').classList.remove('on'); $('chat-picker').classList.remove('on');
+  chatRender(); chatSync().then(() => { chatMarkRead(); chatRender(); });
+}));
+$('chat-btn-min').addEventListener('click', () => chatMode('min'));
+$('chat-fab').addEventListener('click', () => chatMode(isNarrowScreen() ? 'expanded' : 'compact'));
+$('chat-btn-exp').addEventListener('click', () => chatMode(CHAT.mode === 'expanded' ? 'compact' : 'expanded'));
+$('chat-btn-mode').addEventListener('click', () => chatMode(CHAT.mode === 'expanded' ? 'compact' : 'expanded'));
+$('chat-btn-set').addEventListener('click', () => { chatSettingsRender(); $('chat-settings').classList.toggle('on'); });
+$('chat-btn-send').addEventListener('click', chatSend);
+$('chat-btn-link').addEventListener('click', chatPickerOpen);
+$('chat-text').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); chatSend(); } e.stopPropagation(); });
+$('chat-text').addEventListener('keyup', e => e.stopPropagation());
+$('chat-text').addEventListener('input', chatCount);
+$('chat-text').addEventListener('focus', chatArm);
+$('chat-text').addEventListener('blur', chatDisarmSoon);
+$('chat-newer').addEventListener('click', () => { CHAT.atBottom = true; chatRender(); });
+$('chat-body').addEventListener('scroll', () => { const b = $('chat-body'); CHAT.atBottom = (b.scrollHeight - b.scrollTop - b.clientHeight) < 40; if (CHAT.atBottom) $('chat-newer').classList.remove('on'); });
+$('chat-draftlinks').addEventListener('click', e => { const i = e.target.closest('[data-cunlink]'); if (!i) return; const l = CHAT.links[+i.dataset.cunlink]; const inp = $('chat-text'); if (l) inp.value = inp.value.replace(l.token, ''); CHAT.links.splice(+i.dataset.cunlink, 1); chatDraftLinksRender(); chatCount(); });
+$('chat-picker').addEventListener('click', e => {
+  const r = e.target.closest('[data-cpick]'); if (!r) return; const [k, v] = r.dataset.cpick.split(':');
+  $('chat-picker').classList.remove('on');
+  if (k === 'e'){ const g = S.equip[v]; if (g) chatInsertLink({kind: 'gear', key: g.t, rarity: g.r}, {item: g.sid}); }
+  else if (k === 'i'){ const g = S.inv[+v].gear; if (g) chatInsertLink({kind: 'gear', key: g.t, rarity: g.r}, {item: g.sid}); }
+  else { const row = S.inv[+v]; if (row) chatInsertLink({kind: 'stack', key: row.key, rarity: row.rar}, {stack: row.key}); }
+});
+$('chat-settings').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.cs){ CHAT_CFG[t.dataset.cs] = t.type === 'checkbox' ? t.checked : (t.type === 'range' ? +t.value : t.value); }
+  if (t.dataset.csc){ CHAT_CFG.compact[t.dataset.csc] = t.checked; }
+  if (t.dataset.cpriv){ S.chatPrivacy = t.value; srvRpc('chat_set_privacy', {p_character: SRV.charId, p_privacy: t.value}).then(() => say('Whisper privacy: ' + t.options[t.selectedIndex].text)).catch(er => say(srvErrText(er, 'Could not save.'))); }
+  chatCfgSave(); chatApplyCfg(); chatRender();
+});
+$('chat-settings').addEventListener('input', e => { if (e.target.dataset.cs === 'opacity'){ CHAT_CFG.opacity = +e.target.value; chatApplyCfg(); } });
+$('chat-settings').addEventListener('click', e => { if (e.target.closest('[data-cfriends]')){ $('chat-settings').classList.remove('on'); try { openFriends(); } catch (er){} } });
+$('chat-body').addEventListener('click', e => {
+  const who = e.target.closest('[data-cwho]'); if (who){ chatMenuOpen(who, e.clientX, e.clientY); return; }
+  const conv = e.target.closest('[data-cconv]'); if (conv){ chatOpenConv(conv.dataset.cconv, conv.dataset.cname); return; }
+  const older = e.target.closest('[data-colder]'); if (older){ chatFetchTab(CHAT.tab, true).then(() => chatRender(true)); return; }
+  const link = e.target.closest('[data-clink]');
+  if (link){
+    const row = link.closest('.chat-msg'), cid = row.dataset.cid, src = row.dataset.csrc;
+    const m = (src === 'guild' ? CHAT.msgs.guild : [].concat(CHAT.msgs.general, CHAT.msgs.trade, CHAT.msgs.whisper)).find(x => String(x.id) === cid);
+    const att = m ? ((Array.isArray(m.attach) ? m.attach : [m.item])[+link.dataset.clink]) : null;
+    if (!att) return;
+    if (att.kind === 'ah'){
+      srvRpc('chat_ah_check', {p_listing: att.id}).then(r => {
+        if (r && r.alive){ try { AH.q = chatLinkName(att).replace(' (auction)', ''); openAuction(); } catch (er){ say('Open the Auction House and search for it.'); } }
+        else { link.classList.add('dead'); say('That listing has already been sold or removed.'); }
+      }).catch(() => say('Could not check that listing.'));
+      return;
+    }
+    if (isTouchInput()) chatShowCard(att, e.clientX, e.clientY, true);
+  }
+});
+$('chat-body').addEventListener('mouseover', e => {
+  if (isTouchInput()) return;
+  const link = e.target.closest('[data-clink]'); if (!link) return;
+  const row = link.closest('.chat-msg'), cid = row.dataset.cid, src = row.dataset.csrc;
+  const m = (src === 'guild' ? CHAT.msgs.guild : [].concat(CHAT.msgs.general, CHAT.msgs.trade, CHAT.msgs.whisper)).find(x => String(x.id) === cid);
+  const att = m ? ((Array.isArray(m.attach) ? m.attach : [m.item])[+link.dataset.clink]) : null;
+  if (att && att.kind !== 'ah') chatShowCard(att, e.clientX, e.clientY, false);
+});
+$('chat-body').addEventListener('mouseout', e => { if (!isTouchInput() && e.target.closest && e.target.closest('[data-clink]')) hideGearTip(); });
+$('chat-pin').addEventListener('click', e => { if (e.target.closest('[data-cunpin]')) srvRpc('guild_chat_pin', {p_character: SRV.charId, p_body: null}).then(chatSync).catch(er => say(srvErrText(er, 'Could not unpin.'))); });
+$('chat-convhead').addEventListener('click', e => { if (e.target.closest('[data-cback]')){ CHAT.conv = null; CHAT.convName = null; chatSync().then(chatRender); } });
+document.addEventListener('click', e => { if (CHAT.menuEl && !e.target.closest('.chat-menu') && !e.target.closest('[data-cwho]')) chatMenuClose(); if (chatCardEl && chatCardEl.style.display === 'block' && !e.target.closest('[data-clink]') && !e.target.closest('.chat-gearcard-close') && !e.target.closest('#gear-tip')) chatHideCard(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ chatMenuClose(); if (chatCardEl) chatHideCard(); $('chat-settings') && $('chat-settings').classList.remove('on'); } });
+/* Tona nar man varit stilla en stund (installning). */
+['mousemove', 'keydown', 'pointerdown'].forEach(ev => document.addEventListener(ev, () => {
+  const r = $('chat-root'); if (!r) return; r.classList.remove('idle');
+  if (CHAT.idleT) clearTimeout(CHAT.idleT);
+  if (CHAT_CFG.hideIdle) CHAT.idleT = setTimeout(() => r.classList.add('idle'), 20000);
+}, {passive: true}));
 $('qa-guild').addEventListener('click', openGuild);
 (function(){
   const w = $('gem-wrap');
