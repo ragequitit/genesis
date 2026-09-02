@@ -4798,9 +4798,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   border-radius:6px;cursor:pointer;font:inherit;min-height:34px}
 .chat-menu button:hover{background:rgba(255,255,255,.07)}
 .chat-menu button.danger{color:#ff7b7b}
-.chat-settings{display:none;position:absolute;right:0;bottom:0;width:300px;max-height:min(70vh,520px);overflow-y:auto;
+.chat-settings{display:none;position:fixed;width:300px;max-height:min(70vh,520px);overflow-y:auto;
   background:rgba(12,16,32,.98);border:1px solid rgba(56,232,255,.35);border-radius:12px;padding:12px;z-index:2;
   box-shadow:0 14px 40px rgba(0,0,0,.6)}
+/* [RATTAT v5.181.0] Lag forut absolut INUTI chattpanelen, som klipper allt som
+   sticker ut (kompakt panel = 248px hog, rutan ville bli 520). Nedre halvan av
+   installningarna gick inte att se. Nu fast i skarmen, ovanpa allt, placerad
+   mot panelens hogerkant av chatSettingsPlace(). */
+.chat-settings{z-index:1400}
 .chat-settings.on{display:block}
 .chat-settings h4{margin:0 0 8px;font-size:11px;letter-spacing:.14em;color:var(--cyan)}
 .chat-settings label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:11px;
@@ -5889,7 +5894,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.180.3 — CHATTEN: LIVE OCH UTKAST</div>
+        <div class="sn-ver">GENESIS v5.181.0 — CHATTEN: STILLA RADER, EGNA KANALER</div>
       </div>
     </div>
   </aside>
@@ -6798,7 +6803,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.180.3 — CHATTEN: LIVE OCH UTKAST</div>
+            <div class="desc">GENESIS v5.181.0 — CHATTEN: STILLA RADER, EGNA KANALER</div>
           </div>
         </div>
       </div>
@@ -28496,15 +28501,13 @@ function chatRowHTML(m, chan){
     '<span class="txt">' + chatFmtBody(m) + '</span></div>';
 }
 function chatFeed(){
-  /* Kompakt: de valda kanalerna blandat, i tidsordning. Utokad: bara fliken. */
+  /* [ANDRAT v5.181.0] STRIKT EN KANAL. Det kompakta laget blandade forut
+     General/Trade/Guild i ETT flode (General och Guild pa som standard), sa
+     man sag General-rader nar man stod pa Trade. Data var alltid atskild -
+     det var visningen som slog ihop den. Nu visar fliken bara sin egen kanal. */
   const rows = [];
   const add = (list, chan) => list.forEach(m => rows.push({m, chan, t: m.created_at ? new Date(m.created_at).getTime() : (m.at_secs != null ? Date.now() - m.at_secs * 1000 : m.at || 0)}));
-  if (CHAT.mode === 'compact' && CHAT.tab !== 'whisper'){
-    ['general', 'trade', 'guild'].forEach(c => { if (CHAT_CFG.compact[c] || c === CHAT.tab) add(CHAT.msgs[c], c); });
-    if (CHAT_CFG.compact.whisper) add(CHAT.msgs.whisper.filter(m => CHAT.conv && (m.sender_char === CHAT.conv || m.to_char === CHAT.conv)), 'whisper');
-  } else if (CHAT.tab === 'whisper'){
-    add(CHAT.msgs.whisper, 'whisper');
-  } else add(CHAT.msgs[CHAT.tab], CHAT.tab);
+  add(CHAT.msgs[CHAT.tab === 'whisper' ? 'whisper' : CHAT.tab], CHAT.tab);
   if (CHAT_CFG.sys) CHAT.sys.forEach(m => rows.push({m, chan: 'sys', t: m.at}));
   rows.sort((a, b) => a.t - b.t);
   return rows.slice(-CHAT_KEEP);
@@ -28535,29 +28538,63 @@ function chatRender(keepScroll){
   } else ch.style.display = 'none';
   /* Lasta lagen */
   if (CHAT.tab === 'guild' && !(SRV.guild && SRV.guild.id)){
-    box.innerHTML = '<div class="chat-lock">\ud83d\udd12 Join a Guild to unlock Guild Chat</div>'; return;
+    chatPatch(box, [{k: '#lockg', h: '<div class="chat-lock">\ud83d\udd12 Join a Guild to unlock Guild Chat</div>'}]); return;
   }
   if (CHAT.tab === 'trade' && levelInfo().lvl < CHAT_TRADE_LEVEL){
-    box.innerHTML = '<div class="chat-lock">\ud83d\udd12 Trade chat unlocks at level ' + CHAT_TRADE_LEVEL + '</div>'; return;
+    chatPatch(box, [{k: '#lockt', h: '<div class="chat-lock">\ud83d\udd12 Trade chat unlocks at level ' + CHAT_TRADE_LEVEL + '</div>'}]); return;
   }
   if (CHAT.tab === 'whisper' && !CHAT.conv){
-    box.innerHTML = CHAT.whispers.length ? CHAT.whispers.map(w =>
+    chatPatch(box, CHAT.whispers.length ? CHAT.whispers.map(w => ({k: 'w:' + w.other_char, h:
       '<div class="chat-conv" data-cconv="' + esc(w.other_char) + '" data-cname="' + esc(w.other_name) + '">' +
       '<span class="dot' + (w.online ? ' on' : '') + '" title="' + (w.online ? 'online' : 'offline') + '"></span>' +
       '<span class="nm">' + esc(w.other_name) + '</span><span class="last">' + esc(w.last_body || '') + '</span>' +
-      (w.unread > 0 ? '<span class="n">' + w.unread + '</span>' : '') + '</div>').join('')
-      : '<div class="chat-lock">No whispers yet. Click a name in chat to whisper.</div>';
+      (w.unread > 0 ? '<span class="n">' + w.unread + '</span>' : '') + '</div>'}))
+      : [{k: '#nowhisper', h: '<div class="chat-lock">No whispers yet. Click a name in chat to whisper.</div>'}]);
     return;
   }
   const rows = chatFeed();
-  let h = '';
+  const items = [];
   if (CHAT.mode === 'expanded' && CHAT.tab !== 'guild' && CHAT.msgs[CHAT.tab === 'whisper' ? 'whisper' : CHAT.tab].length >= CHAT_HISTORY)
-    h += '<button class="chat-older" data-colder="1">Load older</button>';
-  h += rows.map(r => chatRowHTML(r.m, r.chan)).join('');
-  if (!rows.length) h = '<div class="chat-lock">Quiet in here.</div>';
-  box.innerHTML = h;
+    items.push({k: '#older', h: '<button class="chat-older" data-colder="1">Load older</button>'});
+  const used = Object.create(null);
+  rows.forEach(r => {
+    let k = r.chan === 'sys' ? 's:' + (r.m.at || 0) + ':' + chatHash(String(r.m.body || '')) : r.chan + ':' + (r.m.id != null ? r.m.id : chatHash(String(r.m.body || '')));
+    if (used[k]) k += '#' + (++used[k]); else used[k] = 1;
+    items.push({k: k, h: chatRowHTML(r.m, r.chan)});
+  });
+  if (!items.length) items.push({k: '#empty', h: '<div class="chat-lock">Quiet in here.</div>'});
+  chatPatch(box, items);
   if (wasBottom || !keepScroll || CHAT_CFG.autoscroll && wasBottom){ box.scrollTop = box.scrollHeight; $('chat-newer').classList.remove('on'); }
   else if (keepScroll) $('chat-newer').classList.add('on');
+}
+/* [NYTT v5.181.0] Radvis lappning i stallet for att skriva om hela ladan.
+   Avstamningen gar var 5:e sekund; skrev man om allt ritades varje rad om och
+   spelade sin intoning pa nytt - det var blinkandet. Nu ror vi bara de rader
+   som faktiskt andrats, och ororda rader far aldrig en ny nod. */
+function chatHash(s){ let h = 0; for (let i = 0; i < s.length; i++){ h = (h * 31 + s.charCodeAt(i)) | 0; } return h; }
+function chatNode(it){
+  const w = document.createElement('div'); w.innerHTML = it.h;
+  const n = w.firstElementChild || document.createElement('div');
+  n.dataset.ck = it.k; n.dataset.ch = String(chatHash(it.h));
+  return n;
+}
+function chatPatch(box, items){
+  const want = new Set(items.map(i => i.k));
+  for (let n = box.firstElementChild, nx; n; n = nx){ nx = n.nextElementSibling; if (!n.dataset.ck || !want.has(n.dataset.ck)) box.removeChild(n); }
+  const have = new Map();
+  for (let n = box.firstElementChild; n; n = n.nextElementSibling) have.set(n.dataset.ck, n);
+  let ref = box.firstElementChild;
+  for (const it of items){
+    let n = have.get(it.k);
+    if (n && n.dataset.ch !== String(chatHash(it.h))){
+      const fresh = chatNode(it); box.replaceChild(fresh, n);
+      if (ref === n) ref = fresh;
+      have.set(it.k, fresh); n = fresh;
+    }
+    if (!n){ box.insertBefore(chatNode(it), ref); continue; }
+    if (n === ref){ ref = ref.nextElementSibling; continue; }
+    box.insertBefore(n, ref);
+  }
 }
 function chatIsOfficer(){ return !!(SRV.guild && (SRV.guild.role === 'leader' || SRV.guild.role === 'officer')); }
 /* --- natet --- */
@@ -28626,10 +28663,10 @@ async function chatSync(){
     const open = CHAT.mode !== 'min';
     if (open){
       await chatFetchTab(CHAT.tab);
-      if (CHAT.mode === 'compact') for (const c of ['general', 'trade', 'guild']) if (c !== CHAT.tab && CHAT_CFG.compact[c]) await chatFetchTab(c);
-      /* [RATTAT v5.180.3] Gillets olasta raknades inte i UTOKAT lage pa en annan
-         flik - gillet hamtades bara i det blandade flodet. Nu alltid (bara nytt). */
-      else if (CHAT.tab !== 'guild' && SRV.guild && SRV.guild.id) await chatFetchTab('guild');
+      /* [ANDRAT v5.181.0] Det blandade flodet ar borta, sa vi hamtar inte langre
+         andra kanaler for att visa dem. Gillet hamtas anda: dess olasta raknas
+         inte av unread-anropet utan mot senast sedda rad. */
+      if (CHAT.tab !== 'guild' && SRV.guild && SRV.guild.id) await chatFetchTab('guild');
       if (CHAT.tab === 'whisper' && !CHAT.conv) CHAT.whispers = (await srvRpc('chat_whispers', {p_character: SRV.charId})) || [];
       if (CHAT.tab === 'guild' && SRV.guild && SRV.guild.id) CHAT.unread.guild = 0;
     } else {
@@ -28824,7 +28861,7 @@ function chatOpenConv(cid, name){
   chatSync().then(() => { chatMarkRead(); chatRender(); });
   const inp = $('chat-text'); if (inp) inp.focus();
 }
-function chatMode(m){ CHAT.mode = m; chatApplyCfg(); chatCfgSave(); if (m !== 'min'){ chatSync().then(() => chatMarkRead()); } chatRender(); }
+function chatMode(m){ CHAT.mode = m; chatApplyCfg(); chatCfgSave(); if (m !== 'min'){ chatSync().then(() => chatMarkRead()); } chatRender(); chatSettingsPlace(); }
 function chatSettingsRender(){
   const b = $('chat-settings'); if (!b) return;
   const on = (k) => CHAT_CFG[k] ? ' checked' : '';
@@ -28839,8 +28876,6 @@ function chatSettingsRender(){
     '<label>Sound: whispers<input type="checkbox" data-cs="sndWhisper"' + on('sndWhisper') + '></label>' +
     '<label>Sound: guild announcements<input type="checkbox" data-cs="sndGuild"' + on('sndGuild') + '></label>' +
     '<label>Highlight @mentions<input type="checkbox" data-cs="mentions"' + on('mentions') + '></label>' +
-    '<div class="grp">Compact feed shows</div>' +
-    ['general', 'trade', 'guild', 'whisper'].map(c => '<label>' + c[0].toUpperCase() + c.slice(1) + '<input type="checkbox" data-csc="' + c + '"' + (CHAT_CFG.compact[c] ? ' checked' : '') + '></label>').join('') +
     '<div class="grp">Whisper privacy</div>' +
     '<label>Who can whisper me<select data-cpriv="1"><option value="everyone">Everyone</option><option value="friends_guild">Friends &amp; Guild</option><option value="nobody">Nobody</option></select></label>' +
     '<div class="grp">Blocked players</div><label>Managed in Friends \u2192 Blocked<button class="btn-neutral tiny" data-cfriends="1">Open</button></label>';
@@ -28858,7 +28893,26 @@ $('chat-btn-min').addEventListener('click', () => chatMode('min'));
 $('chat-fab').addEventListener('click', () => chatMode(isNarrowScreen() ? 'expanded' : 'compact'));
 $('chat-btn-exp').addEventListener('click', () => chatMode(CHAT.mode === 'expanded' ? 'compact' : 'expanded'));
 $('chat-btn-mode').addEventListener('click', () => chatMode(CHAT.mode === 'expanded' ? 'compact' : 'expanded'));
-$('chat-btn-set').addEventListener('click', () => { chatSettingsRender(); $('chat-settings').classList.toggle('on'); });
+/* [RATTAT v5.181.0] Panelen har en oskarpa bakom sig, och en sadan gor panelen
+   till ankare for allt "fast" som ligger inuti den - rutan kunde alltsa inte
+   komma ut ur den klippande panelen hur den an positionerades. Den flyttas
+   darfor ut i dokumentet en gang. Lyssnarna sitter pa elementet och foljer med. */
+try { document.body.appendChild($('chat-settings')); } catch (e){}
+function chatSettingsPlace(){
+  const b = $('chat-settings'), p = document.querySelector('.chat-panel');
+  if (!b || !p) return;
+  if (!b.classList.contains('on') || window.innerWidth <= 760 || getComputedStyle(p).display === 'none'){
+    b.style.top = b.style.left = b.style.maxHeight = ''; return;
+  }
+  const r = p.getBoundingClientRect();
+  const cap = Math.min(520, window.innerHeight - 20);
+  b.style.maxHeight = cap + 'px';
+  const h = Math.min(b.offsetHeight || cap, cap);
+  b.style.top = Math.max(10, Math.min(r.bottom - h, window.innerHeight - h - 10)) + 'px';
+  b.style.left = Math.max(10, Math.min(r.right - 300, window.innerWidth - 310)) + 'px';
+}
+$('chat-btn-set').addEventListener('click', () => { chatSettingsRender(); $('chat-settings').classList.toggle('on'); chatSettingsPlace(); });
+window.addEventListener('resize', chatSettingsPlace);
 $('chat-btn-send').addEventListener('click', chatSend);
 $('chat-btn-link').addEventListener('click', chatPickerOpen);
 $('chat-text').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); chatSend(); } e.stopPropagation(); });
