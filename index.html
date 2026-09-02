@@ -5912,7 +5912,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.185.0 — YRKESPRIS, TAVLAN, KARNSYNKENS XP</div>
+        <div class="sn-ver">GENESIS v5.186.0 — HJALPARNAS XP LEVER, DRONARKLOCKAN STARTAR DIREKT</div>
       </div>
     </div>
   </aside>
@@ -6821,7 +6821,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.185.0 — YRKESPRIS, TAVLAN, KARNSYNKENS XP</div>
+            <div class="desc">GENESIS v5.186.0 — HJALPARNAS XP LEVER, DRONARKLOCKAN STARTAR DIREKT</div>
           </div>
         </div>
       </div>
@@ -9586,6 +9586,12 @@ async function netClaimExpedition(expId){
   await netPullRunsInto();
   /* Receptfynd bokfors av servern - hamta hem dem sa receptboken vet. */
   if (r && r.recipe) await netPullProfessions();
+  /* [RATTAT v5.186.0] HJALPARNAS XP STOD STILL. Servern delar ut hjalpar-XP
+     INUTI spelarens XP-utdelning, alltsa vid varje XP-kalla - men klienten
+     hamtade aldrig hem husdjuren efter en hamtning. Man sag alltsa en hjalpare
+     som inte fick nagot, och som hade gatt upp i niva efter en omladdning.
+     Har hamtas de direkt; allt annat tacks av den lopande avstamningen. */
+  try { await netPullPets(); } catch (e){}
   await netCheckAchievements();
   renderExpPanel();
   updateUI(true);
@@ -18509,6 +18515,9 @@ function startZoneScan(regionId, zone){
            en halv sekund senare och det gick inte att se om trycket tagit. */
         say('Drone sent to ' + zone + ' \u2014 charting takes ' + ZONE_SCAN_TIME + 's.');
         redrawZone(); refreshRegionUI(); renderMap(); updateUI(true);
+        /* Star nodrutan oppen ar det HAR den ska bytas ut - forst nu vet vi att
+           dronaren ar ute, och forst nu finns det en tid att rakna ned. */
+        nodeWinRefreshZone();
       })
       .catch(e => {
         /* [ANDRAT v5.111.0] Stod bara "The drone could not be sent." Serverns
@@ -18516,6 +18525,8 @@ function startZoneScan(regionId, zone){
            slangdes bort, sa ett misslyckande sag likadant ut som ingenting
            alls. Nu star skalet dar. */
         say(typeof srvErrText === 'function' ? srvErrText(e) : 'The drone could not be sent.');
+        /* Vantelaget maste bort, annars star "Sending..." kvar for alltid. */
+        try { nodeWinRefreshZone(); } catch (er){}
       });
     return true;
   }
@@ -28794,7 +28805,7 @@ async function chatSync(){
    BARA MARKENA ritas om nar inget andrats. Ett oppet fonster ritas om forst
    nar antalet faktiskt bytt varde, annars hade listan blinkat var femte
    sekund - precis den bugg vi nyss tog bort ur chatten. */
-let SOCIAL_PULSE = {tick: 0, mail: -1, friends: -1, guild: -1, busy: false};
+let SOCIAL_PULSE = {tick: 0, mail: -1, friends: -1, guild: -1, pets: '', busy: false};
 async function socialPulse(){
   if (!NET.on || !SRV.charId || SOCIAL_PULSE.busy) return;
   if (typeof document !== 'undefined' && document.hidden) return;
@@ -28822,6 +28833,21 @@ async function socialPulse(){
         renderFriendBadge();
         const w = document.getElementById('friends-overlay');
         if (w && w.classList.contains('open') && typeof renderSocial === 'function') renderSocial();
+      }
+    } catch (e){}
+    /* Hjalparna. Deras XP vaxer HELA TIDEN - narvaro-XP:n delar ut den varje
+       synk - sa den maste hamtas lopande, inte bara vid handelser. Tittar man
+       pa dem varje varv, annars var sjatte. Ritas om bara nar nagot andrats. */
+    try {
+      const petsOppna = (() => { const w = document.getElementById('pets-overlay'); return !!(w && w.classList.contains('open')); })();
+      if (petsOppna || n % 6 === 0){
+        await netPullPets();
+        const sig = (S.pets && S.pets.owned ? S.pets.owned : []).concat(S.pets && S.pets.team ? S.pets.team : [])
+          .map(p => p ? (p.uid || '') + ':' + (p.xp | 0) : '-').join(',');
+        if (sig !== SOCIAL_PULSE.pets){
+          SOCIAL_PULSE.pets = sig;
+          if (petsOppna && typeof renderPets === 'function') renderPets();
+        }
       }
     } catch (e){}
     /* Gillet: snabbt utan gille (inbjudningar), lugnt med gille */
@@ -29533,8 +29559,17 @@ function wireNodeWin(){
     }
     if (a === 'travel'){ nodeTravelThen(() => renderNodeWin()); return; }
     if (a === 'scan'){
-      if (!startZoneScan(NODE.region, NODE.zone)) say('The drone could not be sent.');
-      else { say('Drone away.'); renderNodeWin(); }
+      /* [RATTAT v5.186.0] NEDRAKNINGEN KOM INTE FORRAN MAN KLICKAT UR ZONEN OCH
+         IN IGEN. Rutan ritades om DIREKT efter trycket - men i natlage vet
+         klienten inte att dronaren ar ute forran serverns svar kommit, sa
+         omritningen skedde medan lagret fortfarande var tomt och rutan ritade
+         "Send drone" en gang till. Exakt samma fel som zonpanelen hade en gang.
+         Knappen gar till ett vantelage har; den riktiga omritningen gors av
+         SVARET, i startZoneScan. */
+      if (!startZoneScan(NODE.region, NODE.zone)){ say('The drone could not be sent.'); return; }
+      say('Drone away.');
+      if (btn){ btn.disabled = true; btn.textContent = 'Sending\u2026'; }
+      if (!NET.on) renderNodeWin();
       return;
     }
     if (a === 'search' || a === 'travelsearch'){
