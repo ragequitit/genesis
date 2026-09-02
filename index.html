@@ -1118,7 +1118,7 @@ body.dragging *{cursor:grabbing !important}
    varandra och den undre raden lag utanfor skarmen. Bredare ram och lite mindre
    kort gor att alla yrken far plats samtidigt. */
 .pf-wrap{padding:8px 16px 10px;display:flex;flex-direction:column;gap:6px;
-  max-width:1340px;margin:0 auto;width:100%}
+  max-width:1500px;margin:0 auto;width:100%}
 .pf-head{text-align:center;display:flex;flex-direction:column;gap:5px;margin-top:4px}
 .pf-h1{font-size:26px;font-weight:900;letter-spacing:1.6px;color:#eaf6ff;
   text-shadow:0 0 18px rgba(56,232,255,.35)}
@@ -1146,22 +1146,33 @@ body.dragging *{cursor:grabbing !important}
 }
 
 /* --- yrkeskort --- */
-.pf-pick{display:flex;flex-direction:column;gap:5px}
-.pf-pick .pf-card{padding:8px 8px 7px;gap:3px}
-.pf-pick .pf-ico{width:34px;height:34px;font-size:21px}
-.pf-pick .pf-nm{font-size:12px}
-.pf-pick .pf-kind{font-size:8.5px}
-.pf-pick .pf-blurb{font-size:9px;min-height:0;line-height:1.3}
-.pf-pick .pf-tag{font-size:8.5px;padding:2px 5px}
-.pf-pick .pf-tags{gap:4px}
-.pf-pick .pf-buy{padding:4px 0;font-size:11px}
-.pf-pick .pf-lbl{font-size:8px;letter-spacing:1.1px}
+.pf-pick{display:flex;flex-direction:column;gap:4px}
+.pf-pick .pf-card{padding:7px 7px 6px;gap:2px}
+.pf-pick .pf-ico{width:30px;height:30px;font-size:19px}
+.pf-pick .pf-nm{font-size:11.5px;letter-spacing:.6px}
+.pf-pick .pf-kind{font-size:8px}
+.pf-pick .pf-blurb{font-size:8.5px;min-height:0;line-height:1.25}
+.pf-pick .pf-tag{font-size:8px;padding:1px 4px;gap:3px}
+.pf-pick .pf-tags{gap:3px}
+.pf-pick .pf-buy{padding:3px 0;font-size:10.5px}
+.pf-pick .pf-lbl{font-size:7.5px;letter-spacing:1px;gap:6px}
 /* Fonstret far aldrig bli bredare an skarmen - vid 1280 stack det utanfor.
    Id-valjaren behovs: .inv-modal sager width:max-content langre ned och vinner
    annars pa ordning. */
-#prof-overlay .prof-modal{width:min(1340px,94vw);max-width:94vw}
+/* [ANDRAT v5.191.0] Bredare ruta och tatare rutnat (Chris). Pa en kortare
+   skarm (uppmatt 1083x689) rackte inte hojden: hantverkare, samlare och
+   sidoyrken lag i TRE egna rader och den nedersta hamnade under kanten.
+   Huvudyrkena delar nu EN rad - kortet sager anda vilken sort det ar - och
+   rutnatet packar sa manga som far plats i stallet for att lasa antalet till
+   fyra. Sidoyrkena behaller sin egen rubrik och rad. */
+#prof-overlay .prof-modal{width:min(1500px,96vw);max-width:96vw}
 .pf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .pf-grid.four{grid-template-columns:repeat(4,1fr)}
+.pf-grid.auto{grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px}
+/* Sidoyrkena ar bara tva och blaste annars upp sig till halva rutan var medan
+   de fem huvudyrkena stod smala. Taket galler DARFOR bara den raden - satte man
+   det pa alla blev korten smalare, texten radade om sig och hojden vaxte igen. */
+.pf-grid.auto.few{grid-template-columns:repeat(auto-fit,minmax(178px,236px));justify-content:center}
 @media(max-width:900px){.pf-grid,.pf-grid.four{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.pf-grid,.pf-grid.four{grid-template-columns:1fr}}
 .pf-card{
@@ -5958,7 +5969,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.190.0 — SKARVBILDER OCH SPANINGENS BELONING</div>
+        <div class="sn-ver">GENESIS v5.191.0 — ALLA YRKEN PA EN SKARM</div>
       </div>
     </div>
   </aside>
@@ -6867,7 +6878,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.190.0 — SKARVBILDER OCH SPANINGENS BELONING</div>
+            <div class="desc">GENESIS v5.191.0 — ALLA YRKEN PA EN SKARM</div>
           </div>
         </div>
       </div>
@@ -22681,9 +22692,10 @@ function renderProfessions(){
     const mid = ACTIVE_PROFS.filter(p => p.kind === 'gathering');
     const bot = ACTIVE_PROFS.filter(p => p.kind === 'secondary');
     h += '<div class="pf-pick">';
-    if (top.length) h += '<div class="pf-grid four">' + top.map(p => profCardHTML(p, false, true)).join('') + '</div>';
-    if (mid.length) h += '<div class="pf-grid four">' + mid.map(p => profCardHTML(p, false, true)).join('') + '</div>';
-    if (bot.length) h += '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, false, true)).join('') + '</div>';
+    const huvud = top.concat(mid);
+    if (huvud.length) h += '<div class="pf-grid auto">' + huvud.map(p => profCardHTML(p, false, true)).join('') + '</div>';
+    if (bot.length) h += '<div class="section-label" style="margin-top:8px">Secondary</div>' +
+      '<div class="pf-grid auto few">' + bot.map(p => profCardHTML(p, false, true)).join('') + '</div>';
     h += '</div>';
   } else if (profScene === 'pick'){
     /* SCEN 2: valet. Alla atta - fyra hantverkare overst, fyra samlare under. */
@@ -22697,13 +22709,13 @@ function renderProfessions(){
     const mid = free.filter(p => p.kind === 'gathering');
     const bot = free.filter(p => p.kind === 'secondary');
     h += '<div class="pf-pick">';
-    if (top.length) h += '<div class="pf-grid four">' + top.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
-    if (mid.length) h += '<div class="pf-grid four">' + mid.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
+    const huvud = top.concat(mid);
+    if (huvud.length) h += '<div class="pf-grid auto">' + huvud.map(p => profCardHTML(p, canBuy)).join('') + '</div>';
     /* Sidoyrkena har sin EGEN rad och sin egen rakning - de tar inte en
        huvudplats, sa de far vara kopbara aven nar bada huvudplatserna ar
        fyllda. */
-    if (bot.length) h += '<div class="section-label" style="margin-top:10px">Secondary</div>' +
-      '<div class="pf-grid four">' + bot.map(p => profCardHTML(p, canBuySec)).join('') + '</div>';
+    if (bot.length) h += '<div class="section-label" style="margin-top:8px">Secondary</div>' +
+      '<div class="pf-grid auto few">' + bot.map(p => profCardHTML(p, canBuySec)).join('') + '</div>';
     h += '</div>';
   } else {
     /* SCEN 1 och 3: dina platser. Tomma platser bjuder in, larda visar arbetet. */
