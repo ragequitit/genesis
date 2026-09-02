@@ -4723,11 +4723,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .chat-tab[data-ctab=trade].on{border-bottom-color:var(--gold)}
 .chat-tab[data-ctab=guild].on{border-bottom-color:#2dd4bf}
 .chat-tab[data-ctab=whisper].on{border-bottom-color:var(--purple)}
-.chat-tab .ct-n{display:none;position:absolute;top:2px;right:0;min-width:15px;height:15px;padding:0 4px;border-radius:8px;
-  font-size:9px;line-height:15px;text-align:center;color:#fff;background:var(--purple)}
-.chat-tab[data-ctab=trade] .ct-n{background:var(--gold);color:#000}
-.chat-tab[data-ctab=guild] .ct-n{background:#2dd4bf;color:#000}
-.chat-tab .ct-n.on{display:block}
+/* [ANDRAT v5.182.0] Chris beslut: ingen prick och ingen siffra pa fliken. En
+   kanal med olast markeras i stallet med en dampad, langsamt pulserande glod i
+   kanalens egen farg. Siffran finns kvar pa den minimerade ikonen. */
+.chat-tab .ct-n{display:none !important}
+.chat-tab{--cglow:var(--cyan)}
+.chat-tab[data-ctab=trade]{--cglow:var(--gold)}
+.chat-tab[data-ctab=guild]{--cglow:#2dd4bf}
+.chat-tab[data-ctab=whisper]{--cglow:var(--purple)}
+.chat-tab.unread{color:#f1ecdd;animation:chatTabGlow 2.6s ease-in-out infinite}
+@keyframes chatTabGlow{
+  0%,100%{box-shadow:inset 0 0 0 rgba(0,0,0,0);text-shadow:none}
+  50%{box-shadow:inset 0 0 14px -4px var(--cglow),0 0 10px -4px var(--cglow);text-shadow:0 0 7px var(--cglow)}}
+@media (prefers-reduced-motion:reduce){
+  .chat-tab.unread{animation:none;color:#fff;box-shadow:inset 0 0 14px -4px var(--cglow);text-shadow:0 0 7px var(--cglow)}}
 .chat-tab.locked{opacity:.45}
 .chat-tools{margin-left:auto;display:flex;gap:2px}
 .chat-tools button{background:none;border:0;color:var(--text-dim);font-size:14px;cursor:pointer;width:30px;height:30px;border-radius:6px}
@@ -5263,6 +5272,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   padding:6px 0;border-bottom:1px solid var(--border-soft)}
 .nd-line:last-of-type{border-bottom:none}
 .nd-line .k{color:var(--text-dim)}
+/* [TILLAGT v5.183.0] Zonrutans dronarmatare. */
+.nd-scanbox{margin:5px 0 0;display:flex;flex-direction:column;gap:4px}
+.nd-scanbar{height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.nd-scanbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--cyan),var(--purple));
+  transition:width .9s linear}
+.nd-scantime{font-size:11px;color:var(--text-dim);text-align:center;font-variant-numeric:tabular-nums}
+
 .nd-acts{display:flex;gap:8px;margin-top:12px}
 .nd-acts button{flex:1;padding:11px 8px;font-size:11px;font-weight:900;letter-spacing:.1em}
 .nd-here{display:flex;align-items:center;gap:7px;font-size:10.5px;color:#2ecc71;
@@ -5894,7 +5910,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.181.0 — CHATTEN: STILLA RADER, EGNA KANALER</div>
+        <div class="sn-ver">GENESIS v5.183.0 — DRONARKLOCKA I ZONRUTAN, LEVANDE POST OCH INBJUDNINGAR</div>
       </div>
     </div>
   </aside>
@@ -6803,7 +6819,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.181.0 — CHATTEN: STILLA RADER, EGNA KANALER</div>
+            <div class="desc">GENESIS v5.183.0 — DRONARKLOCKA I ZONRUTAN, LEVANDE POST OCH INBJUDNINGAR</div>
           </div>
         </div>
       </div>
@@ -18411,6 +18427,17 @@ function zoneScanHere(regionId, zone){
 function zoneScanLeft(){
   return S.zoneScan ? Math.max(0, (S.zoneScan.eta - Date.now()) / 1000) : 0;
 }
+/* Gangen tiden och andelen, raknade ur sluttiden och den kanda kartlaggningstiden. */
+function zoneScanGone(){
+  return S.zoneScan ? Math.max(0, ZONE_SCAN_TIME - zoneScanLeft()) : 0;
+}
+function zoneScanPct(){
+  if (!S.zoneScan || !ZONE_SCAN_TIME) return 0;
+  return Math.max(0, Math.min(100, Math.round(100 * zoneScanGone() / ZONE_SCAN_TIME)));
+}
+function zoneScanTimeText(){
+  return fmtDur(zoneScanGone()) + ' elapsed \u00b7 ' + fmtDur(zoneScanLeft()) + ' left';
+}
 /* Dronaren kommer hem. I serverlage ar det servern som kartlagger - klienten
    fragar bara. Offline gor vi det sjalva. */
 function checkZoneScan(){
@@ -18424,6 +18451,7 @@ function checkZoneScan(){
       if (r && r.charted){
         say(r.zone + ' charted — travel there is instant now.');
         renderMap(); refreshRegionUI(); renderExpPanel(); updateUI(true);
+        nodeWinRefreshZone();
       }
     }).catch(() => { checkZoneScan._busy = false; });
     return;
@@ -18433,6 +18461,16 @@ function checkZoneScan(){
   discoverZoneExpeditions(sc.region, sc.zone);
   say(sc.zone + ' charted — travel there is instant now.');
   renderMap(); refreshRegionUI(); renderExpPanel(); updateUI(true); save();
+  nodeWinRefreshZone();
+}
+/* Star zonrutan oppen nar dronaren kommer hem ska den byta innehall pa plats -
+   annars star "Drone en route" kvar tills man stanger och oppnar igen. Ritas
+   BARA om vid hemkomsten, aldrig varje sekund. */
+function nodeWinRefreshZone(){
+  const w = document.getElementById('node-overlay');
+  if (!w || !w.classList.contains('open')) return;
+  if (!NODE || NODE.kind !== 'zone') return;
+  try { renderNodeWin(); } catch (e){}
 }
 function startZoneScan(regionId, zone){
   if (S.zoneScan) return false;
@@ -20328,6 +20366,10 @@ function hookBoostTips(bar){
 function tickZoneScanClock(){
   const el = $('zone-scan-clock');
   if (el) el.textContent = fmtDur(zoneScanLeft());
+  /* Zonrutans matare och siffror. BARA texten och bredden byts - hela rutan
+     ritas aldrig om, annars rivs knapparna bort under fingret. */
+  const kl = $('node-scan-clock'); if (kl) kl.textContent = zoneScanTimeText();
+  const fi = $('node-scan-fill');  if (fi) fi.style.width = zoneScanPct() + '%';
 }
 function tickVendorClock(){
   if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
@@ -25870,13 +25912,20 @@ function questObjText(q){
     case 'pve_wins':{
       const TYPES = {machine:'machines', humanoid:'humanoids', creature:'creatures',
                      elemental:'elementals', spirit:'spirits'};
+      const after = ' \u2014 wins after accepting count';
       if (q.key && q.key !== 'zone' && TYPES[q.key])
-        return 'Defeat ' + q.qty + ' ' + (q.qty > 1 ? TYPES[q.key] : q.key) + ' in ' + reg;
+        return 'Defeat ' + q.qty + ' ' + (q.qty > 1 ? TYPES[q.key] : q.key) + ' in ' + reg + after;
       return 'Win ' + q.qty + ' PvE encounter' + (q.qty > 1 ? 's' : '') +
-        ' in ' + ((q.key === 'zone' && q.zone) ? q.zone : reg);
+        ' in ' + ((q.key === 'zone' && q.zone) ? q.zone : reg) + after;
     }
+    /* [ANDRAT v5.182.0] Malet sa bara "Complete 1 expedition in <region>", men
+       servern raknar BARA korningar som startats EFTER att kontraktet antogs,
+       och forst nar belaningen ar hamtad. Bada villkoren var osynliga - man
+       kunde ha en korning igang, hamta den, och undra varfor inget hande.
+       Nu star regeln i malet. Samma sak galler moten, sa de sager det ocksa. */
     case 'expeditions': return 'Complete ' + q.qty + ' expedition' + (q.qty > 1 ? 's' : '') +
-      (q.key ? ' (' + q.key + '+ min)' : '') + ' in ' + reg;
+      (q.key ? ' of ' + q.key + '+ minutes' : '') + ' in ' + reg +
+      ' \u2014 start ' + (q.qty > 1 ? 'them' : 'it') + ' after accepting, then collect the reward';
     case 'travel':      return 'Travel to ' + q.zone;
     default:            return '';
   }
@@ -25888,6 +25937,28 @@ function questRewText(r){
   if (r.gold)  out.push(fmtMoney(r.gold));
   if (r.frags) out.push(r.frags + ' \ud83d\udd37');
   return out.join(' \u00b7 ');
+}
+/* [RATTAT v5.182.0] KLARBESKEDET VISADE SIN EGEN UPPMARKNING. Belonings-
+   texten bygger guldbeloppet med uppmarkning, vilket ar ratt inuti en ruta -
+   men beskedet overst pa skarmen skrivs som REN TEXT. Spelaren fick darfor se
+   hela uppmarkningen rad upp som obegripligt klotter efter "Quest complete".
+   Samma regel pa tva stallen, bara det ena anpassat - den vanliga familjen.
+   Den har varianten skriver belopp i klartext och anvands i alla besked. */
+function questRewPlain(r){
+  r = r || {};
+  const out = [];
+  if (r.rep)   out.push(r.rep + ' rep');
+  if (r.xp)    out.push(r.xp + ' XP');
+  if (r.gold)  out.push(moneyPlain(r.gold));
+  if (r.frags) out.push(r.frags + ' fragment' + (r.frags === 1 ? '' : 's'));
+  return out.join(', ');
+}
+function moneyPlain(c){
+  const m = splitMoney(c), out = [];
+  if (m.g) out.push(fmtLong(m.g) + 'g');
+  if (m.s) out.push(m.s + 's');
+  if (m.c || (!m.g && !m.s)) out.push(m.c + 'c');
+  return out.join(' ');
 }
 function questRowHTML(q, mode, activeFull){
   const reg = REGIONS[q.region] ? REGIONS[q.region].name : q.region;
@@ -26004,9 +26075,13 @@ $('quest-body').addEventListener('click', async (e) => {
     if (t.dataset.qaccept)  await srvRpc('quest_accept',  {p_character: SRV.charId, p_quest: t.dataset.qaccept});
     if (t.dataset.qabandon) await srvRpc('quest_abandon', {p_character: SRV.charId, p_quest: t.dataset.qabandon});
     if (t.dataset.qclaim){
+      /* Namnet finns bara i listan vi ritade - servern skickar det inte
+         tillbaka. Las det FORE anropet, listan ritas om direkt efterat. */
+      const qname = (((QUESTS.state && QUESTS.state.active) || []).find(q => q.quest_id === t.dataset.qclaim) || {}).name || 'contract';
       const r = await srvRpc('quest_claim', {p_character: SRV.charId, p_quest: t.dataset.qclaim});
       if (r && r.reward){
-        say('Quest complete \u2014 ' + questRewText(r.reward) + ' collected.');
+        const rw = questRewPlain(Object.assign({}, r.reward, r.frags != null ? {frags: r.frags} : {}));
+        say('Quest complete: ' + qname + (rw ? ' \u2014 ' + rw : ''));
         const row = await srvCharacterRow();
         if (row){ S.gold = +row.gold_copper || S.gold; S.frags = +row.fragments || S.frags;
                   if (row.xp != null) S.xp = +row.xp; }
@@ -28518,8 +28593,10 @@ function chatRender(keepScroll){
   const tabs = document.querySelectorAll('.chat-tab');
   tabs.forEach(b => {
     b.classList.toggle('on', b.dataset.ctab === CHAT.tab);
-    const n = CHAT.unread[b.dataset.ctab] | 0, el = b.querySelector('.ct-n');
-    el.textContent = n > 99 ? '99+' : n; el.classList.toggle('on', n > 0);
+    /* [ANDRAT v5.182.0] Glod i stallet for siffra. Den flik man star pa glor
+       aldrig - det man tittar pa ar last. */
+    const n = CHAT.unread[b.dataset.ctab] | 0;
+    b.classList.toggle('unread', n > 0 && b.dataset.ctab !== CHAT.tab);
     if (b.dataset.ctab === 'guild') b.classList.toggle('locked', !(SRV.guild && SRV.guild.id));
     if (b.dataset.ctab === 'trade') b.classList.toggle('locked', levelInfo().lvl < CHAT_TRADE_LEVEL);
   });
@@ -28677,7 +28754,69 @@ async function chatSync(){
     }
     chatRender(true);
     if (CHAT.needRead){ CHAT.needRead = false; chatMarkRead(); }
-  } catch (e){} finally { CHAT.busy = false; }
+  } catch (e){} finally { CHAT.busy = false; socialPulse(); }
+}
+/* [TILLAGT v5.183.0] POSTEN, GILLESINBJUDAN OCH VANFORFRAGAN LEVER NU (Chris
+   beslut). Forut hamtades de bara vid inloggning och vid atta bestamda egna
+   handlingar - allt som nagon ANNAN gjorde syntes darfor forst nasta gang man
+   sjalv gjorde nagot, eller efter en omladdning. De aker med chattens
+   avstamning i stallet for att fa en egen raknare.
+   Takt: posten och vannerna varje varv (5 s, bada ar rena lasningar).
+   Gillet varje varv sa lange man star UTAN gille - da ar det inbjudningar som
+   ska komma fram fort - och var sjatte varv (30 s) nar man redan ar med, dar
+   market bara raknar veckans uthamtningsbara mal och rors langsamt.
+   BARA MARKENA ritas om nar inget andrats. Ett oppet fonster ritas om forst
+   nar antalet faktiskt bytt varde, annars hade listan blinkat var femte
+   sekund - precis den bugg vi nyss tog bort ur chatten. */
+let SOCIAL_PULSE = {tick: 0, mail: -1, friends: -1, guild: -1, busy: false};
+async function socialPulse(){
+  if (!NET.on || !SRV.charId || SOCIAL_PULSE.busy) return;
+  if (typeof document !== 'undefined' && document.hidden) return;
+  SOCIAL_PULSE.busy = true;
+  const n = ++SOCIAL_PULSE.tick;
+  try {
+    /* Posten */
+    try {
+      await netPullMailbox();
+      const c = (S.mail || []).length;
+      if (c !== SOCIAL_PULSE.mail){
+        SOCIAL_PULSE.mail = c;
+        renderMailBadge();
+        const w = document.getElementById('mail-overlay');
+        if (w && w.classList.contains('open') && typeof renderMail === 'function') renderMail();
+      }
+    } catch (e){}
+    /* Vannerna: inkommande forfragningar */
+    try {
+      await netFriendList();
+      const c = (SOCIAL && SOCIAL.incoming ? SOCIAL.incoming.length : 0) +
+                (SOCIAL && SOCIAL.friends ? SOCIAL.friends.length : 0);
+      if (c !== SOCIAL_PULSE.friends){
+        SOCIAL_PULSE.friends = c;
+        renderFriendBadge();
+        const w = document.getElementById('friends-overlay');
+        if (w && w.classList.contains('open') && typeof renderSocial === 'function') renderSocial();
+      }
+    } catch (e){}
+    /* Gillet: snabbt utan gille (inbjudningar), lugnt med gille */
+    const iGuild = !!(SRV.guild && SRV.guild.id);
+    if (!iGuild || n % 6 === 0){
+      try {
+        await netGuildState();
+        const st = GUILD.state;
+        const c = st ? (st.guild ? 1000 + ((st.week && st.week.ops) ? st.week.ops.length : 0)
+                                 : (st.invites || []).length) : -1;
+        const badgeFore = $('guild-badge') ? $('guild-badge').textContent : '';
+        renderGuildBadge();
+        const badgeEfter = $('guild-badge') ? $('guild-badge').textContent : '';
+        if (c !== SOCIAL_PULSE.guild || badgeFore !== badgeEfter){
+          SOCIAL_PULSE.guild = c;
+          const w = document.getElementById('guild-overlay');
+          if (w && w.classList.contains('open') && typeof renderGuild === 'function') renderGuild();
+        }
+      } catch (e){}
+    }
+  } finally { SOCIAL_PULSE.busy = false; }
 }
 async function chatMarkRead(){
   if (!NET.on || !SRV.charId) return;
@@ -29135,7 +29274,34 @@ function nodeZoneHTML(){
   h += '<div class="nd-line"><span class="k">Region</span><span>' + esc(R ? R.name : '') + '</span></div>' +
        '<div class="nd-line"><span class="k">Level band</span><span>' + esc(R ? R.band : '') + '</span></div>';
   if (!charted){
-    h += '<div class="shelf-empty" style="margin-top:10px">Uncharted \u2014 send a drone to see what is out there.</div>' +
+    /* [TILLAGT v5.183.0] RUTAN STOD KVAR OCH SA INGENTING. Trycker man Send
+       drone blir zonrutan liggande pa skarmen - men den ritade om sig till
+       exakt samma text, utan att visa att dronaren var ute och utan en enda
+       siffra. Nu bar den bade den gangna och den aterstaende tiden med en
+       matare, och knappen sager vad som pagar. Siffrorna raknas ur den SPARADE
+       sluttiden (servern ager den), inte ur en egen raknare - de overlever
+       omladdning, utloggning och karaktarsbyte av sig sjalva. */
+    const mine = (typeof zoneScanHere === 'function') ? zoneScanHere(NODE.region, NODE.zone) : null;
+    if (mine){
+      h += '<div class="shelf-empty" style="margin-top:10px">\ud83d\udef0 The drone is charting ' +
+        esc(NODE.zone || '') + '.</div>' +
+        '<div class="nd-scanbox">' +
+          '<div class="nd-scanbar"><i id="node-scan-fill" style="width:' + zoneScanPct() + '%"></i></div>' +
+          '<div class="nd-scantime" id="node-scan-clock">' + zoneScanTimeText() + '</div>' +
+        '</div>' +
+        '<div class="nd-acts"><button class="btn-primary" disabled style="opacity:.6">Drone en route</button>' +
+        '<button class="btn-neutral" data-nd="close">Close</button></div>';
+      return h;
+    }
+    if (S.zoneScan){
+      h += '<div class="shelf-empty" style="margin-top:10px">Uncharted. Your drone is charting ' +
+        esc(S.zoneScan.zone) + ' \u2014 it can only chart one zone at a time.</div>' +
+        '<div class="nd-acts"><button class="btn-primary" disabled style="opacity:.6">Drone busy</button>' +
+        '<button class="btn-neutral" data-nd="close">Close</button></div>';
+      return h;
+    }
+    h += '<div class="shelf-empty" style="margin-top:10px">Uncharted \u2014 send a drone to see what is out there. It takes ' +
+      fmtDur(ZONE_SCAN_TIME) + '.</div>' +
       '<div class="nd-acts"><button class="btn-primary" data-nd="scan">Send drone</button>' +
       '<button class="btn-neutral" data-nd="close">Close</button></div>';
     return h;
@@ -29211,6 +29377,18 @@ function nodeExpCard(def, showWhere){
     '<span>' + expCoinIco(def) + ' <b>' + expGoldText(def) + '</b></span>' +
     '<span>\uD83D\uDD37 <b>' + expFragRange(def).join('-') + '</b></span></div>' + btn + '</div>';
 }
+/* Dronarens lage for EN zon, i klartext. Tiden raknas ur den sparade sluttiden
+   (som lever pa servern), inte ur en egen raknare - den overlever omladdning,
+   utloggning och karaktarsbyte av sig sjalv. */
+function nodeDroneText(region, zone){
+  if (!region || !zone) return 'Nothing charted here yet \u2014 send a drone to survey the zone.';
+  const mine = (typeof zoneScanHere === 'function') ? zoneScanHere(region, zone) : null;
+  if (mine) return '\ud83d\udef0 Drone charting ' + zone + ' \u2014 ' + fmtDur(zoneScanLeft()) + ' left.';
+  if (S.zoneScan) return 'Your drone is charting ' + S.zoneScan.zone + '. It can only chart one zone at a time.';
+  if (typeof isZoneCharted === 'function' && !isZoneCharted(region, zone))
+    return 'Nothing charted here yet \u2014 send a drone from the zone panel (' + fmtDur(ZONE_SCAN_TIME) + ').';
+  return 'Nothing charted here yet \u2014 send a drone to survey the zone.';
+}
 function nodeExpHTML(){
   const runs0 = S.exp.runs || [];
   const klarNu = runs0.some(r => Date.now() >= (r.endsAt || 0));
@@ -29227,9 +29405,13 @@ function nodeExpHTML(){
     h += nodeWhereHTML();
     const defs = expDefsForZone(NODE.region, NODE.zone) || [];
     const seen = defs.filter(d => S.exp.found.indexOf(d.id) >= 0);
+    /* [ANDRAT v5.182.0] Raden var en aterviandsgrand: den sa "skicka en dronare"
+       aven medan dronaren redan var ute over just den har zonen, och den visade
+       ingen tid. Nu bar den dronarens lage och rakningen ned - rutan ritas om
+       varje sekund, sa siffran lever. */
     h += seen.length
       ? seen.map(d => nodeExpCard(d, false)).join('')
-      : '<div class="shelf-empty">Nothing charted here yet \u2014 send a drone to survey the zone.</div>';
+      : '<div class="shelf-empty">' + nodeDroneText(NODE.region, NODE.zone) + '</div>';
   } else if (NODE.etab === 'disc'){
     const defs = S.exp.found.map(expDefById).filter(Boolean);
     /* Din zon overst, sedan din region, sedan resten. */
