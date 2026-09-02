@@ -2706,6 +2706,17 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   opacity:.65;
 }
 .rw-card .cd-v{font-family:var(--font-mono);font-size:11px;font-weight:800;color:var(--rc)}
+/* [TILLAGT v5.206.0] BELONINGSKORTEN FAR RIKTIGA IKONER. Emojin var alltid
+   tankt som reserv. Rutan maste ha en egen storlek: bilden ritas med
+   width/height 100 %, och utan en satt ruta blir 100 % av ingenting noll.
+   Ljuspolen under ikonen ligger kvar - den ritas pa omslaget, inte pa bilden.
+   Faller filen bort satts 'noart' och rutan gar tillbaka till emojins matt. */
+.rw-card .cd-ico.art-wrap{
+  width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+  padding:6px 0 12px;box-sizing:content-box;
+}
+.rw-card .cd-ico.art-wrap .art-img{width:38px;height:38px}
+.rw-card .cd-ico.art-wrap.noart{width:auto;height:auto;font-size:26px;padding:8px 0 12px}
 .rw-divider{
   display:flex;align-items:center;gap:10px;margin-bottom:10px;
   font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);font-weight:700;
@@ -6046,7 +6057,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.205.0 — DE TRE DODA KOPEN BORTA, HJALPFUNKTIONERNA STANGDA</div>
+        <div class="sn-ver">GENESIS v5.206.0 — BELONINGSKORTEN HAR RIKTIGA IKONER</div>
       </div>
     </div>
   </aside>
@@ -6986,7 +6997,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.205.0 — DE TRE DODA KOPEN BORTA, HJALPFUNKTIONERNA STANGDA</div>
+            <div class="desc">GENESIS v5.206.0 — BELONINGSKORTEN HAR RIKTIGA IKONER</div>
           </div>
         </div>
       </div>
@@ -16349,6 +16360,13 @@ function netGearFromClaim(g){
   return null;
 }
 
+/* [TILLAGT v5.206.0] En ikon pa ett beloningskort. Finns bilden ritas den med
+   emojin gomd bakom; saknas den star emojin ensam i den gamla rutan. */
+function rwCardIco(src, emoji){
+  return src
+    ? '<span class="cd-ico art-wrap">' + artWithFallback(src, emoji) + '</span>'
+    : '<span class="cd-ico">' + emoji + '</span>';
+}
 /* Belöningspopupen — spelarens mockup: fyra piedestalkort + sammanfattning + hämtknapp */
 function showRewards(run, alreadyPaid){
   const def = expDefById(run.id);
@@ -16361,16 +16379,27 @@ function showRewards(run, alreadyPaid){
     ? 'Close'
     : '<span class="rw-chev">\u00bb</span> Claim Rewards <span class="rw-chev">\u00ab</span>';
   $('reward-sub').textContent = def.name + ' — ' + def.zone;
+  /* [TILLAGT v5.206.0] Ikonerna ritas som bilder. Skrotet tar materialets egen
+     bild samma vag som vaskan gor; de tre ovriga tar sin ur granssnittsmappen.
+     Saknas en fil visas emojin och missen bokfors, sa rutan inte fragar efter
+     samma saknade fil vid varje omritning. */
+  const scrapKey = run.scrapKey || 'salvaged_scrap';
+  const scrapMat = MATERIALS[scrapKey];
   $('reward-cards').innerHTML =
     '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">' +
-      (MATERIALS[run.scrapKey || 'salvaged_scrap'].name) + '</span><span class="cd-ico">' +
-      (MATERIALS[run.scrapKey || 'salvaged_scrap'].ico) + '</span><span class="cd-v">+' +
-      fmt(run.scrap || 0) + '</span></div>' +
-    '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span><span class="cd-ico">✨</span><span class="cd-v">+' + xpShown + ' XP</span></div>' +
-    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span><span class="cd-ico">🪙</span><span class="cd-v">+' +
+      scrapMat.name + '</span>' + rwCardIco(stackArtOf(scrapKey), scrapMat.ico) +
+      '<span class="cd-v">+' + fmt(run.scrap || 0) + '</span></div>' +
+    '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Experience</span>' +
+      rwCardIco(artUnlessMissing('assets/ui/experience.png'), '\u2728') +
+      '<span class="cd-v">+' + xpShown + ' XP</span></div>' +
+    '<div class="rw-card" style="--rc:var(--gold)"><span class="cd-k">Money</span>' +
+      rwCardIco(artUnlessMissing('assets/ui/money.png'), '\ud83e\ude99') +
+      '<span class="cd-v">+' +
       fmtMoney(alreadyPaid ? run.loot.gold : goldAfterTax(run.loot.gold)) + '</span>' +
       (!alreadyPaid && taxOn(run.loot.gold) > 0 ? '<span class="cd-tax">−' + moneyText(taxOn(run.loot.gold)) + ' tax</span>' : '') + '</div>' +
-    '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span><span class="cd-ico">🔷</span><span class="cd-v">+' + run.loot.frags + '</span></div>';
+    '<div class="rw-card" style="--rc:var(--violet)"><span class="cd-k">Fragments</span>' +
+      rwCardIco(artUnlessMissing('assets/ui/fragments.png'), '\ud83d\udd37') +
+      '<span class="cd-v">+' + run.loot.frags + '</span></div>';
   /* Fyndet ska synas HÄR — ingen ska behöva öppna väskan och gissa. */
   let found = '';
   if (run.loot.gear){
