@@ -5958,7 +5958,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.189.0 — STENAR OCH SKARVOR VISAR SINA BILDER</div>
+        <div class="sn-ver">GENESIS v5.190.0 — SKARVBILDER OCH SPANINGENS BELONING</div>
       </div>
     </div>
   </aside>
@@ -6867,7 +6867,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.189.0 — STENAR OCH SKARVOR VISAR SINA BILDER</div>
+            <div class="desc">GENESIS v5.190.0 — SKARVBILDER OCH SPANINGENS BELONING</div>
           </div>
         </div>
       </div>
@@ -18558,10 +18558,20 @@ function checkZoneScan(){
   if (NET.on){
     if (checkZoneScan._busy) return;
     checkZoneScan._busy = true;
-    netScanZoneClaim().then(r => {
+    netScanZoneClaim().then(async r => {
       checkZoneScan._busy = false;
       if (r && r.charted){
-        say(r.zone + ' charted — travel there is instant now.');
+        /* [ANDRAT v5.190.0] BESKEDET SA BARA ATT RESAN BLEV SNABB. Nu sager det
+           att dronaren kommit hem, vilken plats den kartlagt, att man kan aka
+           dit - och vad spaningen gav. XP:n kommer fran servern (den delar ut
+           den och sager hur mycket), sa talet pa skarmen ar samma tal som
+           bokfordes. En zon man redan kartlagt ger noll, och da namns den inte. */
+        let txt = '\ud83d\udef0 Survey complete! The drone has returned. You can now venture into ' + r.zone + '.';
+        if (+r.xp > 0) txt += ' +' + (+r.xp) + ' XP';
+        if (r.level_up) txt += ' \u2014 level ' + r.level + '!';
+        say(txt);
+        if (+r.xp > 0){ try { await netPull(); } catch (e){} }
+        if (r.level_up){ try { levelUpFx(+r.level); } catch (e){} }
         renderMap(); refreshRegionUI(); renderExpPanel(); updateUI(true);
         nodeWinRefreshZone();
       }
@@ -18569,9 +18579,12 @@ function checkZoneScan(){
     return;
   }
   S.zoneScan = null;
+  const nyZon = !isZoneCharted(sc.region, sc.zone);
   markZoneSeen(sc.region, sc.zone);
   discoverZoneExpeditions(sc.region, sc.zone);
-  say(sc.zone + ' charted — travel there is instant now.');
+  /* Offlinelaget sager samma sak men delar inte ut nagon XP - talet bor pa
+     servern, och en lokal kopia hade garanterat glidit isar fran den. */
+  say('\ud83d\udef0 Survey complete! The drone has returned. You can now venture into ' + sc.zone + '.');
   renderMap(); refreshRegionUI(); renderExpPanel(); updateUI(true); save();
   nodeWinRefreshZone();
 }
