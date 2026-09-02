@@ -2695,6 +2695,12 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   background:linear-gradient(180deg, rgba(255,255,255,.03), transparent 55%), var(--bg-inset);
 }
 .rw-card .cd-k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--text)}
+/* [TILLAGT v5.207.0] ETIKETTEN HALLER TVA RADERS HOJD (Chris). Skrotets namn
+   gar over tva rader, de tre andra over en - och da hamnade skrotets ikon en
+   rad lagre an de ovriga. Rutan ar nu alltid tva rader hog, sa alla fyra
+   ikoner star pa samma linje oavsett hur langt namnet ar. Det langsta
+   skrotnamnet ryms pa tva rader; fler an sa finns inte. */
+.rw-card .cd-k{display:block;text-align:center;line-height:1.35;min-height:2.7em}
 .rw-card .cd-ico{
   position:relative;font-size:26px;line-height:1;padding:8px 0 12px;
   filter:drop-shadow(0 0 10px var(--rc));
@@ -2717,6 +2723,14 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
 }
 .rw-card .cd-ico.art-wrap .art-img{width:38px;height:38px}
 .rw-card .cd-ico.art-wrap.noart{width:auto;height:auto;font-size:26px;padding:8px 0 12px}
+/* [TILLAGT v5.207.0] Market overst och de tva i sammanfattningen far ocksa
+   riktiga bilder. Samma regel som korten: rutan maste ha en storlek, annars
+   blir bildens 100 % noll. Faller filen bort star emojin kvar oforandrad. */
+.rw-hex.art-wrap .art-img{width:30px;height:30px}
+.rw-hex.art-wrap.noart{font-size:22px}
+.rc-ico.art-wrap{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.rc-ico.art-wrap .art-img{width:16px;height:16px}
+.rc-ico.art-wrap.noart{width:auto;height:auto;font-size:14px}
 .rw-divider{
   display:flex;align-items:center;gap:10px;margin-bottom:10px;
   font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);font-weight:700;
@@ -6057,7 +6071,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.206.0 — BELONINGSKORTEN HAR RIKTIGA IKONER</div>
+        <div class="sn-ver">GENESIS v5.207.0 — BELONINGSRUTAN: IKONER OVERALLT, KORTEN LINJERADE</div>
       </div>
     </div>
   </aside>
@@ -6833,7 +6847,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= EXPEDITIONSBELÖNINGEN ================= -->
   <div class="modal-overlay" id="reward-overlay">
     <div class="modal rw-modal">
-      <div class="rw-hex">🚀</div>
+      <div class="rw-hex" id="rw-hex">🚀</div>
       <button class="modal-close rw-x" id="reward-close">✕</button>
       <div class="rw-title">Expedition Complete</div>
       <div class="rw-sub" id="reward-sub"></div>
@@ -6841,8 +6855,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <div id="rw-found"></div>
       <div class="rw-divider"><span>Run Summary</span></div>
       <div class="rw-chips">
-        <div class="rw-chip"><span class="rc-ico">⏱</span><span class="rc-body"><span class="rc-k">Duration</span><span class="rc-v" style="color:var(--cyan)" id="rw-dur">—</span></span></div>
-        <div class="rw-chip"><span class="rc-ico">📡</span><span class="rc-body"><span class="rc-k">Expedition Level</span><span class="rc-v" style="color:var(--violet)" id="rw-lvl">—</span></span></div>
+        <div class="rw-chip"><span class="rc-ico" id="rw-ico-dur">⏱</span><span class="rc-body"><span class="rc-k">Duration</span><span class="rc-v" style="color:var(--cyan)" id="rw-dur">—</span></span></div>
+        <div class="rw-chip"><span class="rc-ico" id="rw-ico-lvl">📡</span><span class="rc-body"><span class="rc-k">Expedition Level</span><span class="rc-v" style="color:var(--violet)" id="rw-lvl">—</span></span></div>
       </div>
       <button class="rw-claim" id="reward-claim"><span class="rw-chev">»</span> Claim Rewards <span class="rw-chev">«</span></button>
     </div>
@@ -6997,7 +7011,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.206.0 — BELONINGSKORTEN HAR RIKTIGA IKONER</div>
+            <div class="desc">GENESIS v5.207.0 — BELONINGSRUTAN: IKONER OVERALLT, KORTEN LINJERADE</div>
           </div>
         </div>
       </div>
@@ -16367,6 +16381,17 @@ function rwCardIco(src, emoji){
     ? '<span class="cd-ico art-wrap">' + artWithFallback(src, emoji) + '</span>'
     : '<span class="cd-ico">' + emoji + '</span>';
 }
+/* [TILLAGT v5.207.0] Satter en ensam ikon som har en egen ruta i markupen -
+   market overst och de tva i sammanfattningen. Finns bilden ritas den, annars
+   star emojin kvar precis som forut. */
+function rwSetIco(id, src, emoji){
+  const el = $(id);
+  if (!el) return;
+  const art = artUnlessMissing(src);
+  el.classList.remove('noart');
+  if (art){ el.classList.add('art-wrap'); el.innerHTML = artWithFallback(art, emoji); }
+  else { el.classList.remove('art-wrap'); el.textContent = emoji; }
+}
 /* Belöningspopupen — spelarens mockup: fyra piedestalkort + sammanfattning + hämtknapp */
 function showRewards(run, alreadyPaid){
   const def = expDefById(run.id);
@@ -16379,6 +16404,9 @@ function showRewards(run, alreadyPaid){
     ? 'Close'
     : '<span class="rw-chev">\u00bb</span> Claim Rewards <span class="rw-chev">\u00ab</span>';
   $('reward-sub').textContent = def.name + ' — ' + def.zone;
+  rwSetIco('rw-hex',     'assets/ui/expedition_complete.png', '\ud83d\ude80');
+  rwSetIco('rw-ico-dur', 'assets/ui/duration.png',            '\u23f1');
+  rwSetIco('rw-ico-lvl', 'assets/ui/expedition_level.png',    '\ud83d\udce1');
   /* [TILLAGT v5.206.0] Ikonerna ritas som bilder. Skrotet tar materialets egen
      bild samma vag som vaskan gor; de tre ovriga tar sin ur granssnittsmappen.
      Saknas en fil visas emojin och missen bokfors, sa rutan inte fragar efter
