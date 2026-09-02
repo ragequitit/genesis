@@ -785,7 +785,15 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
   box-shadow:0 16px 38px rgba(0,0,0,.7);
 }
 .gear-tip.on{display:block}
-.gt-name{font-size:14px;font-weight:900;line-height:1.25}
+/* [TILLAGT v5.195.0] Bild plus namn pa en rad overst i kortet. */
+.gt-head{display:flex;align-items:center;gap:9px;min-width:0}
+.gt-art{width:42px;height:42px;flex:0 0 auto;display:grid;place-items:center;position:relative;
+  border-radius:9px;border:1px solid var(--rc,var(--border-soft));background:rgba(0,0,0,.28)}
+.gt-art .art-img{width:36px;height:36px;object-fit:contain;display:block;
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,.6))}
+.gt-art .art-fall{display:none;font-style:normal;font-size:20px}
+.gt-art.noart .art-fall{display:block}
+.gt-name{font-size:14px;font-weight:900;line-height:1.25;min-width:0}
 .bt-name{font-size:12px;font-weight:800;line-height:1.3;color:var(--text)}
 .bt-line{font-size:11px;font-weight:600;line-height:1.3;color:var(--text-dim);margin-top:1px}
 /* Slingvaljaren: fyra knappar pa en rad, den valda lyser. */
@@ -4511,6 +4519,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   font-size:10.5px;color:var(--text-dim);flex-wrap:wrap}
 .pve-rate{font-size:9.5px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
   border:1px solid;border-radius:6px;padding:3px 8px}
+.shop-row.shop-quest{border-color:rgba(255,199,89,.5);background:rgba(255,199,89,.06)}
+.shop-row.shop-quest .sr-body em{color:var(--gold)}
+.pve-starter{display:block;margin-top:3px;color:#7ddc5a;font-weight:800}
 .pve-low{font-size:9.5px;font-weight:900;letter-spacing:.14em;color:#ff5964}
 .pve-btns{display:flex;gap:8px}
 .pve-fight,.pve-leave,.pve-search{
@@ -5988,7 +5999,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.192.0 — YRKESKORTEN FAR LUFT NAR HOJDEN RACKER</div>
+        <div class="sn-ver">GENESIS v5.200.0 — FYRA STARTKONTRAKT OCH VAROR I HYLLAN</div>
       </div>
     </div>
   </aside>
@@ -6897,7 +6908,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.192.0 — YRKESKORTEN FAR LUFT NAR HOJDEN RACKER</div>
+            <div class="desc">GENESIS v5.200.0 — FYRA STARTKONTRAKT OCH VAROR I HYLLAN</div>
           </div>
         </div>
       </div>
@@ -7363,6 +7374,11 @@ const SRV_ERRORS = {
      raderna visades nyckeln som ratext mitt i spelet. */
   use_gem_slot:             'The Character Gem has its own place \u2014 set it there, not in a gear slot.',
   gem_is_equipped:          'That gem is worn right now. Take it off first.',
+  already_have_one:         'You already have one. Hand it in before buying another.',
+  not_in_shop:              'The trader does not stock that.',
+  /* [TILLAGT v5.195.0] Att TA AV stenen ar nytt, och karensen galler aven dar. */
+  no_gem_set:               'You have no gem set.',
+  gem_on_cooldown:          'The gem was set less than a day ago. It cannot be changed yet.',
   daily_already_claimed:    'You already claimed today \u2014 come back tomorrow.',
   chat_too_fast:            'Slow down a little.',
   chat_duplicate:           'You just said that.',
@@ -8199,7 +8215,9 @@ function showFightPlayback(enc, r){
       const rw = r.rewards || {};
       const scrap = rw.scrap_qty
         ? ' \u00b7 +' + rw.scrap_qty + ' ' + ((MATERIALS[rw.scrap_key] || {}).name || 'scrap') : '';
-      res.innerHTML = '<b class="win">VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + scrap + '</span>';
+      const sgt = starterGearText(rw.starter_gear);
+      res.innerHTML = '<b class="win">VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + scrap +
+        (sgt ? '</span><span class="pve-starter">' + esc(sgt) : '') + '</span>';
     } else {
       res.innerHTML = '<b class="loss">DEFEAT</b><span>You barely made it out \u2014 1 HP. ' +
         'Patch up before the next one.</span>';
@@ -9672,6 +9690,21 @@ async function netStartExpedition(expId){
   await netPullRunsInto();
   return r;
 }
+/* [TILLAGT v5.197.0] DEN TIDIGA GRATISPJASEN I RUTAN (Chris, punkt 19).
+   Servern rullar den och sager vad den blev; har skrivs den bara ut. Kommer den
+   inte med - for hog niva, otur pa halva chansen, eller full vaska - star det
+   ingenting alls, utom nar vaskan var full, for da ska man fa veta varfor. */
+function starterGearText(sg){
+  if (!sg) return '';
+  if (sg.skipped === 'bag_full') return 'Starter gear skipped \u2014 your backpack was full';
+  const D = ITEMS[sg.item];
+  /* [ANDRAT v5.198.0] Den tidiga pjasen ar inte alltid vanlig (Chris). Vanligt
+     dominerar pa lag niva, men battre saker och vaskor kan falla - och da ska
+     rutan saga vad det faktiskt blev, inte kalla allt "Common gear". */
+  const rar = (GEAR_RAR[sg.rarity] || {}).name || '';
+  return (sg.bag ? 'Starter bag: ' : 'Starter gear: ') +
+    ((D && D.name) || 'gear') + (rar ? ' (' + rar + ')' : '');
+}
 async function netClaimExpedition(expId){
   if (!NET.on) return null;
   const r = await srvRpc('claim_expedition', {p_character: SRV.charId, p_exp: expId});
@@ -9705,6 +9738,7 @@ async function netClaimExpedition(expId){
     if (r.cell) bits.push('Fuel Cell');
     if (r.recipe && RECIPE_BY[r.recipe]) bits.push('Recipe: ' + RECIPE_BY[r.recipe].name);
     if (r.scrap) bits.push(r.scrap + ' Scrap');
+    { const t = starterGearText(r.starter_gear); if (t) bits.push(t); }
     if (bits.length) spawnFloat({text: bits.join(' · ')});
   }
   return r;
@@ -11329,6 +11363,76 @@ async function netGemState(){
    huvud i samma matt som de andra utrustningsrutorna, med sin egen
    bakgrundsbild. Texten som forut lag i kortet bor i pekrutan i stallet - en
    ruta som ar lika stor som de andra kan inte bara pa en rad text. */
+/* [TILLAGT v5.195.0] STENPLATSENS EGET KORT OCH MENY.
+   Kortet ar samma kort som vaskan och kroppen visar - gearTipHTML kanner igen en
+   sten pa katalograden och ritar dess egen mall. Menyn har EN post: ta av.
+   Karensen pa ett dygn galler aven har (annars vore av-och-pa en gratis vag runt
+   den), sa under karens ar posten gra och sager varfor - Chris beslut: hellre
+   ett besked om varfor an en knapp som tyst inte gor nagot. */
+function gemSlotItem(){
+  const g = GEMSTATE; if (!g || !g.key) return null;
+  return {t: g.key, r: 3, a: [], hp: 0, pw: 0, dm: 0, lv: 0, g: 0, s: -1,
+          ggood: !!g.good, gpct: +g.pct || 0, sid: g.item_id || null};
+}
+let gemMenuEl = null;
+function gemMenuClose(){ if (gemMenuEl){ gemMenuEl.remove(); gemMenuEl = null; } }
+function gemMenuOpen(x, y){
+  gemMenuClose();
+  const g = GEMSTATE; if (!g || !g.key) return;
+  const d = gemByKey(g.key) || {};
+  const kvar = +g.swap_in_secs || 0;
+  const m = document.createElement('div');
+  m.className = 'chat-menu';
+  m.innerHTML = '<div class="hd">' + esc(g.name || d.name || 'Gem') + '</div>' +
+    (kvar > 0
+      ? '<button disabled style="opacity:.5">Unequip \u2014 locked for ' + fmtDur(kvar) + '</button>' +
+        '<div class="hd" style="border:0;font-weight:400;color:var(--text-dim);padding-top:2px">' +
+        'A gem stays for a day once set.</div>'
+      : '<button data-gemoff="1">Unequip</button>');
+  document.body.appendChild(m); gemMenuEl = m;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(6, Math.min(x, innerWidth - r.width - 6)) + 'px';
+  m.style.top = Math.max(6, Math.min(y, innerHeight - r.height - 6)) + 'px';
+  m.addEventListener('click', ev => {
+    if (!ev.target.closest('[data-gemoff]')) return;
+    gemMenuClose();
+    if (!NET.on){ say('Gems need a live connection.'); return; }
+    srvRpc('gem_unequip', {p_character: SRV.charId})
+      .then(async () => {
+        say('Gem removed \u2014 it is in your backpack.');
+        try { await netGemState(); } catch (e){}
+        try { await netPullItems(); } catch (e){}
+        renderGemSlot(); renderInventory(); renderGemWin(); updateUI(true);
+      })
+      .catch(e => say(srvErrText(e, 'Could not remove the gem.')));
+  });
+}
+(function kopplaStenplatsen(){
+  const box = document.getElementById('gem-wrap'); if (!box) return;
+  box.addEventListener('mouseenter', e => {
+    const it = gemSlotItem(); if (!it) return;
+    showGearTip(it, e.clientX, e.clientY);
+  });
+  box.addEventListener('mousemove', e => { if (gemSlotItem()) moveGearTip(e.clientX, e.clientY); });
+  box.addEventListener('mouseleave', () => hideGearTip());
+  box.addEventListener('contextmenu', e => {
+    if (!gemSlotItem()) return;
+    e.preventDefault(); hideGearTip(); gemMenuOpen(e.clientX, e.clientY);
+  });
+  /* Telefon: ett langt tryck ar hogerklick. Kortet visas vid vanligt tryck. */
+  let hallT = null;
+  box.addEventListener('touchstart', e => {
+    if (!gemSlotItem()) return;
+    const t = e.touches[0];
+    hallT = setTimeout(() => { hallT = null; hideGearTip(); gemMenuOpen(t.clientX, t.clientY); }, 500);
+    showGearTip(gemSlotItem(), t.clientX, t.clientY);
+  }, {passive: true});
+  box.addEventListener('touchend', () => { if (hallT){ clearTimeout(hallT); hallT = null; } });
+  document.addEventListener('click', e => {
+    if (gemMenuEl && !e.target.closest('.chat-menu') && !e.target.closest('#gem-wrap')) gemMenuClose();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') gemMenuClose(); });
+})();
 function renderGemSlot(){
   const box = $('gem-wrap'); if (!box) return;
   const g = GEMSTATE;
@@ -11345,11 +11449,11 @@ function renderGemSlot(){
   const d = gemByKey(g.key) || {};
   box.className = 'equip-slot gem-slot filled';
   box.style.setProperty('--rc', g.good ? '#ffa63c' : rarCol(3));
-  box.title = (g.name || d.name || 'Gem') +
-    '\n' + (g.unique_text || d.uniq || '') +
-    '\n+' + (+g.pct || 0) + '% ' + (g.pct_text || d.pct || '') +
-    (g.good ? '  \u2605 best roll' : '') +
-    ((+g.swap_in_secs > 0) ? '\nCan swap in ' + fmtDur(+g.swap_in_secs) : '');
+  /* [ANDRAT v5.195.0] WEBBLASARENS EGEN RUTA AR BORTA (Chris, punkt 2). Den var
+     ren text i systemets typsnitt mitt i spelet, och den sa mindre an spelets
+     eget kort. Stenen visar nu SAMMA kort som alla andra pjaser - hovra pa
+     dator, hall pa telefon - och hogerklick ger en liten meny med Ta av. */
+  box.removeAttribute('title');
   /* Buren sten ritar STENENS EGEN BILD, samma vag som en utrustad pjas. Saknas
      filen faller den tillbaka pa platsens siluett - aldrig en tom ruta, och
      aldrig en ritad form. */
@@ -14424,24 +14528,28 @@ const EXPEDITIONS = {
      5m / 15m / 45m / 2h / 4h / 8h. Belonen raknas ur langd och ring pa bada
      sidor (XP, guld, skrot, fragments), sa den foljde med utan en enda ny
      siffra. Samma trettio rader ligger pa servern - servern ar sanningen. */
+  /* [ANDRAT v5.196.0] Voxholm gar pa 1, 1, 2, 2, 3, 3 (Chris, punkt 16). Lag
+     forut pa 1, 3, 5, 7, 9, 10, sa en ny spelare kunde starta EN expedition och
+     fick sedan vanta pa niva 5. Kartan pacar fortfarande: en expedition
+     upptacks forst nar dess zon ar kartlagd. Servern ar andrad i samma omgang. */
   voxholm: {
     'The Grasslands': [
       {id:'vox_grasslan_1', name:'Break the First Cube', mins:5, lvl:1}
     ],
     'The Village': [
-      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:15, lvl:3}
+      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:15, lvl:1}
     ],
     'The Mineshaft': [
-      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:45, lvl:5}
+      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:45, lvl:2}
     ],
     'The Lava Layer': [
-      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:120, lvl:7}
+      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:120, lvl:2}
     ],
     'The Skybuild': [
-      {id:'vox_skybuild_3', name:"Finish Somebody's Dream", mins:240, lvl:9}
+      {id:'vox_skybuild_3', name:"Finish Somebody's Dream", mins:240, lvl:3}
     ],
     'The Deepshaft': [
-      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:480, lvl:10}
+      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:480, lvl:3}
     ]
   },
   drakemark: {
@@ -18052,6 +18160,34 @@ function hasUnlock(what){ return true; }
 function unlockedBy(what){ return ''; }
 
 const ITEM_DEFS = {
+  /* [TILLAGT v5.200.0] KONTRAKTSVARORNA (Chris beslut). Fyra saker som bara
+     finns i handlarens hylla medan sitt kontrakt ar aktivt. De kostar 2 silver,
+     gar bara att aga en at gangen och kan inte saljas - de ska lamnas in.
+     Bilderna kommer fran Chris; tecknet star kvar tills filen finns. */
+  q_fuel_gem: {
+    name: 'Cracked Fuel Gem', ico: '\ud83d\udd36',
+    art: 'assets/items/quest/q_fuel_gem.png', kind: 'Contract item',
+    desc: 'Brody is convinced this opens a door. Hand it over and let him find out.',
+    noSell: true, sell: 0
+  },
+  q_spare_toolkit: {
+    name: "Someone Else's Toolkit", ico: '\ud83e\uddf0',
+    art: 'assets/items/quest/q_spare_toolkit.png', kind: 'Contract item',
+    desc: 'A replacement for the one the crew lost. Nobody needs to know.',
+    noSell: true, sell: 0
+  },
+  q_dressing_roll: {
+    name: 'Field Dressing Roll', ico: '\ud83e\ude79',
+    art: 'assets/items/quest/q_dressing_roll.png', kind: 'Contract item',
+    desc: 'Clean, sealed, and worth more than it looks after a bad fight.',
+    noSell: true, sell: 0
+  },
+  q_route_marker: {
+    name: 'Route Marker Beacon', ico: '\ud83d\udce1',
+    art: 'assets/items/quest/q_route_marker.png', kind: 'Contract item',
+    desc: 'Plant it, walk the route, and the office finally believes you.',
+    noSell: true, sell: 0
+  },
   fuelcell: {
     name: 'Fuel Cell',
     ico: '⛽',
@@ -19447,13 +19583,6 @@ function gmHook(){
         '-webkit-touch-callout:default}' +
         'svg,img{-webkit-user-drag:none;-webkit-touch-callout:none}';
       (doc.head || doc.documentElement).appendChild(skydd);
-      /* [TILLAGT v5.149.0] KARTANS EGEN ZONRUTA SLACKS. Kartan ritar en egen
-         panel nar man trycker pa en zon eller en nod, och spelet oppnar sin
-         egen i samma andetag - tva rutor for ett klick. Spelets ruta ager
-         innehallet, sa kartans ar den som gar. Den har varken id eller klass,
-         bara stilar pa plats, sa den kanns igen pa sin egen kombination:
-         hogerstalld, halva hojden, z-index 50. Regionrutan (z-index 60) ror vi
-         inte - den hor till resan mellan varldar. */
       /* [TILLAGT v5.153.0] ETT VILANDE MOTE SKA INTE SYNAS ALLS. Kartan dimmar
          det till 42 procent, sa noden star kvar och gar att trycka pa - och da
          far man en ruta som bara sager att det ar tyst. Den doljs helt i
@@ -19476,20 +19605,17 @@ function gmHook(){
           (doc.head || doc.documentElement).appendChild(cd);
         }
       } catch (e){}
-      const gomZonruta = () => {
-        try {
-          doc.querySelectorAll('div[style*="z-index:50"]').forEach(el => {
-            const st = el.getAttribute('style') || '';
-            if (st.indexOf('right:42px') >= 0 && st.indexOf('top:50%') >= 0){
-              el.style.setProperty('display', 'none', 'important');
-            }
-          });
-        } catch (e){}
-      };
-      gomZonruta();
-      /* Kartan bygger om sin panel nar man klickar, sa den maste slackas igen. */
-      try { new (doc.defaultView.MutationObserver)(gomZonruta)
-              .observe(doc.body, {childList: true, subtree: true}); } catch (e){}
+      /* [BORTTAGET v5.193.0] HAR LAG SLACKNINGEN AV KARTANS EGNA RUTOR.
+         Kartan ritade forut en egen panel for zon och region, och spelet oppnade
+         sin egen i samma andetag - tva rutor for ett klick. Spelet letade darfor
+         upp kartans ruta pa dess stilar och gomde den, och en observator
+         gjorde om det varje gang kartan byggde om sig.
+         Design har nu tagit bort panelerna ur kartan. Uppmatt i den nya filen:
+         noll sadana rutor. Letandet hittade alltsa ingenting, och observatoren
+         gick igang vid varje andring i kartans trad utan att gora nagot.
+         Borttagen - dod kod som ser levande ut ar precis det vi brukar rakna
+         som en bugg som annu inte hunnit smalla. Behover den nagonsin tillbaka star
+         den i historiken. */
       /* Tva fingrar som nyper ar Safaris egen zoom och stangs av separat -
          touch-action racker inte for gester som borjar utanfor ett element. */
       ['gesturestart', 'gesturechange', 'gestureend'].forEach(g =>
@@ -23457,8 +23583,25 @@ let shopBuilt = false;
    var man an star - de regionala handlarna behaller sina egna varor.
    Priserna ar SERVERNS (shop_config); talen har ar spegeln for texten, och
    kopet gors alltid av servern i serverlage. */
+/* [TILLAGT v5.200.0] Varor som bara star i hyllan medan sitt kontrakt loper.
+   SERVERN ager regeln - den vagrar salja dem utan aktivt kontrakt - och den har
+   listan avgor bara vad som SYNS. Star de nagonsin i otakt ar det hyllan som ar
+   fel, aldrig kassan. */
+const SHOP_QUEST_ITEMS = [
+  {key: 'q_fuel_gem',      price: 200, quest: 'q_start_brody'},
+  {key: 'q_spare_toolkit', price: 200, quest: 'q_start_manual'},
+  {key: 'q_dressing_roll', price: 200, quest: 'q_start_patch'},
+  {key: 'q_route_marker',  price: 200, quest: 'q_start_route'}
+];
+function shopQuestRows(){
+  const akt = ((QUESTS.state && QUESTS.state.active) || []).map(q => q.template);
+  return SHOP_QUEST_ITEMS.filter(r => akt.indexOf(r.quest) >= 0);
+}
 const SHOP_LIST = [
-  {key: 'crafting_kit',  price: 20000},
+  /* [ANDRAT v5.194.0] 2 guld -> 10 silver (Chris). Satsen behovs i nastan varje
+     recept, och tva guld var mycket for den som just borjat. Servern ar andrad
+     i samma omgang - talet star pa BADA stallen och far aldrig glida isar. */
+  {key: 'crafting_kit',  price: 1000},
   {key: 'fuelcell',      price: 130000},
   {key: 'bandage',       price: 25000},
   {key: 'first_aid_kit', price: 60000},
@@ -23474,7 +23617,10 @@ function shopOwned(key){
 function renderShopSupplies(){
   const box = $('shop-supplies');
   if (!box) return;
-  box.innerHTML = SHOP_LIST.map(it => {
+  /* [ANDRAT v5.200.0] Kontraktsvarorna star OVERST och bara nar deras kontrakt
+     loper - de ar det man kom hit for. Resten av hyllan ar oforandrad. */
+  const rader = shopQuestRows().concat(SHOP_LIST);
+  box.innerHTML = rader.map(it => {
     const name = (MATERIALS[it.key] && MATERIALS[it.key].name) ||
                  (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].name) || it.key;
     /* [ANDRAT v5.53.1] Raderna ritade bara EMOJIN. Hantverkssatsen och
@@ -23488,18 +23634,24 @@ function renderShopSupplies(){
       : '<span class="sr-ico">' + ico + '</span>';
     const desc = (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].desc) ||
                  (it.key === 'crafting_kit' ? 'Used by crafting recipes.' : '');
-    return '<div class="shop-row">' +
+    /* En kontraktsvara koper man EN av. Servern vagrar mer, sa knappen ska
+       inte lova nagot annat. */
+    const harAn = shopOwned(it.key) > 0;
+    return '<div class="shop-row' + (it.quest ? ' shop-quest' : '') + '">' +
       icoHTML +
       '<span class="sr-body"><b>' + name + '</b><i>' + desc + '</i>' +
-        '<em>Owned: ' + shopOwned(it.key) + '</em></span>' +
+        '<em>' + (it.quest ? 'Contract item \u00b7 one at a time' : 'Owned: ' + shopOwned(it.key)) + '</em></span>' +
       '<span class="sr-price">' + moneyText(it.price) + '</span>' +
-      '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="1">Buy 1</button>' +
-      '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="5">Buy 5</button>' +
+      (it.quest
+        ? '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="1"' +
+          (harAn ? ' disabled' : '') + '>' + (harAn ? 'In bag' : 'Buy') + '</button>'
+        : '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="1">Buy 1</button>' +
+          '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="5">Buy 5</button>') +
     '</div>';
   }).join('');
 }
 async function shopBuy(key, qty){
-  const it = SHOP_LIST.find(x => x.key === key);
+  const it = SHOP_LIST.find(x => x.key === key) || shopQuestRows().find(x => x.key === key);
   if (!it) return;
   const cost = it.price * qty;
   if (S.gold < cost){ say('Not enough money \u2014 you need ' + moneyText(cost - S.gold) + ' more.'); return; }
@@ -23794,7 +23946,17 @@ function gearTipHTML(it){
      summan först läste som en stat bland de andra. */
   const line = (k, v) => '<div class="gt-stat"><span style="opacity:.75">' + k + '</span> ' + v + '</div>';
   const D = ITEMS[it.t];
-  const name = '<div class="gt-name" style="color:' + gearRarCol(it) + '">' + gearName(it) + '</div>';
+  /* [TILLAGT v5.195.0] PJASENS EGEN BILD PA KORTET (Chris, punkt 1). Kortet sa
+     namn, sallsynthet och tal men visade aldrig pjasen - och en lank i chatten
+     blev darfor en namnrad utan ansikte. Bilden slas upp med SAMMA funktion som
+     vaskan anvander, sa set med egen bild per sallsynthet far ratt fil av sig
+     sjalva. Saknas filen faller den tillbaka pa tecknet, som overallt annars.
+     Galler alla gearkort - vaskan, kroppen och chatten ar samma kort, och tva
+     varianter av samma kort ar precis det vi brukar fa problem med. */
+  const gtArt = (typeof gearArt === 'function') ? gearArt(it) : '';
+  const name = '<div class="gt-head">' +
+    (gtArt ? '<span class="gt-art">' + artWithFallback(gtArt, '\ud83d\udce6') + '</span>' : '') +
+    '<div class="gt-name" style="color:' + gearRarCol(it) + '">' + gearName(it) + '</div></div>';
   /* Hjälpen på TVÅ rader: det var den enda långa raden i kortet, och den ensam
      tvingade upp bredden. Bruten kan hela kortet vara smalare. */
   const hint = '<div class="gt-hint">' + (matchMedia('(hover: none)').matches
@@ -25978,6 +26140,10 @@ const SOCIAL_ERRORS = {
   no_such_request:  'That request is gone.',
   that_is_you:      'That is you.',
   blocked:          'Not possible — one of you has blocked the other.',
+  /* [TILLAGT v5.193.0] En och samma text oavsett skal. Sa vi "only guild
+     members" hade vi samtidigt rojt att hen inte delar gille med dig. */
+  friend_requests_closed: 'That player is not accepting friend requests.',
+  bad_privacy:      'Pick one of the listed options.',
   not_authenticated:'Sign in first.'
 };
 function socialErrText(e){
@@ -26118,8 +26284,18 @@ async function netQuestState(){
 function questObjText(q){
   const reg = REGIONS[q.region] ? REGIONS[q.region].name : q.region;
   switch (q.kind){
-    case 'deliver':     return 'Deliver ' + q.qty + ' \u00d7 ' +
-      ((MATERIALS[q.key] && MATERIALS[q.key].name) || q.key);
+    /* [ANDRAT v5.199.0] Malet sa VAD som skulle lamnas in men aldrig VAR det
+       kom ifran. En ny spelare som far "Deliver 8 x Scrap" har ingen aning om
+       hur man far tag pa skrot. Kallan star i materialtabellen - yrket som
+       samlar det, eller 'any' for sadant som faller overallt - sa raden byggs
+       ur samma data och kan inte hamna i otakt med droppen. */
+    case 'deliver': {
+      const M = MATERIALS[q.key] || {};
+      const varifran = M.prof === 'any' ? ' \u2014 found on expeditions and encounters'
+        : (M.prof && PROF_BY[M.prof]) ? ' \u2014 gathered by ' + PROF_BY[M.prof].name
+        : '';
+      return 'Deliver ' + q.qty + ' \u00d7 ' + (M.name || q.key) + varifran;
+    }
     /* [ANDRAT v5.101.0] Tre PvE-varianter i samma mal: regionen (ingen nyckel),
        zonen (nyckeln 'zone'), eller en FIENDETYP (allt annat). Typerna finns pa
        riktigt pa servern och dras likformigt overallt, sa malet ar alltid
@@ -26296,7 +26472,8 @@ $('quest-body').addEventListener('click', async (e) => {
       const r = await srvRpc('quest_claim', {p_character: SRV.charId, p_quest: t.dataset.qclaim});
       if (r && r.reward){
         const rw = questRewPlain(Object.assign({}, r.reward, r.frags != null ? {frags: r.frags} : {}));
-        say('Quest complete: ' + qname + (rw ? ' \u2014 ' + rw : ''));
+        const sgt = starterGearText(r.starter_gear);
+        say('Quest complete: ' + qname + (rw ? ' \u2014 ' + rw : '') + (sgt ? ' \u00b7 ' + sgt : ''));
         const row = await srvCharacterRow();
         if (row){ S.gold = +row.gold_copper || S.gold; S.frags = +row.fragments || S.frags;
                   if (row.xp != null) S.xp = +row.xp; }
@@ -29250,8 +29427,15 @@ function chatSettingsRender(){
     '<label>Highlight @mentions<input type="checkbox" data-cs="mentions"' + on('mentions') + '></label>' +
     '<div class="grp">Whisper privacy</div>' +
     '<label>Who can whisper me<select data-cpriv="1"><option value="everyone">Everyone</option><option value="friends_guild">Friends &amp; Guild</option><option value="nobody">Nobody</option></select></label>' +
+    /* [TILLAGT v5.193.0] Sekretess pa VANFORFRAGNINGAR, bredvid den for viskningar
+       - det ar samma sorts val och hor ihop. Servern ager regeln; den har rutan
+       visar och satter den bara. */
+    '<div class="grp">Friend request privacy</div>' +
+    '<label>Who can add me<select data-cfpriv="1"><option value="everyone">Everyone</option><option value="guild">Guild members</option><option value="nobody">Nobody</option></select></label>' +
     '<div class="grp">Blocked players</div><label>Managed in Friends \u2192 Blocked<button class="btn-neutral tiny" data-cfriends="1">Open</button></label>';
   const sel = b.querySelector('[data-cpriv]'); if (sel && S.chatPrivacy) sel.value = S.chatPrivacy;
+  const fs = b.querySelector('[data-cfpriv]');
+  if (fs) fs.value = (SOCIAL && SOCIAL.friend_privacy) || 'everyone';
 }
 /* --- kopplingar --- */
 document.querySelectorAll('.chat-tab').forEach(b => b.addEventListener('click', () => {
@@ -29307,6 +29491,12 @@ $('chat-settings').addEventListener('change', e => {
   if (t.dataset.cs){ CHAT_CFG[t.dataset.cs] = t.type === 'checkbox' ? t.checked : (t.type === 'range' ? +t.value : t.value); }
   if (t.dataset.csc){ CHAT_CFG.compact[t.dataset.csc] = t.checked; }
   if (t.dataset.cpriv){ S.chatPrivacy = t.value; srvRpc('chat_set_privacy', {p_character: SRV.charId, p_privacy: t.value}).then(() => say('Whisper privacy: ' + t.options[t.selectedIndex].text)).catch(er => say(srvErrText(er, 'Could not save.'))); }
+  if (t.dataset.cfpriv){
+    const val = t.value, txt = t.options[t.selectedIndex].text;
+    srvRpc('friend_set_privacy', {p_privacy: val})
+      .then(() => { if (SOCIAL) SOCIAL.friend_privacy = val; say('Friend requests: ' + txt); })
+      .catch(er => say(socialErrText(er)));
+  }
   chatCfgSave(); chatApplyCfg(); chatRender();
 });
 $('chat-settings').addEventListener('input', e => { if (e.target.dataset.cs === 'opacity'){ CHAT_CFG.opacity = +e.target.value; chatApplyCfg(); } });
