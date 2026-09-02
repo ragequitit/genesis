@@ -5889,7 +5889,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.180.2 — GILLET: BUGGSVEP</div>
+        <div class="sn-ver">GENESIS v5.180.3 — CHATTEN: LIVE OCH UTKAST</div>
       </div>
     </div>
   </aside>
@@ -6798,7 +6798,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.180.2 — GILLET: BUGGSVEP</div>
+            <div class="desc">GENESIS v5.180.3 — CHATTEN: LIVE OCH UTKAST</div>
           </div>
         </div>
       </div>
@@ -27563,7 +27563,12 @@ function renderGuild(){
       '<div class="purple ' + (GUILD.view === 'manage' ? 'active' : '') + '" data-g="view:manage">Manage' +
         ((st.join_requests || []).length ? ' ' + st.join_requests.length : '') +
       '</div></div>';
+  /* [RATTAT v5.180.3] UTKASTET FORSVANN VID VARJE OMRITNING. Panelen byggs om
+     med innerHTML vid varje gilleshandling och varje byte Guild <-> Manage - och
+     skrivfaltet foljde med i soporna. Nu sparas det innan och laggs tillbaka. */
+  { const old = $('gd-input'); if (old) GUILD.draft = old.value; }
   body.innerHTML = h;
+  { const inp = $('gd-input'); if (inp && GUILD.draft) inp.value = GUILD.draft; }
   if (GUILD.view !== 'manage' || !officer) renderGuildChatMsgs();
   /* Modereringen listar chatten ur samma minne, sa den hamtar nytt om den ar tom. */
   if (GUILD.view === 'manage' && GUILD.mtab === 'mod' && !GUILD.chat.length) guildChatPull();
@@ -28029,7 +28034,7 @@ async function guildChatSendNow(){
   const t = inp.value.trim(); if (!t) return;
   try {
     await srvRpc('guild_chat_send', {p_character: SRV.charId, p_body: t});
-    inp.value = '';
+    inp.value = ''; GUILD.draft = '';
     guildChatPull();
   } catch (e){ say(srvErrText(e, 'Could not send that.')); }
 }
@@ -28570,8 +28575,11 @@ async function chatFetchTab(tab, older){
         CHAT.msgs.guild = CHAT.msgs.guild.concat(fresh).slice(-CHAT_KEEP);
         /* [RATTAT v5.180.1] Gillets olasta raknades bara nar chatten var
            minimerad. Nu ocksa nar man star pa en annan flik. */
-        if (CHAT.tab !== 'guild') CHAT.unread.guild += fresh.filter(r => r.kind !== 'sys').length;
-        fresh.forEach(r => chatNotify(r, 'guild'));
+        /* Forsta hamtningen ar HISTORIK, inte olast - annars star hela gillets
+           gamla prat som en etta vid varje inloggning. */
+        if (CHAT.tab !== 'guild' && CHAT.guildPrimed) CHAT.unread.guild += fresh.filter(r => r.kind !== 'sys').length;
+        if (CHAT.guildPrimed) fresh.forEach(r => chatNotify(r, 'guild'));
+        CHAT.guildPrimed = true;
       }
     }
     try { CHAT.pin = await srvRpc('guild_chat_pin_get', {p_character: SRV.charId}); } catch (e){}
@@ -28607,6 +28615,9 @@ function chatBeep(f){
 }
 async function chatSync(){
   if (!NET.on || !SRV.charId || CHAT.busy) return;
+  /* [RATTAT v5.180.3] Gick man med i (eller lamnade) ett gille lyssnade
+     realtidskanalen fortfarande pa det gamla laget. Prenumerera om vid byte. */
+  { const gid = SRV.guild && SRV.guild.id ? SRV.guild.id : null; if (CHAT.ready && gid !== CHAT.sockGuild) chatSockOpen(); }
   CHAT.busy = true;
   try {
     const u = await srvRpc('chat_unread', {p_character: SRV.charId});
@@ -28616,6 +28627,9 @@ async function chatSync(){
     if (open){
       await chatFetchTab(CHAT.tab);
       if (CHAT.mode === 'compact') for (const c of ['general', 'trade', 'guild']) if (c !== CHAT.tab && CHAT_CFG.compact[c]) await chatFetchTab(c);
+      /* [RATTAT v5.180.3] Gillets olasta raknades inte i UTOKAT lage pa en annan
+         flik - gillet hamtades bara i det blandade flodet. Nu alltid (bara nytt). */
+      else if (CHAT.tab !== 'guild' && SRV.guild && SRV.guild.id) await chatFetchTab('guild');
       if (CHAT.tab === 'whisper' && !CHAT.conv) CHAT.whispers = (await srvRpc('chat_whispers', {p_character: SRV.charId})) || [];
       if (CHAT.tab === 'guild' && SRV.guild && SRV.guild.id) CHAT.unread.guild = 0;
     } else {
@@ -28638,6 +28652,7 @@ async function chatMarkRead(){
 }
 function chatSockOpen(){
   chatSockClose();
+  CHAT.sockGuild = SRV.guild && SRV.guild.id ? SRV.guild.id : null;
   if (!NET.on || !SRV.url || !SRV.token) return;
   try {
     const ws = new WebSocket(SRV.url.replace('https', 'wss') + '/realtime/v1/websocket?apikey=' + SRV.key + '&vsn=1.0.0');
@@ -28708,6 +28723,7 @@ async function chatSend(){
         p_items: live.filter(l => l.item).map(l => l.item), p_stacks: live.filter(l => l.stack).map(l => l.stack), p_ah: live.filter(l => l.ah).map(l => l.ah)});
     }
     inp.value = ''; CHAT.links = []; chatDraftLinksRender(); chatCount();
+    delete CHAT.drafts[chatDraftKey()];
     CHAT.atBottom = true;
     await chatSync();
   } catch (e){
@@ -28785,8 +28801,25 @@ function chatMenuOpen(el, x, y){
     else if (act === 'report'){ const why = prompt('Report this message \u2014 why?', ''); if (why != null) srvRpc('chat_report', {p_character: SRV.charId, p_source: src, p_message_id: +mid, p_reason: why}).then(() => say('Reported. Thank you.')).catch(e => say(srvErrText(e, 'Could not report.'))); }
   });
 }
+/* [TILLAGT v5.180.3] UTKAST PER FLIK. Byter man flik och kommer tillbaka star
+   texten, lankarna och markoren dar man lamnade dem. Whispers sparas per samtal. */
+CHAT.drafts = {};
+function chatDraftKey(){ return CHAT.tab === 'whisper' ? 'whisper:' + (CHAT.conv || '') : CHAT.tab; }
+function chatDraftSave(){
+  const inp = $('chat-text'); if (!inp) return;
+  CHAT.drafts[chatDraftKey()] = {text: inp.value, links: CHAT.links.slice(), sel: inp.selectionStart};
+}
+function chatDraftRestore(){
+  const inp = $('chat-text'); if (!inp) return;
+  const d = CHAT.drafts[chatDraftKey()] || {text: '', links: [], sel: 0};
+  inp.value = d.text; CHAT.links = d.links.slice();
+  chatDraftLinksRender(); chatCount();
+  try { inp.setSelectionRange(d.sel || inp.value.length, d.sel || inp.value.length); } catch (e){}
+}
 function chatOpenConv(cid, name){
+  chatDraftSave();
   CHAT.tab = 'whisper'; CHAT.conv = cid; CHAT.convName = name; CHAT.msgs.whisper = [];
+  chatDraftRestore();
   if (CHAT.mode === 'min') chatMode('compact');
   chatSync().then(() => { chatMarkRead(); chatRender(); });
   const inp = $('chat-text'); if (inp) inp.focus();
@@ -28815,7 +28848,9 @@ function chatSettingsRender(){
 }
 /* --- kopplingar --- */
 document.querySelectorAll('.chat-tab').forEach(b => b.addEventListener('click', () => {
+  chatDraftSave();
   CHAT.tab = b.dataset.ctab; if (CHAT.tab !== 'whisper'){ CHAT.conv = null; }
+  chatDraftRestore();
   $('chat-settings').classList.remove('on'); $('chat-picker').classList.remove('on');
   chatRender(); chatSync().then(() => { chatMarkRead(); chatRender(); });
 }));
@@ -28880,7 +28915,7 @@ $('chat-body').addEventListener('mouseover', e => {
 });
 $('chat-body').addEventListener('mouseout', e => { if (!isTouchInput() && e.target.closest && e.target.closest('[data-clink]')) hideGearTip(); });
 $('chat-pin').addEventListener('click', e => { if (e.target.closest('[data-cunpin]')) srvRpc('guild_chat_pin', {p_character: SRV.charId, p_body: null}).then(chatSync).catch(er => say(srvErrText(er, 'Could not unpin.'))); });
-$('chat-convhead').addEventListener('click', e => { if (e.target.closest('[data-cback]')){ CHAT.conv = null; CHAT.convName = null; chatSync().then(chatRender); } });
+$('chat-convhead').addEventListener('click', e => { if (e.target.closest('[data-cback]')){ chatDraftSave(); CHAT.conv = null; CHAT.convName = null; chatDraftRestore(); chatSync().then(chatRender); } });
 document.addEventListener('click', e => { if (CHAT.menuEl && !e.target.closest('.chat-menu') && !e.target.closest('[data-cwho]')) chatMenuClose(); if (chatCardEl && chatCardEl.style.display === 'block' && !e.target.closest('[data-clink]') && !e.target.closest('.chat-gearcard-close') && !e.target.closest('#gear-tip')) chatHideCard(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ chatMenuClose(); if (chatCardEl) chatHideCard(); $('chat-settings') && $('chat-settings').classList.remove('on'); } });
 /* Tona nar man varit stilla en stund (installning). */
