@@ -3973,6 +3973,16 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
   border:1px solid var(--border-soft);background:#0e1330;margin-bottom:4px}
 .pf-handle > div{flex:1}
 .pf-handle-name{font-size:15px;font-weight:800;color:var(--cyan);font-family:var(--font-mono)}
+/* [TILLAGT v5.204.0] Installningarnas flikar och luckans textlank. */
+.set-tabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap}
+.set-tab{flex:1 1 0;min-width:76px;padding:7px 10px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text-dim);
+  font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.set-tab:hover{color:var(--text)}
+.set-tab.on{color:var(--cyan);border-color:rgba(56,232,255,.5);background:rgba(56,232,255,.09)}
+.gate-link{display:block;width:100%;margin-top:8px;padding:4px;background:none;border:0;
+  color:var(--text-dim);font-size:11.5px;cursor:pointer;text-decoration:underline}
+.gate-link:hover{color:var(--cyan)}
 .pf-edit{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 .pf-edit input{flex:1 1 160px}
 .btn-neutral.wide{width:100%}
@@ -5860,7 +5870,29 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <input class="gate-input" id="gate-pass" type="password" placeholder="Password" autocomplete="current-password">
         <button class="gate-go" id="gate-submit">Sign in</button>
         <div class="gate-msg" id="gate-msg"></div>
+        <!-- [TILLAGT v5.204.0] GLOMT LOSENORD (Chris). Utan den har raden var ett
+             glomt losenord slutet pa kontot - det fanns ingen vag tillbaka. -->
+        <button class="gate-link" id="gate-forgot">Forgot your password?</button>
         <div class="gate-note">Your progress lives on the server, so you can play from any device.</div>
+      </div>
+
+      <!-- Aterstallningen begars har och avslutas i mejlet. -->
+      <div id="gate-reset" class="gate-step" style="display:none">
+        <div class="gate-sub">Reset your password</div>
+        <div class="gate-note">We send a link to your email. Open it on this device and you can pick a new password.</div>
+        <input class="gate-input" id="gate-reset-email" type="email" placeholder="Email" autocomplete="email">
+        <button class="gate-go" id="gate-reset-send">Send the link</button>
+        <div class="gate-msg" id="gate-reset-msg"></div>
+        <button class="gate-link" id="gate-reset-back">Back to sign in</button>
+      </div>
+
+      <!-- Hit landar man NAR man klickat i mejlet: inloggad men utan nytt losenord. -->
+      <div id="gate-newpw" class="gate-step" style="display:none">
+        <div class="gate-sub">Pick a new password</div>
+        <div class="gate-note">This link signed you in. Choose a new password before you continue.</div>
+        <input class="gate-input" id="gate-newpw-input" type="password" placeholder="New password" autocomplete="new-password">
+        <button class="gate-go" id="gate-newpw-save">Save and continue</button>
+        <div class="gate-msg" id="gate-newpw-msg"></div>
       </div>
 
       <!-- HANDLEN: kontots namn, valt fore forsta karaktaren. Ett konto ska
@@ -6014,7 +6046,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.203.0 — KONTRAKTSVARORNA HAR NAMN I MALET</div>
+        <div class="sn-ver">GENESIS v5.204.0 — INSTALLNINGAR I FLIKAR, LOSENORDET GAR ATT ATERSTALLA</div>
       </div>
     </div>
   </aside>
@@ -6840,12 +6872,21 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <span class="modal-title">Settings</span>
         <button class="modal-close" id="settings-close">✕</button>
       </div>
+      <!-- [TILLAGT v5.204.0] FLIKAR (Chris). Allt lag i EN lista: kontot,
+           ljudet och versionen om vartannat, och den som letade efter en sak
+           fick lasa alla. Tre flikar nu, och rutan minns inte vilken man hade -
+           kontot ar alltid forst, for det ar dit man gar. -->
+      <div class="set-tabs">
+        <button class="set-tab on" data-settab="account">Account</button>
+        <button class="set-tab" data-settab="sound">Sound</button>
+        <button class="set-tab" data-settab="other">Other</button>
+      </div>
 
       <div id="settings-main">
         <!-- ================= DEV-MENYN — TA BORT FORE LANSERING =================
              En knapp, en ruta, ett serveranrop (dev_grant). Hela blocket ar
              avgransat med kommentarer sa det gar att riva i ett svep. -->
-        <div class="settings-row dev-row">
+        <div class="settings-row dev-row" data-setgrp="other">
           <div>
             <div>Developer</div>
             <div class="desc">Free everything, for testing. Use it on a throwaway character — it writes to the server like anything else. REMOVE BEFORE LAUNCH.</div>
@@ -6857,14 +6898,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              nar man kommit in. Var man val i spelet fanns det alltsa ingen vag
              tillbaka till karaktarslistan alls - man fick tomma webblasarens
              lagring for hand. De har tva raderna ar den vagen. -->
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="account">
           <div>
             <div>Switch Character</div>
             <div class="desc">Back to the character list. You stay signed in, and nothing on the server is touched.</div>
           </div>
           <button class="btn-neutral" id="char-switch">Switch</button>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="account">
           <div>
             <div>Sign Out</div>
             <div class="desc">Signs out of the account on this device. Your characters wait on the server.</div>
@@ -6872,14 +6913,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <button class="btn-neutral" id="char-signout">Sign out</button>
         </div>
         <!-- HANDLEN i kontot: visa, och byt om karensen tillater. -->
-        <div class="settings-row" id="row-handle">
+        <div class="settings-row" id="row-handle" data-setgrp="account">
           <div>
             <div>Handle <b id="set-handle">—</b></div>
             <div class="desc" id="set-handle-desc">Your account name. Friends find you by it.</div>
           </div>
           <button class="btn-neutral" id="set-handle-btn">Change</button>
         </div>
-        <div class="settings-row" id="row-handle-edit" style="display:none">
+        <div class="settings-row" id="row-handle-edit" data-setgrp="account" style="display:none">
           <div style="flex:1">
             <input class="gate-input" id="set-handle-input" placeholder="NewHandle" maxlength="16" style="width:100%">
             <div class="desc" id="set-handle-msg"></div>
@@ -6887,43 +6928,65 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <button class="btn-neutral" id="set-handle-save">Save</button>
           <button class="btn-neutral" id="set-handle-cancel">Cancel</button>
         </div>
-        <div class="settings-row">
+        <!-- [TILLAGT v5.204.0] LOSENORDET (Chris). Det fanns ingen vag alls att
+             byta eller aterstalla ett losenord - varken har eller i luckan. En
+             spelare som glomde sitt kom aldrig tillbaka till sitt konto.
+             Det NUVARANDE losenordet skickas alltid med, aven om projektet inte
+             kraver det an. Slas kravet pa i panelen fortsatter det fungera; hade
+             vi utelamnat det hade bytet gatt sonder just den dagen. -->
+        <div class="settings-row" id="row-pw" data-setgrp="account">
+          <div>
+            <div>Password</div>
+            <div class="desc" id="set-pw-desc">Change the password for this account.</div>
+          </div>
+          <button class="btn-neutral" id="set-pw-btn">Change</button>
+        </div>
+        <div class="settings-row" id="row-pw-edit" data-setgrp="account" style="display:none">
+          <div style="flex:1">
+            <input class="gate-input" id="set-pw-old" type="password" placeholder="Current password" style="width:100%">
+            <input class="gate-input" id="set-pw-new" type="password" placeholder="New password" style="width:100%;margin-top:6px">
+            <div class="desc" id="set-pw-msg"></div>
+          </div>
+          <button class="btn-neutral" id="set-pw-save">Save</button>
+          <button class="btn-neutral" id="set-pw-cancel">Cancel</button>
+        </div>
+        <div class="settings-row" data-setgrp="sound">
           <div>
             <div>Core Sounds</div>
             <div class="desc">The melody the core plays while you hold.</div>
           </div>
           <button class="btn-neutral" id="snd-sfx">On</button>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="sound">
           <div>
             <div>Music</div>
             <div class="desc">The generative background track. Starts on your first hold.</div>
           </div>
           <button class="btn-neutral" id="snd-music">On</button>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="sound">
           <div style="flex:1">
             <div>Core Volume</div>
             <input type="range" id="vol-sfx" min="0" max="100" value="70" style="width:100%;accent-color:var(--cyan)">
           </div>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="sound">
           <div style="flex:1">
             <div>Music Volume</div>
             <input type="range" id="vol-music" min="0" max="100" value="35" style="width:100%;accent-color:var(--cyan)">
           </div>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="sound">
           <div style="flex:1">
             <div>Background Track</div>
             <div class="desc" id="track-blurb"></div>
             <div class="track-pick" id="track-pick"></div>
           </div>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.203.0 — KONTRAKTSVARORNA HAR NAMN I MALET</div>
+            <div class="desc">GENESIS v5.204.0 — INSTALLNINGAR I FLIKAR, LOSENORDET GAR ATT ATERSTALLA</div>
           </div>
         </div>
       </div>
@@ -26042,6 +26105,9 @@ const overlay = $('settings-overlay');
 function openSettings(){
   overlay.classList.add('open'); resetShow('main');
   renderHandleRow();
+  $('row-handle-edit').style.display = 'none';
+  $('row-pw-edit').style.display = 'none';
+  setTabShow('account');
 }
 /* Kontots handle-rad. Karensen visas i klartext - en knapp som inte gar att
    trycka pa ska saga VARFOR, inte bara vara gra. */
@@ -26074,6 +26140,58 @@ $('set-handle-save').addEventListener('click', async () => {
     renderHandleRow(); updateUI(true);
   } catch (e){ $('set-handle-msg').textContent = handleErrText(e); }
 });
+/* [TILLAGT v5.204.0] FLIKBYTET. Raderna star kvar i markupen och gommas -
+   ingen byggs om, sa oppna faltmarkorer och halvskrivna varden overlever ett
+   flikbyte. */
+let SET_TAB = 'account';
+function setTabShow(tab){
+  SET_TAB = tab;
+  document.querySelectorAll('[data-settab]').forEach(b =>
+    b.classList.toggle('on', b.dataset.settab === tab));
+  document.querySelectorAll('#settings-main [data-setgrp]').forEach(r => {
+    const min = r.dataset.setgrp === tab;
+    if (!min){ r.style.display = 'none'; return; }
+    /* Raderna som ar dolda av EGNA skal ska forbli dolda. */
+    if (r.id === 'row-handle-edit' || r.id === 'row-pw-edit') return;
+    if (r.id === 'row-handle'){ r.style.display = NET.on ? '' : 'none'; return; }
+    if (r.id === 'row-pw'){ r.style.display = NET.on ? '' : 'none'; return; }
+    r.style.display = '';
+  });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-settab]'); if (!b) return;
+  setTabShow(b.dataset.settab);
+});
+
+/* LOSENORDSBYTET. Servern gor jobbet; har skickas bara det gamla och det nya. */
+$('set-pw-btn').addEventListener('click', () => {
+  $('row-pw-edit').style.display = '';
+  $('set-pw-old').value = ''; $('set-pw-new').value = '';
+  $('set-pw-msg').textContent = '';
+  $('set-pw-old').focus();
+});
+$('set-pw-cancel').addEventListener('click', () => { $('row-pw-edit').style.display = 'none'; });
+$('set-pw-save').addEventListener('click', async () => {
+  const gam = $('set-pw-old').value, nyt = $('set-pw-new').value;
+  if (!gam || !nyt){ $('set-pw-msg').textContent = 'Fill in both fields.'; return; }
+  $('set-pw-msg').textContent = 'Saving…';
+  try {
+    await srvCall('/auth/v1/user', {method: 'PUT',
+      body: {password: nyt, current_password: gam}});
+    $('row-pw-edit').style.display = 'none';
+    say('Password changed.');
+  } catch (e){ $('set-pw-msg').textContent = pwErrText(e); }
+});
+/* Serverns feltexter ar engelska och tekniska. De tre som en spelare faktiskt
+   kan orsaka far egna rader; resten slapps igenom som de ar. */
+function pwErrText(e){
+  const t = ((e && (e.message || e.msg || e.error_description)) || '') + '';
+  if (/weak|pwned|breach|leaked/i.test(t))
+    return 'That password appears in a known breach, or is too weak. Pick another.';
+  if (/same|different from the old/i.test(t)) return 'That is your current password.';
+  if (/invalid|incorrect|credentials/i.test(t)) return 'The current password is wrong.';
+  return t || 'Could not change the password.';
+}
 function closeSettings(){ overlay.classList.remove('open'); }
 /* RESET GAME AR BORTTAGEN. Den var fran tiden da man hade EN karaktar och
    ingen server: enda vagen tillbaka var att torka den lokala sparfilen. Nu
@@ -26102,20 +26220,12 @@ function renderProfile(){
   const row = (k, v) => '<div class="pf-row"><span>' + k + '</span><b>' + v + '</b></div>';
   const left = (SRV.handleCanChangeAt || 0) - Date.now();
   box.innerHTML =
+    /* [BORTTAGET v5.204.0] HANDLEN (Chris). Den fanns pa TVA stallen - har och i
+       installningarna - med var sin knapp, var sin karenstext och var sitt
+       felmeddelande. Tva stallen som gor samma sak driver isar. Kontot skots i
+       installningarna; profilkortet visar handlen som en rad bland andra. */
     '<div class="section-label">Account</div>' +
-    '<div class="pf-handle">' +
-      '<div><div class="pf-handle-name">' + (NET.on && SRV.handle ? '@' + SRV.handle : '— no handle yet') + '</div>' +
-      '<div class="desc">' + (!NET.on ? 'Sign in to claim a handle.'
-        : left > 0 ? 'You can change it again in ' + fmtDur(left / 1000) + '.'
-        : 'Friends find you by this. Changing it locks the name for 7 days.') + '</div></div>' +
-      (NET.on ? '<button class="btn-neutral" id="pf-handle-btn"' + (left > 0 ? ' disabled' : '') + '>Change</button>' : '') +
-    '</div>' +
-    '<div class="pf-edit" id="pf-edit" style="display:none">' +
-      '<input class="gate-input" id="pf-handle-input" maxlength="16" placeholder="NewHandle">' +
-      '<button class="btn-neutral" id="pf-handle-save">Save</button>' +
-      '<button class="btn-neutral" id="pf-handle-cancel">Cancel</button>' +
-      '<div class="desc" id="pf-handle-msg"></div>' +
-    '</div>' +
+    row('Handle', NET.on && SRV.handle ? '@' + SRV.handle : '—') +
     '<div class="section-label">Character</div>' +
     row('Name', (NET.on && SRV.charName) ? SRV.charName : 'Runner') +
     row('Level', li.para ? (li.lvl + ' · Paragon ' + li.para) : li.lvl) +
@@ -26134,34 +26244,14 @@ function renderProfile(){
        helst rada fram listan over alla spelare bokstav for bokstav. Det som
        visas ar namnet, om personen ar online och vilken karaktar hen spelar.
        Aldrig guld, vaska eller position. */
-    /* Uppslagningen och vannerna bor i sin EGEN ruta nu, natt fran
-       snabbaccessen - profilsidan handlar om dig, inte om andra. */
-    '<div class="section-label">Switch</div>' +
-    '<button class="btn-neutral wide" id="pf-friends">Open friends</button>' +
-    '<button class="btn-neutral wide" id="pf-settings">Open settings</button>';
+    /* [BORTTAGET v5.204.0] De tva knapparna (Chris). Vannerna nas fran
+       snabbvalet och installningarna fran sidoraden - kortet behovde inte vara
+       en genvag till nagot man redan har en knapp for. */
+    '';
 
-  const b1 = $('pf-handle-btn');
-  if (b1) b1.addEventListener('click', () => {
-    $('pf-edit').style.display = '';
-    $('pf-handle-input').value = SRV.handle || '';
-    $('pf-handle-input').focus();
-  });
-  const cancel = $('pf-handle-cancel');
-  if (cancel) cancel.addEventListener('click', () => { $('pf-edit').style.display = 'none'; });
-  const save = $('pf-handle-save');
-  if (save) save.addEventListener('click', async () => {
-    $('pf-handle-msg').textContent = 'Saving…';
-    try { await netSetHandle($('pf-handle-input').value.trim()); renderProfile(); }
-    catch (e){ $('pf-handle-msg').textContent = handleErrText(e); }
-  });
-  const sbtn = $('pf-settings');
-  if (sbtn) sbtn.addEventListener('click', () => {
-    $('profile-overlay').classList.remove('open'); openSettings();
-  });
-  const ofb = $('pf-friends');
-  if (ofb) ofb.addEventListener('click', () => {
-    $('profile-overlay').classList.remove('open'); openFriends();
-  });
+  /* [BORTTAGET v5.204.0] Lyssnarna for handlens knappar och de tva genvagarna.
+     Elementen finns inte langre, sa koden vantade pa knappar som aldrig kommer
+     - dod kod som ser levande ut. */
 }
 /* ==================== VANNER ====================
    Relationen ligger pa PROFILENS ID hos servern - handlen ar bara etiketten man
@@ -26794,7 +26884,57 @@ function gateShowAuth(){
   $('gate-auth').style.display = '';
   $('gate-chars').style.display = 'none';
   $('gate-handle').style.display = 'none';
+  $('gate-reset').style.display = 'none';
+  $('gate-newpw').style.display = 'none';
 }
+/* [TILLAGT v5.204.0] ATERSTALLNINGEN, tre steg.
+   1) Man begar en lank. 2) Mejlet loggar in en. 3) Man valjer nytt losenord.
+   Steg tva ar redan byggt - lankhanteringen i luckan tar hand om nyckeln - sa
+   det enda som saknades var att INTE slappa in nagon rakt i spelet nar lanken
+   var av sorten "recovery". */
+function gateShowReset(){
+  $('gate-auth').style.display = 'none';
+  $('gate-chars').style.display = 'none';
+  $('gate-handle').style.display = 'none';
+  $('gate-newpw').style.display = 'none';
+  $('gate-reset').style.display = '';
+  $('gate-reset-email').value = $('gate-email').value || '';
+  $('gate-reset-msg').textContent = '';
+}
+function gateShowNewPw(){
+  $('gate-auth').style.display = 'none';
+  $('gate-chars').style.display = 'none';
+  $('gate-handle').style.display = 'none';
+  $('gate-reset').style.display = 'none';
+  $('gate-newpw').style.display = '';
+  $('gate-newpw-msg').textContent = '';
+  $('gate-newpw-input').value = '';
+}
+$('gate-forgot').addEventListener('click', gateShowReset);
+$('gate-reset-back').addEventListener('click', gateShowAuth);
+$('gate-reset-send').addEventListener('click', async () => {
+  const e = $('gate-reset-email').value.trim();
+  if (!e){ $('gate-reset-msg').textContent = 'Enter your email.'; return; }
+  $('gate-reset-msg').textContent = 'Sending…';
+  try {
+    await srvCall('/auth/v1/recover', {method: 'POST', noAuth: true,
+      body: {email: e, gotrue_meta_security: {}}});
+  } catch (err){ /* svaljs med flit - se nedan */ }
+  /* SAMMA BESKED oavsett utfall. Sade vi "no such account" hade vem som helst
+     kunnat prova adresser och fa veta vilka som finns hos oss. */
+  $('gate-reset-msg').textContent =
+    'If that email has an account, the link is on its way. Check your inbox.';
+});
+$('gate-newpw-save').addEventListener('click', async () => {
+  const v = $('gate-newpw-input').value;
+  if (!v){ $('gate-newpw-msg').textContent = 'Pick a password.'; return; }
+  $('gate-newpw-msg').textContent = 'Saving…';
+  try {
+    await srvCall('/auth/v1/user', {method: 'PUT', body: {password: v}});
+    await gateAfterAuth();
+    gateSay('gate-msg2', 'Password changed. Choose a character.', true);
+  } catch (e){ $('gate-newpw-msg').textContent = pwErrText(e); }
+});
 
 /* ==================== HANDLEN ====================
    Kontots namn. EN per konto, unikt oavsett skiftlage, och alla karaktarer
@@ -27076,6 +27216,10 @@ async function gateFromLink(link){
     const who = await srvCall('/auth/v1/user');
     SRV.user = who; srvSaveSession();
     gateKeepMsg = true;
+    /* [ANDRAT v5.204.0] En aterstallningslank loggar in - men den som klickat
+       kom hit for att hen INTE kan sitt losenord. Slapper vi in henne i spelet
+       ar hon utelast igen sa fort sessionen tar slut. */
+    if (link.type === 'recovery'){ gateShowNewPw(); return true; }
     await gateAfterAuth();
     gateSay('gate-msg2', link.type === 'signup'
       ? 'Email confirmed. Name your first character to begin.'
