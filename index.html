@@ -4860,19 +4860,18 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dr-headr{display:flex;align-items:center;gap:8px}
 .dr-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px;
   scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent}
-.dr-row{display:grid;grid-template-columns:150px repeat(6,minmax(0,1fr));gap:6px;
+.dr-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;
   padding:6px;margin-bottom:7px;border-radius:12px;
   border:1px solid color-mix(in srgb,var(--rh) 34%,var(--border-soft));
   background:linear-gradient(90deg,color-mix(in srgb,var(--rh) 11%,transparent),transparent 34%),var(--bg-inset)}
-.dr-region{display:flex;align-items:center;gap:8px;padding:0 6px;min-width:0}
-.dr-region .sn-hex{--hxc:var(--rh);flex:0 0 auto}
-.dr-region-nm{font-size:9.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--rh);line-height:1.25;min-width:0}
 .dr-cell{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   gap:3px;padding:7px 5px 6px;min-height:104px;border-radius:9px;
   border:1px solid var(--border-soft);background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   text-align:center;min-width:0;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
 .dr-cell:hover{transform:translateY(-1px)}
-.dr-num{position:absolute;left:7px;top:5px;font-size:12px;font-weight:900;color:var(--text-dim);letter-spacing:.02em}
+/* [ANDRAT v5.184.0] Dagsiffran nagra pixlar storre och i klar neonbla (Chris). */
+.dr-num{position:absolute;left:7px;top:5px;font-size:15px;font-weight:900;color:#3fdfff;
+  letter-spacing:.02em;text-shadow:0 0 8px rgba(63,223,255,.55)}
 .dr-mark{position:absolute;right:6px;top:5px;width:16px;height:16px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;
   border:1px solid var(--border-soft);color:var(--text-faint);background:var(--bg-inset)}
@@ -4886,6 +4885,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dr-qty{font-size:10.5px;font-weight:900;color:var(--cyan);margin-top:auto}
 /* Statusarna */
 .dr-cell.claimed{opacity:.5}
+.dr-cell.claimed .dr-num{color:#8fb9c4;text-shadow:none}
 .dr-cell.claimed .dr-mark{border-color:var(--cyan);color:var(--cyan);background:rgba(56,232,255,.12)}
 .dr-cell.locked{opacity:.78}
 .dr-cell.locked .dr-icos{filter:saturate(.55) brightness(.85)}
@@ -4932,7 +4932,6 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 @keyframes drSumIn{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
 @media (max-width:980px){
   .dr-row{grid-template-columns:repeat(6,minmax(0,1fr))}
-  .dr-region{grid-column:1 / -1;padding:2px 4px 0}
   .dr-cell{min-height:96px}
 }
 @media (max-width:760px){
@@ -4941,7 +4940,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .daily-modal{padding:12px 10px 10px}
   .dr-row{gap:4px;padding:4px}
   .dr-cell{min-height:86px;padding:6px 3px 5px;border-radius:7px}
-  .dr-num{font-size:10px;left:5px;top:4px}
+  .dr-num{font-size:13px;left:5px;top:4px}
   .dr-mark{width:13px;height:13px;font-size:8px;right:4px;top:4px}
   .dr-icos{height:30px;margin-top:12px}
   .dr-ico,.dr-ico img{width:28px;height:28px;font-size:20px}
@@ -5910,7 +5909,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.183.0 — DRONARKLOCKA I ZONRUTAN, LEVANDE POST OCH INBJUDNINGAR</div>
+        <div class="sn-ver">GENESIS v5.184.0 — FORSTA YRKET KOSTAR ETT GULD, TAVLAN UTAN REGIONNAMN</div>
       </div>
     </div>
   </aside>
@@ -6819,7 +6818,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.183.0 — DRONARKLOCKA I ZONRUTAN, LEVANDE POST OCH INBJUDNINGAR</div>
+            <div class="desc">GENESIS v5.184.0 — FORSTA YRKET KOSTAR ETT GULD, TAVLAN UTAN REGIONNAMN</div>
           </div>
         </div>
       </div>
@@ -9386,8 +9385,11 @@ async function netPullProfessions(){
   });
   /* Hur manga yrken man lart sig avgor vad nasta kostar - servern raknar. */
   const me = await srvSelect('characters',
-    'id=eq.' + SRV.charId + '&select=prof_learns');
+    'id=eq.' + SRV.charId + '&select=prof_learns,prof_slots_main,prof_slots_sec');
   S.prof.learns = (me && me[0] && +me[0].prof_learns) || 0;
+  /* Hogvattenmarkena: hur manga platser som NAGON GANG varit fyllda. */
+  S.prof.slotsMain = (me && me[0] && +me[0].prof_slots_main) || 0;
+  S.prof.slotsSec  = (me && me[0] && +me[0].prof_slots_sec) || 0;
 
   const recs = await srvSelect('character_recipes',
     'character_id=eq.' + SRV.charId + '&select=recipe_id');
@@ -10666,11 +10668,21 @@ function craftXP(r){
 const PROF_MAX = 2;                 // huvudyrken samtidigt
 const PROF_SECONDARY_MAX = 1;       // sidoyrken samtidigt
 const PROF_UNLOCK_LEVEL = 5;        // karaktarsniva som oppnar valet
-const PROF_LEARN_COST = GOLD(5);   // fast pris, varje gang
-/* ETT FAST PRIS, ALLTID (spelarens beslut). Trappan 1-5-25-125 gjorde det dyrt
-   att andra sig, och att byta yrke kostar redan det som verkligen svider: hela
-   yrkesnivan. Att glomma ar gratis, och att lara om kostar samma fem guld. */
-function profLearnCost(){ return PROF_LEARN_COST; }
+/* [ANDRAT v5.184.0] PRISET AR INTE LANGRE FAST (Chris beslut). En plats som
+   ALDRIG anvants kostar 1 guld forsta gangen den fylls; darefter kostar den
+   platsen 5 guld for alltid. Fem guld rakt av var for dyrt for en nyborjare
+   som just fatt valja for forsta gangen.
+   Historiken ager SERVERN, i tva hogvattenmarken som aldrig kan ga nedat.
+   De lases hit enbart for att kunna VISA ratt pris innan man trycker - servern
+   raknar alltid ut priset sjalv och tror aldrig pa klientens siffra. */
+const PROF_LEARN_COST_NEW  = GOLD(1);   // en plats som aldrig anvants
+const PROF_LEARN_COST_USED = GOLD(5);   // en plats man redan haft nagot i
+function profLearnCostKind(sec){
+  const har = sec ? secondaryCount() : profCount();
+  const brukad = sec ? ((S.prof && S.prof.slotsSec) | 0) : ((S.prof && S.prof.slotsMain) | 0);
+  return har < brukad ? PROF_LEARN_COST_USED : PROF_LEARN_COST_NEW;
+}
+function profLearnCost(id){ return profLearnCostKind(id ? isSecondaryProf(id) : false); }
 /* Yrkes-XP-kurvan ar egen och plattare an spelarens - ett yrke ska kunna na
    hyggliga nivaer under en normal spelperiod. */
 function profXpToNext(lvl){ return Math.round(60 * Math.pow(lvl, 1.4)); }
@@ -10703,7 +10715,7 @@ function profBlockReason(id){
   } else if (profCount() >= PROF_MAX){
     return 'You can keep ' + PROF_MAX + ' main professions.';
   }
-  if (S.gold < profLearnCost()) return 'Not enough gold.';
+  if (S.gold < profLearnCost(id)) return 'Not enough gold \u2014 this slot costs ' + moneyPlain(profLearnCost(id)) + '.';
   return null;
 }
 function profLvl(id){ return S.prof && S.prof.known[id] ? profLevelInfo(S.prof.known[id].xp).lvl : 0; }
@@ -10711,7 +10723,7 @@ function learnProfession(id){
   if (NET.on){ netLearnProfession(id).catch(e => say(srvErrText(e))); return true; }
   const why = profBlockReason(id);
   if (why){ say(why); return false; }
-  const cost = profLearnCost();
+  const cost = profLearnCost(id);
   S.gold -= cost;
   S.prof.learns = ((S.prof.learns || 0) + 1);
   S.prof.known[id] = {xp: 0};
@@ -10751,8 +10763,9 @@ async function unlearnProfession(id){
     ico: pr.ico, color: PROF_COLOR[id],
     title: 'Unlearn ' + pr.name + '?',
     body: 'You lose <b>level ' + lvl + '</b> and everything it has learned. ' +
-          'Unlearning is free, and learning any profession costs <b>' +
-          moneyText(profLearnCost()) + '</b> — the same every time.',
+          'Unlearning is free — but a slot you have used before costs <b>' +
+          moneyText(PROF_LEARN_COST_USED) + '</b> to fill again, instead of the ' +
+          moneyPlain(PROF_LEARN_COST_NEW) + ' a fresh slot costs.',
     yes: '\u267b UNLEARN', no: 'KEEP IT'
   });
   if (!ok) return false;
@@ -21002,7 +21015,7 @@ function profCardHTML(pr, canBuy, readOnly){
     '<div class="pf-tags">' + profTags(pr) + '</div>' +
     (readOnly ? '' :
       '<button class="pf-buy" data-learn="' + pr.id + '"' + (canBuy ? '' : ' disabled') + '>' +
-      '<span class="co-g">\u25c9</span> ' + moneyText(profLearnCost()) + '</button>') +
+      '<span class="co-g">\u25c9</span> ' + moneyText(profLearnCost(pr.id)) + '</button>') +
   '</div>';
 }
 function profOwnedHTML(pr){
@@ -22511,10 +22524,11 @@ function renderProfessions(){
   /* [BORTTAGET v5.10.0] Har stod "2 / 2 · 1 / 1". Man ser pa korten om en plats
      ar tagen, sa talen sa ingenting som inte redan syntes. */
   if (cnt) cnt.textContent = '';
-  const cost = profLearnCost();
+  /* Tva priser nu, inte ett - huvudplatsen och sidoplatsen kan sta olika. */
+  const costMain = profLearnCostKind(false), costSec = profLearnCostKind(true);
   const open = profSlotsOpen();
-  const canBuy = open && S.gold >= cost && n < PROF_MAX;
-  const canBuySec = open && S.gold >= cost && sn < PROF_SECONDARY_MAX;
+  const canBuy = open && S.gold >= costMain && n < PROF_MAX;
+  const canBuySec = open && S.gold >= costSec && sn < PROF_SECONDARY_MAX;
   let h = '';
 
   if (profScene === 'browse'){
@@ -28351,10 +28365,12 @@ function renderDaily(){
   const cur = d.completed ? 31 : d.day;
   let h = '';
   for (let r = 0; r < 5; r++){
-    const rid = DAILY_REGION_ROWS[r], R = REGIONS[rid] || {name: rid};
-    h += '<div class="dr-row" style="--rh:' + DAILY_REGION_HUE[rid] + '">' +
-      '<div class="dr-region"><span class="res-icon sn-hex"><span class="qi qi-daily"></span></span>' +
-      '<span class="dr-region-nm">' + esc(R.name) + '</span></div>';
+    const rid = DAILY_REGION_ROWS[r];
+    /* [ANDRAT v5.184.0] REGIONNAMNEN OCH IKONERNA ar borta (Chris beslut). Det
+       har ar en inloggningstavla, inte en resa genom varlden - namnen sa emot
+       vad rutan faktiskt ar. Regionens FARGTON ligger kvar som ren dekor pa
+       raden; den kar inte langre nagot pastaende med sig. */
+    h += '<div class="dr-row" style="--rh:' + DAILY_REGION_HUE[rid] + '">';
     for (let c = 0; c < 6; c++){
       const day = r * 6 + c + 1, e = d.board[day - 1];
       if (!e) continue;
