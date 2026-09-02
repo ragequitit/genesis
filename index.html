@@ -2737,6 +2737,53 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
 }
 .rw-divider::before,.rw-divider::after{content:'';flex:1;height:1px;background:var(--border-soft)}
 .rw-chips{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+/* ---------- HJÄLPARRUTAN (v5.208.0) ----------
+   Stralkransen ar TVA lager: en konisk solfjader som snurrar langsamt, och en
+   mjuk rund glod som star still. Bara det roterande lagret snurrar - snurrar
+   man glodet ocksa syns kanterna. Fargen kommer utifran som --rv och satts nar
+   rutan oppnas, sa samma markup tjanar alla sex sallsyntheter. */
+.hrev-modal{--rv:var(--cyan);position:relative;text-align:center;max-width:340px;padding:22px 20px 18px}
+.hrev-x{position:absolute;right:12px;top:12px}
+.hrev-kicker{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-dim);font-weight:800}
+.hrev-stage{position:relative;width:210px;height:210px;margin:8px auto 6px;
+  display:flex;align-items:center;justify-content:center}
+/* [ANDRAT v5.208.0] Fyra breda ekrar sag ut som ett kors, inte som en krans -
+   och bilden tackte det mesta av dem. Nu tjugofyra tunna ekrar, en mindre bild,
+   och halet i mitten ar vidare an bildens horn sa kransen syns hela varvet. */
+.hrev-flare{
+  position:absolute;inset:0;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,
+    var(--rv) 0deg 1.6deg, transparent 1.6deg 15deg);
+  opacity:.5;filter:blur(.6px);
+  -webkit-mask:radial-gradient(circle at center, transparent 33%, #000 44%, #000 76%, transparent 94%);
+  mask:radial-gradient(circle at center, transparent 33%, #000 44%, #000 76%, transparent 94%);
+  animation:hrevSpin 18s linear infinite;
+}
+/* Ett andra, langsammare lager at ANDRA hallet ger djup utan att bli rorigt. */
+.hrev-flare2{
+  position:absolute;inset:14px;border-radius:50%;
+  background:repeating-conic-gradient(from 7deg,
+    var(--rv) 0deg 3deg, transparent 3deg 30deg);
+  opacity:.22;filter:blur(2px);
+  -webkit-mask:radial-gradient(circle at center, transparent 38%, #000 52%, transparent 96%);
+  mask:radial-gradient(circle at center, transparent 38%, #000 52%, transparent 96%);
+  animation:hrevSpin 34s linear infinite reverse;
+}
+.hrev-ring{
+  position:absolute;left:50%;top:50%;width:150px;height:150px;transform:translate(-50%,-50%);
+  border-radius:50%;background:radial-gradient(circle at center, var(--rv), transparent 66%);
+  opacity:.26;
+}
+@keyframes hrevSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+/* Rorelsen ar dekor. Den som bett om lugn skarm far stralkransen stillastaende. */
+@media (prefers-reduced-motion: reduce){ .hrev-flare, .hrev-flare2{animation:none} }
+.hrev-art{position:relative;width:88px;height:88px;font-size:36px;
+  border-color:var(--rv);box-shadow:0 0 22px -6px var(--rv);background:var(--bg-inset)}
+.hrev-name{font-size:17px;font-weight:900;letter-spacing:.04em;color:var(--rv);margin-top:2px}
+.hrev-rar{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);
+  font-weight:800;margin-bottom:10px}
+.hrev-eff{font-size:11px;line-height:1.7;color:var(--text);margin-bottom:14px}
+.hrev-ok{width:100%}
 .rw-chip{
   display:flex;align-items:center;gap:8px;
   border:1px solid var(--border-soft);border-radius:10px;padding:8px 10px;background:var(--bg-inset);
@@ -6071,7 +6118,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.207.0 — BELONINGSRUTAN: IKONER OVERALLT, KORTEN LINJERADE</div>
+        <div class="sn-ver">GENESIS v5.208.0 — HJALPAREN VISAS NAR CACHEN OPPNAS, WORK SYNC LAGAD</div>
       </div>
     </div>
   </aside>
@@ -6862,6 +6909,28 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     </div>
   </div>
 
+  <!-- ================= HJÄLPAREN SOM DÖK UPP (v5.208.0) =================
+       En cache som oppnas ska SYNAS. Forut lade servern hjalparen i forradet
+       och det enda som hande pa skarmen var en liten flytande rad - man fick
+       leta upp vad man hade fatt. Nu star hon mitt pa skarmen, med en langsamt
+       roterande stralkrans i sin egen sallsynthetsfarg bakom sig. -->
+  <div class="modal-overlay" id="hrev-overlay">
+    <div class="modal hrev-modal">
+      <button class="modal-close hrev-x" id="hrev-close">✕</button>
+      <div class="hrev-kicker">Helper Cache</div>
+      <div class="hrev-stage">
+        <span class="hrev-flare"></span>
+        <span class="hrev-flare2"></span>
+        <span class="hrev-ring"></span>
+        <span class="pet-sprite hrev-art" id="hrev-art"></span>
+      </div>
+      <div class="hrev-name" id="hrev-name">—</div>
+      <div class="hrev-rar" id="hrev-rar">—</div>
+      <div class="hrev-eff" id="hrev-eff"></div>
+      <button class="rw-claim hrev-ok" id="hrev-ok">Take it</button>
+    </div>
+  </div>
+
   <!-- ================= VÄLKOMMEN TILLBAKA ================= -->
   <div class="modal-overlay" id="offline-overlay">
     <div class="modal">
@@ -7011,7 +7080,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.207.0 — BELONINGSRUTAN: IKONER OVERALLT, KORTEN LINJERADE</div>
+            <div class="desc">GENESIS v5.208.0 — HJALPAREN VISAS NAR CACHEN OPPNAS, WORK SYNC LAGAD</div>
           </div>
         </div>
       </div>
@@ -9532,6 +9601,10 @@ async function netOpenCache(){
   await netPullPets();
   renderPets(); renderPetPanel(); updateUI(true);
   renderFragWin();
+  /* [TILLAGT v5.208.0] HJALPAREN SYNS. Forut hamnade hon bara i forradet och
+     ingenting hande pa skarmen - man visste inte vad man fatt. */
+  const got = petBySid(r && r.pet);
+  if (got){ showReveal(got); showHelperReveal(got); }
   return r;
 }
 /* [TILLAGT v5.119.0] Utrustningscachen. Servern drar fragmenten, rullar pjasen
@@ -12511,6 +12584,12 @@ const FAM_TEXT = {
   fuel:      v => '+' + v + '% fuel regen',
   cacheluck: v => '+' + v + '% cache odds',
   gearrar:   v => '+' + v + '% rarer gear drops',
+  /* [TILLAGT v5.208.0] WORK SYNC SAKNADES HELT. Servern rullar atta formagor;
+     den har raden fanns inte, sa uppslaget gav undefined och ANROPET av det
+     kastade ett fel mitt i hovringsrutan. Foljden: en hjalpare med just den
+     formagan hade varken hovringskort eller kort vid klick - resten fungerade.
+     Samma buggfamilj som en gang gjorde att INGET husdjur gick att hovra. */
+  worksync:  v => '+' + v + '% profession work speed',
   tokens:    v => '+' + v + '% Tokens on reboot'
 
 };
@@ -21107,7 +21186,15 @@ function rarCol(r){ return 'var(--rarity-' + RARITIES[r].id + ')'; }
 /* En rad per formaga. Sammanfogaren skickas in av den som ritar, for panelen har
    en rad medan fonstret har flera. */
 function petEffLines(p){
-  return petAffixes(p).map(r => FAM_TEXT[r.f](Math.round(r.v * petLvlMult(petLvl(p)) * 10) / 10));
+  /* [VAKT v5.208.0] En okand formaga far ALDRIG stoppa kortet. Servern kan fa
+     en ny formaga innan klienten kanner till den, och da ska raden bli tam -
+     inte hela rutan tom. Det ar tredje gangen den har rutan dor pa ett saknat
+     uppslag; nu kan den inte det. */
+  return petAffixes(p).map(r => {
+    const n = Math.round(r.v * petLvlMult(petLvl(p)) * 10) / 10;
+    const f = FAM_TEXT[r.f];
+    return f ? f(n) : ('+' + n + '% ' + String(r.f || 'bonus'));
+  });
 }
 function petEffText(p, join){ return petEffLines(p).join(join || ' \u00b7 '); }
 /* Lagplatserna ar borta - hjalparna sitter i produktionerna, dar de arbetar.
@@ -23508,6 +23595,31 @@ function recyclePet(uid){
   petSel.delete(uid);
   save(); renderPets(); renderPetPanel();
 }
+/* [TILLAGT v5.208.0] HJALPAREN VISAS PA SKARMEN. Anropas fran bada vagarna in i
+   en hjalparcache: fragmentfonstret och biljetten ur vaskan. Tar hjalparen som
+   hon ser ut EFTER hamtningen fran servern, sa formagan och sallsyntheten ar
+   serverns svar och inte en gissning. */
+function showHelperReveal(p){
+  if (!p) return;
+  const col = rarCol(p.rar);
+  const m = $('hrev-overlay').querySelector('.hrev-modal');
+  if (m) m.style.setProperty('--rv', col);
+  const art = $('hrev-art');
+  art.setAttribute('style', petSpriteVars(p.sp, 88) +
+    ';border-color:' + col + ';box-shadow:0 0 22px -6px ' + col);
+  art.textContent = (PETS[p.sp] && PETS[p.sp].name[0]) || '?';
+  $('hrev-name').textContent = petName(p);
+  $('hrev-name').style.color = col;
+  $('hrev-rar').textContent = RARITIES[p.rar].name;
+  $('hrev-eff').innerHTML = petEffLines(p).map(t => '<div>' + t + '</div>').join('');
+  $('hrev-overlay').classList.add('open');
+}
+function closeHelperReveal(){ $('hrev-overlay').classList.remove('open'); }
+/* Hjalparen hittas pa serverns id efter hamtningen - det ar det enda som binder
+   svaret till raden i forradet. */
+function petBySid(sid){
+  return (S.pets.owned || []).find(o => o && o.sid === sid) || null;
+}
 function showReveal(pet){
   /* Fyndet visas dar cachen oppnades: i fragmentfonstret. */
   $('frag-reveal').innerHTML =
@@ -23532,7 +23644,7 @@ function openCache(){
   /* Forsta husdjuret stalls i laget automatiskt - men bara om det finns en OPPEN
      plats att stalla det i. */
   /* Inget automatiskt insattande: spelaren valjer sjalv vem som jobbar var. */
-  save(); renderPets(); renderPetPanel(); showReveal(pet);
+  save(); renderPets(); renderPetPanel(); showReveal(pet); showHelperReveal(pet);
 }
 /* ================= FRAGMENTFONSTRET (v5.119.0) =================
    Fragmenten spenderas har, pa bada cacharna. Kostnaden for hjalparcachen kommer
@@ -26105,6 +26217,11 @@ function hideBagTip(){ const t = $('bag-tip'); if (t) t.classList.remove('on'); 
 $('reward-claim').addEventListener('click', confirmClaim);
 $('reward-close').addEventListener('click', () => { pendingClaimId = null; $('reward-overlay').classList.remove('open'); });
 $('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')){ pendingClaimId = null; $('reward-overlay').classList.remove('open'); } });
+/* [TILLAGT v5.208.0] Hjalparrutan stangs pa alla tre satten en ruta brukar
+   stangas: krysset, knappen, och ett klick utanfor. */
+$('hrev-close').addEventListener('click', closeHelperReveal);
+$('hrev-ok').addEventListener('click', closeHelperReveal);
+$('hrev-overlay').addEventListener('click', e => { if (e.target === $('hrev-overlay')) closeHelperReveal(); });
 
 if (travelGo) travelGo.addEventListener('click', () => {
   if (S.world.travel) return;
@@ -29085,8 +29202,15 @@ function useCacheTicket(key){
           spawnFloat({text: 'Gear cache: ' + (D ? D.name : 'a piece of gear') + (R ? ' (' + R.name + ')' : '')});
         } else {
           await netPullPets(); renderPets(); renderPetPanel();
-          const sp = (typeof PETS !== 'undefined') && PETS[r && r.species];
-          spawnFloat({text: 'Helper cache: ' + (sp ? sp.name : 'a new helper') + ' joined you'});
+          /* [ANDRAT v5.208.0] Biljetten visar samma ruta som fragmentfonstret.
+             Den flytande raden sa bara ett artnamn - inte sallsynthet, inte
+             formaga, och den hann forsvinna. */
+          const got = petBySid(r && r.pet);
+          if (got) showHelperReveal(got);
+          else {
+            const sp = (typeof PETS !== 'undefined') && PETS[r && r.species];
+            spawnFloat({text: 'Helper cache: ' + (sp ? sp.name : 'a new helper') + ' joined you'});
+          }
         }
         await netPullItems();
         renderInventory(); updateUI(true);
