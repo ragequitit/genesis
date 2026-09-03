@@ -3210,8 +3210,6 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .inv-bagslot.gbag{border-color:rgba(74,222,128,.55);color:#7ef0a8;cursor:pointer}
 .inv-bagslot.pouch{border-color:rgba(96,190,255,.6);color:#8fd4ff;cursor:pointer}
 .inv-bagslot.pouch.lit{box-shadow:0 0 12px rgba(96,190,255,.38)}
-.bagwin-emblem.pouch-emblem{display:flex;align-items:center;justify-content:center;font-size:20px}
-.bagwin-emblem.gbag-emblem{display:flex;align-items:center;justify-content:center;font-size:20px}
 .inv-bagslot.gbag.lit{box-shadow:0 0 12px rgba(74,222,128,.35)}
 /* Rutorna en hovrad väska äger. Fyllda rutor lyser varmare — det är DE som måste
    tömmas innan man byter till en mindre väska. */
@@ -3238,29 +3236,16 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 /* Minifönstrets emblem: väskans EGEN bild i en rund ram uppe i mitten, halvt
    utanför ramen — med tre-fyra utbrutna väskor på skärmen räcker inte namnet för
    att se vilken man petar i. */
-.bagwin-emblem{
-  position:absolute;left:50%;transform:translateX(-50%);top:-26px;z-index:3;
-  width:44px;height:44px;border-radius:50%;
-  border:2px solid var(--win-edge);
-  /* Fonden ligger kvar; väskbilden ritas i ett eget lager ovanpå. Sattes bilden
-     som background-image inline ersatte den gradienten och cirkeln blev genomskinlig. */
-  background:radial-gradient(circle at 35% 30%, var(--win-emblem), rgba(var(--win-deep),1) 70%);
-  cursor:grab;user-select:none;
-  box-shadow:0 4px 14px rgba(0,0,0,.6), inset 0 0 10px rgba(140,170,255,.25);
-  display:flex;align-items:center;justify-content:center;
-}
-.bagwin-emblem i{
-  width:30px;height:30px;
-  background-position:center;background-size:contain;background-repeat:no-repeat;
-}
+/* [BORTTAGET v5.225.0] Den runda bilden ovanfor rubriken ar borta pa BADA
+   hallen nu - bade vaskans och valvets fonster. Ingen ritar den langre. */
 /* Hela fönstret går att dra, inte bara rubriken — men inte när man greppar en ruta,
    för då är det pjäsen man vill flytta. */
 .bagwin{cursor:grab}
 .bagwin:active{cursor:grabbing}
 /* [ANDRAT v5.223.0] Vaskans egna fonster gar inte att dra - da ska de inte
    heller se ut som om de gick. Valvets gor det fortfarande. */
-.bagwin:not(.vaultbagwin), .bagwin:not(.vaultbagwin):active{cursor:default}
-.bagwin:not(.vaultbagwin) .bagwin-head{cursor:default}
+.bagwin, .bagwin:active{cursor:default}
+.bagwin .bagwin-head{cursor:default}
 .bagwin .bagwin-grid{cursor:default}
 .bagwin{
   position:fixed;z-index:130;width:max-content;
@@ -3274,8 +3259,8 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 /* [ANDRAT v5.222.0] Vaskans egna fonster har inget emblem langre, sa det tomma
    bandet i overkant kan bort. Valvets fonster behaller sitt emblem och sitt
    band - de ritas av en annan funktion. */
-.bagwin:not(.vaultbagwin){padding:8px 9px 9px}
-.bagwin:not(.vaultbagwin) .bagwin-head{margin-bottom:6px}
+.bagwin{padding:8px 9px 9px}
+.bagwin .bagwin-head{margin-bottom:6px}
 .bagwin-head{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   cursor:grab;user-select:none;margin-bottom:7px;font-size:10.5px;font-weight:800;
@@ -6180,7 +6165,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.224.0 — PASEN OPPNAS SOM SAMLARVASKAN, INTE AV SIG SJALV</div>
+        <div class="sn-ver">GENESIS v5.226.0 — EN VASKA HAMNAR I ETT VASKFACK, INTE PA KROPPEN</div>
       </div>
     </div>
   </aside>
@@ -7143,7 +7128,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.224.0 — PASEN OPPNAS SOM SAMLARVASKAN, INTE AV SIG SJALV</div>
+            <div class="desc">GENESIS v5.226.0 — EN VASKA HAMNAR I ETT VASKFACK, INTE PA KROPPEN</div>
           </div>
         </div>
       </div>
@@ -14160,17 +14145,15 @@ function renderVaultMiniBags(){
     const win = document.createElement('div');
     win.className = 'bagwin vaultbagwin';
     win.dataset.socket = seg.socket;
+    /* [ANDRAT v5.225.0] Valvet far exakt samma behandling som vaskan (Chris):
+       inget emblem, tightare ram, ingen flyttbarhet - och fonstren ar lasta
+       till valvet och foljer med nar man drar i det. */
     win.innerHTML =
-      '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(vaultBagIn(seg.socket)) + '\')"></i></div>' +
       '<div class="bagwin-head"><span>' + seg.name + '</span>' +
       '<button class="bagwin-x" data-closevbag="' + seg.socket + '">✕</button></div>' +
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
     document.body.appendChild(win);
     placeMiniWindow(win, lay);
-    const head = win.querySelector('.bagwin-head');
-    /* Tre grepp på samma fönster: rubriken, emblemet, och ramen i stort — men
-       inte rutorna, för där är det pjäsen man vill åt. */
-    makeDraggable(win, [head, win]);
     win.querySelector('[data-closevbag]').addEventListener('click', e => {
       e.stopPropagation();
       setVaultBagOpen(seg.socket, false);
@@ -15233,6 +15216,24 @@ function invRangeFor(row){
 /* Att ta ur en väska krymper ryggsäcken. Saker som skulle hamna utanför flyttas
    ned i lediga rutor först — och finns det inte plats nekas hela bytet, hellre än
    att något tyst försvinner. */
+/* [TILLAGT v5.226.0] Forsta lediga UPPLASTA vaskfacket. Finns inget ledigt sags
+   det rakt ut - ett klick som inte gor nagot och inte sager nagot ar samma sak
+   som en trasig knapp. */
+function bagQuickSocket(invIdx){
+  const row = S.inv[invIdx];
+  if (!row || !row.gear) return false;
+  let ledigt = -1, upplasta = 0;
+  for (let i = 0; i < BAG_SLOTS.length; i++){
+    if (!bagUnlocked(i)) continue;
+    upplasta++;
+    if (!bagIn(i)){ ledigt = i; break; }
+  }
+  if (!upplasta){ say('You have no bag slots yet \u2014 buy one first.'); return false; }
+  if (ledigt < 0){ say('Every bag slot is taken \u2014 take one out first.'); return false; }
+  equipBag(invIdx, ledigt);
+  say(ITEMS[row.gear.t].name + ' went into bag slot ' + (ledigt + 1) + '.');
+  return true;
+}
 function equipBag(invIdx, socket){
   const row = S.inv[invIdx];
   if (!row || !row.gear || !ITEMS[row.gear.t] || !ITEMS[row.gear.t].bag) return false;
@@ -25488,6 +25489,13 @@ function hookInvCells(root){
      Pekskarm ror vi inte: dar oppnar ett tryck kortet, som forut. */
   if (isTouchInput()){ showItem(row.gear, idx, null, e); return; }
   hideGearTip();
+  /* [TILLAGT v5.226.0] EN VASKA GAR INTE ATT KLA PA SIG (Chris). Alla vaskor
+     bar platsnummer tio i katalogen, och plats tio ritas inte i karaktarsrutan -
+     den finns i modellen men ingenstans pa skarmen. Ett klick satte darfor
+     vaskan pa en plats ingen kan se, dar den varken gav rutor eller gick att fa
+     tillbaka. Nu gar klicket till forsta lediga vaskfack i stallet, vilket ar
+     vad man faktiskt menar. Servern har samma regel som sista sparr. */
+  if (ITEMS[row.gear.t] && ITEMS[row.gear.t].bag){ bagQuickSocket(idx); return; }
   equipGear(idx);
   });
   root.addEventListener('contextmenu', e => {
@@ -25733,10 +25741,11 @@ function attachDragHandle(win, handle){
          samlarvaskan, verktygsfodralet och adelstenspasen foljer med nar man
          drar i inventoryt. De ar fack pa samma ryggsack, inte fristaende rutor.
          Valvets egna fonster ar undantagna - de hor till en annan modervaska. */
-      if (win.id === 'inv-overlay'){
+      if (win.id === 'inv-overlay' || win.id === 'vault-overlay'){
         const dx = nyX - (parseFloat(win.style.left) || win.getBoundingClientRect().left);
         const dy = nyY - (parseFloat(win.style.top) || win.getBoundingClientRect().top);
-        document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => {
+        const vilka = win.id === 'vault-overlay' ? '.bagwin.vaultbagwin' : '.bagwin:not(.vaultbagwin)';
+        document.querySelectorAll(vilka).forEach(w => {
           w.style.left = ((parseFloat(w.style.left) || w.getBoundingClientRect().left) + dx) + 'px';
           w.style.top  = ((parseFloat(w.style.top)  || w.getBoundingClientRect().top)  + dy) + 'px';
         });
@@ -25878,6 +25887,8 @@ function closeVaultWindow(){
   hideGearTip();
   $('vault-overlay').classList.remove('open');
   document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
+  /* [ANDRAT v5.225.0] Samma som vaskan: allt bakas in igen nar valvet stangs,
+     sa nasta oppning borjar fran ett kant lage. */
   if (S.vault.open && S.vault.open.some(Boolean)){
     S.vault.open = S.vault.open.map(() => false);
     save();
