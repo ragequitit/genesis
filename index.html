@@ -3257,6 +3257,10 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
    för då är det pjäsen man vill flytta. */
 .bagwin{cursor:grab}
 .bagwin:active{cursor:grabbing}
+/* [ANDRAT v5.223.0] Vaskans egna fonster gar inte att dra - da ska de inte
+   heller se ut som om de gick. Valvets gor det fortfarande. */
+.bagwin:not(.vaultbagwin), .bagwin:not(.vaultbagwin):active{cursor:default}
+.bagwin:not(.vaultbagwin) .bagwin-head{cursor:default}
 .bagwin .bagwin-grid{cursor:default}
 .bagwin{
   position:fixed;z-index:130;width:max-content;
@@ -6176,7 +6180,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.222.0 — ALLA VASKOR LASTA TILL INVENTORYT, INGA OVERLAPP</div>
+        <div class="sn-ver">GENESIS v5.223.0 — SKARVORNA HAMNAR I PASEN, VASKFONSTREN SITTER STILLA</div>
       </div>
     </div>
   </aside>
@@ -7139,7 +7143,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.222.0 — ALLA VASKOR LASTA TILL INVENTORYT, INGA OVERLAPP</div>
+            <div class="desc">GENESIS v5.223.0 — SKARVORNA HAMNAR I PASEN, VASKFONSTREN SITTER STILLA</div>
           </div>
         </div>
       </div>
@@ -15181,10 +15185,20 @@ function isGatherRow(row){ return !!(row && row.stack && !row.gear && isGatherKe
 /* [BORTTAGET v5.220.0] Raknade sorterna dina yrken kan ge. Det talet styrde
    vaskans storlek och gor det inte langre - den ar tio, fast. */
 function gbagStart(){ return INV_BASE_SLOTS + bagSlotsFrom(); }
+/* [OMSKRIVET v5.223.0] DEN HAR RAKNADE FEL OCH DROG ALLT ANNAT MED SIG.
+   Den raknade allt fran samlarvaskans borjan till slutet av listan - alltsa
+   aven adelstenspasens rader, som ligger efter. Fler raknade rader gav en
+   storre samlarvaska, den storre vaskan flyttade pasens borjan langre bak, och
+   skarvorna hamnade innanfor samlarvaskan i stallet: gron ram, fel ruta, och
+   ett drag dit blev nekat med samlarvaskans ord.
+   Nu raknas RADENS SORT, inte var den rakar ligga. Da kan granserna inte
+   paverka rakningen och rakningen inte paverka granserna. */
 function gbagUsed(){
   let n = 0;
-  const st = gbagStart();
-  for (let i = st; i < S.inv.length; i++) if (S.inv[i]) n++;
+  for (let i = 0; i < S.inv.length; i++){
+    const r = S.inv[i];
+    if (r && isGatherRow(r) && !gbagIsOut(r.key)) n++;
+  }
   return n;
 }
 function gbagSlots(){
@@ -15202,7 +15216,7 @@ function gbagSlots(){
 function pouchStart(){ return gbagStart() + gbagSlots(); }
 function pouchUsed(){
   let n = 0;
-  for (let i = pouchStart(); i < S.inv.length; i++) if (S.inv[i]) n++;
+  for (let i = 0; i < S.inv.length; i++) if (isPouchRow(S.inv[i])) n++;
   return n;
 }
 function pouchSlots(){ return Math.max(4, pouchUsed() + 2); }
@@ -15487,8 +15501,17 @@ function vaultSort(){
    Ut ur den far allt ga - vill man ha sin malm i huvudvaskan ar det ens eget
    val. IN i den slapps bara samlat material. Nekas det sags det rakt ut; ett
    drag som bara studsar tillbaka utan ord ar samma tystnad som en dod knapp. */
-function inGatherBag(i){ return i >= gbagStart() && i < invSlots(); }
+/* [ANDRAT v5.223.0] Samlarvaskan slutar dar adelstenspasen borjar. Forut gick
+   den anda till listans slut, sa pasens rutor rakndes som samlarvaskans och
+   vaktade sitt innehall med hennes regler. */
+function inGatherBag(i){ return i >= gbagStart() && i < pouchStart(); }
+function inGemPouch(i){ return i >= pouchStart(); }
 function gbagAccepts(row){ return !row || isGatherRow(row); }
+function pouchRefuse(){
+  say('The gem pouch only takes expedition shards and character gems.');
+  renderInventory();
+  return false;
+}
 function gbagRefuse(){
   say('The gathering bag only takes what your gathering professions dig up.');
   return false;
@@ -15517,7 +15540,15 @@ function gbagIsOut(key){ return !!(S.gbagOut && S.gbagOut[key]); }
 function invSwap(a, b){
   if (a === b || a < 0 || b < 0 || a >= invSlots() || b >= invSlots()) return false;
   const ra = S.inv[a], rb = S.inv[b];
-  /* Bada riktningarna provas: ett byte flyttar tva saker. */
+  /* Bada riktningarna provas: ett byte flyttar tva saker.
+     [TILLAGT v5.223.0] Adelstenspasen har sin EGEN regel: dit far bara skarvor
+     och smidda stenar. Forut vaktades pasens rutor av samlarvaskans regel, sa
+     en skarva nekades med orden "bara det dina samlaryrken graver upp" - i den
+     ruta dar den faktiskt hor hemma. */
+  if (inGemPouch(b) && ra && !isPouchRow(ra)) return pouchRefuse();
+  if (inGemPouch(a) && rb && !isPouchRow(rb)) return pouchRefuse();
+  if (!inGemPouch(b) && ra && isPouchRow(ra)) return pouchRefuse();
+  if (!inGemPouch(a) && rb && isPouchRow(rb)) return pouchRefuse();
   if (inGatherBag(b) && !gbagAccepts(ra)) return gbagRefuse();
   if (inGatherBag(a) && !gbagAccepts(rb)) return gbagRefuse();
   if (ra && isGatherRow(ra)) gbagOutSet(ra.key, !inGatherBag(b));
@@ -16254,10 +16285,12 @@ function renderMiniBags(){
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
     document.body.appendChild(win);
     placeMiniWindow(win, lay);
-    const head = win.querySelector('.bagwin-head');
-    /* Tre grepp på samma fönster: rubriken, emblemet, och ramen i stort — men
-       inte rutorna, för där är det pjäsen man vill åt. */
-    makeDraggable(win, [head, win]);
+    /* [ANDRAT v5.223.0] VASKFONSTREN GAR INTE ATT FLYTTA (Chris). De ar lasta
+       till inventoryt och laggs ut pa nytt vid varje omritning - drog man ett
+       at sidan hoppade det anda tillbaka vid nasta ritning, och ibland inte.
+       Halvt flyttbart ar samsta laget: man tror det sitter kvar och det gor det
+       inte. Nu sitter de dar de ska, och man flyttar dem genom att flytta
+       vaskan de hanger pa. */
     win.querySelector('[data-closebag]').addEventListener('click', e => {
       e.stopPropagation();
       setBagOpen(seg.socket, false);
