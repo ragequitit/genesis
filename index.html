@@ -5655,6 +5655,24 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .nd-here{display:flex;align-items:center;gap:7px;font-size:10.5px;color:#2ecc71;
   font-weight:800;letter-spacing:.08em;margin-bottom:10px}
 .nd-here.away{color:#ffc542}
+/* [TILLAGT v5.240.0] Husrutan: bilden, texten och resekostnaden. */
+.town-stage{display:flex;align-items:center;justify-content:center;margin:10px 0 8px}
+.town-art{width:132px;height:132px;display:flex;align-items:center;justify-content:center;
+  font-size:64px;border:1px solid var(--border-soft);border-radius:14px;background:var(--bg-inset);
+  box-shadow:0 0 26px -10px var(--cyan)}
+.town-art .art-img{width:112px;height:112px;object-fit:contain}
+.town-blurb{font-size:11px;line-height:1.6;color:var(--text-dim);text-align:center;margin-bottom:10px}
+.town-cost{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);
+  text-align:center;margin-bottom:8px;font-family:var(--font-mono)}
+/* [ANDRAT v5.240.0] PA TELEFON STACK RUTAN UT 30 PIXLAR under skarmkanten -
+   uppmatt pa 390 och 360. Bilden ar det enda som gar att kapa utan att texten
+   eller knapparna forsvinner, sa den kortas dar. */
+@media (max-width: 760px){
+  .town-art{width:96px;height:96px;font-size:46px}
+  .town-art .art-img{width:78px;height:78px}
+  .town-stage{margin:6px 0 6px}
+  .town-blurb{font-size:10.5px;margin-bottom:8px}
+}
 /* [TILLAGT v5.229.0] Raderna ar klickbara och ska se ut sa. */
 .nd-what[data-ndgo]{cursor:pointer}
 .nd-what[data-ndgo]:hover{border-color:var(--cyan-dim);background:rgba(56,232,255,.07)}
@@ -6306,7 +6324,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.239.0 — VASKANS SLUMPVISA NOLLA, SNABBVALEN OCH BELONINGSRUTAN</div>
+        <div class="sn-ver">GENESIS v5.240.0 — VALVET GAR ATT RESA TILL, OCH STENEN FRAGAR FORST</div>
       </div>
     </div>
   </aside>
@@ -7079,6 +7097,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     </div>
   </div>
 
+  <!-- ===== SATTA PA EN STEN (v5.240.0) =====
+       Karensen ar ett dygn, och den upptacktes forut forst nar man ville byta.
+       Rutan ar samma sparr for alla fyra vagar in i stenplatsen. -->
+  <div class="modal-overlay" id="gemask-overlay">
+    <div class="modal petrec-modal">
+      <div class="petrec-head">Set this gem?</div>
+      <div id="gemask-body"></div>
+      <div class="petrec-btns">
+        <button class="ia-equip" id="gemask-yes">Yes, set it</button>
+        <button class="ia-cancel" id="gemask-no">No, keep it in my backpack</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= EXPEDITIONSBELÖNINGEN ================= -->
   <div class="modal-overlay" id="reward-overlay">
     <div class="modal rw-modal">
@@ -7268,7 +7300,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.239.0 — VASKANS SLUMPVISA NOLLA, SNABBVALEN OCH BELONINGSRUTAN</div>
+            <div class="desc">GENESIS v5.240.0 — VALVET GAR ATT RESA TILL, OCH STENEN FRAGAR FORST</div>
           </div>
         </div>
       </div>
@@ -11740,9 +11772,25 @@ function isGemItem(g){ return !!(g && g.t && ITEMS[g.t] && ITEMS[g.t].gem); }
    det LOKALA loptalet (uid), som servern aldrig har sett - alltsa hade den
    aldrig kunnat fungera. Den vagen gick heller inte att na fran nagot klick;
    den var dod kod. */
+/* [TILLAGT v5.240.0] EN VARNING FORE, INTE ETT BESKED EFTER (Chris).
+   Stenen sitter fast ett dygn nar den val ar satt. Det ar ett beslut, och da
+   ska det tas medvetet - inte upptackas efterat. Varningen ligger i DEN HAR
+   funktionen och ingen annanstans, sa alla fyra vagar in - vansterklick,
+   skift-klick, hogermenyn och draget - fragar exakt samma fraga. Sager man nej
+   hander ingenting alls: stenen ligger kvar i vaskan dar den lag. */
 function setGemFromBag(g){
   if (!NET.on){ say('Gems need a live connection.'); return; }
   if (!g || !g.sid){ say('That gem is not on the server yet — reload and try again.'); return; }
+  /* Star en sten redan och dess dygn inte gatt ut sager servern nej anda -
+     da ar fragan meningslos och beskedet ska komma direkt. */
+  const kvar = GEMSTATE ? (+GEMSTATE.swap_in_secs || 0) : 0;
+  if (kvar > 0){
+    say('The gem you are wearing is locked for ' + fmtDur(kvar) + '.');
+    return;
+  }
+  askGemEquip(g, () => setGemFromBagNow(g));
+}
+function setGemFromBagNow(g){
   srvRpc('gem_equip', {p_character: SRV.charId, p_item: g.sid})
     .then(() => Promise.all([netPullItems(), netGemState()]))
     .then(() => {
@@ -11753,6 +11801,27 @@ function setGemFromBag(g){
     })
     .catch(e => say(srvErrText(e, 'Could not set that gem.')));
 }
+/* Rutan som fragar. Den ar medvetet en sparr man maste svara pa: knappen
+   "No" star forst och stanger utan att gora nagot. */
+let gemAskYes = null;
+function askGemEquip(g, ja){
+  const d = gemByKey(g.t) || {};
+  const box = $('gemask-body');
+  const ov = $('gemask-overlay');
+  if (!box || !ov){ ja(); return; }
+  gemAskYes = ja;
+  box.innerHTML =
+    '<div class="forge-row ready">' + gemIcoHTML(g.t) +
+      '<div class="nm">' + esc(d.name || 'Gem') +
+      '<div class="sub">' + esc(d.uniq || '') + '</div>' +
+      '<div class="sub' + (g.ggood ? ' gem-good' : '') + '">' +
+        (g.ggood ? '\u2605 ' : '') + '+' + (+g.gpct || 0) + '% ' + esc(d.pct || '') +
+      '</div></div></div>' +
+    '<div class="gemask-warn">\u26a0 Once set, this gem is locked for 24 hours. ' +
+      'You cannot take it out or swap it until the day is up.</div>';
+  ov.classList.add('open');
+}
+function closeGemAsk(){ gemAskYes = null; $('gemask-overlay').classList.remove('open'); }
 /* Stenar som ligger LOSA i vaskan, i den ordning de star dar. */
 function gemsInBag(){
   const ut = [];
@@ -18413,6 +18482,30 @@ const VAULT_ZONE = 'Vault';
 function atVault(){
   return !!(S.world && S.world.current && S.world.zone === VAULT_ZONE);
 }
+/* [TILLAGT v5.240.0] DE TVA PLATSER SOM ALLTID FINNS (Chris punkt 8).
+   Handlaren och valvet star i varje region och behover ingen dronare - de ar
+   inte fynd, de ar hus. Servern har samma lista i sin resefunktion, och den ar
+   den som avgor; den har finns for att skarmen ska saga samma sak.
+   Bilden och texten bor har, sa en tredje plats av samma sort laggs till pa ETT
+   stalle i klienten. */
+const TOWNS = {
+  vault:  {zone: VAULT_ZONE, name: 'Vault',
+           art: 'assets/ui/vault.png', ico: '\ud83c\udfe6',
+           blurb: 'The regional vault. Readable from anywhere, open only while you stand at it.',
+           enter: 'Enter Vault'},
+  vendor: {zone: TRADE_ZONE, name: 'Vendor',
+           art: 'assets/ui/shop.png', ico: '\ud83d\uded2',
+           blurb: 'The regional trader. Buys anything, asks nothing, remembers everything.',
+           enter: 'Enter Vendor'}
+};
+function townOf(zone){
+  for (const k in TOWNS) if (TOWNS[k].zone === zone) return k;
+  return null;
+}
+function atTown(k){
+  const t = TOWNS[k];
+  return !!(t && S.world && S.world.current && S.world.zone === t.zone);
+}
 /* HANDLARENS PRISER (v4.47.0). Aterkopet ar alltid en femtedel av kopet, och
    en golvregel haller det sa: rabatten far aldrig trycka kopet under 125 % av
    vad handlaren betalar tillbaka. Utan den kan en femstjarnig rabatt gora en
@@ -19353,7 +19446,9 @@ function isZoneSeen(regionId, zone){ return S.world.zonesSeen.includes(zoneKey(r
    varje gang man byter zon ar bara friktion i ett spel som ska ga av sig sjalvt. */
 const ZONE_SCAN_TIME = 30;
 function isZoneCharted(regionId, zone){
-  return zone === TRADE_ZONE || isZoneSeen(regionId, zone);
+  /* [ANDRAT v5.240.0] Valvet star nu bredvid handlaren (Chris punkt 8). Bada ar
+     hus som alltid finns, sa ingen av dem kraver en dronare. */
+  return !!townOf(zone) || isZoneSeen(regionId, zone);
 }
 function zoneScanHere(regionId, zone){
   const sc = S.zoneScan;
@@ -20109,7 +20204,10 @@ function gmPick(o){
        ritar redan sin valvplats, sa noden oppnar valvet direkt. Nar valvet blir
        en plats man reser till flyttas den hit ner till raden under, och da
        borjar last/upplast betyda nagot. */
-    case 'vault':       openVault(); break;
+    /* [ANDRAT v5.240.0] Valvnoden oppnar husrutan i stallet for att antingen
+       oppna valvet eller saga nej. Star man redan vid det gar man rakt in. */
+    case 'vault':       if (atTown('vault')) openVault(); else openTownWin('vault', region);
+                        break;
     /* [ANDRAT v5.132.0] Motet och zonen har egna, sma rutor. Handlaren och
        dungeonen behaller den stora - de ar hela sidor i sig. */
     case 'encounter': {
@@ -20156,9 +20254,13 @@ function gmPick(o){
          resa; spelets visar innehallet - expeditioner, moten, handlaren. Ar en
          av dem overflodig ska den ena rivas, inte bada halvt.
          Sattet att sla av: ta bort raderna nedan. */
-      if (region === S.world.current){
+      /* [ANDRAT v5.240.0] Samma tva steg som valvet: star man nagon annanstans
+         erbjuds resan, star man har oppnas handlaren. */
+      if (region === S.world.current && atTown('vendor')){
         const i = zi(o.zone);
         if (i >= 0) openZone(region, i);
+      } else if (region === S.world.current){
+        openTownWin('vendor', region);
       }
       break;
     }
@@ -25350,7 +25452,7 @@ function itemWinActions(win, uid){
     /* [TILLAGT v5.173.0] Stenen utrustas inte pa en kroppsdel - den gar till sin
        egen ruta over figuren, och servern haller karensen. */
     box.innerHTML =
-      '<button class="ia-equip" data-act="setgem">Set gem<span>Character</span></button>' +
+      '<button class="ia-equip" data-act="setgem">Equip<span>Character Gem</span></button>' +
       '<button class="ia-sell" data-act="sell">Sell</button>';
   } else {
     box.innerHTML =
@@ -25632,7 +25734,7 @@ function openGearMenu(uid, x, y){
     } else if (isGemItem(it)){
       /* [TILLAGT v5.173.0] Stenen har ingen kroppsdel att sta pa - att sla upp
          platsen har var dessutom det som gjorde raden till "Equip · Head". */
-      h += '<button class="pm-item" data-act="setgem">Set gem</button>';
+      h += '<button class="pm-item" data-act="setgem">Equip \u00b7 Character Gem</button>';
     } else if (!isBag){
       h += '<button class="pm-item" data-act="equip">Equip \u00b7 ' + GEAR_SLOTS[it.s].name + '</button>';
     }
@@ -26267,7 +26369,12 @@ function openInventory(){
   }
 }
 $('qa-inventory').addEventListener('click', () => toggleWindow('inv-overlay', openInventory, closeInventoryWindow));
-$('qa-vault').addEventListener('click', () => toggleWindow('vault-overlay', openVault, closeVaultWindow));
+/* [ANDRAT v5.240.0] Star man inte vid valvet oppnas husrutan med resan i
+   stallet for ett besked om var man borde ha statt (Chris punkt 8). */
+$('qa-vault').addEventListener('click', () => {
+  if (!atTown('vault')){ openTownWin('vault', S.world.current); return; }
+  toggleWindow('vault-overlay', openVault, closeVaultWindow);
+});
 $('nav-ach').addEventListener('click', () => toggleWindow('ach-overlay', openAchievements, () => $('ach-overlay').classList.remove('open')));
 $('ach-close').addEventListener('click', () => $('ach-overlay').classList.remove('open'));
 /* Att stänga en basruta nollställer också UTBRYTNINGEN. Utan det låg flaggorna
@@ -26465,6 +26572,15 @@ function dragTargetsFor(d){
      varje drag sina ratta mal, sa markeringen foljer och slappet landar synligt
      at alla hall. */
   const invCells = () => Array.from(document.querySelectorAll('#inv-grid [data-inv], .bagwin:not(.vaultbagwin) [data-inv]'));
+  /* [TILLAGT v5.240.0] STENPLATSEN AR ETT DRAGMAL (Chris). Den lyste inte upp
+     och tog inte emot nagot - draget var den enda av de fyra vagarna som inte
+     fanns. */
+  if (d.from === 'inv' && d.gear && isGemItem(d.gear)){
+    const t = invCells();
+    const gw = document.getElementById('gem-wrap');
+    if (gw) t.push(gw);
+    return t;
+  }
   if (d.from === 'inv'){
     /* En bar pjas far bade sina kroppsplatser OCH alla vaskrutor (omsortering). */
     const t = invCells();
@@ -26719,6 +26835,9 @@ function endDrag(d, x, y){
       if (row >= 0) equipVaultBag(row, +vsock.dataset.vaultbag);
       return;
     }
+    /* Slappt pa stenplatsen: samma fraga som alla andra vagar staller. */
+    const gw = under.closest('#gem-wrap');
+    if (gw && d.gear && isGemItem(d.gear)){ setGemFromBag(d.gear); return; }
     const slot = under.closest('#panel-character [data-slot]');
     /* Endast en plats pjasen faktiskt passar tar emot - en hjalm hor inte hemma i
        vapenrutan, men en ring far slappas pa BADE Ring I och Ring II. */
@@ -27059,6 +27178,18 @@ $('reward-close').addEventListener('click', () => { pendingClaimId = null; $('re
 $('reward-overlay').addEventListener('click', e => { if (e.target === $('reward-overlay')){ pendingClaimId = null; $('reward-overlay').classList.remove('open'); } });
 /* [TILLAGT v5.208.0] Hjalparrutan stangs pa alla tre satten en ruta brukar
    stangas: krysset, knappen, och ett klick utanfor. */
+$('gemask-yes').addEventListener('click', () => {
+  const f = gemAskYes; closeGemAsk();
+  if (f){ try { f(); } catch (e){} }
+});
+$('gemask-no').addEventListener('click', () => {
+  closeGemAsk();
+  say('The gem stayed in your backpack.');
+  renderInventory();
+});
+$('gemask-overlay').addEventListener('click', e => {
+  if (e.target === $('gemask-overlay')) closeGemAsk();
+});
 $('hrev-close').addEventListener('click', closeHelperReveal);
 $('hrev-ok').addEventListener('click', closeHelperReveal);
 $('hrev-overlay').addEventListener('click', e => { if (e.target === $('hrev-overlay')) closeHelperReveal(); });
@@ -30967,11 +31098,96 @@ function gemWinOffsetClear(w){
 }
 function renderNodeWin(){
   const box = $('node-body'); if (!box) return;
-  if (NODE.kind === 'encounter') box.innerHTML = nodeEncounterHTML();
+  if (NODE.kind === 'town') box.innerHTML = nodeTownHTML();
+  else if (NODE.kind === 'encounter') box.innerHTML = nodeEncounterHTML();
   else if (NODE.kind === 'quest') box.innerHTML = nodeQuestHTML();
   else if (NODE.kind === 'expedition') box.innerHTML = nodeExpHTML();
   else box.innerHTML = nodeZoneHTML();
   wireNodeWin();
+}
+/* [TILLAGT v5.240.0] HUSRUTAN: RES HIT, SEDAN GA IN (Chris punkt 8).
+   Forut oppnade valvknappen antingen valvet eller ingenting alls, beroende pa
+   var man stod, och kartans valvnod gjorde detsamma. Nu ar det tva steg som
+   syns: rutan sager var huset ligger och erbjuder resan, och nar man ar framme
+   byter samma ruta till bilden och dorren. */
+function nodeTownHTML(){
+  const k = NODE.town, t = TOWNS[k];
+  if (!t) return '<div class="shelf-empty">Nothing here.</div>';
+  const R = REGIONS[NODE.region] || {};
+  const here = atTown(k);
+  let h = '<div class="nd-here' + (here ? '' : ' away') + '">' +
+    (here ? '\u25cf YOU ARE HERE'
+          : '\u27a4 ' + esc(t.name).toUpperCase() + ' \u00b7 ' + esc(R.name || '').toUpperCase()) +
+    '</div>';
+  h += '<div class="town-stage"><span class="town-art art-wrap">' +
+       artWithFallback(t.art, t.ico) + '</span></div>';
+  h += '<div class="town-blurb">' + esc(t.blurb) + '</div>';
+  if (here){
+    h += '<div class="nd-acts"><button class="btn-primary" data-nd="townenter">' +
+      esc(t.enter) + '</button>' +
+      '<button class="btn-neutral" data-nd="close">Close</button></div>';
+  } else {
+    h += '<div class="town-cost">Travel costs ' + ZONE_FUEL_COST + ' fuel \u00b7 you have ' +
+      Math.floor(S.fuel) + '</div>';
+    h += '<div class="nd-acts"><button class="btn-primary" data-nd="towntravel"' +
+      (S.fuel < ZONE_FUEL_COST ? ' disabled' : '') + '>Travel here</button>' +
+      '<button class="btn-neutral" data-nd="close">Close</button></div>';
+  }
+  return h;
+}
+function openTownWin(k, region){
+  const t = TOWNS[k]; if (!t) return;
+  openNodeWin('town', region || S.world.current, t.zone);
+  NODE.town = k;
+  $('node-title').textContent = t.name;
+  renderNodeWin();
+  fitTownWin();
+}
+/* [TILLAGT v5.240.0] HELA RUTAN SKA SYNAS. Pa telefon placeras nodfonstret inte
+   om alls, sa det arvde det lage forra fonstret lag i - uppmatt trettio pixlar
+   nedanfor skarmkanten pa 390 och 360. Den vanliga kantvakten haller bara
+   OVERkanten inne; den har raknar pa hojden ocksa. */
+function fitTownWin(){
+  /* Pa smal skarm ar rutan ett blad som glider upp fran underkanten och styrs
+     av bladets egna regler - da ska ingen raknad topp lagga sig i. */
+  if (typeof isNarrowScreen === 'function' && isNarrowScreen()) return;
+  const w = $('node-overlay'); if (!w) return;
+  const m = w.querySelector('.modal'); if (!m) return;
+  const h = m.getBoundingClientRect().height;
+  const t = Math.max(8, Math.min(parseFloat(w.style.top) || 8, window.innerHeight - h - 8));
+  w.style.top = t + 'px';
+}
+/* Sjalva resan. Regeln om vem som far resa vart bor pa SERVERN - den har
+   funktionen skickar bara dit och tar emot svaret. */
+function townTravel(){
+  const k = NODE.town, t = TOWNS[k]; if (!t) return;
+  if (NODE.busy) return;
+  if (S.world.travel){ say('You are travelling \u2014 wait until you land.'); return; }
+  if (S.fuel < ZONE_FUEL_COST){ say('Not enough fuel.'); return; }
+  const region = S.world.current;
+  const klart = () => {
+    S.world.zone = t.zone;
+    afterZoneHop(region, t.zone);
+    NODE.busy = false;
+    renderNodeWin();
+    fitTownWin();
+  };
+  NODE.busy = true;
+  if (NET.on){
+    netEnterZone(t.zone)
+      .then(klart)
+      .catch(e => { NODE.busy = false; say(srvErrText(e)); });
+  } else {
+    S.fuel -= ZONE_FUEL_COST; klart();
+  }
+}
+function townEnter(){
+  const k = NODE.town, t = TOWNS[k]; if (!t) return;
+  if (!atTown(k)){ renderNodeWin(); return; }
+  closeNodeWin();
+  if (k === 'vault'){ openVault(); return; }
+  const i = REGIONS[S.world.current] ? REGIONS[S.world.current].zones.indexOf(t.zone) : -1;
+  if (i >= 0) openZone(S.world.current, i);
 }
 /* ---- Motet: bara motet ---- */
 function nodeEncounterHTML(){
@@ -31312,6 +31528,8 @@ function wireNodeWin(){
       closeNodeWin(); if (i >= 0) openZone(NODE.region, i);
       return;
     }
+    if (a === 'towntravel'){ townTravel(); return; }
+    if (a === 'townenter'){ townEnter(); return; }
     if (a === 'travel'){ nodeTravelThen(() => renderNodeWin()); return; }
     if (a === 'scan'){
       /* [RATTAT v5.186.0] NEDRAKNINGEN KOM INTE FORRAN MAN KLICKAT UR ZONEN OCH
