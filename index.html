@@ -3701,10 +3701,15 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-link{position:absolute;top:50%;height:2px;border-radius:2px;background:var(--border-soft);
   transform-origin:50% 50%;opacity:.55;transition:background .25s, box-shadow .25s, opacity .25s}
 .pt-link.on{background:var(--pp-col);opacity:1;box-shadow:0 0 8px -1px var(--pp-col)}
+/* [TILLAGT v5.215.0] Mellanlaget: vagen ar oppen men andra anden ar inte kopt.
+   Halva glodet och halva opaciteten, sa den syns som en inbjudan och inte som
+   en gjord vag. */
+.pt-link.ready{background:var(--pp-col);opacity:.6;box-shadow:0 0 6px -2px var(--pp-col)}
 .pt-link.f1.t1{left:16.66%;width:0;border-left:2px solid var(--border-soft);height:26px;top:0}
 .pt-link.f2.t2{left:50%;width:0;border-left:2px solid var(--border-soft);height:26px;top:0}
 .pt-link.f3.t3{left:83.33%;width:0;border-left:2px solid var(--border-soft);height:26px;top:0}
 .pt-link.f1.t1.on,.pt-link.f2.t2.on,.pt-link.f3.t3.on{border-left-color:var(--pp-col)}
+.pt-link.f1.t1.ready,.pt-link.f2.t2.ready,.pt-link.f3.t3.ready{border-left-color:var(--pp-col)}
 .pt-link.f1.t2,.pt-link.f2.t1{left:16.66%;width:33.33%}
 .pt-link.f2.t3,.pt-link.f3.t2{left:50%;width:33.33%}
 .pt-link.f1.t2{transform:rotate(23deg)}
@@ -3715,12 +3720,16 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-side{position:absolute;top:26px;height:2px;width:33.33%;border-radius:2px;
   background:var(--border-soft);opacity:.55;z-index:0}
 .pt-side.on{background:var(--pp-col);opacity:1;box-shadow:0 0 8px -1px var(--pp-col)}
+.pt-side.ready{background:var(--pp-col);opacity:.6;box-shadow:0 0 6px -2px var(--pp-col)}
 .pt-side.s1{left:16.66%}
 .pt-side.s2{left:50%}
 .pt-node{--oc:var(--pp-col);position:relative;z-index:1;display:flex;flex-direction:column;
   align-items:center;gap:5px;cursor:pointer;width:100%;padding:0 2px}
-.pt-oct{width:52px;height:52px;position:relative;display:grid;place-items:center;font-size:19px;
-  clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%)}
+/* [RATTAT v5.216.0] "0 /" i stallet for "0 / 3". Talet fanns hela tiden - det
+   var oktagonens form som lag pa SJALVA rutan och klippte bort allt utanfor
+   atthorningen, och rangmarket sitter i underkanten dar formen smalnar av.
+   Formen hor hemma pa de tva lagren bakom, inte pa rutan som haller texten. */
+.pt-oct{width:52px;height:52px;position:relative;display:grid;place-items:center;font-size:19px}
 .pt-oct::before,.pt-oct::after{content:'';position:absolute;
   clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%)}
 .pt-oct::before{inset:0;background:var(--oc)}
@@ -3728,7 +3737,7 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-oct>span{position:relative;z-index:2;line-height:1}
 .pt-rank{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);z-index:3;font-style:normal;
   font-family:var(--font-mono);font-size:8.5px;color:var(--text-dim);background:#070d1c;
-  padding:0 4px;border-radius:6px}
+  white-space:nowrap;line-height:1.3;padding:0 4px;border-radius:6px}
 .pt-nname{font-size:9px;font-weight:700;letter-spacing:.02em;color:var(--text-dim);text-align:center;
   line-height:1.15;max-width:88px}
 /* De tre tillstanden. Slackt = ingen glod alls, som du bad om. */
@@ -3744,6 +3753,26 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-node.gold.owned .pt-oct::after{background:linear-gradient(180deg,rgba(255,200,60,.2),rgba(7,13,28,.96))}
 .pt-node.gold .pt-nname{color:var(--gold)}
 .pt-node.sel .pt-oct::after{inset:3px}
+/* [TILLAGT v5.217.0] Utlagda men obekraftade poang. Streckad ring sager att
+   noden inte ar sparad an - och planeringsraden ar det enda som skickar. */
+.pt-node.staged .pt-oct{filter:drop-shadow(0 0 9px var(--oc))}
+.pt-node.staged .pt-rank{color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.pt-node.staged .pt-nname{font-style:italic}
+.pt-stagebar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 11px;
+  background:rgba(255,200,60,.07);border:1px dashed var(--gold);border-radius:11px}
+.pt-stagebar span{flex:1;font-size:11.5px;color:var(--text)}
+.pt-stagebar b{font-family:var(--font-mono);color:var(--gold);font-size:14px}
+.pt-confirm{padding:7px 14px;border-radius:9px;font-weight:900;letter-spacing:.14em;font-size:12px;
+  cursor:pointer;background:linear-gradient(180deg,rgba(255,200,60,.2),rgba(255,200,60,.07));
+  border:1px solid var(--gold);color:var(--gold)}
+.pt-confirm:hover{filter:brightness(1.2)}
+.pt-cancel{padding:7px 11px;border-radius:9px;font-size:11px;cursor:pointer;
+  background:none;border:1px solid var(--border-soft);color:var(--text-dim)}
+.pt-cancel:hover{color:var(--text)}
+.pt-undo{padding:5px;border-radius:8px;font-size:10.5px;cursor:pointer;
+  background:none;border:1px solid var(--border-soft);color:var(--text-dim)}
+.pt-undo:hover{color:var(--gold);border-color:var(--gold)}
+.pt-dstg{font-style:normal;font-size:10px;color:var(--gold);letter-spacing:.06em}
 @media (max-width:520px){
   .pt-tierlab{flex:0 0 40px;font-size:8px}
   .pt-links{margin-left:48px;height:20px}
@@ -6131,7 +6160,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.214.0 — SKILLTRADET AR ETT RUTNAT MED POANG</div>
+        <div class="sn-ver">GENESIS v5.217.0 — LAGG UT POANGEN, PROVA, BEKRAFTA</div>
       </div>
     </div>
   </aside>
@@ -7093,7 +7122,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.214.0 — SKILLTRADET AR ETT RUTNAT MED POANG</div>
+            <div class="desc">GENESIS v5.217.0 — LAGG UT POANGEN, PROVA, BEKRAFTA</div>
           </div>
         </div>
       </div>
@@ -21774,10 +21803,30 @@ async function netPullSkills(){
 }
 /* [ANDRAT v5.214.0] EN RAD PER NOD. Forut lag ett enda val per rad i tradet och
    allt harunder utgick fran det. Nu kan man aga flera noder i samma rad, sa
-   uppslaget gar pa noden. */
+   uppslaget gar pa noden.
+   [TILLAGT v5.217.0] PLANERADE POANG (Chris). Man ska kunna lagga ut hela sin
+   build och prova den innan nagot skickas till servern - annars kostar varje
+   ombestammning tio guld. Darfor TVA lager: det som ar kopt, och det som bara
+   ar utlagt. Bara det kopta far rakna i spelets siffror; det utlagda syns bara
+   i tradet tills man trycker bekrafta. */
 function skillNodeRanks(prof, tier, node){
   const t = S.skills && S.skills[prof] && S.skills[prof][tier];
   return (t && +t[node]) || 0;
+}
+function skillStagedRanks(prof, tier, node){
+  const t = PPT.stage && PPT.stage[prof] && PPT.stage[prof][tier];
+  return (t && +t[node]) || 0;
+}
+/* Vyn = kopt + utlagt. Anvands av tradet och av kopplingsreglerna medan man
+   planerar. Spelets effekter laser ALDRIG den har. */
+function skillViewRanks(prof, tier, node){
+  return skillNodeRanks(prof, tier, node) + skillStagedRanks(prof, tier, node);
+}
+function skillStagedTotal(prof){
+  const p = PPT.stage && PPT.stage[prof]; if (!p) return 0;
+  let n = 0;
+  Object.keys(p).forEach(t => Object.keys(p[t]).forEach(k => { n += +p[t][k] || 0; }));
+  return n;
 }
 function skillTierRanks(prof, tier){
   const t = S.skills && S.skills[prof] && S.skills[prof][tier];
@@ -21790,14 +21839,16 @@ function skillPoints(prof){
   const total = Math.max(0, Math.min(profLvl(prof), 20) - 1);
   let spent = 0;
   Object.keys((S.skills && S.skills[prof]) || {}).forEach(t => { spent += skillTierRanks(prof, +t); });
-  return {total: total, spent: spent, left: total - spent};
+  const staged = skillStagedTotal(prof);
+  return {total: total, spent: spent, staged: staged, left: total - spent - staged};
 }
 /* KOPPLINGARNA. Rad 1 alltid oppen, rad 1-2 rakt ned, rad 2-3 och 3-4 bara
    snett, rad 3 aven i sidled, rad 4-5 rakt ned. En nod oppnar sina grannar
-   redan vid forsta rangen. Speglar serverns skill_node_open. */
+   redan vid forsta rangen. Speglar serverns skill_node_open - men raknar aven
+   det man lagt ut, sa hela vagen gar att planera innan man bekraftar. */
 function skillOwnedAt(prof, tier, pos){
   const tr = (SKILL_TREES[prof] || {})[tier] || [];
-  return tr.some(n => n.pos === pos && skillNodeRanks(prof, tier, n.id) > 0);
+  return tr.some(n => n.pos === pos && skillViewRanks(prof, tier, n.id) > 0);
 }
 function skillNodeOpen(prof, tier, pos){
   if (tier === 1) return true;
@@ -21810,8 +21861,41 @@ function skillNodeOpen(prof, tier, pos){
 }
 function skillCapstoneTaken(prof){
   const tr = (SKILL_TREES[prof] || {})[5] || [];
-  return tr.find(n => skillNodeRanks(prof, 5, n.id) > 0) || null;
+  return tr.find(n => skillViewRanks(prof, 5, n.id) > 0) || null;
 }
+/* Lagg ut en poang. Inget skickas - det ar bara en plan tills man bekraftar. */
+function skillStage(prof, tier, node, n){
+  PPT.stage = PPT.stage || {};
+  PPT.stage[prof] = PPT.stage[prof] || {};
+  PPT.stage[prof][tier] = PPT.stage[prof][tier] || {};
+  PPT.stage[prof][tier][node] = (PPT.stage[prof][tier][node] || 0) + 1;
+}
+/* Ta bort en utlagd poang - och stad bort allt som darmed tappade sin vag.
+   Utan stadningen kan man dra undan mattan under en nod langre ner och sitta
+   med en plan som servern skulle avvisa. */
+function skillUnstage(prof, tier, node){
+  const st = PPT.stage && PPT.stage[prof] && PPT.stage[prof][tier];
+  if (!st || !st[node]) return;
+  st[node] -= 1;
+  if (st[node] <= 0) delete st[node];
+  let andrat = true;
+  while (andrat){
+    andrat = false;
+    const p = PPT.stage[prof] || {};
+    for (const t of Object.keys(p)){
+      for (const k of Object.keys(p[t])){
+        if (skillNodeRanks(prof, +t, k) > 0) continue;
+        const def = ((SKILL_TREES[prof] || {})[+t] || []).find(x => x.id === k);
+        if (!def) continue;
+        const spar = p[t][k];
+        delete p[t][k];
+        if (skillNodeOpen(prof, +t, def.pos)) p[t][k] = spar;
+        else andrat = true;
+      }
+    }
+  }
+}
+function skillStageClear(prof){ if (PPT.stage) delete PPT.stage[prof]; }
 /* Summan av en eller flera effekter - samma matematik som serverns skill_pct. */
 function skillPct(prof){
   let sum = 0;
@@ -21883,7 +21967,7 @@ function skillEffText(n, ranks){
 /* --- Ritningen: fem rader, tre oktagoner, detaljpanelen underst - efter
        spelarens bild. --- */
 let ppTab = 'book';
-let PPT = {sel: null, resetArmed: false};
+let PPT = {sel: null, resetArmed: false, stage: {}};
 /* [BORTTAGET v5.214.0] Smaktexterna under noderna ar borta (Chris). Samma rad
    stod pa halva tradet - "rumors say the pattern chooses the maker" - och en
    text som upprepas sager mindre an ingen text alls. */
@@ -21900,7 +21984,7 @@ function ppTreeHTML(prof){
   /* Tillstand per nod: agd, oppen (gar att kopa nu) eller slackt. Toppraden
      kraver full yrkesniva och lases sa fort EN av de tre ar vald. */
   const nodeState = (t, n) => {
-    const ranks = skillNodeRanks(prof, t, n.id);
+    const ranks = skillViewRanks(prof, t, n.id);
     if (ranks > 0) return 'owned';
     if (t === 5){
       if (lvl < 20 || cap) return 'dark';
@@ -21908,8 +21992,24 @@ function ppTreeHTML(prof){
     }
     return skillNodeOpen(prof, t, n.pos) ? 'open' : 'dark';
   };
-  /* Ett streck lyser bara nar BADA andarna ar agda - da har man gatt vagen. */
-  const wireOn = (t1, p1, t2, p2) => skillOwnedAt(prof, t1, p1) && skillOwnedAt(prof, t2, p2);
+  /* [ANDRAT v5.215.0] STRECKET LYSER NAR VAGEN OPPNAS (Chris). Forut tandes det
+     forst nar bada andarna var kopta - alltsa efterat. Tre lagen nu: slackt,
+     "vagen ar oppen" (svag glod, andan du kan ga till), och helt tand nar bada
+     noderna ar dina. Toppraden lyser bara om niva 20 ar nadd och ingen toppnod
+     redan ar vald - annars vore glodet ett lofte som inte galler. */
+  const capReady = lvl >= 20 && !cap;
+  const wireCls = (t1, p1, t2, p2) => {
+    const a = skillOwnedAt(prof, t1, p1), b = skillOwnedAt(prof, t2, p2);
+    if (a && b) return ' on';
+    if (t2 === 5 && !capReady) return '';
+    if (a) return ' ready';
+    return '';
+  };
+  /* Sidled: bada hallen oppnar, sa vilken ande som helst racker. */
+  const sideCls = (p1, p2) => {
+    const a = skillOwnedAt(prof, 3, p1), b = skillOwnedAt(prof, 3, p2);
+    return (a && b) ? ' on' : ((a || b) ? ' ready' : '');
+  };
 
   let rows = '';
   for (const t of tierList){
@@ -21918,25 +22018,26 @@ function ppTreeHTML(prof){
     if (t > 1){
       const links = [];
       if (t === 2 || t === 5){
-        for (let p = 1; p <= 3; p++) links.push({from: p, to: p, on: wireOn(t - 1, p, t, p)});
+        for (let p = 1; p <= 3; p++) links.push({from: p, to: p, cls: wireCls(t - 1, p, t, p)});
       } else {
         [[1,2],[2,1],[2,3],[3,2]].forEach(pair =>
-          links.push({from: pair[0], to: pair[1], on: wireOn(t - 1, pair[0], t, pair[1])}));
+          links.push({from: pair[0], to: pair[1], cls: wireCls(t - 1, pair[0], t, pair[1])}));
       }
       rows += '<div class="pt-links">' + links.map(l =>
-        '<i class="pt-link f' + l.from + ' t' + l.to + (l.on ? ' on' : '') + '"></i>').join('') + '</div>';
+        '<i class="pt-link f' + l.from + ' t' + l.to + l.cls + '"></i>').join('') + '</div>';
     }
     /* Rad 3 har dessutom streck i sidled. */
     const side = (t === 3)
-      ? '<i class="pt-side s1' + (wireOn(3, 1, 3, 2) ? ' on' : '') + '"></i>' +
-        '<i class="pt-side s2' + (wireOn(3, 2, 3, 3) ? ' on' : '') + '"></i>'
+      ? '<i class="pt-side s1' + sideCls(1, 2) + '"></i>' +
+        '<i class="pt-side s2' + sideCls(2, 3) + '"></i>'
       : '';
     rows += '<div class="pt-row r' + t + '">' +
       '<div class="pt-tierlab">TIER ' + t + (t === 5 ? '<span>LEVEL 20</span>' : '') + '</div>' +
       '<div class="pt-nodes">' + side + nodes.map(n => {
-        const ranks = skillNodeRanks(prof, t, n.id);
+        const ranks = skillViewRanks(prof, t, n.id);
         const st = nodeState(t, n);
         const cls = ['pt-node', st];
+        if (skillStagedRanks(prof, t, n.id) > 0) cls.push('staged');
         if (t === 5) cls.push('gold');
         if (PPT.sel && PPT.sel.tier === t && PPT.sel.node === n.id) cls.push('sel');
         return '<div class="' + cls.join(' ') + '" data-ptnode="' + t + ':' + n.id + '">' +
@@ -21961,20 +22062,19 @@ function ppTreeHTML(prof){
   let detail = '';
   if (sel){
     const n = tree[sel.tier].find(x => x.id === sel.node);
-    const ranks = skillNodeRanks(prof, sel.tier, sel.node);
+    const ranks = skillViewRanks(prof, sel.tier, sel.node);
+    const stg = skillStagedRanks(prof, sel.tier, sel.node);
     const eff = skillEffText(n, ranks);
     const st = nodeState(sel.tier, n);
     const maxed = ranks >= n.max;
     const broke = pts.left < 1;
     const capBlocked = sel.tier === 5 && cap && cap.id !== n.id;
     const btnLabel = maxed ? 'MAXED'
-      : capBlocked ? 'ANOTHER CAPSTONE CHOSEN'
+      : capBlocked ? 'ANOTHER CAPSTONE PICKED'
       : (sel.tier === 5 && lvl < 20) ? 'NEEDS LEVEL 20'
       : st === 'dark' ? 'NOT CONNECTED YET'
       : broke ? 'NO POINTS LEFT'
-      : (PPT.buyArm === sel.tier + ':' + sel.node && sel.tier === 5)
-        ? 'CONFIRM \u2014 LOCKS THE OTHER TWO'
-        : 'SPEND 1 POINT';
+      : 'PLACE 1 POINT';
     const disabled = maxed || capBlocked || broke || st === 'dark';
     let patternPick = '';
     if (n.eff === 'pattern' && ranks > 0){
@@ -21990,66 +22090,130 @@ function ppTreeHTML(prof){
       '<div class="pt-dico"><span>' + (n.ico || SKILL_ICO[n.eff] || '\u2b50') + '</span></div>' +
       '<div class="pt-dtext">' +
         '<div class="pt-dname" style="color:' + col + '">' + n.name.toUpperCase() +
-          ' <span class="pt-drank">' + ranks + ' / ' + n.max + '</span></div>' +
+          ' <span class="pt-drank">' + ranks + ' / ' + n.max +
+          (stg ? ' <i class="pt-dstg">' + stg + ' planned</i>' : '') + '</span></div>' +
         '<div class="pt-deff">' + (eff.next ? '<b>' + eff.next + '</b>' + (ranks > 0 ? ' <span class="pt-now">(now: ' + eff.now + ')</span>' : '') : '<b>' + eff.now + '</b>') + '</div>' +
         patternPick +
       '</div>' +
       '<div class="pt-dbuy">' +
         '<button class="pt-upg" data-ptbuy="' + sel.tier + ':' + sel.node + '"' + (disabled ? ' disabled' : '') + '>' + btnLabel + '</button>' +
+        (stg ? '<button class="pt-undo" data-ptundo="' + sel.tier + ':' + sel.node + '">Take that point back</button>' : '') +
         '<button class="pt-reset" data-ptreset="' + prof + '">' +
           (PPT.resetArmed ? 'CONFIRM RESET \u2014 10 GOLD, ALL POINTS COME BACK' : 'Reset tree \u00b7 10 gold') + '</button>' +
       '</div>' +
     '</div>';
   }
+  /* Planeringsraden. Den syns bara nar det finns nagot utlagt, och da ar den
+     det enda som skickar nagot till servern. Ingenting kostar guld forran man
+     nollstaller - att andra sig innan bekraftelsen ar gratis. */
+  const stagedBar = pts.staged > 0
+    ? '<div class="pt-stagebar"><span><b>' + pts.staged + '</b> point' +
+        (pts.staged === 1 ? '' : 's') + ' placed, not saved yet</span>' +
+      '<button class="pt-cancel" data-ptclear="' + prof + '">Clear</button>' +
+      '<button class="pt-confirm" data-ptconfirm="' + prof + '">CONFIRM</button></div>'
+    : '';
   const ptsBar = '<div class="pt-points"><b>' + pts.left + '</b><span>point' +
     (pts.left === 1 ? '' : 's') + ' left</span><i>' + pts.spent + ' / ' + pts.total + ' spent</i></div>';
   return '<div class="pt-wrap" style="--pp-col:' + col + '">' +
-    '<div class="pt-grid"><div class="pt-head">SKILL TREE' + ptsBar + '</div>' + rows + '</div>' + detail + '</div>';
+    '<div class="pt-grid"><div class="pt-head">SKILL TREE' + ptsBar + '</div>' + rows + '</div>' +
+    stagedBar + detail + '</div>';
 }
 function ppForceRender(){ profPageSig = ''; renderProfPage(); }
-async function skillBuy(prof, tier, node){
+/* [ANDRAT v5.217.0] Ett klick LAGGER UT en poang. Ingenting skickas forran man
+   bekraftar, sa man kan bygga hela sin plan, se effekterna och andra sig gratis.
+   Toppnoden ar fortfarande ett beslut som laser de andra tva - men aven det gar
+   att ta tillbaka sa lange planen inte ar bekraftad. */
+function skillPlace(prof, tier, node){
   const tree = SKILL_TREES[prof]; if (!tree) return;
   const n = (tree[tier] || []).find(x => x.id === node); if (!n) return;
-  /* [ANDRAT v5.214.0] Bara TOPPRADEN kraver tva tryck. Den lases sa fort en av
-     de tre ar vald och gar inte att angra utan nollstallning; de andra raderna
-     kostar en poang och poangen kommer tillbaka nar man nollstaller. */
-  if (tier === 5 && skillNodeRanks(prof, 5, node) === 0 && PPT.buyArm !== tier + ':' + node){
-    PPT.buyArm = tier + ':' + node; ppForceRender(); return;
+  const pts = skillPoints(prof);
+  if (pts.left < 1){ say('No skill points left.'); return; }
+  if (skillViewRanks(prof, tier, node) >= n.max){ say('That skill is already maxed.'); return; }
+  if (skillViewRanks(prof, tier, node) === 0 && !skillNodeOpen(prof, tier, n.pos)){
+    say('That node is not connected to anything you own yet.'); return;
   }
-  PPT.buyArm = null;
+  if (tier === 5){
+    if (profLvl(prof) < 20){ say('The last row opens at profession level 20.'); return; }
+    const cap = skillCapstoneTaken(prof);
+    if (cap && cap.id !== node){ say('You already picked a different capstone.'); return; }
+  }
+  skillStage(prof, tier, node);
+  ppForceRender();
+}
+function skillTakeBack(prof, tier, node){
+  skillUnstage(prof, tier, node);
+  ppForceRender();
+}
+/* Bekraftelsen skickar de utlagda poangen en i taget, i en ordning dar varje
+   nod redan ar ansluten nar den kops - annars skulle servern med ratta saga nej
+   till en nod langre ner an den man borjat med. */
+function skillStageOrder(prof){
+  const plan = (PPT.stage && PPT.stage[prof]) || {};
+  const kvar = [];
+  Object.keys(plan).forEach(t => Object.keys(plan[t]).forEach(k => {
+    for (let i = 0; i < plan[t][k]; i++) kvar.push({tier: +t, node: k});
+  }));
+  const har = {};
+  const agd = (tier, pos) => ((SKILL_TREES[prof] || {})[tier] || []).some(x =>
+    x.pos === pos && (skillNodeRanks(prof, tier, x.id) > 0 || har[tier + ':' + x.id]));
+  const oppen = (tier, pos) => {
+    if (tier === 1) return true;
+    if (tier === 2) return agd(1, pos);
+    if (tier === 3) return agd(2, pos - 1) || agd(2, pos + 1) || agd(3, pos - 1) || agd(3, pos + 1);
+    if (tier === 4) return agd(3, pos - 1) || agd(3, pos + 1);
+    if (tier === 5) return agd(4, pos);
+    return false;
+  };
+  const ordning = [];
+  let varv = 0;
+  while (kvar.length && varv < 200){
+    varv++;
+    const i = kvar.findIndex(x => {
+      const def = ((SKILL_TREES[prof] || {})[x.tier] || []).find(d => d.id === x.node);
+      return def && (skillNodeRanks(prof, x.tier, x.node) > 0 || har[x.tier + ':' + x.node] || oppen(x.tier, def.pos));
+    });
+    if (i < 0) break;
+    const steg = kvar.splice(i, 1)[0];
+    har[steg.tier + ':' + steg.node] = true;
+    ordning.push(steg);
+  }
+  return kvar.length ? null : ordning;
+}
+async function skillConfirm(prof){
+  const ordning = skillStageOrder(prof);
+  if (!ordning){ say('That plan does not hold together \u2014 clear it and try again.'); return; }
+  if (!ordning.length) return;
   if (NET.on){
-    try {
-      await srvRpc('skill_buy', {p_character: SRV.charId, p_prof: prof, p_tier: tier, p_node: node});
-      await netPullSkills();
-    } catch (e){
-      const t = String(e && e.message || e);
-      say(t === 'no_points_left' ? 'No skill points left.'
-        : t === 'node_locked' ? 'That node is not connected to anything you own yet.'
-        : t === 'capstone_locked' ? 'The last row opens at profession level 20.'
-        : t === 'capstone_already_chosen' ? 'You already picked a different capstone.'
-        : t === 'skill_maxed' ? 'That skill is already maxed.'
-        : 'The server said no.');
-      ppForceRender(); return;
+    for (const steg of ordning){
+      try {
+        await srvRpc('skill_buy', {p_character: SRV.charId, p_prof: prof,
+          p_tier: steg.tier, p_node: steg.node});
+      } catch (e){
+        const t = String(e && e.message || e);
+        say(t === 'no_points_left' ? 'No skill points left.'
+          : t === 'node_locked' ? 'One of the nodes lost its path \u2014 nothing more was saved.'
+          : t === 'capstone_locked' ? 'The last row opens at profession level 20.'
+          : t === 'capstone_already_chosen' ? 'You already picked a different capstone.'
+          : t === 'skill_maxed' ? 'That skill is already maxed.'
+          : 'The server said no.');
+        skillStageClear(prof);
+        await netPullSkills();
+        ppForceRender(); renderProfCards(true);
+        return;
+      }
     }
+    skillStageClear(prof);
+    await netPullSkills();
   } else {
-    const pts = skillPoints(prof);
-    if (pts.left < 1){ say('No skill points left.'); return; }
-    const ranks = skillNodeRanks(prof, tier, node);
-    if (ranks >= n.max){ say('That skill is already maxed.'); return; }
-    if (ranks === 0 && !skillNodeOpen(prof, tier, n.pos)){
-      say('That node is not connected to anything you own yet.'); return;
-    }
-    if (tier === 5){
-      if (profLvl(prof) < 20){ say('The last row opens at profession level 20.'); return; }
-      const cap = skillCapstoneTaken(prof);
-      if (cap && cap.id !== node){ say('You already picked a different capstone.'); return; }
-    }
     S.skills = S.skills || {}; S.skills[prof] = S.skills[prof] || {};
-    S.skills[prof][tier] = S.skills[prof][tier] || {};
-    S.skills[prof][tier][node] = ranks + 1;
+    ordning.forEach(steg => {
+      S.skills[prof][steg.tier] = S.skills[prof][steg.tier] || {};
+      S.skills[prof][steg.tier][steg.node] = (S.skills[prof][steg.tier][steg.node] || 0) + 1;
+    });
+    skillStageClear(prof);
     save();
   }
-  say(n.name + ' \u2014 rank ' + skillNodeRanks(prof, tier, node) + '.');
+  say(ordning.length + (ordning.length === 1 ? ' point' : ' points') + ' saved.');
   renderInventory(); ppForceRender(); renderProfCards(true);
 }
 async function skillReset(prof){
@@ -22086,8 +22250,17 @@ document.addEventListener('click', e => {
   const buy = e.target.closest('[data-ptbuy]');
   if (buy && !buy.disabled && profPageRef){
     const parts = buy.dataset.ptbuy.split(':');
-    skillBuy(profPageRef, +parts[0], parts[1]); return;
+    skillPlace(profPageRef, +parts[0], parts[1]); return;
   }
+  const undo = e.target.closest('[data-ptundo]');
+  if (undo && profPageRef){
+    const parts = undo.dataset.ptundo.split(':');
+    skillTakeBack(profPageRef, +parts[0], parts[1]); return;
+  }
+  const clr = e.target.closest('[data-ptclear]');
+  if (clr){ skillStageClear(clr.dataset.ptclear); ppForceRender(); return; }
+  const conf = e.target.closest('[data-ptconfirm]');
+  if (conf){ skillConfirm(conf.dataset.ptconfirm); return; }
   const rs = e.target.closest('[data-ptreset]');
   if (rs){ skillReset(rs.dataset.ptreset); return; }
   const pa = e.target.closest('[data-ptaff]');
