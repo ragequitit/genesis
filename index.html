@@ -6180,7 +6180,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.223.0 — SKARVORNA HAMNAR I PASEN, VASKFONSTREN SITTER STILLA</div>
+        <div class="sn-ver">GENESIS v5.224.0 — PASEN OPPNAS SOM SAMLARVASKAN, INTE AV SIG SJALV</div>
       </div>
     </div>
   </aside>
@@ -7143,7 +7143,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.223.0 — SKARVORNA HAMNAR I PASEN, VASKFONSTREN SITTER STILLA</div>
+            <div class="desc">GENESIS v5.224.0 — PASEN OPPNAS SOM SAMLARVASKAN, INTE AV SIG SJALV</div>
           </div>
         </div>
       </div>
@@ -13342,7 +13342,7 @@ function load(){
       if (['blue','bronze','red','green'].includes(d.vaultTone)) S.vaultTone = d.vaultTone;
       S.bagOpen = [0,1,2,3,4].map(i => !!(Array.isArray(d.bagOpen) && d.bagOpen[i]));
       S.bagOpen.g = !!(d.bagOpen && d.bagOpen.g);
-      S.bagOpen.p = (d.bagOpen && d.bagOpen.p !== undefined) ? !!d.bagOpen.p : true;
+      S.bagOpen.p = !!(d.bagOpen && d.bagOpen.p);
       /* MÅSTE stå EFTER readGear — tredje gången den fällan gillras (moneyV,
          väskorna, nu valvet). Deklarationen är en const längre ned i blocket. */
       /* Valvet läses med samma stränghet som väskan: bara giltiga pjäser och
@@ -16050,13 +16050,12 @@ function compactDims(n){
   const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
   return {cols: cols, rows: Math.ceil(n / cols)};
 }
-function bagIsOpen(socket){
-  /* [ANDRAT v5.221.0] Adelstenspasen ar OPPEN som utgangslage (Chris). Darfor
-     fragar den efter ett uttryckligt nej, inte efter ett ja - annars star den
-     stangd for alla som aldrig rort den. */
-  if (socket === 'p') return !(S.bagOpen && S.bagOpen.p === false);
-  return !!(S.bagOpen && S.bagOpen[socket]);
-}
+/* [ANDRAT v5.224.0] Adelstenspasen beter sig nu EXAKT som samlarvaskan (Chris):
+   inbakad i rutnatet tills man trycker pa knappen. Den brot ut sig sjalv nar
+   vaskan oppnades, och da mattes vaskans lage mitt i dess egen oppningsrorelse -
+   fonstret hamnade bakom och hoppade ratt forst vid nasta omritning. Ett fonster
+   som lagger sig sjalv pa fel plats ar samre an ett som inte oppnar alls. */
+function bagIsOpen(socket){ return !!(S.bagOpen && S.bagOpen[socket]); }
 /* ---------- VAR HAMNAR ETT UTBRUTET MINIFÖNSTER? ----------
    Alltid runt sitt moderfönster, aldrig på en sparad plats. Sparade platser lät
    fönstren hamna UNDER basrutan eller utanför skärmen så fort man flyttat något.
@@ -25867,15 +25866,11 @@ function closeInventoryWindow(){
   $('inv-overlay').classList.remove('open');
   /* BARA väskans egna: '.bagwin' träffar även valvets. */
   document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
-  /* [ANDRAT v5.222.0] Adelstenspasen ar OPPEN som utgangslage (Chris), sa den
-     nollstalls nar vaskan stangs. Stanger man den mitt i ett pass far den vara
-     stangd - men nasta gang man oppnar vaskan star den dar igen. */
-  const varOppna = S.bagOpen && S.bagOpen.some(Boolean);
-  const pasenStangd = S.bagOpen && S.bagOpen.p === false;
-  if (varOppna || pasenStangd){
-    const g = S.bagOpen.g;
+  /* [ANDRAT v5.224.0] Alla utbrutna vaskor bakas in igen nar inventoryt stangs -
+     samlarvaskan, verktygsfodralen och adelstenspasen. Nasta gang oppnar man dem
+     sjalv, och da vet vaskan var den star. */
+  if (S.bagOpen && (S.bagOpen.some(Boolean) || S.bagOpen.g || S.bagOpen.p)){
     S.bagOpen = S.bagOpen.map(() => false);
-    S.bagOpen.g = !!g;
     save();
   }
 }
@@ -26543,7 +26538,7 @@ document.querySelectorAll('[data-gbag]').forEach(el => {
 document.querySelectorAll('[data-pouch]').forEach(el => {
   el.addEventListener('click', () => {
     S.bagOpen = S.bagOpen || {};
-    S.bagOpen.p = !bagIsOpen('p');
+    S.bagOpen.p = !S.bagOpen.p;
     renderInventory(); save();
   });
   el.addEventListener('mouseenter', () => showBagTip(el,
