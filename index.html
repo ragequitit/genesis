@@ -978,12 +978,8 @@ body.dragging *{cursor:grabbing !important}
 }
 .item-actions button span{opacity:.85;font-family:var(--font-mono)}
 .ia-equip{border:1px solid var(--cyan-dim);background:linear-gradient(180deg,rgba(56,232,255,.16),rgba(56,232,255,.05));color:var(--cyan)}
-.ia-salvage{
-  background:linear-gradient(180deg,rgba(120,90,200,.2),rgba(120,90,200,.06));
-  border:1px solid var(--purple);color:#c9b6ff;
-}
-.ia-salvage span{opacity:.85;font-size:10px;margin-left:5px}
-.ia-bonus{color:#c9b6ff;font-weight:700}
+/* [BORTTAGET v5.243.0] Atervinningsknappens stil och dess bonusrad stod kvar
+   utan en enda knapp att kla - knappen flyttade till hogerklicksmenyn. */
 .ia-note-dim{color:var(--text-dim);font-size:10px}
 .gt-craft{font-size:10px;color:var(--cyan);letter-spacing:.06em;margin-top:3px}
 .gt-stat b.rc-yes{color:var(--cyan);font-weight:900;margin-right:1px}
@@ -3907,6 +3903,12 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-upg{padding:8px;border-radius:9px;font-weight:900;letter-spacing:.16em;font-size:13px;cursor:pointer;
   background:linear-gradient(180deg,rgba(255,200,60,.16),rgba(255,200,60,.06));
   border:1px solid var(--gold);color:var(--gold)}
+/* [TILLAGT v5.243.0] Ett textstycke inuti hogerklicksmenyn: fragan innan en
+   atervinning, och forklaringen av tuning. Menyn ar annars bara knappar, sa
+   texten far egen luft och egen fargton. */
+.pm-note{max-width:230px;padding:9px 11px;font-size:11px;line-height:1.55;
+  color:var(--text-dim);border-bottom:1px solid var(--border-soft)}
+.pm-note-good{color:var(--cyan)}
 /* [TILLAGT v5.242.0] Klartexten under slutnodens korta rad. Dampad och satt i
    brodtext, sa den laser som en forklaring och inte som en andra siffra. */
 .pt-dhelp{font-size:10.5px;line-height:1.65;color:var(--text-dim);margin-top:6px}
@@ -6341,7 +6343,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.242.0 — SLUTNODERNA FORKLARADE, OCH HOVRINGEN SAGER RATT SAK</div>
+        <div class="sn-ver">GENESIS v5.243.0 — ATERVINNINGEN PA HOGERKLICKET, TUNE BAKOM SIN NIVA</div>
       </div>
     </div>
   </aside>
@@ -7317,7 +7319,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.242.0 — SLUTNODERNA FORKLARADE, OCH HOVRINGEN SAGER RATT SAK</div>
+            <div class="desc">GENESIS v5.243.0 — ATERVINNINGEN PA HOGERKLICKET, TUNE BAKOM SIN NIVA</div>
           </div>
         </div>
       </div>
@@ -25529,7 +25531,11 @@ function itemWinActions(win, uid){
     box.innerHTML =
       '<button class="ia-equip" data-act="equip">Equip<span>' + GEAR_SLOTS[found.it.s].name + '</span></button>' +
       '<button class="ia-sell" data-act="sell">Sell</button>' +
-      (canSalvage(found.it) ? '<button class="ia-salvage" data-act="salvage">Recycle<span>' + salvageSummary(found.it) + '</span></button>' : '');
+      /* [BORTTAGET v5.243.0] ATERVINNINGEN LAG HAR (Chris). Kortet nas bara via
+         Tune, och Tune oppnar forst pa niva 25 - alltsa satt hela atervinningen
+         bakom en dorr som inte har med den att gora. Den ligger pa hogerklicket
+         nu, dar man letar efter den. */
+      '';
   }
 }
 /* Kort text pa Salvage-knappen: totalt antal material, och en prick om ratt yrke
@@ -25692,19 +25698,8 @@ function spawnItemWin(uid, nearX, nearY){
       sellGear(cur.idx);
     }
     else if (btn.dataset.act === 'sell-no'){ itemWinActions(win, uid); }
-    else if (btn.dataset.act === 'salvage'){
-      const box = win.querySelector('.item-actions'), pv = salvagePreview(cur.it);
-      const yield_ = pv.rows.map(r => MATERIALS[r.key].ico + ' ' + r.qty + ' ' + MATERIALS[r.key].name).join('<br>');
-      const bonus = pv.bonus
-        ? '<br><span class="ia-bonus">' + PROF_BY[pv.prof].name + ' bonus · +XP · ' + Math.round(pv.compChance * 100) + '% ' + MATERIALS[pv.comp].name + '</span>'
-        : '<br><span class="ia-note-dim">Learn ' + PROF_BY[pv.prof].name + ' for more</span>';
-      box.innerHTML =
-        '<div class="ia-note">Salvage ' + gearName(cur.it) + ' into:<br>' + yield_ + bonus + '<br>It is gone for good.</div>' +
-        '<button class="ia-danger" data-act="salvage-yes">Yes, salvage</button>' +
-        '<button class="ia-cancel" data-act="salvage-no">Keep it</button>';
-    }
-    else if (btn.dataset.act === 'salvage-yes'){ salvageGear(cur.idx); win.remove(); }
-    else if (btn.dataset.act === 'salvage-no'){ itemWinActions(win, uid); }
+    /* [BORTTAGET v5.243.0] Atervinningens tre steg lag har. De bor i
+       hogerklicksmenyn nu - inget halvt kvar pa bada stallen. */
   });
 }
 /* Föremålsfönstret för stapelsaker. Byggt på samma fönsterram som gear, men med
@@ -25784,16 +25779,45 @@ function openGearMenu(uid, x, y){
   if (!found) return;
   const m = document.createElement('div');
   m.className = 'pet-menu ctx';
-  let confirming = false;
+  /* [ANDRAT v5.243.0] Menyn har fyra lagen i stallet for ett ja/nej: sjalva
+     menyn, saljfragan, atervinningsfragan och forklaringen av Tune. EN variabel
+     styr vilket - tva oberoende flaggor hade kunnat vara sanna samtidigt. */
+  let lage = 'meny';
   const draw = () => {
     const f = findByUid(uid);
     if (!f){ closeStackMenu(); return; }
     const it = f.it, isBag = !!(ITEMS[it.t] && ITEMS[it.t].bag);
     let h = '';
-    if (confirming){
+    if (lage === 'salj'){
       m.innerHTML =
         '<button class="pm-item danger" data-act="sell-yes">Yes, sell it \u00b7 ' + fmtMoney(gearGold(it)) + '</button>' +
         '<button class="pm-item" data-act="sell-no">Keep it</button>';
+      return;
+    }
+    /* Atervinningen ar slutgiltig och pjasen ar unik, sa fragan stalls en gang -
+       och den sager vad man FAR, inte bara vad man forlorar. */
+    if (lage === 'recycle'){
+      const pv = salvagePreview(it);
+      const ger = pv.rows.map(r => MATERIALS[r.key].ico + ' ' + r.qty + ' ' + MATERIALS[r.key].name).join(', ');
+      m.innerHTML =
+        '<div class="pm-note">Recycle ' + esc(gearName(it)) + ' into ' + ger + '?<br>' +
+          'The piece is gone for good.' +
+          (pv.bonus ? '<br><span class="pm-note-good">' + PROF_BY[pv.prof].name + ' bonus counted</span>' : '') +
+        '</div>' +
+        '<button class="pm-item danger" data-act="recycle-yes">Yes, recycle it</button>' +
+        '<button class="pm-item" data-act="recycle-no">Keep it</button>';
+      return;
+    }
+    /* Under niva 25 oppnas inte kortet alls (Chris). Forut oppnades det anda,
+       tomt pa knappar, och sag ut som att nagot var trasigt. Nu star det i
+       stallet VAD tuning ar, sa raden fyller sin egentliga uppgift: att beratta
+       att det finns nagot att se fram emot. */
+    if (lage === 'tuneinfo'){
+      m.innerHTML =
+        '<div class="pm-note">Tuning re-rolls one stat on a piece you already own, for gold. ' +
+          'You see the old number and the new one, and you choose which to keep.<br>' +
+          'It opens at level ' + TUNE_MIN_LEVEL + '.</div>' +
+        '<button class="pm-item" data-act="tune-ok">Got it</button>';
       return;
     }
     if (f.where === 'equip'){
@@ -25814,16 +25838,20 @@ function openGearMenu(uid, x, y){
       h += '<button class="pm-item" data-act="tune">Tune \u00b7 ' +
            moneyText(tunePrice(it.r, it.tune || 0)) + ' \u00b7 ' + tuneLeft(it) + ' left</button>';
     } else if (NET.on && it.a && it.a.length && levelInfo().lvl < TUNE_MIN_LEVEL){
-      /* UNDER NIVA 25 STAR RADEN GRA I STALLET FOR ATT SAKNAS. Tune ar enda
-         vagen in till gearkortet, sa utan raden skulle en ny spelare aldrig se
-         kortet alls - och inte heller veta att tuning finns. Den ar dampad men
-         gar att trycka pa: kortet oppnas, det bara saknar tuningknappar an. */
-      h += '<button class="pm-item off" data-act="tune">Tune \u2014 opens at level ' +
+      /* [ANDRAT v5.243.0] Raden star kvar och ar dampad, men den oppnar en
+         FORKLARING i stallet for ett tomt kort. */
+      h += '<button class="pm-item off" data-act="tuneinfo">Tune \u2014 opens at level ' +
            TUNE_MIN_LEVEL + '</button>';
     } else if (NET.on && it.a && it.a.length && tuneLeft(it) <= 0){
       h += '<button class="pm-item off" data-act="tune">Tuned out \u2014 no attempts left</button>';
     }
     if (f.where === 'inv'){
+      /* [TILLAGT v5.243.0] ATERVINNINGEN LIGGER HAR NU (Chris). Bara for pjaser
+         som ligger i vaskan - en buren pjas tas av forst, precis som vid salj. */
+      if (!isBag && canSalvage(it)){
+        h += '<button class="pm-item" data-act="recycle">Recycle \u00b7 ' +
+             esc(salvageSummary(it)) + '</button>';
+      }
       h += '<button class="pm-item" data-act="sell">Sell \u00b7 ' + fmtMoney(gearGold(it)) + '</button>';
     }
     m.innerHTML = h;
@@ -25846,10 +25874,15 @@ function openGearMenu(uid, x, y){
     else if (act === 'unvault'){ fromVault(f.idx); closeStackMenu(); }
     else if (act === 'unbag'){ unequipBag(f.idx); closeStackMenu(); }
     else if (act === 'tune'){ closeStackMenu(); spawnItemWin(uid, x, y); }
+    else if (act === 'tuneinfo'){ lage = 'tuneinfo'; draw(); }
+    else if (act === 'tune-ok'){ closeStackMenu(); }
+    else if (act === 'recycle'){ lage = 'recycle'; draw(); }
+    else if (act === 'recycle-no'){ lage = 'meny'; draw(); }
+    else if (act === 'recycle-yes'){ hideGearTip(); closeStackMenu(); salvageGear(f.idx); }
     /* Att salja en pjas gar inte att angra och pjasen ar unik, sa fragan stalls
        en gang - i samma lilla meny, inte i en ny ruta. */
-    else if (act === 'sell'){ confirming = true; draw(); }
-    else if (act === 'sell-no'){ confirming = false; draw(); }
+    else if (act === 'sell'){ lage = 'salj'; draw(); }
+    else if (act === 'sell-no'){ lage = 'meny'; draw(); }
     else if (act === 'sell-yes'){ hideGearTip(); closeStackMenu(); sellGear(f.idx); }
   });
 }
