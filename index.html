@@ -6165,7 +6165,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.226.0 — EN VASKA HAMNAR I ETT VASKFACK, INTE PA KROPPEN</div>
+        <div class="sn-ver">GENESIS v5.227.0 — HYLLORNA LAGGS OM NAR EN VASKA TAS UR</div>
       </div>
     </div>
   </aside>
@@ -7128,7 +7128,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.226.0 — EN VASKA HAMNAR I ETT VASKFACK, INTE PA KROPPEN</div>
+            <div class="desc">GENESIS v5.227.0 — HYLLORNA LAGGS OM NAR EN VASKA TAS UR</div>
           </div>
         </div>
       </div>
@@ -9269,19 +9269,25 @@ async function netPullItemsRun(){
      packas i forsta lediga. Sa star en flyttad melon kvar dar man la den. */
   const order = invOrderLoad();
   const spill = [];
-  const place = (row, key, fallbackFrom) => {
+  /* [ANDRAT v5.227.0] DEN SPARADE PLATSEN MASTE LIGGA I RADENS EGEN HYLLA.
+     Forut racket det att den lag EFTER hyllans borjan - och eftersom pasen
+     ligger efter samlarvaskan godtogs en materialrad pa en av pasens platser.
+     Tog man ur en vaska kortades ryggsacken, alla granser flyttade sig fyra
+     steg, och da hamnade material i pasen och skarvor utanfor listan. */
+  const place = (row, key, fran, till) => {
     const at2 = key ? order[key] : undefined;
-    if (Number.isInteger(at2) && at2 >= fallbackFrom && at2 < S.inv.length && !S.inv[at2]){
+    if (Number.isInteger(at2) && at2 >= fran && at2 < Math.min(till, S.inv.length) && !S.inv[at2]){
       S.inv[at2] = row; return true;
     }
-    spill.push({row: row, from: fallbackFrom});
+    spill.push({row: row, from: fran});
     return false;
   };
   let at = 0;
   const pStart = gStart + gLen;
   bagRows.forEach(g => {
     const iPase = !!(g && gemByKey(g.t));
-    place({gear: g}, g.sid ? 'i:' + g.sid : null, iPase ? pStart : 0);
+    place({gear: g}, g.sid ? 'i:' + g.sid : null,
+          iPase ? pStart : 0, iPase ? S.inv.length : gStart);
   });
 
   /* Valvets rutor byggs om fran serverns rader. */
@@ -9342,7 +9348,9 @@ async function netPullItemsRun(){
       rar: schematicOf(st.stack_key) ? schematicOf(st.stack_key).rar
            : (st.rarity == null ? undefined : (st.rarity | 0))
     };
-    place(row, invRowKey(row), hylla === 'p' ? pStart : hylla === 'g' ? gStart : 0);
+    place(row, invRowKey(row),
+          hylla === 'p' ? pStart : hylla === 'g' ? gStart : 0,
+          hylla === 'p' ? S.inv.length : hylla === 'g' ? pStart : gStart);
   };
   mainRows.forEach(st => putStack(st, 'b'));
   gathRows.forEach(st => putStack(st, 'g'));
@@ -9366,6 +9374,9 @@ async function netPullItemsRun(){
      ganger: samma pjas (samma id) eller samma stapel (samma nyckel och steg).
      Kostar en varv genom en lista pa nagra tiotal rader. */
   invDropDuplicates();
+  /* Sista vakten for hyllorna: allt som anda hamnat pa fel hylla flyttas hem.
+     Kostar ett varv genom en lista pa nagra tiotal rader. */
+  invReshelve();
   return true;
 }
 function invDropDuplicates(){
@@ -15244,6 +15255,7 @@ function equipBag(invIdx, socket){
   const old = bagIn(socket);
   S.inv[invIdx] = old ? {gear: old} : null;
   S.bagItems[socket] = row.gear;
+  invReshelve();
   if (!fitAfterResize()){          // det gamla var större än det nya
     S.bagItems[socket] = old;
     S.inv[invIdx] = row;
@@ -15335,6 +15347,36 @@ function invFirstFree(row){
   const r = invRangeFor(row || null);
   for (let i = r.from; i < r.to; i++) if (!S.inv[i]) return i;
   return -1;
+}
+/* [TILLAGT v5.227.0] LAGG OM HYLLORNA (Chris hittade det).
+   Ryggsackens langd andras sa fort en vaska satts i eller tas ur ett fack - och
+   da flyttar sig BADE samlarvaskans och adelstenspasens borjan, medan sakerna
+   ligger kvar pa sina gamla nummer. Fyra rutor bort betyder att fyra material
+   plotsligt star pa pasens platser och lika manga skarvor trycks ut bortom
+   listans slut. Tva hyllor overlevde det for att det bara fanns en grans; med
+   tre hyllor gor det inte det.
+   Den har lagger om alla tre efter SORT: ryggsackens saker forst, samlat
+   material i sin hylla, skarvor och stenar i sin. Inbordes ordning behalls, sa
+   det man sjalv stallt upp star kvar i den man vill. */
+function invReshelve(){
+  const ryggsack = [], samlat = [], pasen = [];
+  for (let i = 0; i < S.inv.length; i++){
+    const r = S.inv[i];
+    if (!r) continue;
+    if (isPouchRow(r)) pasen.push(r);
+    else if (isGatherRow(r) && !gbagIsOut(r.key)) samlat.push(r);
+    else ryggsack.push(r);
+  }
+  const gStart = Math.max(gbagStart(), ryggsack.length);
+  const gLen   = Math.max(GATHER_BAG_SLOTS, samlat.length);
+  const pStart = gStart + gLen;
+  const pLen   = Math.max(4, pasen.length + 2);
+  const ny = new Array(pStart + pLen).fill(null);
+  ryggsack.forEach((r, k) => { ny[k] = r; });
+  samlat.forEach((r, k) => { ny[gStart + k] = r; });
+  pasen.forEach((r, k) => { ny[pStart + k] = r; });
+  S.inv = ny;
+  invOrderSave();
 }
 function invNormalize(){
   /* Listan far ALDRIG kapas over nagot som ligger i den. Forut sattes langden
