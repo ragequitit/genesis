@@ -6160,7 +6160,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.217.0 — LAGG UT POANGEN, PROVA, BEKRAFTA</div>
+        <div class="sn-ver">GENESIS v5.220.0 — SAMLARVASKAN AR TIO FASTA PLATSER</div>
       </div>
     </div>
   </aside>
@@ -7122,7 +7122,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.217.0 — LAGG UT POANGEN, PROVA, BEKRAFTA</div>
+            <div class="desc">GENESIS v5.220.0 — SAMLARVASKAN AR TIO FASTA PLATSER</div>
           </div>
         </div>
       </div>
@@ -9250,7 +9250,9 @@ async function netPullItemsRun(){
   const mainRows = (stackRows || []).filter(st => !isGatherKey(st.stack_key) || gbagIsOut(st.stack_key));
   const needMain = bagRows.length + mainRows.length;
   const gStart = Math.max(gbagStart(), needMain);
-  const gLen = Math.max(gbagKinds() + GATHER_SPARE, gathRows.length);
+  /* [ANDRAT v5.220.0] Samma regel som gbagSlots - talet bor pa ETT stalle nu.
+     Forut stod formeln har OCH dar, och bara den ena hade uppdaterats. */
+  const gLen = Math.max(GATHER_BAG_SLOTS, gathRows.length);
   S.inv = new Array(gStart + gLen).fill(null);
   /* ORDNINGEN ar spelarens, inte serverns. Varje sak forsoker forst tillbaka till
      den ruta den lag i; bara det som ar NYTT, eller vars ruta blivit upptagen,
@@ -13453,15 +13455,16 @@ const OFFLINE_HOURS = [8, 12, 16, 20, 24];
 function offlineCapHours(){ return OFFLINE_HOURS[S.premium.offlineHours] || 8; }
 /* [ANDRAT v5.86.0] Sidoyrkets offlinenod raknas in. Den ligger pa YRKET, sa den
    hamtas ur skilltradet - inte ur utrustningen. */
-function secSkillPct(eff){
-  const sec = (typeof mySecondaryProf === 'function') ? mySecondaryProf() : null;
-  return sec ? skillPct(sec.id, eff) : 0;
-}
+/* [BORTTAGET v5.219.0] Uppslaget mot sidoyrkets trad anvandes bara av tva
+   noder som visade sig lasa effekter ingen serverfunktion laser. Bada ar
+   utbytta, och da har uppslaget ingen kvar som fragar. */
 function offlineRate(){
-  /* [ANDRAT v5.118.0] Utrustningens del ar borta: Offline Earnings ar en
-     egenskap hos SPELAREN, inte hos en hjalm, och flyttar till det kommande
-     skilltradet. Sidoyrkets nod star kvar och gor samma jobb som forut. */
-  return Math.min(1, 0.40 + secSkillPct('offline') / 100);
+  /* [ANDRAT v5.219.0] OFFLINE AR PLATT FYRTIO PROCENT (Chris beslut). Noden som
+     stod har las en effekt som ingen serverfunktion nagonsin last, och det
+     utrustningsaffix servern letade efter finns inte i affixtabellen heller.
+     Talet var alltsa redan fyrtio for alla - nu star det bara ETT stalle och
+     ljuger inte om att det gar att hoja. */
+  return 0.40;
 }
 function computeOffline(){
   /* SERVERLAGE: klienten far INTE rakna ut detta sjalv. Den raknade pa den
@@ -15103,7 +15106,12 @@ function bagSlotsFrom(){
              + aldrig farre an det som redan ligger dar
    Sista raden finns for att vaskan inte ska krympa under sitt innehall nar man
    byter yrke - det som ligger dar ska aldrig kunna tvingas ut. */
-const GATHER_SPARE = 4;
+/* [ANDRAT v5.220.0] SAMLARVASKAN AR TIO PLATSER, PUNKT (Chris). Forut var den
+   "antal sorter dina yrken kan ge plus fyra" - och eftersom man omojligt kan
+   bara fler sorter an yrkena kan ge lag taket alltid fyra over det hogsta
+   mojliga. Vaskan kunde aldrig bli full. Tio fasta platser gor att gruvan, som
+   kan ge fjorton sorter, faktiskt maste valja. Samma tal star pa servern. */
+const GATHER_BAG_SLOTS = 10;
 function gatherKeysOf(profId){
   const d = GATHER_DEFS[profId];
   if (!d) return [];
@@ -15125,13 +15133,8 @@ const GATHER_ALL_KEYS = (() => {
 function isGatherKey(k){ return !!k && (k.indexOf('shard_') === 0 || !!GATHER_ALL_KEYS[k]); }
 function isGatherRow(row){ return !!(row && row.stack && !row.gear && isGatherKey(row.key)); }
 /* Sorterna dina LARDA samlaryrken kan hitta. */
-function gbagKinds(){
-  const set = {};
-  Object.keys(GATHER_DEFS).forEach(id => {
-    if (profLearned(id)) gatherKeysOf(id).forEach(k => { set[k] = true; });
-  });
-  return Object.keys(set).length;
-}
+/* [BORTTAGET v5.220.0] Raknade sorterna dina yrken kan ge. Det talet styrde
+   vaskans storlek och gor det inte langre - den ar tio, fast. */
 function gbagStart(){ return INV_BASE_SLOTS + bagSlotsFrom(); }
 function gbagUsed(){
   let n = 0;
@@ -15140,7 +15143,9 @@ function gbagUsed(){
   return n;
 }
 function gbagSlots(){
-  return Math.max(gbagKinds() + GATHER_SPARE, gbagUsed());
+  /* Har man redan fler sorter an tio ritas de anda ut - servern hindrar bara
+     NYA sorter, den kastar aldrig nagot. Rutan visar sanningen. */
+  return Math.max(GATHER_BAG_SLOTS, gbagUsed());
 }
 function invSlots(){ return gbagStart() + gbagSlots(); }
 /* Var far en sak ligga? Samlat material hor hemma i samlarvaskan och ingen
@@ -15581,7 +15586,8 @@ function charStatRows(){
   up('Fragment Find', gearBonus('frag') + helperBonus('frag'));
   up('Loot Luck', gearBonus('luck') + boostPct('luck'));
   up('XP Bonus', gearBonus('xp'));
-  up('Offline Earnings', secSkillPct('offline'));
+  /* [BORTTAGET v5.219.0] Offline Earnings stod alltid pa noll och gick inte
+     att hoja nagonstans. En rad som alltid sager noll ar en rad som ljuger. */
   up('Pet XP', gearBonus('petxp') + helperBonus('petxp'));
   up('Crit Damage', gearBonus('critdmg'));
   up('Boost Strength', gearBonus('boostpot'));
@@ -21727,7 +21733,7 @@ let SKILL_TREES = {};
         skN(3,'training','Field Training','xp',3,3)],
     3: [skN(1,'deep','Deep Stores','store_cap',50,3),
         skN(2,'recovery','Rapid Recovery','hp_regen',3,3),
-        skN(3,'offline','Standing Orders','offline',2,3)],
+        skN(3,'salvage','Salvaged Compounds','reclaim',2,3)],
     4: [skN(1,'kits','Field Kits','kits',2,3),
         skN(2,'workbench','Expanded Workbench','slots',1,3),
         skN(3,'potency','Strong Dosage','potency',1,3)],
@@ -21744,7 +21750,7 @@ let SKILL_TREES = {};
         skN(3,'training','Refinery Training','xp',3,3)],
     3: [skN(1,'deep','Deep Tanks','store_cap',50,3),
         skN(2,'canisters','Sealed Canisters','kits',2,3),
-        skN(3,'offline','Night Shift','offline',2,3)],
+        skN(3,'residue','Recovered Residue','reclaim',2,3)],
     4: [skN(1,'valves','Open Valves','ranked_speed',4,3),
         skN(2,'workbench','Expanded Workbench','slots',1,3),
         skN(3,'potency','Dense Charge','potency',1,3)],
@@ -21754,15 +21760,15 @@ let SKILL_TREES = {};
   };
   SKILL_TREES.mining = {
     1: [skN(1,'cycles','Faster Cycles','gather_speed',4,3),
-        skN(2,'pockets','Deep Pockets','gather_bag',1,3),
+        skN(2,'studies','Prospecting Studies','xp',3,3),
         skN(3,'veins','Richer Veins','gather_double',3,3)],
     2: [skN(1,'ore_focus','Ore Focus','focus_ore',15,3),
         skN(2,'scrapsense','Scrap Sense','scrap_sense',2,3),
         skN(3,'crystal_focus','Crystal Focus','focus_crystal',15,3)],
     3: [skN(1,'double','Double Strike','gather_double',2,3),
-        skN(2,'resonance','Core Resonance','core_boost',2,3),
+        skN(2,'rhythm','Steady Rhythm','gather_speed',3,3),
         skN(3,'prospector','Prospector','gem_luck',2,3)],
-    4: [skN(1,'offline','Offline Mining','offline',2,3),
+    4: [skN(1,'sorting','Scrap Sorting','scrap_sense',2,3),
         skN(2,'training','Mining Training','xp',3,3),
         skN(3,'richfinds','Rich Finds','gather_double',3,3)],
     5: [skN(1,'oremaster','Ore Master','focus_ore',40,1),
@@ -21942,7 +21948,6 @@ function skillEffText(n, ranks){
       case 'pattern': return 'Pick one affix below \u2014 it rolls a little more often on your crafts. Never guaranteed.';
       case 'gather_speed': return '-' + v + '% time between gathering rolls';
       case 'gather_double': return v + '% chance a find is doubled';
-      case 'gather_bag': return '+' + v + ' gathering bag slot' + (v === 1 ? '' : 's');
       case 'focus_ore': return v + '% of common finds re-rolled toward ores';
       case 'focus_crystal': return v + '% of common finds re-rolled toward crystals';
       case 'scrap_sense': return v + '% chance a find also drops Scrap';
@@ -21952,7 +21957,6 @@ function skillEffText(n, ranks){
       /* [TILLAGT v5.86.0] De sex nya noderna i sidoyrkenas trad. */
       case 'hp_regen':   return '+' + v + '% health regeneration';
       case 'fuel_regen': return '+' + v + '% fuel regeneration';
-      case 'offline':    return 'Offline production runs at ' + v + ' percent more of full rate';
       case 'finds':      return '+' + v + '% more clickable finds on the node';
       case 'potency':    return n.id === 'potency' && /Dos/.test(n.name)
                                 ? 'Bandages and kits restore +' + v + '% more health'
@@ -23016,12 +23020,12 @@ function claimBonusFind(kind){
 /* Slumpad tid mellan forsoken, och BARA medan sidan syns. Timern startas om
    varje gang, sa den kan inte ligga och lopa i en dold flik. */
 (function bonusFindLoop(){
-  /* [ANDRAT v5.86.0] Sidoyrkets fyndnod kortar VANTAN mellan forsoken. Fem
-     procent fler fynd ar detsamma som fem procent kortare vantan. */
-  const more = 1 + secSkillPct('finds') / 100;
-  const wait = (BONUS_FIND_EVERY[0] + Math.random() *
-                (BONUS_FIND_EVERY[1] - BONUS_FIND_EVERY[0])) * 1000 / more;
-  setTimeout(() => { spawnBonusFind(); bonusFindLoop(); }, wait);
+  /* [ANDRAT v5.219.0] Fyndnoden som kortade vantan har finns inte langre - den
+     laste en effekt som ingen serverfunktion nagonsin last, sa raden multi-
+     plicerade alltid med ett. Vantan ar slumpad rakt av nu. */
+  const wait = BONUS_FIND_EVERY[0] + Math.random() *
+               (BONUS_FIND_EVERY[1] - BONUS_FIND_EVERY[0]);
+  setTimeout(() => { spawnBonusFind(); bonusFindLoop(); }, wait * 1000);
 })();
 
 /* Statusraden, bruten ur kortet sa att bygget och den lopande uppdateringen
