@@ -3907,6 +3907,14 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-upg{padding:8px;border-radius:9px;font-weight:900;letter-spacing:.16em;font-size:13px;cursor:pointer;
   background:linear-gradient(180deg,rgba(255,200,60,.16),rgba(255,200,60,.06));
   border:1px solid var(--gold);color:var(--gold)}
+/* [TILLAGT v5.241.0] Hovringsrutan pa en trad-nod. Spelets egen ruta, inte
+   webblasarens - samma sprak som pjaskorten. */
+.pt-tip{
+  position:fixed;z-index:2400;pointer-events:none;max-width:250px;
+  padding:8px 11px;border-radius:9px;font-size:11px;line-height:1.55;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  border:1px solid var(--border-glow);box-shadow:0 14px 34px rgba(0,0,0,.6);color:var(--text);
+}
 /* [TILLAGT v5.228.0] Ledtraden dar knappen stod. */
 .pt-hint{font-size:10.5px;color:var(--text-dim);text-align:center;padding:7px 4px;
   letter-spacing:.04em;line-height:1.3}
@@ -4199,6 +4207,12 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .pf-handle > div{flex:1}
 .pf-handle-name{font-size:15px;font-weight:800;color:var(--cyan);font-family:var(--font-mono)}
 /* [TILLAGT v5.204.0] Installningarnas flikar och luckans textlank. */
+/* [TILLAGT v5.241.0] RUTAN BYTTE STORLEK VID VARJE FLIKBYTE (Chris). Flikarna
+   ar olika langa, och eftersom rutan foljde sitt innehall hoppade hela ramen -
+   och knappraden langst ned flyttade sig under handen. Innehallsytan har en
+   bestamd hojd nu och rullar inuti sig; ramen star still. Hojden ar rakna i
+   skarmhojd sa den ocksa ryms pa en telefon. */
+#settings-main{height:min(56vh, 430px); overflow-y:auto; overflow-x:hidden}
 .set-tabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap}
 .set-tab{flex:1 1 0;min-width:76px;padding:7px 10px;border-radius:9px;cursor:pointer;
   border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text-dim);
@@ -6324,7 +6338,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.240.0 — VALVET GAR ATT RESA TILL, OCH STENEN FRAGAR FORST</div>
+        <div class="sn-ver">GENESIS v5.241.0 — HJALPARFONSTRET, TRADETS HOVRING OCH VALVETS ENDA RUTA</div>
       </div>
     </div>
   </aside>
@@ -7030,8 +7044,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <div class="seg-btn purple" data-shoptab="back">Buyback <span class="n" id="bb-count"></span></div>
         </div>
         <div id="shop-pane-back" style="display:none">
-          <div class="desc" style="margin-bottom:8px">Anything you sold in the last hour \u2014
-            the last 15 things \u2014 comes back for exactly what you were paid.</div>
+          <div class="desc" style="margin-bottom:8px">Anything you sold in the last hour —
+            the last 15 things — comes back for exactly what you were paid.</div>
           <div class="upgrade-list" id="buyback-list"></div>
         </div>
         <div id="shop-pane-buy">
@@ -7280,7 +7294,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         </div>
         <div class="settings-row" data-setgrp="sound">
           <div style="flex:1">
-            <div>Core Volume</div>
+            <div>Sound Effects</div>
             <input type="range" id="vol-sfx" min="0" max="100" value="70" style="width:100%;accent-color:var(--cyan)">
           </div>
         </div>
@@ -7300,7 +7314,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.240.0 — VALVET GAR ATT RESA TILL, OCH STENEN FRAGAR FORST</div>
+            <div class="desc">GENESIS v5.241.0 — HJALPARFONSTRET, TRADETS HOVRING OCH VALVETS ENDA RUTA</div>
           </div>
         </div>
       </div>
@@ -20225,6 +20239,14 @@ function gmPick(o){
     }
     case 'zone': {
       gmSel = {region: region, zone: o.zone || null}; gmSetTravel();
+      /* [ANDRAT v5.241.0] HUSEN HAR EN ENDA RUTA (Chris punkt 11-13). Kartan har
+         tva vagar in i valvet: dess NOD och dess YTA. Noden oppnade husrutan,
+         ytan den vanliga zonrutan - och den ritar "Right Now" med ett mote som
+         inte finns dar, en detaljknapp utan funktion, och en reseknapp som gick
+         genom den vanliga zonresan. Den kraver att zonen star i regionens
+         zonlista, vilket valvet inte gor, sa knappen svarade nej utan att saga
+         nagot. Bada vagarna gar till husrutan nu; da faller alla tre bort. */
+      if (o.zone && townOf(o.zone)){ openTownWin(townOf(o.zone), region); break; }
       if (o.zone) openNodeWin('zone', region, o.zone);
       break;
     }
@@ -22591,7 +22613,15 @@ function ppTreeHTML(prof){
         if (skillStagedRanks(prof, t, n.id) > 0) cls.push('staged');
         if (t === 5) cls.push('gold');
         if (PPT.sel && PPT.sel.tier === t && PPT.sel.node === n.id) cls.push('sel');
-        return '<div class="' + cls.join(' ') + '" data-ptnode="' + t + ':' + n.id + '">' +
+        /* [TILLAGT v5.241.0] HELA FORKLARINGEN VID HOVRING (Chris punkt 9).
+           Noden visade tva-tre ord, och enda vagen till resten var att KLICKA -
+           vilket lagger en poang. Man skulle alltsa behova kopa noden for att
+           fa veta vad den gor. Texten ar samma text som detaljpanelen visar,
+           raknad pa naste rang, sa de tva aldrig kan saga olika saker. */
+        const nasta = Math.min(n.max, skillViewRanks(prof, t, n.id) + 1);
+        const hjalp = n.name + ' \u2014 ' + skillEffText(n, nasta);
+        return '<div class="' + cls.join(' ') + '" data-ptnode="' + t + ':' + n.id + '"' +
+          ' data-pttip="' + esc(hjalp) + '">' +
           '<div class="pt-oct"><span>' + (n.ico || SKILL_ICO[n.eff] || '\u2b50') + '</span>' +
             '<i class="pt-rank">' + ranks + ' / ' + n.max + '</i></div>' +
           '<div class="pt-nname">' + n.name + '</div>' +
@@ -24148,7 +24178,11 @@ function renderRecipeBook(){
       /* [ANDRAT v5.41.0] ETT klick, en plats i kon. All 10 ar borta pa
          spelarens beslut: vill man ha fem trycker man fem ganger. Mataren i
          raden ar ocksa borta - tiden bor i kons forsta rad, inte har. */
-      '<button class="pp-openbtn addq" data-addq="' + r.id + '"' + (afford ? '' : ' disabled') + '>Add to queue</button>' +
+      /* [BORTTAGET v5.241.0] KOKNAPPEN AR BORTA UR DEN HAR BOKEN (Chris punkt
+         10). Den oppnas fran den aldre yrkeslistan, dar man INTE ser kon - man
+         kunde alltsa lagga bestallningar man sedan inte kunde folja. Boken ar
+         en uppslagsbok har; kon ligger kvar pa yrkeskortet, dar den syns. */
+      '' +
     '</div>';
   }).join('');
   /* Hovra en receptrad och se det nastan-vanliga foremalskortet: talen
@@ -26192,9 +26226,34 @@ function makeDraggable(win, handle){
    Dragningen slas darfor av dar - annars kampar den mot rullningen och man far
    varken det ena eller det andra. Datorn ar oforandrad. */
 function isNarrowScreen(){ return window.matchMedia('(max-width:760px)').matches; }
+/* [TILLAGT v5.241.0] TVA SAKER SOM ALDRIG AR ETT DRAGHANDTAG (Chris punkt 2
+   och 3). Hjalparfonstret anvander HELA rutan som handtag, och draget avslutas
+   med preventDefault - alltsa gick det varken att satta markoren i sokfaltet
+   eller att dra i rullningslisten, for bada trycken tolkades som "flytta
+   fonstret". Regeln ligger har och inte i hjalparrutan, sa varje fonster som
+   anvander hela sin yta som handtag far samma sak: vaskan, valvet, posten och
+   fragmenten.
+   Rullningslisten kanns igen pa MATTEN, inte pa ett klassnamn: en ruta som
+   rullar ar bredare an sin innehallsyta, och trycket ligger till hoger om den
+   ytan. Da ar det listen man greppar. */
+function paRullningslist(e){
+  let el = e.target;
+  while (el && el.nodeType === 1){
+    const r = el.getBoundingClientRect();
+    if (el.scrollHeight > el.clientHeight && r.width - el.clientWidth > 2 &&
+        e.clientX >= r.left + el.clientWidth) return true;
+    if (el.scrollWidth > el.clientWidth && r.height - el.clientHeight > 2 &&
+        e.clientY >= r.top + el.clientHeight) return true;
+    el = el.parentElement;
+  }
+  return false;
+}
 function attachDragHandle(win, handle){
   handle.addEventListener('pointerdown', e => {
     if (isNarrowScreen()) return;
+    /* Ett falt man skriver i ar inget handtag - det ska ta emot markoren. */
+    if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (paRullningslist(e)) return;
     /* Knappar och RUTOR är inte draghandtag: greppar man en ruta är det pjäsen
        man vill flytta, inte fönstret. */
     if (e.target.closest('button')) return;
@@ -31663,6 +31722,37 @@ $('dgc-body').addEventListener('click', ev => {
    Nu drar titelraden fonstret som de ovriga.
    Stenrutan delar samma overlay men centreras av bladet (klassen gemwin) - att
    dra da skulle slass mot centreringen, sa handtaget avstar i det laget. */
+/* [TILLAGT v5.241.0] Hovringen pa tradets noder. EN lyssnare pa hela sidan, sa
+   den overlever varje omritning av trädet utan att kopplas om. */
+let ptTipEl = null;
+function ptTipHide(){ if (ptTipEl){ ptTipEl.remove(); ptTipEl = null; } }
+function ptTipShow(txt, x, y){
+  ptTipHide();
+  if (!txt) return;
+  const el = document.createElement('div');
+  el.className = 'pt-tip';
+  el.textContent = txt;
+  document.body.appendChild(el); ptTipEl = el;
+  ptTipMove(x, y);
+}
+function ptTipMove(x, y){
+  if (!ptTipEl) return;
+  const r = ptTipEl.getBoundingClientRect();
+  let lx = x + 16, ly = y + 16;
+  if (lx + r.width > window.innerWidth - 8) lx = x - r.width - 12;
+  if (ly + r.height > window.innerHeight - 8) ly = y - r.height - 12;
+  ptTipEl.style.left = Math.max(8, lx) + 'px';
+  ptTipEl.style.top = Math.max(8, ly) + 'px';
+}
+document.addEventListener('pointerover', e => {
+  const nod = e.target.closest && e.target.closest('[data-pttip]');
+  if (!nod){ ptTipHide(); return; }
+  ptTipShow(nod.dataset.pttip, e.clientX, e.clientY);
+});
+document.addEventListener('pointermove', e => {
+  if (ptTipEl) ptTipMove(e.clientX, e.clientY);
+});
+document.addEventListener('pointerdown', ptTipHide);
 makeDraggable($('node-overlay'), $('node-overlay').querySelector('.inv-titlebar'));
 $('node-close').addEventListener('pointerdown', e => {
   e.stopPropagation(); e.preventDefault(); closeNodeWin();
