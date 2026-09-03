@@ -3804,6 +3804,9 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-upg{padding:8px;border-radius:9px;font-weight:900;letter-spacing:.16em;font-size:13px;cursor:pointer;
   background:linear-gradient(180deg,rgba(255,200,60,.16),rgba(255,200,60,.06));
   border:1px solid var(--gold);color:var(--gold)}
+/* [TILLAGT v5.228.0] Ledtraden dar knappen stod. */
+.pt-hint{font-size:10.5px;color:var(--text-dim);text-align:center;padding:7px 4px;
+  letter-spacing:.04em;line-height:1.3}
 .pt-upg:disabled{opacity:.4;cursor:default}
 .pt-upg:not(:disabled):hover{filter:brightness(1.2)}
 .pt-reset{padding:4px;border-radius:8px;font-size:10.5px;letter-spacing:.06em;cursor:pointer;
@@ -5517,6 +5520,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .nd-here{display:flex;align-items:center;gap:7px;font-size:10.5px;color:#2ecc71;
   font-weight:800;letter-spacing:.08em;margin-bottom:10px}
 .nd-here.away{color:#ffc542}
+/* [TILLAGT v5.229.0] Raderna ar klickbara och ska se ut sa. */
+.nd-what[data-ndgo]{cursor:pointer}
+.nd-what[data-ndgo]:hover{border-color:var(--cyan-dim);background:rgba(56,232,255,.07)}
 .nd-what{border:1px solid var(--border);border-radius:10px;background:var(--bg-row);
   padding:9px 11px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
 .nd-what .ic{font-size:17px;line-height:1;flex:0 0 auto}
@@ -6165,7 +6171,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.227.0 — HYLLORNA LAGGS OM NAR EN VASKA TAS UR</div>
+        <div class="sn-ver">GENESIS v5.231.0 — VALVET KRAVER ATT MAN STAR VID DET</div>
       </div>
     </div>
   </aside>
@@ -7128,7 +7134,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.227.0 — HYLLORNA LAGGS OM NAR EN VASKA TAS UR</div>
+            <div class="desc">GENESIS v5.231.0 — VALVET KRAVER ATT MAN STAR VID DET</div>
           </div>
         </div>
       </div>
@@ -8399,7 +8405,8 @@ function buildZoneEncounter(regionId, zone){
   } else {
     inner = '<button class="pve-search" id="zone-pve-search">Search the area</button>';
   }
-  return '<div class="section-label">Encounter</div>' + inner;
+  /* [TILLAGT v5.229.0] Ankare, sa "Right now"-raden kan hoppa hit. */
+  return '<div class="section-label" id="zone-enc">Encounter</div>' + inner;
 }
 /* Striduppspelningen. Servern har redan avgjort allt; det har ar bara samma
    forlopp visat i manniskotakt - tva matare, ett slag i taget. */
@@ -8832,7 +8839,7 @@ function buildZoneDungeon(regionId, zone){
   } else {
     inner = '<div class="shelf-empty">A dungeon waits below.</div>';
   }
-  return '<div class="section-label">Dungeon</div><div id="zone-dg">' + inner + '</div>';
+  return '<div class="section-label" id="zone-dgh">Dungeon</div><div id="zone-dg">' + inner + '</div>';
 }
 /* [OMBYGGT v5.145.0] HAR LAG FORBEREDELSEKORTET med stegare och laketrosklar.
    Allt det bor nu i svarighetsrutan, dar det star bredvid de tva korten och
@@ -14436,6 +14443,13 @@ function openMail(){
   renderMail();
 }
 function openVault(){
+  /* [TILLAGT v5.231.0] Valvet oppnas bara dar det star. Knappen ar inte dod -
+     den sager var man ska ga. Ett tyst nej ar samma sak som en trasig knapp. */
+  if (!atVault()){
+    const r = (S.world && REGIONS[S.world.current]) ? REGIONS[S.world.current].name : 'this region';
+    say('The vault is in ' + r + '\u2019s vault house \u2014 travel there to open it.');
+    return;
+  }
   hookVaultCells();
   hookVaultBagSlots();
   const w = $('vault-overlay');
@@ -15088,6 +15102,23 @@ function giveStarterBag(where){
     items: [{gear: g}]
   });
   return true;
+}
+/* [TILLAGT v5.228.0] BEKRAFTELSE INNAN KOPET (Chris punkt 1). Ett klick pa ett
+   last fack drog pengarna direkt. Ett kop som inte gar att angra ska alltid ha
+   en fraga framfor sig. Samma ruta som yrkesbytet anvander. */
+async function unlockBagAsk(i){
+  if (i < 0 || i >= BAG_SLOTS.length || bagUnlocked(i)) return false;
+  const b = BAG_SLOTS[i];
+  if (!bagAfford(i)){ say('You cannot afford that slot yet.'); return false; }
+  const pris = b.cur === 'gold' ? moneyText(b.cost)
+             : b.cost + (b.cur === 'tokens' ? ' Tokens' : ' Credits');
+  const ja = await askConfirm({
+    title: 'BUY BAG SLOT ' + (i + 1),
+    body: 'This unlocks bag slot ' + (i + 1) + ' for <b>' + pris + '</b>.<br>The slot stays yours for good.',
+    ico: '\ud83c\udf92', color: 'var(--gold)', yes: 'BUY', no: 'CANCEL'
+  });
+  if (!ja) return false;
+  return unlockBag(i);
 }
 function unlockBag(i){
   if (i < 0 || i >= BAG_SLOTS.length || bagUnlocked(i)) return false;
@@ -16020,7 +16051,7 @@ function buildPremiumBags(){
     const t = nextBagTier();
     if (t < 0) return;
     if (BAG_SLOTS[t].cur === 'gold'){ openInventory(); return; }
-    unlockBag(t);
+    unlockBagAsk(t);
   });
   /* Valvets guldfack köps i valvet — knappen tar dig dit i stället för att neka. */
   $('prem-vbag-buy').addEventListener('click', () => {
@@ -17369,11 +17400,32 @@ function sayAtPoint(x, y, text){
   requestAnimationFrame(() => box.classList.add('on'));
   setTimeout(() => { box.classList.remove('on'); setTimeout(() => box.remove(), 220); }, 3200);
 }
+/* [ANDRAT v5.228.0] BARA HANDELSER SPEGLAS I CHATTEN (Chris punkt 12).
+   Forut gick VARJE besked dit, aven rena avslag och varningar: "Could not craft
+   that", "Pick what you want to sell", "+0 Crude Fuel". Chatten ska vara en
+   logg over vad som HANT, inte en andra plats for felmeddelanden - de star
+   redan i den gula rutan mitt pa skarmen dar man tittar.
+   Regeln ar en lista over det som ar vart att spara: affarer, fynd, nivaer,
+   och sadant som andrar spelarens agodelar. Allt annat visas bara flyktigt. */
+const CHAT_SPEGEL = [
+  /^Sold\b/i, /^Bought\b/i, /^You (won|sold|earned|received|got)\b/i,
+  /^Listed\b/i, /^Claimed\b/i, /^Learned\b/i, /^Forged\b/i, /^Crafted\b/i,
+  /^Salvaged\b/i, /^Recycled\b/i, /^Unlocked\b/i, /^Reached\b/i,
+  /* Ett tillskott ar en handelse - men bara om det ar storre an noll. */
+  /^\+[1-9]/,
+  /\bjoined you\b/i, /\bis now level\b/i, /\btree is reset\b/i,
+  /\bpoints? saved\b/i, /\bwent into bag slot\b/i
+];
+function chatWorthKeeping(text){
+  if (!text) return false;
+  /* Ett tal som ar noll ar inget som hant. */
+  if (/^\+0\b/.test(text)) return false;
+  return CHAT_SPEGEL.some(rx => rx.test(text));
+}
 function say(text){
   if (!text) return;
-  /* [TILLAGT v5.180.0] Varje besked speglas som en SYSTEMRAD i chatten (Chris
-     beslut): de gula rutorna overst missas latt, chatten ligger kvar. */
-  try { chatSys(text); } catch (e){}
+  /* [ANDRAT v5.228.0] Speglas bara om det ar en handelse vard att spara. */
+  if (chatWorthKeeping(text)){ try { chatSys(text); } catch (e){} }
   let box = document.getElementById('say-box');
   if (!box){
     box = document.createElement('div');
@@ -18188,6 +18240,13 @@ const REGIONS = {
    att hitta. Cellpriset är samma i hela världen; det som skiljer är DITT rykte
    i regionen: 3 % rabatt per stjärna. Rykte blir därmed pengar. */
 const TRADE_ZONE = 'Vendor';
+/* [TILLAGT v5.231.0] VALVET ar en plats man star vid (Chris punkt 7). Kartan har
+   hela tiden beskrivit den sa: "readable from anywhere, open only while you
+   stand at it" - men spelet lat den oppnas var som helst. Nu galler texten. */
+const VAULT_ZONE = 'Vault';
+function atVault(){
+  return !!(S.world && S.world.current && S.world.zone === VAULT_ZONE);
+}
 /* HANDLARENS PRISER (v4.47.0). Aterkopet ar alltid en femtedel av kopet, och
    en golvregel haller det sa: rabatten far aldrig trycka kopet under 125 % av
    vad handlaren betalar tillbaka. Utan den kan en femstjarnig rabatt gora en
@@ -19643,7 +19702,10 @@ function gmState(){
        ut. Valvet ar ingen zon man reser till i det har spelet: det nas overallt
        ifran, sa svaret ar alltid ja. Blir valvet en plats man maste sta vid
        byts raden mot det villkoret, inte mot ett nytt fast varde. */
-    vaultOpen: true,
+    /* [ANDRAT v5.231.0] Var hardkodat true. Kommentaren harunder forutsag exakt
+       den har dagen: blir valvet en plats man maste sta vid byts raden mot det
+       villkoret. Det ar den nu. */
+    vaultOpen: atVault(),
     level: (function(){ try { return levelInfo().lvl; } catch (e){ return 1; } })()
   };
 }
@@ -20249,7 +20311,7 @@ function openZone(regionId, zi, keepNote){
     '</div>' +
     (zone === TRADE_ZONE
       ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
-      : '<div class="section-label">Expeditions</div>' +
+      : '<div class="section-label" id="zone-exp">Expeditions</div>' +
         (isZoneCharted(regionId, zone)
           ? buildZoneExpeditions(regionId, zone)
           : '<div class="shelf-empty">Uncharted. Send a drone to see what is out there.</div>')) +
@@ -22239,8 +22301,7 @@ function ppTreeHTML(prof){
       : (sel.tier === 5 && lvl < 20) ? 'NEEDS LEVEL 20'
       : st === 'dark' ? 'NOT CONNECTED YET'
       : broke ? 'NO POINTS LEFT'
-      : 'PLACE 1 POINT';
-    const disabled = maxed || capBlocked || broke || st === 'dark';
+      : 'Left click to place \u00b7 right click to take back';
     let patternPick = '';
     if (n.eff === 'pattern' && ranks > 0){
       const chosen = (S.skillMeta && S.skillMeta[prof]) || null;
@@ -22260,9 +22321,12 @@ function ppTreeHTML(prof){
         '<div class="pt-deff">' + (eff.next ? '<b>' + eff.next + '</b>' + (ranks > 0 ? ' <span class="pt-now">(now: ' + eff.now + ')</span>' : '') : '<b>' + eff.now + '</b>') + '</div>' +
         patternPick +
       '</div>' +
+      /* [ANDRAT v5.228.0] KNAPPARNA AR BORTA (Chris punkt 13). Vansterklick pa
+         en nod lagger en poang, hogerklick tar tillbaka den. Att peka pa noden
+         och sedan leta upp en knapp langst ned var ett steg for mycket. Kvar
+         star bara nollstallningen. */
       '<div class="pt-dbuy">' +
-        '<button class="pt-upg" data-ptbuy="' + sel.tier + ':' + sel.node + '"' + (disabled ? ' disabled' : '') + '>' + btnLabel + '</button>' +
-        (stg ? '<button class="pt-undo" data-ptundo="' + sel.tier + ':' + sel.node + '">Take that point back</button>' : '') +
+        '<div class="pt-hint">' + btnLabel + '</div>' +
         '<button class="pt-reset" data-ptreset="' + prof + '">' +
           (PPT.resetArmed ? 'CONFIRM RESET \u2014 10 GOLD, ALL POINTS COME BACK' : 'Reset tree \u00b7 10 gold') + '</button>' +
       '</div>' +
@@ -22288,19 +22352,22 @@ function ppForceRender(){ profPageSig = ''; renderProfPage(); }
    bekraftar, sa man kan bygga hela sin plan, se effekterna och andra sig gratis.
    Toppnoden ar fortfarande ett beslut som laser de andra tva - men aven det gar
    att ta tillbaka sa lange planen inte ar bekraftad. */
-function skillPlace(prof, tier, node){
+function skillPlace(prof, tier, node, tyst){
   const tree = SKILL_TREES[prof]; if (!tree) return;
   const n = (tree[tier] || []).find(x => x.id === node); if (!n) return;
+  /* Ett klick som bara VALJER en nod ska inte skalla. Ledtraden i rutan under
+     sager anda varfor det inte gick. */
+  const nej = m => { if (!tyst) say(m); else ppForceRender(); };
   const pts = skillPoints(prof);
-  if (pts.left < 1){ say('No skill points left.'); return; }
-  if (skillViewRanks(prof, tier, node) >= n.max){ say('That skill is already maxed.'); return; }
+  if (pts.left < 1){ nej('No skill points left.'); return; }
+  if (skillViewRanks(prof, tier, node) >= n.max){ nej('That skill is already maxed.'); return; }
   if (skillViewRanks(prof, tier, node) === 0 && !skillNodeOpen(prof, tier, n.pos)){
-    say('That node is not connected to anything you own yet.'); return;
+    nej('That node is not connected to anything you own yet.'); return;
   }
   if (tier === 5){
-    if (profLvl(prof) < 20){ say('The last row opens at profession level 20.'); return; }
+    if (profLvl(prof) < 20){ nej('The last row opens at profession level 20.'); return; }
     const cap = skillCapstoneTaken(prof);
-    if (cap && cap.id !== node){ say('You already picked a different capstone.'); return; }
+    if (cap && cap.id !== node){ nej('You already picked a different capstone.'); return; }
   }
   skillStage(prof, tier, node);
   ppForceRender();
@@ -22400,27 +22467,36 @@ async function skillReset(prof){
     if (S.skills) delete S.skills[prof];
     save();
   }
-  say('The ' + (PROF_BY[prof] ? PROF_BY[prof].name : prof) + ' tree is reset. Materials are not refunded.');
+  /* [ANDRAT v5.228.0] Texten sa att materialet inte betalas tillbaka - men
+     tradet kostar inte material langre, det kostar poang, och poangen KOMMER
+     tillbaka. Meddelandet beskrev ett spel som inte finns. */
+  say('The ' + (PROF_BY[prof] ? PROF_BY[prof].name : prof) + ' tree is reset \u2014 all points are back.');
   ppForceRender(); updateUI(true); renderProfCards(true);
 }
+/* [TILLAGT v5.228.0] Hogerklick pa en nod tar tillbaka en utlagd poang. */
+document.addEventListener('contextmenu', e => {
+  const nd = e.target.closest('[data-ptnode]');
+  if (!nd || !profPageRef) return;
+  e.preventDefault();
+  const parts = nd.dataset.ptnode.split(':');
+  PPT.sel = {prof: profPageRef, tier: +parts[0], node: parts[1]};
+  skillTakeBack(profPageRef, +parts[0], parts[1]);
+});
 document.addEventListener('click', e => {
   const tab = e.target.closest('[data-ppttab]');
   if (tab){ ppTab = tab.dataset.ppttab; PPT.buyArm = null; PPT.resetArmed = false; ppForceRender(); return; }
+  /* [ANDRAT v5.228.0] Ett vansterklick pa noden VALJER den och lagger en poang
+     i samma tryck (Chris punkt 13). Ar noden inte oppen, maxad eller poangen
+     slut valjs den bara - besked om varfor star i rutan under. */
   const nd = e.target.closest('[data-ptnode]');
   if (nd && profPageRef){
     const parts = nd.dataset.ptnode.split(':');
-    PPT.sel = {prof: profPageRef, tier: +parts[0], node: parts[1]};
-    PPT.buyArm = null; PPT.resetArmed = false; ppForceRender(); return;
-  }
-  const buy = e.target.closest('[data-ptbuy]');
-  if (buy && !buy.disabled && profPageRef){
-    const parts = buy.dataset.ptbuy.split(':');
-    skillPlace(profPageRef, +parts[0], parts[1]); return;
-  }
-  const undo = e.target.closest('[data-ptundo]');
-  if (undo && profPageRef){
-    const parts = undo.dataset.ptundo.split(':');
-    skillTakeBack(profPageRef, +parts[0], parts[1]); return;
+    const t = +parts[0], id = parts[1];
+    const forstaKlicket = !PPT.sel || PPT.sel.tier !== t || PPT.sel.node !== id;
+    PPT.sel = {prof: profPageRef, tier: t, node: id};
+    PPT.resetArmed = false;
+    skillPlace(profPageRef, t, id, forstaKlicket);
+    return;
   }
   const clr = e.target.closest('[data-ptclear]');
   if (clr){ skillStageClear(clr.dataset.ptclear); ppForceRender(); return; }
@@ -26616,10 +26692,13 @@ document.querySelectorAll('[data-bag]').forEach(el => {
       return;
     }
     if (bagUnlocked(i)){ showBagSlotPicker(i, el); return; }
-    if (!unlockBag(i)){
+    if (!bagAfford(i)){
       /* Tyst avslag är det värsta ett gränssnitt kan göra — säg vad som saknas. */
       showBagTip(el, 'Not enough — you need ' + bagShortText(i) + ' more.');
+      return;
     }
+    hideBagTip();
+    unlockBagAsk(i);
   });
   el.addEventListener('contextmenu', e => {
     e.preventDefault();
@@ -27486,6 +27565,7 @@ const GATE_ERRORS = {
   'name_characters': 'Letters, numbers, spaces, - and _ only.',
   'character_limit_reached': 'You already have three characters.',
   'account_banned': 'This account is suspended.',
+  'not_at_vault': 'You have to be standing at the vault house to use the vault.',
   'offline': 'No connection to the server.',
   'not_signed_in': 'Please sign in again.'
 };
@@ -28285,7 +28365,10 @@ function ahRenderTable(){
         '<span class="ah-c-qty">' + row.quantity + '</span>' +
         '<span class="ah-c-price">' + ahCoin(Math.floor(row.total_price / COPPER_PER_GOLD)) + '</span>' +
         '<span class="ah-c-left">' + ahLeftText(row.ends_in) + '</span>' +
-        '<span class="ah-c-buy"><button class="ah-buy" data-id="' + row.id + '"' + (row.mine ? ' disabled title="Your own listing"' : '') + '>BUY</button></span>' +
+        '<span class="ah-c-buy"><button class="ah-buy" data-id="' + row.id +
+          '" data-namn="' + String(row.name || 'this listing').replace(/"/g, '') +
+          '" data-pris="' + (row.price == null ? '' : row.price) + '"' +
+          (row.mine ? ' disabled title="Your own listing"' : '') + '>BUY</button></span>' +
       '</div>').join('');
   }
   h += '</div><div class="ah-pages" id="ah-pages"></div>';
@@ -28305,7 +28388,8 @@ function ahRenderTable(){
     AH.sort = (AH.sort === k) ? k + '_desc' : k;
     AH.page = 1; ahLoad();
   }));
-  mid.querySelectorAll('.ah-buy').forEach(el => el.addEventListener('click', () => ahBuy(el.dataset.id, el)));
+  mid.querySelectorAll('.ah-buy').forEach(el => el.addEventListener('click', () => ahBuyAsk(el.dataset.id, el,
+    {name: el.dataset.namn, price: el.dataset.pris === '' ? null : +el.dataset.pris})));
   ahRenderPages(r);
 }
 function ahToggleFilterPop(){
@@ -28344,13 +28428,32 @@ function ahRenderPages(r){
 }
 
 /* ---------- kopet ---------- */
+/* [TILLAGT v5.228.0] BEKRAFTELSE INNAN AUKTIONSKOP (Chris punkt 5). Ett klick
+   kopte direkt. Priset ar en annan spelares, och ett felklick kan kosta allt man
+   har - den fragan maste stallas. */
+async function ahBuyAsk(id, btn, rad){
+  const namn = (rad && rad.name) || 'this listing';
+  const pris = (rad && rad.price != null) ? moneyText(rad.price) : 'the asking price';
+  const ja = await askConfirm({
+    title: 'BUY FROM THE AUCTION HOUSE',
+    body: 'Buy <b>' + namn + '</b> for <b>' + pris + '</b>?',
+    ico: '\u2696\ufe0f', color: 'var(--gold)', yes: 'BUY', no: 'CANCEL'
+  });
+  if (!ja) return;
+  return ahBuy(id, btn);
+}
 async function ahBuy(id, btn){
   if (AH.busy) return; AH.busy = true;
   if (btn) btn.disabled = true;
   try {
     const res = await netAhBuy(id);
-    spawnFloat({text: 'Bought: ' + (res.name || 'item')});
+    /* [ANDRAT v5.230.0] Varan gar till POSTEN nu, inte rakt i vaskan (Chris
+       punkt 6). Da maste beskedet saga vart den tog vagen - annars letar man i
+       vaskan efter nagot som ligger i inkorgen. */
+    spawnFloat({text: (res.name || 'Item') + ' \u2014 sent to your inbox'});
+    say('Bought ' + (res.name || 'an item') + ' \u2014 it is waiting in your inbox.');
     await netPull(); await netPullItems();
+    if (typeof netPullMailbox === 'function') await netPullMailbox();
     const c = await netAhCounts(); AH.counts = c;
     ahRenderCats(); ahRenderBottom(); await ahLoad();
     renderEquip(); renderInventory(); updateUI(true);
@@ -30586,7 +30689,7 @@ function nodeZoneHTML(){
       '<span class="tx">' + esc(q.name) + '<i>Contract waiting</i></span></div>';
   });
   const enc = (PVE.enc && PVE.enc.region === NODE.region && PVE.enc.zone === NODE.zone) ? PVE.enc : null;
-  if (enc) what += '<div class="nd-what"><span class="ic">\u2694\uFE0F</span>' +
+  if (enc) what += '<div class="nd-what" data-ndgo="enc"><span class="ic">\u2694\uFE0F</span>' +
     '<span class="tx">' + esc(enc.name) + '<i>Encounter, level ' + enc.level + '</i></span></div>';
   /* [TILLAGT v5.153.0] Motet raknades bara upp om det redan var FRAMLETAT. Star
      man i en zon dar inget letats fram sag rutan ingenting alls om moten, trots
@@ -30594,15 +30697,23 @@ function nodeZoneHTML(){
      den namns motet inte - da finns det ingenting att gora, och noden ar borta
      fran kartan av samma skal. */
   else if (NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone))
-    what += '<div class="nd-what"><span class="ic">\u2694\uFE0F</span>' +
+    what += '<div class="nd-what" data-ndgo="enc"><span class="ic">\u2694\uFE0F</span>' +
       '<span class="tx">Encounter<i>' +
       (nodeHere() ? 'Search the zone to find it' : 'Something waits here') +
       '</i></span></div>';
   const exps = (typeof expDefsForZone === 'function')
     ? (expDefsForZone(NODE.region, NODE.zone) || []) : [];
-  if (exps && exps.length) what += '<div class="nd-what"><span class="ic">\uD83E\uDDED</span>' +
+  if (exps && exps.length) what += '<div class="nd-what" data-ndgo="exp"><span class="ic">\uD83E\uDDED</span>' +
     '<span class="tx">' + exps.length + ' expedition' + (exps.length > 1 ? 's' : '') +
     '<i>Discovered here</i></span></div>';
+  /* [TILLAGT v5.229.0] DUNGEONEN SAKNADES HELT I LISTAN (Chris punkt 14).
+     Zonen ritade en dungeon pa kartan och hade ett eget avsnitt i zonrutan -
+     men "Right now" namnde den aldrig, sa den enda vagen dit var att veta att
+     den fanns. Raden star nu i alla zoner som har en. */
+  if (DUNGEON_TEASER[NODE.region + '|' + NODE.zone])
+    what += '<div class="nd-what" data-ndgo="dg"><span class="ic">\uD83D\uDD79\uFE0F</span>' +
+      '<span class="tx">' + esc(DUNGEON_TEASER[NODE.region + '|' + NODE.zone]) +
+      '<i>Dungeon</i></span></div>';
   if (NODE.zone === TRADE_ZONE) what += '<div class="nd-what"><span class="ic">\uD83D\uDED2</span>' +
     '<span class="tx">Trader<i>Buys and sells</i></span></div>';
   h += '<div class="section-label" style="margin-top:10px">Right now</div>' +
@@ -30769,6 +30880,23 @@ function nodeTravelThen(after){
 }
 function wireNodeWin(){
   const box = $('node-body'); if (!box) return;
+  /* [TILLAGT v5.229.0] "RIGHT NOW"-RADERNA AR GENVAGAR (Chris punkt 15). Forut
+     var de bara text: man laste att det fanns ett mote, stangde rutan, tryckte
+     "Open zone" och letade sig ner till ratt avsnitt. Nu oppnar raden zonen och
+     hoppar till sitt eget avsnitt direkt. */
+  box.querySelectorAll('[data-ndgo]').forEach(rad => rad.addEventListener('click', () => {
+    const vart = rad.dataset.ndgo;
+    const i = REGIONS[NODE.region] ? REGIONS[NODE.region].zones.indexOf(NODE.zone) : -1;
+    if (i < 0) return;
+    closeNodeWin();
+    openZone(NODE.region, i);
+    /* Zonrutan byggs om i samma tryck, sa hoppet vantar tills den star dar. */
+    setTimeout(() => {
+      const id = vart === 'enc' ? 'zone-enc' : vart === 'dg' ? 'zone-dgh' : 'zone-exp';
+      const el = document.getElementById(id);
+      if (el && el.scrollIntoView) el.scrollIntoView({block: 'start', behavior: 'smooth'});
+    }, 60);
+  }));
   box.querySelectorAll('[data-nd]').forEach(btn => btn.addEventListener('click', () => {
     const a = btn.dataset.nd;
     if (a === 'close'){ closeNodeWin(); return; }
