@@ -3267,6 +3267,11 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
   box-shadow:0 14px 40px rgba(0,0,0,.7), inset 0 0 0 1px rgba(var(--win-glow),.12);
   padding:26px 9px 9px;
 }
+/* [ANDRAT v5.222.0] Vaskans egna fonster har inget emblem langre, sa det tomma
+   bandet i overkant kan bort. Valvets fonster behaller sitt emblem och sitt
+   band - de ritas av en annan funktion. */
+.bagwin:not(.vaultbagwin){padding:8px 9px 9px}
+.bagwin:not(.vaultbagwin) .bagwin-head{margin-bottom:6px}
 .bagwin-head{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   cursor:grab;user-select:none;margin-bottom:7px;font-size:10.5px;font-weight:800;
@@ -6171,7 +6176,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.221.0 — ADELSTENSPASEN, ETT EGET FACK FOR SKARVOR OCH STENAR</div>
+        <div class="sn-ver">GENESIS v5.222.0 — ALLA VASKOR LASTA TILL INVENTORYT, INGA OVERLAPP</div>
       </div>
     </div>
   </aside>
@@ -7134,7 +7139,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.221.0 — ADELSTENSPASEN, ETT EGET FACK FOR SKARVOR OCH STENAR</div>
+            <div class="desc">GENESIS v5.222.0 — ALLA VASKOR LASTA TILL INVENTORYT, INGA OVERLAPP</div>
           </div>
         </div>
       </div>
@@ -14142,8 +14147,7 @@ function renderVaultMiniBags(){
   document.querySelectorAll('.vaultbagwin').forEach(w => w.remove());
   const vw = $('vault-overlay');
   if (!vw || !vw.classList.contains('open')) return;
-  const base = vw.getBoundingClientRect();
-  let idx = 0;
+  const lay = miniLayoutStart(vw.getBoundingClientRect());
   vaultBagSegments().forEach(seg => {
     if (seg.socket === undefined || !vaultBagIsOpen(seg.socket)) return;
     const dim = compactDims(seg.len);
@@ -14158,17 +14162,16 @@ function renderVaultMiniBags(){
       '<button class="bagwin-x" data-closevbag="' + seg.socket + '">✕</button></div>' +
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
     document.body.appendChild(win);
-    placeMiniWindow(win, base, idx);
+    placeMiniWindow(win, lay);
     const head = win.querySelector('.bagwin-head');
     /* Tre grepp på samma fönster: rubriken, emblemet, och ramen i stort — men
        inte rutorna, för där är det pjäsen man vill åt. */
-    makeDraggable(win, [head, win.querySelector('.bagwin-emblem'), win]);
+    makeDraggable(win, [head, win]);
     win.querySelector('[data-closevbag]').addEventListener('click', e => {
       e.stopPropagation();
       setVaultBagOpen(seg.socket, false);
     });
     hookVaultCells(win.querySelector('.bagwin-grid'));
-    idx++;
   });
 }
 function setVaultBagOpen(socket, open){
@@ -16030,24 +16033,37 @@ function bagIsOpen(socket){
    fortsätter nästa kolumn, och finns ingen plats till höger tas vänstersidan, annars
    under. Allt klipps till skärmen. Väl framme kan man dra dem fritt — men vid nästa
    öppning läggs de ut på nytt, vilket är hela poängen. */
-function placeMiniWindow(win, host, idx){
+/* [OMSKRIVET v5.222.0] FONSTREN LAG PA VARANDRA (Chris). Den gamla raknade ut
+   hur manga som fick plas i en kolumn utifran DET HAR fonstrets hojd och la
+   sedan alla pa jamna avstand. Men vaskorna ar olika hoga - samlarvaskan ar
+   dubbelt sa hog som adelstenspasen - sa jamna avstand betyder overlapp sa
+   fort tva grannar skiljer sig at.
+   Nu staplas de pa MATT hojd: nasta fonster borjar dar det forra slutade. Ett
+   litet bokforingsobjekt haller reda pa var kolumnen ar just nu. */
+function miniLayoutStart(host){
+  return {host: host, x: host.right + 10, y: host.top, bredast: 0};
+}
+function placeMiniWindow(win, lay){
   const GAP = 10;
-  const w = win.offsetWidth || 180, h = win.offsetHeight || 160;
   const vw = window.innerWidth, vh = window.innerHeight;
-  const perCol = Math.max(1, Math.floor((vh - host.top - 8) / (h + GAP)));
-  const col = Math.floor(idx / perCol), row = idx % perCol;
-  let x = host.right + GAP + col * (w + GAP);
-  /* Ryms det inte till höger: pröva vänster, annars lägg raden under modern. */
-  if (x + w > vw - 8){
-    const lx = host.left - GAP - (col + 1) * (w + GAP) + GAP;
-    x = (lx >= 8) ? lx : Math.min(vw - w - 8, host.left + col * (w + GAP));
+  const w = win.offsetWidth || 180, h = win.offsetHeight || 160;
+  /* Ny kolumn nar det inte far plats pa hojden. */
+  if (lay.y + h > vh - 8 && lay.bredast > 0){
+    lay.x += lay.bredast + GAP;
+    lay.y = lay.host.top;
+    lay.bredast = 0;
   }
-  let y = (x < host.right && x + w > host.left) ? (host.bottom + GAP + row * (h + GAP))
-                                                : (host.top + row * (h + GAP));
-  x = Math.max(8, Math.min(x, vw - w - 8));
-  y = Math.max(8, Math.min(y, vh - h - 8));
+  let x = lay.x;
+  /* Ryms kolumnen inte till hoger: lagg den till vanster om modern i stallet. */
+  if (x + w > vw - 8){
+    const vx = lay.host.left - GAP - w;
+    x = (vx >= 8) ? vx : Math.max(8, vw - w - 8);
+  }
+  const y = Math.max(8, Math.min(lay.y, vh - h - 8));
   win.style.left = Math.round(x) + 'px';
   win.style.top = Math.round(y) + 'px';
+  lay.y = y + h + GAP;
+  lay.bredast = Math.max(lay.bredast, w);
 }
 /* ---------- VISA VILKA RUTOR EN VÄSKA ÄGER ----------
    Hovrar eller drar man en väska i sitt fack lyser precis de rutor den bidrar med.
@@ -16220,8 +16236,7 @@ function renderMiniBags(){
   document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
   const invWin = $('inv-overlay');
   if (!invWin || !invWin.classList.contains('open')) return;
-  const base = invWin.getBoundingClientRect();
-  let idx = 0;
+  const lay = miniLayoutStart(invWin.getBoundingClientRect());
   bagSegments().forEach(seg => {
     if (seg.socket === undefined || !bagIsOpen(seg.socket)) return;
     const dim = compactDims(seg.len);
@@ -16231,26 +16246,23 @@ function renderMiniBags(){
     win.className = 'bagwin';
     win.dataset.socket = seg.socket;
     win.innerHTML =
-      (seg.socket === 'p'
-        ? '<div class="bagwin-emblem pouch-emblem">💠</div>'
-        : seg.socket === 'g'
-        ? '<div class="bagwin-emblem gbag-emblem">🌿</div>'
-        : '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(bagIn(seg.socket)) + '\')"></i></div>') +
+      /* [BORTTAGET v5.222.0] Den runda bilden ovanfor rubriken (Chris). Rubriken
+         sager redan vilken vaska det ar, och cirkeln kravde ett tomt band pa
+         26 pixlar i overkant som bara var luft. */
       '<div class="bagwin-head"><span>' + seg.name + '</span>' +
       '<button class="bagwin-x" data-closebag="' + seg.socket + '">✕</button></div>' +
       '<div class="bagwin-grid" style="grid-template-columns:repeat(' + dim.cols + ',52px);grid-template-rows:repeat(' + dim.rows + ',52px)">' + cells + '</div>';
     document.body.appendChild(win);
-    placeMiniWindow(win, base, idx);
+    placeMiniWindow(win, lay);
     const head = win.querySelector('.bagwin-head');
     /* Tre grepp på samma fönster: rubriken, emblemet, och ramen i stort — men
        inte rutorna, för där är det pjäsen man vill åt. */
-    makeDraggable(win, [head, win.querySelector('.bagwin-emblem'), win]);
+    makeDraggable(win, [head, win]);
     win.querySelector('[data-closebag]').addEventListener('click', e => {
       e.stopPropagation();
       setBagOpen(seg.socket, false);
     });
     hookInvCells(win.querySelector('.bagwin-grid'));
-    idx++;
   });
 }
 /* Bryt ut en väska ur huvudrutnätet, eller baka in den igen. */
@@ -25685,13 +25697,14 @@ function attachDragHandle(win, handle){
         dragging = true;
       }
       const nyX = ev.clientX - ox, nyY = ev.clientY - oy;
-      /* [TILLAGT v5.221.0] Adelstenspasen ar last till vaskan: drar man vaskan
-         foljer pasen med, som ett fack pa samma ryggsack. Ovriga minifonster ar
-         fria som forut. */
+      /* [ANDRAT v5.222.0] ALLA utbrutna vaskor ar lasta till vaskan (Chris):
+         samlarvaskan, verktygsfodralet och adelstenspasen foljer med nar man
+         drar i inventoryt. De ar fack pa samma ryggsack, inte fristaende rutor.
+         Valvets egna fonster ar undantagna - de hor till en annan modervaska. */
       if (win.id === 'inv-overlay'){
         const dx = nyX - (parseFloat(win.style.left) || win.getBoundingClientRect().left);
         const dy = nyY - (parseFloat(win.style.top) || win.getBoundingClientRect().top);
-        document.querySelectorAll('.bagwin[data-socket="p"]').forEach(w => {
+        document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => {
           w.style.left = ((parseFloat(w.style.left) || w.getBoundingClientRect().left) + dx) + 'px';
           w.style.top  = ((parseFloat(w.style.top)  || w.getBoundingClientRect().top)  + dy) + 'px';
         });
@@ -25821,8 +25834,15 @@ function closeInventoryWindow(){
   $('inv-overlay').classList.remove('open');
   /* BARA väskans egna: '.bagwin' träffar även valvets. */
   document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
-  if (S.bagOpen && S.bagOpen.some(Boolean)){
+  /* [ANDRAT v5.222.0] Adelstenspasen ar OPPEN som utgangslage (Chris), sa den
+     nollstalls nar vaskan stangs. Stanger man den mitt i ett pass far den vara
+     stangd - men nasta gang man oppnar vaskan star den dar igen. */
+  const varOppna = S.bagOpen && S.bagOpen.some(Boolean);
+  const pasenStangd = S.bagOpen && S.bagOpen.p === false;
+  if (varOppna || pasenStangd){
+    const g = S.bagOpen.g;
     S.bagOpen = S.bagOpen.map(() => false);
+    S.bagOpen.g = !!g;
     save();
   }
 }
