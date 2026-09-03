@@ -3907,10 +3907,13 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-upg{padding:8px;border-radius:9px;font-weight:900;letter-spacing:.16em;font-size:13px;cursor:pointer;
   background:linear-gradient(180deg,rgba(255,200,60,.16),rgba(255,200,60,.06));
   border:1px solid var(--gold);color:var(--gold)}
+/* [TILLAGT v5.242.0] Klartexten under slutnodens korta rad. Dampad och satt i
+   brodtext, sa den laser som en forklaring och inte som en andra siffra. */
+.pt-dhelp{font-size:10.5px;line-height:1.65;color:var(--text-dim);margin-top:6px}
 /* [TILLAGT v5.241.0] Hovringsrutan pa en trad-nod. Spelets egen ruta, inte
    webblasarens - samma sprak som pjaskorten. */
 .pt-tip{
-  position:fixed;z-index:2400;pointer-events:none;max-width:250px;
+  position:fixed;z-index:2400;pointer-events:none;max-width:250px;white-space:pre-line;
   padding:8px 11px;border-radius:9px;font-size:11px;line-height:1.55;
   background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
   border:1px solid var(--border-glow);box-shadow:0 14px 34px rgba(0,0,0,.6);color:var(--text);
@@ -6338,7 +6341,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.241.0 — HJALPARFONSTRET, TRADETS HOVRING OCH VALVETS ENDA RUTA</div>
+        <div class="sn-ver">GENESIS v5.242.0 — SLUTNODERNA FORKLARADE, OCH HOVRINGEN SAGER RATT SAK</div>
       </div>
     </div>
   </aside>
@@ -7314,7 +7317,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.241.0 — HJALPARFONSTRET, TRADETS HOVRING OCH VALVETS ENDA RUTA</div>
+            <div class="desc">GENESIS v5.242.0 — SLUTNODERNA FORKLARADE, OCH HOVRINGEN SAGER RATT SAK</div>
           </div>
         </div>
       </div>
@@ -22492,6 +22495,33 @@ function woCap(prof){
   if (!SKILL_TREES[prof]) return 5 + gem;
   return Math.min(5, 2 + skillPct(prof, 'slots')) + gem;
 }
+/* [TILLAGT v5.242.0] SLUTNODERNA FORKLARADE I KLARTEXT (Chris punkt 8).
+   Den korta raden sager VAD noden andrar men inte vad det betyder nar man
+   spelar - "40% of common finds re-rolled toward ores" ar sant och obegripligt.
+   Texten harunder ar skriven for nagon som aldrig sett en formel: en mening om
+   vad som faktiskt hander, och en om vad man far ut av det.
+   Nyckeln ar EFFEKTEN, inte nodens namn, sa tre yrken med samma slutnod delar
+   en text och de kan aldrig glida isar. */
+const SKILL_HELP = {
+  capstone_speed:
+    'Everything you put in the crafting queue finishes sooner. It counts for every recipe, every time, with nothing you have to remember.',
+  capstone_preserve:
+    'Now and then a crafting job does not use up one of its cheap materials. You still get the item, and the material stays in your bag.',
+  pattern:
+    'Pick one stat below. Gear you craft yourself will roll that stat a little more often than it would have. It is a better chance, not a promise \u2014 you will still get other stats.',
+  station_speed:
+    'Your station keeps producing on its own while you play. This makes each unit come out faster, so you come back to a bigger pile for the same wait.',
+  store_cap:
+    'Your station stops when it is full. This lets it hold more before that happens, so you can leave it running longer without losing production.',
+  hp_regen:
+    'Your health refills faster after a fight. That means less waiting before you can take the next one.',
+  focus_ore:
+    'You do not find more materials \u2014 you find more of the ones you want. A share of your ordinary finds turns into ore instead of something else.',
+  focus_crystal:
+    'You do not find more materials \u2014 you find more of the ones you want. A share of your ordinary finds turns into crystals instead of something else.',
+  gem_luck:
+    'Gem shards are the rare thing you can dig up, and six of them from one region forge that region\u2019s gem. This makes shards turn up more often.'
+};
 function skillEffText(n, ranks){
   const now = n.per * ranks, next = n.per * (ranks + 1);
   const line = (v) => {
@@ -22618,8 +22648,13 @@ function ppTreeHTML(prof){
            vilket lagger en poang. Man skulle alltsa behova kopa noden for att
            fa veta vad den gor. Texten ar samma text som detaljpanelen visar,
            raknad pa naste rang, sa de tva aldrig kan saga olika saker. */
-        const nasta = Math.min(n.max, skillViewRanks(prof, t, n.id) + 1);
-        const hjalp = n.name + ' \u2014 ' + skillEffText(n, nasta);
+        /* [RATTAT v5.242.0] Effekttexten ar ett PAR - vad noden ger nu och vad
+           nasta rang ger - inte en strang. Hovringen skrev darfor "[object
+           Object]". Nasta rang visas nar det finns en, annars den nuvarande. */
+        const ef = skillEffText(n, skillViewRanks(prof, t, n.id));
+        const rad = ef.next || ef.now;
+        const hjalp = n.name + (rad ? ' \u2014 ' + rad : '') +
+          (SKILL_HELP[n.eff] ? '\n\n' + SKILL_HELP[n.eff] : '');
         return '<div class="' + cls.join(' ') + '" data-ptnode="' + t + ':' + n.id + '"' +
           ' data-pttip="' + esc(hjalp) + '">' +
           '<div class="pt-oct"><span>' + (n.ico || SKILL_ICO[n.eff] || '\u2b50') + '</span>' +
@@ -22673,6 +22708,8 @@ function ppTreeHTML(prof){
           ' <span class="pt-drank">' + ranks + ' / ' + n.max +
           (stg ? ' <i class="pt-dstg">' + stg + ' planned</i>' : '') + '</span></div>' +
         '<div class="pt-deff">' + (eff.next ? '<b>' + eff.next + '</b>' + (ranks > 0 ? ' <span class="pt-now">(now: ' + eff.now + ')</span>' : '') : '<b>' + eff.now + '</b>') + '</div>' +
+        /* [TILLAGT v5.242.0] Klartexten under den korta raden. */
+        (SKILL_HELP[n.eff] ? '<div class="pt-dhelp">' + esc(SKILL_HELP[n.eff]) + '</div>' : '') +
         patternPick +
       '</div>' +
       /* [ANDRAT v5.228.0] KNAPPARNA AR BORTA (Chris punkt 13). Vansterklick pa
