@@ -1107,6 +1107,14 @@ body.dragging *{cursor:grabbing !important}
   background:linear-gradient(180deg,rgba(74,222,128,.07),rgba(74,222,128,.02));
 }
 .inv-bagslot.gbag{box-shadow:inset 0 0 14px rgba(74,222,128,.18)}
+/* [TILLAGT v5.221.0] Adelstenspasen: ljusare bla an samlarvaskans grona, sa de
+   tva hyllorna gar att skilja pa utan att lasa rubriken. */
+.inv-bagslot.pouch{box-shadow:inset 0 0 14px rgba(96,190,255,.20)}
+.inv-slot.pouch-cell{
+  border-color:rgba(96,190,255,.42);
+  background:linear-gradient(180deg,rgba(96,190,255,.10),rgba(96,190,255,.03));
+}
+.inv-slot.pouch-cell:hover{border-color:rgba(96,190,255,.75)}
 /* Samma sprak som meddelanderutan, men vid handen i stallet for hogst upp. */
 .say-at{
   position:fixed;z-index:900;pointer-events:none;max-width:260px;text-align:center;
@@ -3200,6 +3208,9 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 /* Samlarvaskan ar inte ett fack man fyller - den ar en vaska i sig. Gron
    kant sa den inte laser som ett tomt vaskfack. */
 .inv-bagslot.gbag{border-color:rgba(74,222,128,.55);color:#7ef0a8;cursor:pointer}
+.inv-bagslot.pouch{border-color:rgba(96,190,255,.6);color:#8fd4ff;cursor:pointer}
+.inv-bagslot.pouch.lit{box-shadow:0 0 12px rgba(96,190,255,.38)}
+.bagwin-emblem.pouch-emblem{display:flex;align-items:center;justify-content:center;font-size:20px}
 .bagwin-emblem.gbag-emblem{display:flex;align-items:center;justify-content:center;font-size:20px}
 .inv-bagslot.gbag.lit{box-shadow:0 0 12px rgba(74,222,128,.35)}
 /* Rutorna en hovrad väska äger. Fyllda rutor lyser varmare — det är DE som måste
@@ -6160,7 +6171,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.220.0 — SAMLARVASKAN AR TIO FASTA PLATSER</div>
+        <div class="sn-ver">GENESIS v5.221.0 — ADELSTENSPASEN, ETT EGET FACK FOR SKARVOR OCH STENAR</div>
       </div>
     </div>
   </aside>
@@ -6645,6 +6656,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <div class="inv-bagslot" data-bag="4">👜</div>
           <!-- SAMLARVASKAN: oppen fran start, gar inte att stoppa en vaska i. -->
           <div class="inv-bagslot gbag" data-gbag="1">🌿</div>
+          <div class="inv-bagslot pouch" data-pouch="1">💠</div>
         </div>
       </div>
       <div class="inv-grid" id="inv-grid"></div>
@@ -7122,7 +7134,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.220.0 — SAMLARVASKAN AR TIO FASTA PLATSER</div>
+            <div class="desc">GENESIS v5.221.0 — ADELSTENSPASEN, ETT EGET FACK FOR SKARVOR OCH STENAR</div>
           </div>
         </div>
       </div>
@@ -9246,14 +9258,18 @@ async function netPullItemsRun(){
   /* Tva hyllor: allt utom samlat material packas fran borjan, det samlade
      packas i samlarvaskan langst bak. Storleken raknas UT ur det som faktiskt
      kom hem, sa ingenting kan bli hemlost. */
+  /* [ANDRAT v5.221.0] TRE hyllor: ryggsack, samlarvaska, adelstenspase.
+     Skarvorna gick forut till samlarvaskan har men raknades bort pa servern -
+     nu gar de dit de hor, och de smidda stenarna med dem. */
+  const pouchStacks = (stackRows || []).filter(st => isShardKey(st.stack_key));
   const gathRows = (stackRows || []).filter(st => isGatherKey(st.stack_key) && !gbagIsOut(st.stack_key));
-  const mainRows = (stackRows || []).filter(st => !isGatherKey(st.stack_key) || gbagIsOut(st.stack_key));
-  const needMain = bagRows.length + mainRows.length;
+  const mainRows = (stackRows || []).filter(st => !isGatherKey(st.stack_key) && !isShardKey(st.stack_key));
+  const gemRows = (bagRows || []).filter(r => r && r.gear && gemByKey(r.gear.t));
+  const needMain = (bagRows.length - gemRows.length) + mainRows.length;
   const gStart = Math.max(gbagStart(), needMain);
-  /* [ANDRAT v5.220.0] Samma regel som gbagSlots - talet bor pa ETT stalle nu.
-     Forut stod formeln har OCH dar, och bara den ena hade uppdaterats. */
   const gLen = Math.max(GATHER_BAG_SLOTS, gathRows.length);
-  S.inv = new Array(gStart + gLen).fill(null);
+  const pLen = Math.max(4, pouchStacks.length + gemRows.length + 2);
+  S.inv = new Array(gStart + gLen + pLen).fill(null);
   /* ORDNINGEN ar spelarens, inte serverns. Varje sak forsoker forst tillbaka till
      den ruta den lag i; bara det som ar NYTT, eller vars ruta blivit upptagen,
      packas i forsta lediga. Sa star en flyttad melon kvar dar man la den. */
@@ -9268,7 +9284,11 @@ async function netPullItemsRun(){
     return false;
   };
   let at = 0;
-  bagRows.forEach(g => { place({gear: g}, g.sid ? 'i:' + g.sid : null, 0); });
+  const pStart = gStart + gLen;
+  bagRows.forEach(g => {
+    const iPase = !!(g && gemByKey(g.t));
+    place({gear: g}, g.sid ? 'i:' + g.sid : null, iPase ? pStart : 0);
+  });
 
   /* Valvets rutor byggs om fran serverns rader. */
   S.vault = S.vault || {};
@@ -9300,7 +9320,7 @@ async function netPullItemsRun(){
   /* Staplarna: material, flaskor och recept. Samlat material sist, i sin egen
      vaska - dess forsta ruta ar gStart. */
   let gat = gStart;
-  const putStack = (st, gathered) => {
+  const putStack = (st, hylla) => {
     const mat = MATERIALS[st.stack_key];
     const fl  = FLASKS[st.stack_key];
     /* [BUG] MELONEN HETTE SIN NYCKEL. Namnet slogs upp i materialen, flaskorna
@@ -9328,19 +9348,23 @@ async function netPullItemsRun(){
       rar: schematicOf(st.stack_key) ? schematicOf(st.stack_key).rar
            : (st.rarity == null ? undefined : (st.rarity | 0))
     };
-    place(row, invRowKey(row), gathered ? gStart : 0);
+    place(row, invRowKey(row), hylla === 'p' ? pStart : hylla === 'g' ? gStart : 0);
   };
-  mainRows.forEach(st => putStack(st, false));
-  gathRows.forEach(st => putStack(st, true));
-  /* Det som inte fick sin gamla ruta laggs i forsta lediga - i sin egen halva av
-     vaskan, sa samlat material aldrig hamnar bland resten eller tvartom. */
+  mainRows.forEach(st => putStack(st, 'b'));
+  gathRows.forEach(st => putStack(st, 'g'));
+  pouchStacks.forEach(st => putStack(st, 'p'));
+  /* [ANDRAT v5.221.0] Det som inte fick sin gamla ruta laggs i forsta lediga -
+     i SIN hylla. Tre hyllor nu, sa granserna maste raknas at bada hallen:
+     ryggsacken slutar dar vaskan borjar, vaskan dar pasen borjar. */
   spill.forEach(x => {
+    const stop = x.from >= pStart ? S.inv.length : (x.from >= gStart ? pStart : gStart);
     let i = x.from;
-    const stop = x.from >= gStart ? S.inv.length : gStart;
     while (i < stop && S.inv[i]) i++;
     if (i < stop){ S.inv[i] = x.row; return; }
-    let j = 0; while (j < S.inv.length && S.inv[j]) j++;
-    if (j < S.inv.length) S.inv[j] = x.row; else S.inv.push(x.row);
+    if (x.from >= pStart){ S.inv.push(x.row); return; }
+    let j = x.from >= gStart ? gStart : 0;
+    while (j < stop && S.inv[j]) j++;
+    if (j < stop) S.inv[j] = x.row; else S.inv.push(x.row);
   });
   /* [TILLAGT v5.82.0] SISTA VAKTEN. Lasningen ovan ska gora dubbletter omojliga,
      men vaskan ar det spelaren tittar pa hela tiden och ett spoke dar kostar
@@ -13131,6 +13155,8 @@ let S = {
   vendGift: {},             // femstjärnepaketet per region: 'invited' | 'taken'
   boosts: {},               // aktiva flaskor: {nyckel: utgångstid i ms}
   vaultTone: 'blue',        // valvets färgton: blue (standard) | bronze | red | green
+  /* [ANDRAT v5.221.0] Adelstenspasen star OPPEN fran borjan (Chris) - den ska
+     ligga bredvid vaskan sa fort man oppnar den, precis som samlarvaskan. */
   bagOpen: [false, false, false, false, false],
   stats: {expDone: 0, sold: 0, bought: 0},   // händelser som inte gick att räkna i efterhand
   savedAt: 0
@@ -13306,6 +13332,8 @@ function load(){
       }
       if (['blue','bronze','red','green'].includes(d.vaultTone)) S.vaultTone = d.vaultTone;
       S.bagOpen = [0,1,2,3,4].map(i => !!(Array.isArray(d.bagOpen) && d.bagOpen[i]));
+      S.bagOpen.g = !!(d.bagOpen && d.bagOpen.g);
+      S.bagOpen.p = (d.bagOpen && d.bagOpen.p !== undefined) ? !!d.bagOpen.p : true;
       /* MÅSTE stå EFTER readGear — tredje gången den fällan gillras (moneyV,
          väskorna, nu valvet). Deklarationen är en const längre ned i blocket. */
       /* Valvet läses med samma stränghet som väskan: bara giltiga pjäser och
@@ -15130,7 +15158,21 @@ const GATHER_ALL_KEYS = (() => {
    klienten drog tillbaka den till den vanliga. En rad, precis som pa servern,
    och alla sex stallen som fragar (vilken vaska den laddas i, om den far dras
    dit, om vaskan tar emot den) foljer med. */
-function isGatherKey(k){ return !!k && (k.indexOf('shard_') === 0 || !!GATHER_ALL_KEYS[k]); }
+/* [ANDRAT v5.221.0] SKARVORNA LAMNAR SAMLARVASKAN (Chris). De rakandes som
+   samlat material HAR men INTE pa servern - de tva har aldrig varit overens om
+   vad vaskan innehaller. Nu bor de i adelstenspasen i stallet, dar de hor hemma
+   tillsammans med de smidda stenarna. */
+function isGatherKey(k){ return !!k && !!GATHER_ALL_KEYS[k]; }
+/* Adelstenspasen tar TVA sorter och inget annat: expeditionsskarvorna, som ar
+   staplar, och de smidda karaktarsstenarna, som ar riktiga foremal. Darfor
+   fragar vi pa raden och inte bara pa nyckeln. */
+function isShardKey(k){ return !!k && k.indexOf('shard_') === 0; }
+function isPouchKey(k){ return isShardKey(k) || !!gemByKey(k); }
+function isPouchRow(row){
+  if (!row) return false;
+  if (row.gear) return !!gemByKey(row.gear.t);
+  return !!row.stack && isShardKey(row.key);
+}
 function isGatherRow(row){ return !!(row && row.stack && !row.gear && isGatherKey(row.key)); }
 /* Sorterna dina LARDA samlaryrken kan hitta. */
 /* [BORTTAGET v5.220.0] Raknade sorterna dina yrken kan ge. Det talet styrde
@@ -15147,14 +15189,29 @@ function gbagSlots(){
      NYA sorter, den kastar aldrig nagot. Rutan visar sanningen. */
   return Math.max(GATHER_BAG_SLOTS, gbagUsed());
 }
-function invSlots(){ return gbagStart() + gbagSlots(); }
+/* ---------- ADELSTENSPASEN (v5.221.0) ----------
+   Tredje hyllan, efter samlarvaskan. INGET TAK: bara skarvor och karaktars-
+   stenar far ligga har, och bada kommer fran expeditioner man kor om och om
+   igen. Fem regioner ger fem sorters sten, och man sparar dem tills man hittar
+   en med battre procent. Ett tak skulle bara vara i vagen, och det finns
+   ingenting att missbruka. Den vaxer med tva tomma rutor sa det alltid syns
+   att det finns plats. */
+function pouchStart(){ return gbagStart() + gbagSlots(); }
+function pouchUsed(){
+  let n = 0;
+  for (let i = pouchStart(); i < S.inv.length; i++) if (S.inv[i]) n++;
+  return n;
+}
+function pouchSlots(){ return Math.max(4, pouchUsed() + 2); }
+function invSlots(){ return pouchStart() + pouchSlots(); }
 /* Var far en sak ligga? Samlat material hor hemma i samlarvaskan och ingen
    annanstans; allt ovrigt hor hemma utanfor den. Tva olika hyllor, aldrig
    blandade - det ar hela poangen med den extra vaskan. */
 function invRangeFor(row){
-  const st = gbagStart();
+  const st = gbagStart(), po = pouchStart();
   if (row && row.key === '__main__') return {from: 0, to: st};
-  return (isGatherRow(row) && !gbagIsOut(row.key)) ? {from: st, to: invSlots()} : {from: 0, to: st};
+  if (isPouchRow(row)) return {from: po, to: invSlots()};
+  return (isGatherRow(row) && !gbagIsOut(row.key)) ? {from: st, to: po} : {from: 0, to: st};
 }
 /* Att ta ur en väska krymper ryggsäcken. Saker som skulle hamna utanför flyttas
    ned i lediga rutor först — och finns det inte plats nekas hela bytet, hellre än
@@ -15816,6 +15873,10 @@ function renderBagSlots(){
     el.classList.toggle('detached', bagIsOpen('g'));
     el.classList.toggle('lit', !bagIsOpen('g'));
   });
+  document.querySelectorAll('[data-pouch]').forEach(el => {
+    el.classList.toggle('detached', bagIsOpen('p'));
+    el.classList.toggle('lit', !bagIsOpen('p'));
+  });
   document.querySelectorAll('[data-bag]').forEach(el => {
     const i = +el.dataset.bag;
     el.removeAttribute('title');
@@ -15955,7 +16016,13 @@ function compactDims(n){
   const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
   return {cols: cols, rows: Math.ceil(n / cols)};
 }
-function bagIsOpen(socket){ return !!(S.bagOpen && S.bagOpen[socket]); }
+function bagIsOpen(socket){
+  /* [ANDRAT v5.221.0] Adelstenspasen ar OPPEN som utgangslage (Chris). Darfor
+     fragar den efter ett uttryckligt nej, inte efter ett ja - annars star den
+     stangd for alla som aldrig rort den. */
+  if (socket === 'p') return !(S.bagOpen && S.bagOpen.p === false);
+  return !!(S.bagOpen && S.bagOpen[socket]);
+}
 /* ---------- VAR HAMNAR ETT UTBRUTET MINIFÖNSTER? ----------
    Alltid runt sitt moderfönster, aldrig på en sparad plats. Sparade platser lät
    fönstren hamna UNDER basrutan eller utanför skärmen så fort man flyttat något.
@@ -16100,6 +16167,7 @@ function bagSegments(){
     }
   }
   segs.push({name: 'Gathering bag', start: at, len: gbagSlots(), socket: 'g'});
+  segs.push({name: 'Gem pouch', start: pouchStart(), len: pouchSlots(), socket: 'p'});
   return segs;
 }
 /* pos är valfri {col,row} och vävs in i SAMMA style-attribut som raritetsfärgen —
@@ -16109,7 +16177,10 @@ function invCellHTML(i, pos){
   const at = pos ? 'grid-column:' + pos.col + ';grid-row:' + pos.row + ';' : '';
   /* Rutorna som hor till samlarvaskan bar sin egen klass och lyser darfor
      svagt gront hela tiden, inte bara nar man hovrar. */
-  const gb = (typeof gbagStart === 'function' && i >= gbagStart()) ? ' gbag-cell' : '';
+  /* [ANDRAT v5.221.0] Tre hyllor nu: ryggsack, samlarvaska, adelstenspase.
+     Rutorna bar var sin klass sa de lyser i var sin farg utan att man hovrar. */
+  const gb = (typeof pouchStart === 'function' && i >= pouchStart()) ? ' pouch-cell'
+           : (typeof gbagStart === 'function' && i >= gbagStart()) ? ' gbag-cell' : '';
   if (it && it.gear){
     /* Bocken ritas ocksa pa en pjas nu - annars gick den att valja men syntes inte. */
     const gtick = (sellMode && sellableRow(it))
@@ -16160,7 +16231,9 @@ function renderMiniBags(){
     win.className = 'bagwin';
     win.dataset.socket = seg.socket;
     win.innerHTML =
-      (seg.socket === 'g'
+      (seg.socket === 'p'
+        ? '<div class="bagwin-emblem pouch-emblem">💠</div>'
+        : seg.socket === 'g'
         ? '<div class="bagwin-emblem gbag-emblem">🌿</div>'
         : '<div class="bagwin-emblem"><i style="background-image:url(\'' + gearArt(bagIn(seg.socket)) + '\')"></i></div>') +
       '<div class="bagwin-head"><span>' + seg.name + '</span>' +
@@ -16184,6 +16257,7 @@ function renderMiniBags(){
 function setBagOpen(socket, open){
   /* Samlarvaskan har ingen vaska i sig - den ar sig sjalv, och vaxlar anda. */
   if (socket === 'g'){ S.bagOpen = S.bagOpen || {}; S.bagOpen.g = !!open; renderInventory(); save(); return true; }
+  if (socket === 'p'){ S.bagOpen = S.bagOpen || {}; S.bagOpen.p = !!open; renderInventory(); save(); return true; }
   if (!bagIn(socket) || !bagUnlocked(socket)) return false;
   S.bagOpen[socket] = !!open;
   renderInventory();
@@ -25610,8 +25684,20 @@ function attachDragHandle(win, handle){
         if (Math.abs(ev.clientX - sx) < 5 && Math.abs(ev.clientY - sy) < 5) return;
         dragging = true;
       }
-      win.style.left = (ev.clientX - ox) + 'px';
-      win.style.top = (ev.clientY - oy) + 'px';
+      const nyX = ev.clientX - ox, nyY = ev.clientY - oy;
+      /* [TILLAGT v5.221.0] Adelstenspasen ar last till vaskan: drar man vaskan
+         foljer pasen med, som ett fack pa samma ryggsack. Ovriga minifonster ar
+         fria som forut. */
+      if (win.id === 'inv-overlay'){
+        const dx = nyX - (parseFloat(win.style.left) || win.getBoundingClientRect().left);
+        const dy = nyY - (parseFloat(win.style.top) || win.getBoundingClientRect().top);
+        document.querySelectorAll('.bagwin[data-socket="p"]').forEach(w => {
+          w.style.left = ((parseFloat(w.style.left) || w.getBoundingClientRect().left) + dx) + 'px';
+          w.style.top  = ((parseFloat(w.style.top)  || w.getBoundingClientRect().top)  + dy) + 'px';
+        });
+      }
+      win.style.left = nyX + 'px';
+      win.style.top = nyY + 'px';
     };
     const up = () => {
       document.removeEventListener('pointermove', move);
@@ -26398,6 +26484,19 @@ document.querySelectorAll('[data-gbag]').forEach(el => {
     '<b>Gathering bag</b><br>Everything your gathering professions dig up lands here — ' +
     'ore, fibre, blooms, gems and the rare finds.<br>' +
     gbagUsed() + ' / ' + gbagSlots() + ' slots used.'));
+});
+/* [TILLAGT v5.221.0] ADELSTENSPASEN. Samma vaxel som samlarvaskan, men den star
+   oppen fran borjan och foljer vaskan nar man drar i den. */
+document.querySelectorAll('[data-pouch]').forEach(el => {
+  el.addEventListener('click', () => {
+    S.bagOpen = S.bagOpen || {};
+    S.bagOpen.p = !bagIsOpen('p');
+    renderInventory(); save();
+  });
+  el.addEventListener('mouseenter', () => showBagTip(el,
+    '<b>Gem pouch</b><br>Expedition shards and forged character gems, and nothing else.<br>' +
+    'No limit — keep as many as you like.<br>' +
+    pouchUsed() + ' held.'));
   el.addEventListener('mouseleave', hideBagTip);
 });
 document.querySelectorAll('[data-bag]').forEach(el => {
