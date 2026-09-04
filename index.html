@@ -4069,9 +4069,16 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
    fjardedel ned. Noderna lyste sa mycket att formen forsvann. */
 .pt-node.open .pt-oct{filter:drop-shadow(0 0 3.75px var(--oc))}
 .pt-node.open .pt-nname{color:var(--text)}
-.pt-node.owned .pt-oct{filter:drop-shadow(0 0 8.25px var(--oc))}
+/* [ANDRAT v5.271.0] GLODET HALVERAT PA NODER MED POANG (Chris). 8.25 -> 4.15.
+   Formen syntes inte for ljuset. */
+.pt-node.owned .pt-oct{filter:drop-shadow(0 0 4.15px var(--oc))}
 .pt-node.owned .pt-oct::after{background:linear-gradient(180deg,rgba(56,232,255,.09),rgba(7,13,28,.96))}
-.pt-node.owned .pt-nname{color:var(--pp-col)}
+/* [ANDRAT v5.271.0] NAMNET UNDER NODEN AR VITT AVEN MED POANG I (Chris). Det
+   byttes forut till yrkets farg - alltsa exakt samma ton som glodet runt noden,
+   sa texten smalte ihop med ljuset och blev svarare att lasa ju mer man
+   satsat. Att noden ar kopt syns pa ringen, pa rangsiffran och pa den tonade
+   insidan; namnet behover inte saga det en fjarde gang. */
+.pt-node.owned .pt-nname{color:var(--text)}
 .pt-node.owned .pt-rank{color:var(--text)}
 .pt-node.gold{--oc:var(--gold)}
 .pt-node.gold.owned .pt-oct::after{background:linear-gradient(180deg,rgba(255,200,60,.2),rgba(7,13,28,.96))}
@@ -4079,7 +4086,10 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pt-node.sel .pt-oct::after{inset:3px}
 /* [TILLAGT v5.217.0] Utlagda men obekraftade poang. Streckad ring sager att
    noden inte ar sparad an - och planeringsraden ar det enda som skickar. */
-.pt-node.staged .pt-oct{filter:drop-shadow(0 0 6.75px var(--oc))}
+/* [ANDRAT v5.271.0] Utlagda poang glodde ocksa for starkt och foljer samma
+   dampning - en nod med poang i ser likadan ut oavsett om poangen ar sparad
+   eller inte. Det streckade rangmarket och den kursiva texten skiljer dem at. */
+.pt-node.staged .pt-oct{filter:drop-shadow(0 0 4.15px var(--oc))}
 .pt-node.staged .pt-rank{color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
 .pt-node.staged .pt-nname{font-style:italic}
 .pt-stagebar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 11px;
@@ -6603,7 +6613,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.270.0 — BRICKORNA PA EN RAD, SPEGLADE SNABBKNAPPAR</div>
+        <div class="sn-ver">GENESIS v5.271.0 — YRKESKNAPPARNA RATTADE, TRE YRKESFARGER</div>
       </div>
     </div>
   </aside>
@@ -7595,7 +7605,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.270.0 — BRICKORNA PA EN RAD, SPEGLADE SNABBKNAPPAR</div>
+            <div class="desc">GENESIS v5.271.0 — YRKESKNAPPARNA RATTADE, TRE YRKESFARGER</div>
           </div>
         </div>
       </div>
@@ -22537,14 +22547,22 @@ function showPetTip(p, x, y){
 /* ---------- PROFESSIONS-PANELEN (lager 2) ---------- */
 /* Yrkets farg. Samma i kortet, i skenet, i XP-mataren och i knapparna, sa att
    ett yrke kanns igen pa avstand utan att man laser namnet. */
-const PROF_COLOR = {
-  outfitter:   '#ffc759', weaponsmith: '#b98cff', jewelcrafter: '#38e8ff',
-  mining:      '#ff9d4d', synthetics:  '#5aa9ff',
-  /* Sidoyrkena har en EGEN ton, sa kortet syns som ett annat slags kort. */
-  medic:       '#ff6b8a', refiner:     '#ffb347',
-  /* Vilande yrken - fargen behovs bara for gamla foremal och gamla nivaer. */
-  chemist:     '#4ade80', bioharvester:'#6ee7a8', mechanic:    '#9aa4b2'
+/* [OMBYGGT v5.271.0] TRE FARGER, INTE SJU (Chris). Varje yrke hade sin egen
+   ton, och tva som lag nara varandra kunde hamna bredvid varandra pa samma
+   skarm: gruvan och raffinaderiet var bada orange och gick knappt att skilja
+   at. Vad spelaren behover se ar inte VILKET yrke det ar - namnet star ju
+   dar - utan vilket SLAGS yrke: samlar det, tillverkar det, eller ar det
+   sidoyrket. Tre sorter, tre farger, och de tre gar aldrig ihop.
+   Fargen HARLEDS ur yrkets sort i stallet for att skrivas per yrke. Da kan de
+   tva aldrig sara pa sig, och ett nytt yrke far ratt farg utan att nagon
+   behover komma ihag att fylla pa listan. */
+const PROF_KIND_COLOR = {
+  gathering: '#3dff9e',   /* gront  - det som hamtas ur varlden */
+  crafting:  '#b98cff',   /* lila   - det som byggs av handerna */
+  secondary: '#5aa9ff'    /* blatt  - stationen som arbetar med tiden */
 };
+const PROF_COLOR = {};
+PROFESSIONS.forEach(p => { PROF_COLOR[p.id] = PROF_KIND_COLOR[p.kind] || 'var(--cyan)'; });
 /* Vilken scen rutan star pa: null = dina yrken, 'pick' = valet. */
 let profScene = null;
 /* EN ikon, aldrig tva. Bilden laddas som en riktig bild - gar den igenom tas
@@ -23442,7 +23460,15 @@ function profPageHTML(p){
        spelarens bild: receptboken eller skilltradet i hogerspalten. */
     if (hasTree){
       h += '<div class="pp-tabs">' +
-        '<button class="pp-tabbtn' + (ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="book"><i class="jcb-ico"></i>' + esc(paperOf(profId).fl.toUpperCase()) + '</button>' +
+        /* [RATTAT v5.271.0] BADA KNAPPARNA I HANTVERKS- OCH SIDOYRKESRUTAN DOG
+           (Chris). Raden slog upp pappersnamnet pa ett `profId` som inte finns
+           i den har funktionen - den heter `p` har. Ett namn som inte finns
+           kastar forst NAR raden kors, och raden kors bara for yrken som INTE
+           ar samlare. Darfor gick gruvans knappar att trycka medan vapensmeden
+           och raffinaderiet inte gjorde nagonting alls: funktionen dog mitt i,
+           innan rutan hunnit fyllas, sa varken fonster eller felmeddelande kom.
+           Samlaryrkena ror raden aldrig och slapp undan. */
+        '<button class="pp-tabbtn' + (ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="book"><i class="jcb-ico"></i>' + esc(paperOf(p.id).fl.toUpperCase()) + '</button>' +
         '<button class="pp-tabbtn' + (ppTab === 'tree' ? ' on' : '') + '" data-ppttab="tree"><i class="jcb-ico tree"></i>SKILL TREE</button>' +
       '</div>';
     }
