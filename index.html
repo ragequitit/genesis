@@ -6673,7 +6673,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.276.0 — PARAGON FRAN SERVERN</div>
+        <div class="sn-ver">GENESIS v5.277.0 — PJASENS NIVA FRAN KALLAN</div>
       </div>
     </div>
   </aside>
@@ -7665,7 +7665,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.276.0 — PARAGON FRAN SERVERN</div>
+            <div class="desc">GENESIS v5.277.0 — PJASENS NIVA FRAN KALLAN</div>
           </div>
         </div>
       </div>
@@ -8752,9 +8752,10 @@ async function netVendorGiftClaim(regionId){
   renderInventory(); updateUI(true);
   return r;
 }
-async function netOpenMelon(){
+async function netOpenMelon(key){
   if (!NET.on) return null;
-  const r = await srvRpc('open_melon', {p_character: SRV.charId});
+  /* [ANDRAT v5.277.0] Nyckeln maste med: servern rullar mot MELONENS region. */
+  const r = await srvRpc('open_melon', {p_character: SRV.charId, p_key: key});
   await netPull(); await netPullItems();
   renderInventory(); updateUI(true);
   /* Servern rullade pjaserna och la dem i vaskan. Vi letar upp DEM, sa rutan
@@ -8850,7 +8851,7 @@ const PVE = {
      kan rakna ned pa plats. Utan den kom noden inte tillbaka forran nasta
      hamtning, och det ar inte "live". */
   rest: {}, restAt: 0,
-  attack: 0, baseAttack: 0
+  attack: 0
 };
 /* Vad lakevarorna ger. Bara visningstext - servern har sin egen tabell och
    avgor sjalv. Revive Kit star med flit INTE har: den anvands aldrig for hand,
@@ -8906,12 +8907,11 @@ async function netPvePull(){
     PVE.cd = Math.max(0, Math.floor(+r.cooldown_secs) || 0);
     PVE.canSearch = !!r.can_search;
     PVE.reason = r.reason || '';
-    /* [TILLAGT v5.201.0] SERVERNS ANFALLSTAL. All power och all skada kommer
-       fran utrustning, sa en naken karaktar visade noll - men slass med
-       handerna for ett grundtal. Talet kommer FRAN SERVERN, som ocksa raknar
-       striden, sa rutan och slaget aldrig kan sta olika. */
+    /* [ANDRAT v5.277.0] SERVERNS ANFALLSTAL. Talet kommer FRAN SERVERN, som
+       ocksa raknar striden, sa rutan och slaget aldrig kan sta olika.
+       GOLVET AR BORTA: spelaren far numera kraft och skada ur sin NIVA, sa en
+       naken karaktar ar inte langre noll. Servern skickar inget grundtal mer. */
     PVE.attack = +r.attack || 0;
-    PVE.baseAttack = +r.base_attack || 0;
     /* Sekunderna blir en TIDPUNKT. Ett tal som bara raknades hem vid varje
        hamtning hade statt stilla mellan varven - och da hade noden legat kvar
        tills nasta svar rakade komma. */
@@ -11734,7 +11734,7 @@ function craftRecipe(rid){
        hela rullningen skalas med EN siffra. Trettio procent ned.
        Den extra craft-egenskapen ar borta: planen sager att grundgear inte har
        nagon. Samma regel som servern, samma siffra. */
-    const g = rollItem(r.item, r.rar, CRAFT_CAP);
+    const g = rollItem(r.item, r.rar, CRAFT_CAP, r.lvl);
     g.craft = 1;                       /* stampeln, oberoende av bandet */
     applyCraftPenalty(g);
     /* CRAFTAT ANVANDER INTE SALLSYNTHETENS GULDBAND (v4.45.0). Bandet hor till
@@ -13133,9 +13133,23 @@ function addExtraAffix(g){
   g.a.push({k: k, v: Math.round(v * 100) / 100});
   return g;
 }
-function rollItem(key, rarIdx, capFrac){
+/* [TILLAGT v5.277.0] Regionens nivaband, jamnt fordelat. Voxholm 1-10,
+   Drakemark 11-20, och sa vidare. Samma tal som servern raknar fram, sa en
+   hylla eller en melon aldrig kan visa ett annat spann offline an online. */
+function regionLevelRoll(regionId){
+  const t = (REGIONS[regionId] && REGIONS[regionId].tier) | 0;
+  return t * 10 + 1 + Math.floor(Math.random() * 10);
+}
+/* [ANDRAT v5.277.0] PJASENS NIVA KOMMER FRAN KALLAN, aldrig fran spelaren.
+   Fjarde argumentet ar kallans niva: fienden, dungeonen, receptet, regionen
+   eller ett fast ett for startgear. Samma regel som servern. Utan ett varde
+   blir det ETT och inte din niva - offlineläget far hellre ge for lite an
+   blasa upp en pjas som sedan sager emot servern. */
+function rollItem(key, rarIdx, capFrac, srcLvl){
   const D = ITEMS[key];
   if (!D) return null;
+  const lv = Math.min(50, Math.max(1, srcLvl | 0 || 1));
+  const lm = 1 + 0.10 * (lv - 1);
   /* En väska rullar bara sitt pris. Inga egenskaper, ingen hälsa, ingen combat
      power — den bär saker, den slåss inte.
      OCH DEN TAR SITT EGET STEG. Storleken sitter i vaskan, sa en fyrafacks ar
@@ -13145,8 +13159,8 @@ function rollItem(key, rarIdx, capFrac){
   if (D.bag){
     const br = D.rars.indexOf(rarIdx) >= 0 ? rarIdx : D.rars[0];
     const BR = GEAR_RAR[br];
-    return {uid: S.gearSeq++, t: key, s: D.slot, r: br, a: [], hp: 0,
-            g: Math.round(BR.gold[0] + Math.random() * (BR.gold[1] - BR.gold[0]))};
+    return {uid: S.gearSeq++, t: key, s: D.slot, r: br, a: [], hp: 0, lv: lv,
+            g: Math.round((BR.gold[0] + Math.random() * (BR.gold[1] - BR.gold[0])) * lm / 5.9)};
   }
   const R = GEAR_RAR[rarIdx];
   const affs = [];
@@ -13186,11 +13200,9 @@ function rollItem(key, rarIdx, capFrac){
   /* Säljvärdet rullas i samma stund som pjäsen föds och ligger fast — annars skulle
      priset ändra sig varje gång du tittade på den, och det vore inte ett pris. */
   const g = Math.round(R.gold[0] + Math.random() * (R.gold[1] - R.gold[0]));
-  /* Samma trappa som servern: nivan kommer fran DIG i det ogonblick pjasen
-     faller, och vaxer aldrig efterat. Last vid 50 - paragon far aldrig vaxa
-     utrustning. Damage bara pa vapen och andra handen. */
-  const lv = Math.min(50, Math.max(1, levelInfo().lvl));
-  const lm = 1 + 0.10 * (lv - 1);
+  /* [ANDRAT v5.277.0] Samma trappa som servern, men nivan kommer fran KALLAN
+     och inte fran dig. Den vaxer aldrig efterat och ar last vid 50 - paragon
+     far aldrig vaxa utrustning. Damage bara pa vapen och andra handen. */
   const pw = Math.round(5 * R.mult * lm);
   /* SKADAN. Vapen och andra handen bar den, tolv i grunden.
      ETT TVAHANDSVAPEN BAR 2,5 GANGER. Skalet ar rakningen: en skold ger lika
@@ -13332,9 +13344,18 @@ function gearGold(it){
    en sammanfattning som doljer sina delar ar samre an delarna. */
 function gearScore(it){ return (it.hp || 0) + (it.pw || 0) * 3 + (it.dm || 0) * 3; }
 function equippedList(){ return GEAR_SLOTS.map((_, i) => S.equip[i] || null); }
-function totalHP(){ return BASE_HP + equippedList().reduce((s, it) => s + (it ? it.hp : 0), 0); }
-function totalPower(){ return equippedList().reduce((s, it) => s + (it ? (it.pw || 0) : 0), 0); }
-function totalDamage(){ return equippedList().reduce((s, it) => s + (it ? (it.dm || 0) : 0), 0); }
+/* [TILLAGT v5.277.0] SPELARENS EGEN GRUNDSTYRKA UR NIVAN. Forut kom all kraft
+   och all skada ur utrustning, sa en naken karaktar stod pa noll oavsett niva.
+   Talen ar desamma som servern raknar med: fem kraft, tva skada och tjugo liv
+   per niva. Ligger de har OCH pa servern maste bada andras samtidigt. */
+const BASE_POWER_LVL = 5, BASE_DAMAGE_LVL = 2, BASE_HEALTH_LVL = 20;
+function basLvl(){ try { return Math.min(50, Math.max(1, levelInfo().lvl)); } catch (e){ return 1; } }
+function basePower(){ return BASE_POWER_LVL * basLvl(); }
+function baseDamage(){ return BASE_DAMAGE_LVL * basLvl(); }
+function baseHealth(){ return BASE_HEALTH_LVL * basLvl(); }
+function totalHP(){ return BASE_HP + baseHealth() + equippedList().reduce((s, it) => s + (it ? it.hp : 0), 0); }
+function totalPower(){ return basePower() + equippedList().reduce((s, it) => s + (it ? (it.pw || 0) : 0), 0); }
+function totalDamage(){ return baseDamage() + equippedList().reduce((s, it) => s + (it ? (it.dm || 0) : 0), 0); }
 function totalHit(){ return Math.floor(totalDamage() * totalPower() / 100); }
 function gearBonus(key){
   let v = 0;
@@ -14473,7 +14494,7 @@ function sendVendorTip(regionId){
   if (!vendorTipDue(regionId)) return false;
   const rank = repRank(regionId);
   const rar = vendorTipRarity(rank);
-  const g = rollItem(pickItemKey(rar), rar);
+  const g = rollItem(pickItemKey(rar), rar, 1, regionLevelRoll(regionId));
   if (!g) return false;
   g.src = REGIONS[regionId].name + ' vendor';
   S.vendTip[regionId] = Date.now();
@@ -15904,7 +15925,7 @@ function bagShortText(i){ return shortText(BAG_SLOTS[i]); }
    råkar vara full just då. Ett fack kan bara låsas upp en gång, så gåvan kan inte
    upprepas. */
 function giveStarterBag(where){
-  const g = rollItem('bag_field_pouch', 0);
+  const g = rollItem('bag_field_pouch', 0, 1, 1);
   if (!g) return false;
   g.src = 'First bag slot';
   const isVault = where === 'vault';
@@ -16700,7 +16721,7 @@ function useInvItem(idx){
     if (got && got.length) spawnFloat({text: 'Opened — ' + got.length + ' pieces'});
     return !!(got && got.length);
   }
-  if (row.key === MELON_KEY) return openMelon(idx);
+  if (isMelon(row.key)) return openMelon(idx);
   /* [RATTAT v5.267.0] VANSTERKLICK GJORDE INGENTING PA ETT PAPPER (Chris).
      Den har funktionen kande igen paket, melon, biljetter, forstarkningar,
      lakevaror och bransleceller - men VARKEN ritningar eller receptfynd. De gick
@@ -17406,11 +17427,13 @@ function rollExpeditionLoot(def){
      tvaminutersuppdrag gav lika manga meloner per korning som ett tvatimmars,
      alltsa sextio ganger fler per timme - samma sjukdom som guldet hade.
      Turen rakans INTE har, och det ar med flit: melonen ar en slump, inte ett fynd. */
-  if (Math.random() < MELON_CHANCE * (Math.min(120, Math.max(2, def.mins)) / 120)) loot.melon = true;
+  if (Math.random() < MELON_CHANCE * (Math.min(120, Math.max(2, def.mins)) / 120)){
+    loot.melon = true; loot.melonRegion = def.region;
+  }
   const chance = Math.min(0.95, gearDropChance(def) * lootLuckMult());
   if (Math.random() < chance){
     const rar = rollRarity(gearWeightsFor(def.region), Math.random());
-    loot.gear = rollItem(pickItemKey(rar), rar);
+    loot.gear = rollItem(pickItemKey(rar), rar, 1, def.lvl || regionLevelRoll(def.region));
     loot.gear.src = def.name + ' · ' + def.zone;
   }
   /* Recept-drop: en liten chans att ett recept-fynd faller, lutat av Loot Luck
@@ -17715,14 +17738,15 @@ function confirmClaim(){
   }
   /* Melonen staplar, sa den behover bara en ruta om den ar ny. */
   if (run.loot.melon){
-    const D = ITEM_DEFS[MELON_KEY];
-    if (!addInvItem({key: MELON_KEY, name: D.name, ico: D.ico, stack: true})){
+    const mk = melonKeyFor(run.loot.melonRegion || def.region);
+    const D = ITEM_DEFS[mk] || {name: 'Mystery Melon', ico: '\u{1F349}'};
+    if (!addInvItem({key: mk, name: D.name, ico: D.ico, stack: true})){
       addMail({
         from: 'Salvage Bay', src: 'overflow',
         subject: D.name + ' held for you',
         body: 'Your backpack was full when this came back from ' + (expZoneOf(run.id) || 'the field') +
               '. Make room and collect it here.',
-        items: [{key: MELON_KEY, name: D.name, ico: D.ico, qty: 1}]
+        items: [{key: mk, name: D.name, ico: D.ico, qty: 1}]
       });
     }
   }
@@ -19621,8 +19645,9 @@ const ITEM_DEFS = {
      inte ur ett recept. Oppnad ger den TVA pjaser ur andra ringens tabell, sa en
      melon ar vard tva slag utan att man vet vad man far. Den bar en bild i
      stallet for ett tecken; "flavor" ar den kursiva raden pa hovringskortet. */
-  mystery_melon: {
-    name: 'Mystery Melon', ico: '🍉', art: 'assets/items/mystery_melon.png',
+  /* Melonens MALL. De fem riktiga posterna fods nedanfor, en per region. */
+  _melon_mall: {
+    ico: '\u{1F349}', art: 'assets/items/mystery_melon.png',
     kind: 'Consumable',
     flavor: 'What is that? Is it edible? Is it a glitch?',
     desc: 'You should try to open it up.',
@@ -19631,7 +19656,21 @@ const ITEM_DEFS = {
     sell: GOLD(5)
   }
 };
-const MELON_KEY = 'mystery_melon';
+/* [ANDRAT v5.277.0] EN MELON PER REGION. Den bar den region den foll i, precis
+   som vardepaketen redan gor, och oppnas alltid mot DEN regionens nivaband.
+   Utan det gick det att spara meloner och oppna allihop i Karantanen for att
+   fa hoga pjaser ur laga fynd. De stackar var for sig i vaskan. */
+const MELON_PREFIX = 'melon_';
+function isMelon(key){ return typeof key === 'string' && key.indexOf(MELON_PREFIX) === 0; }
+function melonRegion(key){ return isMelon(key) ? key.slice(MELON_PREFIX.length) : null; }
+function melonKeyFor(regionId){ return MELON_PREFIX + regionId; }
+for (const rid in REGIONS){
+  if (!REGIONS[rid] || REGIONS[rid].tier == null) continue;
+  ITEM_DEFS[melonKeyFor(rid)] = Object.assign({}, ITEM_DEFS._melon_mall,
+    {name: REGIONS[rid].name + ' Mystery Melon'});
+}
+delete ITEM_DEFS._melon_mall;
+const MELON_ART_OPEN = 'assets/items/mystery_melon_open.png';
 const MELON_DROPS = 2;
 const MELON_TIER = 1;          // andra ringens odds (spelarens beslut)
 /* Fyra procent: exakt den andel en epic pjas har i forsta ringens tabell. */
@@ -19694,7 +19733,7 @@ function openBundle(idx){
   const got = [];
   for (let i = 0; i < BUNDLE_DROPS; i++){
     const rar = rollRarity(gearWeightsFor(region), Math.random());
-    const g = rollItem(pickItemKey(rar), rar);
+    const g = rollItem(pickItemKey(rar), rar, 1, regionLevelRoll(region));
     g.src = REGIONS[region].name + ' care package';
     const f = invFirstFree();
     if (f >= 0){ S.inv[f] = {gear: g}; got.push(g); }
@@ -19708,7 +19747,7 @@ function openBundle(idx){
    vad man forlorade. Servern rullar i serverlage; klienten bara visar. */
 function openMelon(idx){
   const row = S.inv[idx];
-  if (!row || row.key !== MELON_KEY) return false;
+  if (!row || !isMelon(row.key)) return false;
   let free = 0;
   for (let i = 0; i < invSlots(); i++) if (!S.inv[i]) free++;
   if (row.qty <= 1) free++;                 /* melonens egen ruta blir ledig */
@@ -19716,7 +19755,7 @@ function openMelon(idx){
   if (NET.on){
     /* [ANDRAT v5.137.3] Matarbalken loper forst; melonen skars anda vid slutet. */
     castThen('Opening ' + (row.name || 'Mystery Melon'), CAST_SECS.melon, () => {
-      netOpenMelon()
+      netOpenMelon(row.key)
         .then(got => { if (got && got.length) showMelonResult(got); })
         .catch(e => say(srvErrText(e, 'Could not open it.')));
     });
@@ -19727,8 +19766,8 @@ function openMelon(idx){
   const got = [];
   for (let i = 0; i < MELON_DROPS; i++){
     const rar = rollRarity(CACHE_WEIGHTS[MELON_TIER] || CACHE_WEIGHTS[0], Math.random());
-    const g = rollItem(pickItemKey(rar), rar);
-    g.src = 'Mystery Melon';
+    const g = rollItem(pickItemKey(rar), rar, 1, regionLevelRoll(melonRegion(row.key)));
+    g.src = row.name || 'Mystery Melon';
     const f = invFirstFree();
     if (f >= 0){ S.inv[f] = {gear: g}; got.push(g); }
   }
@@ -19760,7 +19799,7 @@ function showMelonResult(list){
          i samma storlek och snitt - andra raden ar en fortsattning, inte en
          underrubrik, sa den far inte krympa. */
       '<div class="mel-open" style="background-image:url(\'' +
-        ITEM_DEFS[MELON_KEY].artOpen + '\')"></div>' +
+        MELON_ART_OPEN + '\')"></div>' +
       '<div class="ask-h1">You cracked it open,<br>and you found this inside</div>' +
       '<div class="mel-row">' + cards + '</div>' +
       '<div class="mel-act"><button class="mel-collect" data-ok>COLLECT</button></div>' +
@@ -21295,7 +21334,7 @@ function openZone(regionId, zi, keepNote){
   });
   $('region-body').querySelectorAll('[data-vbuy]').forEach(b => b.addEventListener('click', () => {
     const st = vendorStock(regionId)[+b.dataset.vbuy];
-    const p = st ? vendorGearPrice(st.r, regionId, st.price) : 0;
+    const p = st ? vendorGearPrice(st.r, regionId, st) : 0;
     if (st && S.gold >= p) flyToBag(b, '⚔️');
     buyVendorGear(regionId, +b.dataset.vbuy);
     openZone(regionId, zi, true);
@@ -21409,19 +21448,22 @@ const VENDOR_MARKUP = [GOLD(8), GOLD(12), GOLD(20), GOLD(32), GOLD(40), GOLD(55)
    Följden är mätt och ärlig: rabatten ger full effekt på common och uncommon,
    nyps av på rare vid många stjärnor, och på epic och uppåt skulle tio guld i
    påslag inte räcka till alls (golvet tar över). Vendorn säljer inget sådant idag. */
-/* Nivatrappan, samma som serverns: pjasen rullas pa din niva, sa priset maste
-   folja med. Annars ar handlaren en falla for den som just borjat. */
-function gearLevelMult(){ return (1 + 0.10 * (Math.min(50, levelInfo().lvl) - 1)) / 5.9; }
-function vendorFloor(rarIdx){ return Math.round((GEAR_RAR[rarIdx].gold[1] + GOLD(1)) * gearLevelMult()); }
+/* [ANDRAT v5.277.0] Nivatrappan, samma som serverns: priset foljer PJASENS
+   niva, inte din. Hyllan lottar sin niva fritt inom regionens band, sa en
+   nivа 9-pjas i Voxholm kostar mer an en nivа 2 av samma sallsynthet - annars
+   hade lotteriet varit gratis och alla hade bara tagit den hogsta. */
+function gearLevelMult(lv){ return (1 + 0.10 * (Math.min(50, Math.max(1, lv | 0 || 1)) - 1)) / 5.9; }
+function vendorFloor(rarIdx, lv){ return Math.round((GEAR_RAR[rarIdx].gold[1] + GOLD(1)) * gearLevelMult(lv)); }
 function vendorGearPrice(rarIdx, regionId, entry){
   /* Servern satter priset nar man ar inloggad - klientens uträkning ar bara
      till for offline-laget och far aldrig visa ett annat tal an det man betalar. */
   if (NET.on && entry && entry.price != null) return entry.price;
-  const b = GEAR_RAR[rarIdx].gold, floor = vendorFloor(rarIdx);
+  const lv = (entry && entry.lv) || 1;
+  const b = GEAR_RAR[rarIdx].gold, floor = vendorFloor(rarIdx, lv);
   /* Golvet behövs inte längre med de uträknade påslagen — det står kvar som
      säkerhetsspärr, eftersom band och påslag justeras om under balansarbetet och
      ett räknefel där aldrig ska kunna öppna en pengamaskin. */
-  const base = Math.max(Math.round(((b[0] + b[1]) / 2 + VENDOR_MARKUP[rarIdx]) * gearLevelMult()), floor);
+  const base = Math.max(Math.round(((b[0] + b[1]) / 2 + VENDOR_MARKUP[rarIdx]) * gearLevelMult(lv)), floor);
   const stars = regionId ? repRank(regionId) : 0;
   return Math.max(floor, Math.round(base * (1 - 0.03 * stars)));
 }
@@ -21463,7 +21505,7 @@ function rollVendorStock(regionId){
        den här raden har frontiärens handlare ofta tre epic samtidigt. */
     if (r === 3){ if (epics >= 1) r = 2; else epics++; }
     if (r > vendorMaxRar(regionId)) r = vendorMaxRar(regionId);
-    out.push({k: pickItemKey(r), r: r, sold: false});
+    out.push({k: pickItemKey(r), r: r, sold: false, lv: regionLevelRoll(regionId)});
   }
   return out;
 }
@@ -21533,7 +21575,7 @@ function buyVendorGear(regionId, i){
   /* Det som köps ur lagret fylls INTE på förrän klockan går ut — annars vore
      nedräkningen meningslös och en bra pjäs oändlig. */
   stock.sold = true;
-  const it = rollItem(stock.k, stock.r);
+  const it = rollItem(stock.k, stock.r, 1, stock.lv || regionLevelRoll(regionId));
   it.src = 'Bought in ' + REGIONS[regionId].name;
   S.stats.bought = (S.stats.bought || 0) + 1;
   S.inv[free] = {gear: it};
@@ -21611,7 +21653,7 @@ function buildTrader(regionId){
      bryggd i hogre sallsynthet ar det starkaste som finns. */
   const row = (s, i) => {
     const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId, s);
-    const full = vendorGearPrice(s.r);
+    const full = vendorGearPrice(s.r, null, s);
     /* [ANDRAT v5.115.0] Stod "rolled when you buy it" - sant forut, falskt nu.
        Pjasen ar rullad redan i hyllan, sa den kan pekas pa och jamforas med
        den man bar. Raden bar darfor sitt platsnummer, och hovringen visar
@@ -26583,7 +26625,7 @@ function openStackMenu(key, x, y){
        det star ingen annanstans. */
     const keepNote = isBundleKey(key);
     if (def && def.desc && keepNote) h += '<div class="pm-note">' + def.desc + '</div>';
-    if (key === MELON_KEY){
+    if (isMelon(key)){
       /* FORSTA valet ar att oppna den, sista ar att salja. Det man vill gora
          oftast star overst. */
       h += '<button class="pm-item" data-act="melon">Open it up</button>';
