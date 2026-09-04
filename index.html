@@ -857,8 +857,8 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 /* [TILLAGT v5.257.0] Papperets kort: en rad per sak i stallet for ett stycke.
    Ordet fore kolonet ar dampat sa ogat hittar raden utan att lasa den. */
 .sch-line{margin:2px 0}
-.sch-k{display:inline-block;min-width:74px;font-size:9.5px;font-weight:900;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint)}
+.sch-k{font-size:9.5px;font-weight:900;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-faint)}
 /* Fotnoten: dampad, mindre och avskild fran raderna med en tunn linje - den
    sager var saken kommer ifran, inte vad den gor. */
 .sch-note{margin-top:7px;padding-top:6px;border-top:1px solid var(--border-soft);
@@ -2252,7 +2252,11 @@ body.dragging *{cursor:grabbing !important}
    sin egen ton, sa man kanner igen dem pa fargen innan man last texten. Remsan
    lyser upp nar man for muspekaren over knappen - det ar dar knappen kanns
    levande, inte i ramen. Fargen star pa ETT stalle per knapp. */
-.qa-btn[data-qa]{overflow:hidden}
+/* [RATTAT v5.262.0] NOTISPRICKEN HAMNADE UNDER RAMEN (Chris). Fargremsan fick
+   knappen att klippa allt utanfor sig - och notisen sitter med flit HALVT
+   utanfor, uppe i hornet. Remsan rundas i stallet i samma horn som knappen, sa
+   ingen klippning behovs och pricken far ligga kvar dar den ska. */
+.qa-btn[data-qa]::before{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .qa-btn[data-qa]::before{
   content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
   background:var(--qc, var(--cyan));opacity:.85;
@@ -3011,21 +3015,25 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
      fyra ganger sa breda och tonar ut mot bada kanterna i stallet for att
      klippas av, och oskarpan ar sa stor att de laser som ljus och inte som
      ritade streck. */
+  /* [ANDRAT v5.265.0] Forra omgangen blev for hard: de breda ekrarna gick ihop
+     till en ring med en synlig kant. Nu SMALARE - alltsa strålar igen - och
+     masken tonar ut langt innan kanten i bada riktningar, sa ljuset dor bort i
+     stallet for att sluta. */
   background:repeating-conic-gradient(from 0deg,
-    transparent 0deg, var(--rv) 3.2deg, var(--rv) 3.6deg, transparent 6.8deg,
+    transparent 0deg, var(--rv) 1.6deg, var(--rv) 1.9deg, transparent 3.5deg,
     transparent 15deg);
-  opacity:.42;filter:blur(6px);
-  -webkit-mask:radial-gradient(circle at center, transparent 33%, #000 44%, #000 76%, transparent 94%);
-  mask:radial-gradient(circle at center, transparent 33%, #000 44%, #000 76%, transparent 94%);
+  opacity:.3;filter:blur(5px);
+  -webkit-mask:radial-gradient(circle at center, transparent 30%, rgba(0,0,0,.55) 48%, rgba(0,0,0,.28) 68%, transparent 88%);
+  mask:radial-gradient(circle at center, transparent 30%, rgba(0,0,0,.55) 48%, rgba(0,0,0,.28) 68%, transparent 88%);
   animation:hrevSpin 18s linear infinite;
 }
 /* Ett andra, langsammare lager at ANDRA hallet ger djup utan att bli rorigt. */
 .hrev-flare2{
   position:absolute;inset:14px;border-radius:50%;
   background:repeating-conic-gradient(from 7deg,
-    transparent 0deg, var(--rv) 6deg, var(--rv) 7deg, transparent 13deg,
+    transparent 0deg, var(--rv) 3deg, var(--rv) 3.6deg, transparent 7deg,
     transparent 30deg);
-  opacity:.2;filter:blur(11px);
+  opacity:.13;filter:blur(9px);
   -webkit-mask:radial-gradient(circle at center, transparent 38%, #000 52%, transparent 96%);
   mask:radial-gradient(circle at center, transparent 38%, #000 52%, transparent 96%);
   animation:hrevSpin 34s linear infinite reverse;
@@ -3044,9 +3052,17 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
    till ett kort mitt i en krans som redan ramar in den. Nu star foremalet fritt
    med en glod bakom sig i sin egen sallsynthetsfarg - ramen och bakgrunden ar
    borta, storleken densamma. */
-.hrev-stage .hrev-art{position:relative;width:88px;height:88px;font-size:36px;
-  border:0;background:none;border-radius:0;box-shadow:none;
+/* [RATTAT v5.265.0] FYRKANTEN BAKOM FYNDET (Chris). Rutan bar tva klasser, och
+   den andra - samma som halsdjursbilderna anvander - satte en egen fond, en kant
+   OCH en avklippning. Jag slog bara av den forsta uppsattningen forra gangen,
+   sa fonden stod kvar och sag ut som en foremalsram. Allt tre ar av nu; fyndet
+   star fritt. */
+.hrev-stage .hrev-art, .hrev-stage .hrev-art.pet-sprite{
+  position:relative;width:88px;height:88px;font-size:36px;
+  border:0 !important;background:none !important;border-radius:0;box-shadow:none;
+  overflow:visible;
   filter:drop-shadow(0 0 16px var(--rv)) drop-shadow(0 0 34px var(--rv))}
+.hrev-stage .hrev-art::after{display:none}
 .hrev-name{font-size:17px;font-weight:900;letter-spacing:.04em;color:var(--rv);margin-top:2px}
 .hrev-rar{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);
   font-weight:800;margin-bottom:10px}
@@ -5604,6 +5620,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    om en av dem har en rad mindre. */
 .dgc-card{display:flex;flex-direction:column}
 .dgc-facts{display:flex;flex-direction:column;gap:5px;margin:10px 0 11px;flex:1 0 auto}
+/* [TILLAGT v5.262.0] Svarighetspillen: samma form som de andra, men i
+   bedomningens farg med en lysande prick fore. */
+.dgc-pill.dgc-rate{color:var(--rt);border-color:var(--rt)}
+.dgc-pill.dgc-rate .dot{width:8px;height:8px;border-radius:50%;background:var(--rt);
+  box-shadow:0 0 8px 1px var(--rt);flex:0 0 auto}
 .dgc-bosses, .dgc-pills{flex:0 0 auto}
 .dgc-fact{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;
   letter-spacing:.08em;text-transform:uppercase;color:#c9d8ea}
@@ -6522,7 +6543,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.261.0 — EGNA BILDER PA SNABBKNAPPARNA</div>
+        <div class="sn-ver">GENESIS v5.266.0 — TVA VAGAR ATT LASA ETT PAPPER</div>
       </div>
     </div>
   </aside>
@@ -7514,7 +7535,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.261.0 — EGNA BILDER PA SNABBKNAPPARNA</div>
+            <div class="desc">GENESIS v5.266.0 — TVA VAGAR ATT LASA ETT PAPPER</div>
           </div>
         </div>
       </div>
@@ -8862,6 +8883,7 @@ function showFightPlayback(enc, r){
    tiden hunnit avsloja. Darfor finns har ingen stridslogik alls - en klocka,
    en handelselista och tre knappar. */
 PVE.dg = null;          // serverns svar: {dungeon, run}
+PVE.ratings = null;     // serverns bedomning per dungeon, bada svarighetsgraderna
 PVE.dgAt = 0;           // nar svaret kom - klockan raknar vidare lokalt
 PVE.dgSetup = null;     // spelarens val infor start
 PVE.dgConfirm = false;  // tvastegsknappen for att ge upp
@@ -8887,6 +8909,12 @@ async function netPveDungeonPull(){
   if (!NET.on || !SRV.charId) return null;
   const r = await srvRpc('pve_dungeon_state', {p_character: SRV.charId});
   if (r){ PVE.dg = r; PVE.dgAt = Date.now(); PVE.dgPolled = false; PVE.dgSeen = Date.now(); }
+  /* Bedomningen andras nar utrustningen gor det, sa den hamtas tillsammans med
+     laget i stallet for en gang per session. */
+  try {
+    const rr = await srvRpc('pve_dungeon_ratings', {p_character: SRV.charId});
+    if (rr) PVE.ratings = rr;
+  } catch (e){}
   return r;
 }
 function pveOwned(key){
@@ -9074,6 +9102,11 @@ function dgcCardHTML(dg, d, heroic){
       '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.clock + '</i>' + (+d.minutes) + ' min</span>' +
       '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.boss + '</i>' + n +
         (heroic ? ' Heroic Bosses' : ' Bosses') + '</span>' +
+      /* [TILLAGT v5.262.0] SVARIGHETEN (Chris). Servern simulerar hela loppet
+         utan healing och svarar med samma bedomning som ett mote far - sa gront
+         betyder samma sak har som ute i varlden. Klienten raknar aldrig sjalv.
+         Impossible stanger INTE knappen; man far ga in anda. */
+      dgcRatingPill(heroic) +
     '</div>' +
     /* [OMBYGGT v5.149.0] Knappraden. Star en korning igang byts valet mot en
        LAMNA-knapp bredvid, och bada fragar en gang extra innan de gor nagot. */
@@ -9084,6 +9117,18 @@ function dgcCardHTML(dg, d, heroic){
    - inget lopp igang: ENTER DUNGEON / ENTER HEROIC, med en fraga fore start
    - lopp igang i DEN HAR svarighetsgraden: ENTER slacks och LEAVE DUNGEON star bredvid
    - lopp igang i den andra: bada slackta, med skalet under */
+/* Bedomningen som en pille i samma rad som liv, tid och bossar. Har servern
+   inte hunnit svara an ritas ingen pille alls - hellre tom an gissad. */
+function dgcRatingPill(heroic){
+  const d = PVE.dg && PVE.dg.dungeon;
+  const id = d && (d.id || d.dungeon_id);
+  const r = id && PVE.ratings ? PVE.ratings[id] : null;
+  const v = r ? r[heroic ? 'heroic' : 'normal'] : null;
+  if (!v) return '';
+  const rt = PVE_RATING[v] || PVE_RATING.normal;
+  return '<span class="dgc-pill dgc-rate" style="--rt:' + rt.col + '">' +
+         '<i class="dot"></i>' + esc(rt.name) + '</span>';
+}
 function dgcButtonsHTML(heroic, disabled, why){
   const run = PVE.dg && PVE.dg.run;
   const igang = !!(run && !pveDgDone());
@@ -11279,7 +11324,8 @@ function giveRecipeItem(rid){
    omojligt att ta tillbaka. Nu loper en vit matare forst, och handlingen sker
    ANDA VID SLUTET. Avbryter man hander ingenting alls - inget forbrukas.
    Tiderna sitter samlade har. */
-const CAST_SECS = {schematic: 8, flask: 5, fuel: 3, heal: 3, cache: 5, melon: 5};
+/* [ANDRAT v5.264.0] Att lasa en ritning tar fem sekunder, inte atta (Chris). */
+const CAST_SECS = {schematic: 5, flask: 5, fuel: 3, heal: 3, cache: 5, melon: 5};
 /* Lakevarorna tar olika lang tid: ett bandage sitter snabbt, en forbandslada
    tar langre. Saknas en post faller den tillbaka pa CAST_SECS.heal. */
 const CAST_HEAL_SECS = {bandage: 3, first_aid_kit: 5, revive_kit: 8};
@@ -11318,6 +11364,18 @@ function castThen(title, secs, fn){
   el.addEventListener('click', e => { if (e.target === el) castCancel(); });
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') castCancel(); });
+/* [TILLAGT v5.266.0] Vad som saknas for att lasa ett papper, eller tomt om
+   ingenting saknas. EN funktion - menyn och klicket fragar samma fraga, sa raden
+   i menyn och varningen vid klicket kan aldrig saga olika saker. */
+function schemNeeds(row){
+  const sc = row && row.schematic && SCHEMATICS[row.schematic];
+  if (!sc) return '';
+  const r = RECIPE_BY[sc.recipe];
+  if (!r) return '';
+  const namn = PROF_BY[r.prof] ? PROF_BY[r.prof].name : r.prof;
+  if (!profLearned(r.prof)) return 'You need ' + namn + ' to read this.';
+  return '';
+}
 function useRecipeItem(idx){
   const row = S.inv[idx];
   /* [NYTT v5.143.0] STENEN satts i sin EGEN plats, inte i utrustningen.
@@ -11332,6 +11390,12 @@ function useRecipeItem(idx){
      skriver in receptet. Klienten hamtar hem det nya laget efterat. */
   if (row && row.schematic){
     if (!NET.on){ say('Schematics need a live connection.'); return true; }
+    /* [TILLAGT v5.266.0] YRKET KOLLAS FORE MATAREN (Chris). Forut startade
+       lasningen, gick sina sekunder, och SEDAN sa servern nej - man hade alltsa
+       statt och vantat pa ett besked man kunde fatt direkt. Servern avgor
+       fortfarande; det har ar bara att slippa vantan. */
+    const brist = schemNeeds(row);
+    if (brist){ say(brist); return true; }
     const key = row.schematic, nm = row.name || 'Schematic';
     castThen('Reading ' + nm, CAST_SECS.schematic, () => {
     srvRpc('learn_schematic', {p_character: SRV.charId, p_key: key})
@@ -19466,7 +19530,10 @@ function showMelonResult(list){
    KRAVER, och en dampad fotnot om var det kommer ifran. Byggs de har kan de inte
    glida isar nasta gang nagon ror ett av dem. */
 function cardLine(etikett, text){
-  return '<div class="sch-line"><span class="sch-k">' + etikett + '</span> ' + text + '</div>';
+  /* [ANDRAT v5.263.0] Etiketten star som ett ord med kolon och ETT mellanrum
+     efter (Chris) - forut hade den en egen spalt med fast bredd, vilket sköt
+     texten langt ut och lamnade ett tomrum mitt i kortet. */
+  return '<div class="sch-line"><span class="sch-k">' + etikett + ':</span> ' + text + '</div>';
 }
 function cardNote(text){
   return text ? '<div class="sch-note">' + text + '</div>' : '';
@@ -19520,7 +19587,7 @@ function itemDef(row){
     return {key: row.gear.t, name: d.name, ico: '\u25c6', kind: 'Character Gem', rar: 3,
             sell: 250000,
             desc: cardLine('Use', esc(d.uniq) + '.') +
-                  cardLine('Requirements', 'Nothing \u2014 tap it to set it.') +
+                  cardLine('Req', 'Nothing \u2014 tap it to set it.') +
                   cardNote('Setting a gem locks it for 24 hours.')};
   }
   /* SKARVAN: ett bevis pa att en viss expedition ar klarad. Sex fran samma
@@ -19554,7 +19621,7 @@ function itemDef(row){
                ser vad papperet ar vart innan man last raden. */
             desc: cardLine('Use', 'Learn how to craft <b style="color:' + rarCol(sc.rar) +
                     '">' + esc(made || sc.name) + '</b>.') +
-                  (r ? cardLine('Requirements', esc(prof) + ' level ' + r.lvl + '.') : '') +
+                  (r ? cardLine('Req', esc(prof) + ' level ' + r.lvl + '.') : '') +
                   cardNote(SCHEMATIC_SRC[sc.src] ? 'Found ' + SCHEMATIC_SRC[sc.src] + '.' : '')};
   }
   /* RECEPT: ett fynd som larer sitt recept nar man anvander det. */
@@ -26220,7 +26287,12 @@ function openStackMenu(key, x, y){
        som avslojar vilket recept man haller i, och vardepaketet maste saga vad
        som ligger i det. */
     let h = '';
-    const keepNote = !!r.recipe || isBundleKey(key);
+    /* [ANDRAT v5.264.0] EN MENY AR BARA VALEN (Chris). Beskrivningen stod kvar
+       for receptfynden och tog over hela rutan - men allt det syns redan vid
+       hovring, och den som just hogerklickat vill se vad hen kan GORA.
+       Vardepaketet behaller sin rad: den sager vad som ligger i paketet, och
+       det star ingen annanstans. */
+    const keepNote = isBundleKey(key);
     if (def && def.desc && keepNote) h += '<div class="pm-note">' + def.desc + '</div>';
     if (key === MELON_KEY){
       /* FORSTA valet ar att oppna den, sista ar att salja. Det man vill gora
@@ -26241,6 +26313,14 @@ function openStackMenu(key, x, y){
       const fullHp = pveHpPct() >= 99.999;
       h += '<button class="pm-item" data-act="use"' + (fullHp ? ' disabled' : '') + '>' +
         (fullHp ? 'Health is already full' : 'Use \u00b7 +' + MEDICAL_HEAL[key] + '% health') + '</button>';
+    }
+    /* [TILLAGT v5.266.0] Papperet far sin egen Use-rad (Chris) - tva vagar in,
+       klicket och menyn. Saknas yrket star skalet PA raden i stallet for att
+       komma som en varning efterat; har hinner man lasa det innan man trycker. */
+    if (r.schematic && SCHEMATICS[r.schematic]){
+      const brist = schemNeeds(r);
+      h += '<button class="pm-item" data-act="useschem"' + (brist ? ' disabled' : '') + '>' +
+        (brist ? esc(brist) : 'Use \u00b7 read it') + '</button>';
     }
     if (r.recipe && RECIPE_BY[r.recipe]){
       const known = recipeKnown(r.recipe);
@@ -26282,6 +26362,8 @@ function openStackMenu(key, x, y){
     if (act === 'melon'){ openMelon(at); closeStackMenu(); }
     else if (act === 'use'){ useInvItem(at); closeStackMenu(); }
     else if (act === 'drink'){ if (drinkFlask(at)) say('Boost active!'); closeStackMenu(); }
+    /* Samma vag som vansterklicket - matare, yrkeskoll och allt. */
+    else if (act === 'useschem'){ useRecipeItem(at); closeStackMenu(); }
     else if (act === 'learn'){
       const res = useRecipeItem(at);
       if (res === true) say('Recipe learned!');
