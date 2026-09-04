@@ -6480,7 +6480,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.255.0 — FARGREMSOR PA SNABBVALEN OCH PILLERFLIKAR</div>
+        <div class="sn-ver">GENESIS v5.256.0 — RITNINGAR, UTKAST OCH MONSTER MED EGNA NAMN</div>
       </div>
     </div>
   </aside>
@@ -7472,7 +7472,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.255.0 — FARGREMSOR PA SNABBVALEN OCH PILLERFLIKAR</div>
+            <div class="desc">GENESIS v5.256.0 — RITNINGAR, UTKAST OCH MONSTER MED EGNA NAMN</div>
           </div>
         </div>
       </div>
@@ -11895,6 +11895,21 @@ const SCHEMATICS = {
   sch_jc_voidseal: {recipe:'cr_jc_void_seal',       name:'Void Seal Design',        rar:3, src:'heroic'}
 };
 function schematicOf(key){ return SCHEMATICS[key] || null; }
+/* [TILLAGT v5.256.0] VAD PAPPERET HETER, PER YRKE (Chris). Vapensmeden laser
+   ritningar, juveleraren utkast, skraddaren monster - och medicinaren och
+   raffinoren har sina egna ord. Namnet, bilden och bokens titel kommer ur DEN
+   HAR tabellen och ingen annanstans, sa de tre kan aldrig saga olika saker om
+   samma yrke. */
+const PAPER = {
+  weaponsmith: {en:'Schematic', fl:'Schematics', bok:'Book of Schematics', bild:'schematic'},
+  jewelcrafter:{en:'Design',    fl:'Designs',    bok:'Book of Designs',    bild:'design'},
+  outfitter:   {en:'Pattern',   fl:'Patterns',   bok:'Book of Patterns',   bild:'pattern'},
+  medic:       {en:'Formula',   fl:'Formulas',   bok:'Book of Formulas',   bild:'schematic'},
+  refiner:     {en:'Process',   fl:'Processes',  bok:'Book of Processes',  bild:'schematic'}
+};
+function paperOf(prof){
+  return PAPER[prof] || {en:'Recipe', fl:'Recipes', bok:'Recipe Book', bild:'schematic'};
+}
 /* ===== SKARVORNA (v5.142.0) =====
    En per expedition, garanterad forsta gangen den klaras. Listan byggs ur
    EXPEDITIONS sjalv, sa den kan aldrig hamna i otakt med varlden. Sex skarvor
@@ -12720,6 +12735,13 @@ function stackArtOf(key){
      expeditionslistan. De far sin bild ur assets/items/shards/. */
   if (key && key.indexOf('shard_') === 0)
     return artUnlessMissing('assets/items/shards/' + key + '.png');
+  /* [TILLAGT v5.256.0] Papperen har en bild PER SORT: en for ritningar, en for
+     utkast, en for monster. Da ser man i vaskan vilket yrke ett fynd hor till
+     utan att lasa namnet. */
+  if (typeof SCHEMATICS !== 'undefined' && SCHEMATICS[key]){
+    const rr = RECIPE_BY[SCHEMATICS[key].recipe];
+    return artUnlessMissing('assets/items/schematics/' + paperOf(rr ? rr.prof : null).bild + '.png');
+  }
   return '';
 }
 const ART_MISS = new Set();
@@ -19452,12 +19474,16 @@ function itemDef(row){
     const r = RECIPE_BY[sc.recipe];
     const prof = r && PROF_BY[r.prof] ? PROF_BY[r.prof].name : (r ? r.prof : '');
     const made = r && ITEMS[r.item] ? ITEMS[r.item].name : null;
-    return {key: row.key, name: sc.name, ico: '📜', kind: 'Schematic',
+    /* [OMSKRIVET v5.256.0] Forsta raden sa vilken sallsynthet papperet hade -
+       men det star redan pa ramen, sa den upprepade sig sjalv. Tre raka rader
+       i stallet: vad det gor, vad det kraver, var det finns. */
+    const pa = paperOf(r ? r.prof : null);
+    return {key: row.key, name: sc.name, ico: '📜', kind: pa.en,
             rar: sc.rar,
+            art: 'assets/items/schematics/' + pa.bild + '.png',
             sell: (SCHEMATIC_SELL[sc.rar] || 0),
-            desc: ((GEAR_RAR[sc.rar] || {}).name || '') + ' schematic. Read it to learn how to ' +
-                  'craft ' + (made || sc.name) +
-                  (r ? ' \u2014 needs ' + prof + ' level ' + r.lvl + '.' : '.') +
+            desc: 'Use: Learn how to craft ' + (made || sc.name) + '.' +
+                  (r ? ' Requirements: ' + prof + ' level ' + r.lvl + '.' : '') +
                   (SCHEMATIC_SRC[sc.src] ? ' Found ' + SCHEMATIC_SRC[sc.src] + '.' : '')};
   }
   /* RECEPT: ett fynd som larer sitt recept nar man anvander det. */
@@ -23986,7 +24012,7 @@ function profPanelCardHTML(p, linked){
     '<div class="jc-btns">' +
       '<div class="jc-btn" data-openprof="' + p.id + '">' +
         '<i class="jcb-ico"></i><span class="jcb-t">' +
-        (p.kind === 'gathering' ? 'Open' : 'Recipes') + '</span><i class="jcb-arrow"></i></div>' +
+        (p.kind === 'gathering' ? 'Open' : paperOf(p.id).fl) + '</span><i class="jcb-arrow"></i></div>' +
       '<div class="jc-btn jc-btn2" data-opentree="' + p.id + '">' +
         '<i class="jcb-ico tree"></i><span class="jcb-t">Skill Tree</span>' +
         '<i class="jcb-arrow"></i></div>' +
@@ -24324,7 +24350,10 @@ function openRecipeBook(profId){
   const bookProf = PROF_BY[profId];
   if (!bookProf) return;
   recipeProf = profId;
-  $('recipe-title').textContent = bookProf.name + ' — Recipe Book';
+  /* [ANDRAT v5.256.0] Boken heter olika hos olika yrken (Chris): vapensmeden
+     laser ritningar, juveleraren utkast, skraddaren monster. Titeln kommer ur
+     samma tabell som knappen och bilden. */
+  $('recipe-title').textContent = bookProf.name + ' \u2014 ' + paperOf(bookProf.id).bok;
   const w = $('recipe-overlay');
   w.classList.add('open');
   bringToFront(w);                 /* over professionssidan, inte under den */
