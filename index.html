@@ -146,6 +146,7 @@ input,select,textarea{user-select:text;-webkit-user-select:text}
 .ht-manage:hover{background:rgba(56,232,255,.16);box-shadow:0 0 12px -4px var(--cyan)}
 /* Korten: en per plats, lika breda. */
 .ht-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;flex:1 1 auto;min-height:0}
+.ht-grid.four{grid-template-columns:repeat(2,1fr)}
 .ht-card{
   --hc:var(--cyan);
   position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
@@ -2901,6 +2902,8 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   #panel-pet-team, #panel-quick-access, .map-panel{grid-column:auto; grid-row:auto}
   #panel-pet-team, #panel-quick-access{align-self:auto; min-height:0; overflow:visible}
   #panel-pet-team .ht-grid{grid-template-columns:repeat(3, 1fr)}
+  /* Fyra platser: tva och tva i stallet for tre plus en ensam. */
+  #panel-pet-team .ht-grid.four{grid-template-columns:repeat(2, 1fr)}
   #panel-pet-team .ht-head{flex-wrap:nowrap}
   #panel-pet-team .ht-manage{flex:0 0 auto}
   #panel-quick-access .qa-grid{grid-template-columns:repeat(5, 1fr)}
@@ -4437,6 +4440,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .pf-row{display:flex;justify-content:space-between;gap:14px;padding:5px 0;
   font-size:12px;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,.04)}
 .pf-row b{color:var(--text);font-family:var(--font-mono)}
+/* [TILLAGT v5.274.0] Klassens formagor. Texten till hoger ar en mening och inte
+   ett tal, sa den far bryta och sta i den vanliga stilen - siffersnittet gor
+   den svarlast och trycker ut raden. */
+.pf-row.cls-abil b{font-family:inherit;font-weight:700;text-align:right;
+  color:var(--cyan);max-width:64%}
 .pf-handle{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
   border:1px solid var(--border-soft);background:#0e1330;margin-bottom:4px}
 .pf-handle > div{flex:1}
@@ -4906,6 +4914,41 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gcd-go:disabled{opacity:.4;cursor:default}
 .gcd-no{background:none;border:1px solid var(--border-soft);color:var(--text-dim);
   border-radius:8px;padding:8px 13px;font:inherit;font-size:12px;cursor:pointer}
+/* [TILLAGT v5.273.0] KLASSVALET I PORTEN. Fem kort i bredd med figuren over
+   namnet, som i ett rollspel: man ser vem man blir innan man doper honom.
+   Bilderna hamtas ur samma mapp som profilfiguren och faller tillbaka pa ett
+   tecken om filen saknas - da star rutan aldrig tom. */
+/* [TILLAGT v5.273.0] RUTAN VAXER NAR KLASSVALET STAR FRAMME. Inloggningsrutan
+   ar 400 punkter bred, och fem kort i den blir 72 punkter var - for smalt for
+   en figur. Mattes: 640 ger 120 per kort, vilket ar ungefar profilfigurens egen
+   bredd. Bredden gar tillbaka sa fort man lamnar steget, sa landningssidan ser
+   ut som forut. Gäller bara den breda layouten - under 980 star rutan i sitt
+   eget blad anda. */
+.gate-hero.picking{grid-template-columns:minmax(0,1fr) 640px;gap:48px}
+.gc-classhead{margin-top:4px}
+.gc-classes{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}
+.gc-cls{
+  position:relative;border:1px solid var(--border-soft);border-radius:11px;
+  background:#0b1024;cursor:pointer;padding:8px 6px 10px;text-align:center;
+  transition:border-color .15s, background .15s;
+}
+.gc-cls:hover{border-color:var(--border-glow);background:rgba(56,232,255,.05)}
+.gc-cls.on{border-color:var(--cyan);background:rgba(56,232,255,.10);
+  box-shadow:0 0 18px -8px var(--cyan)}
+.gc-figwrap{position:relative;height:96px;margin-bottom:7px;display:grid;place-items:end center}
+.gc-figwrap img{max-width:100%;max-height:100%;object-fit:contain;object-position:center bottom;
+  filter:drop-shadow(0 5px 11px rgba(0,0,0,.55));user-select:none;-webkit-user-drag:none}
+.gc-figwrap .gc-ph{display:none;font-size:34px;opacity:.5}
+.gc-figwrap.noart img{display:none}
+.gc-figwrap.noart .gc-ph{display:block}
+.gc-cname{font-size:12px;font-weight:900;letter-spacing:.06em;color:var(--text)}
+.gc-cls.on .gc-cname{color:var(--cyan)}
+.gc-ctag{font-size:9.5px;line-height:1.35;color:var(--text-faint);margin-top:3px}
+/* Beskrivningen star UNDER raden och byts nar man valjer, i stallet for att
+   tryckas in i varje kort - fem langa texter samtidigt gar inte att lasa. */
+.gc-cblurb{min-height:32px;font-size:11.5px;line-height:1.55;color:var(--text-dim);
+  margin-bottom:9px}
+.gc-perm{margin:0 0 10px;color:var(--gold)}
 .gate-newrow{display:flex;gap:8px;align-items:flex-start}
 .gate-newrow .gate-input{margin-bottom:0}
 .gate-link{
@@ -4953,7 +4996,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 }
 .gate-up:hover{background:rgba(56,232,255,.18)}
 @media (max-width:980px){
-  .gate-hero{grid-template-columns:1fr;gap:38px;padding-top:52px;min-height:0}
+  .gate-hero, .gate-hero.picking{grid-template-columns:1fr;gap:38px;padding-top:52px;min-height:0}
   .gate-cards{grid-template-columns:1fr 1fr}
 }
 @media (max-width:640px){
@@ -5208,6 +5251,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 @media (max-width:760px){
   .qa-grid{grid-template-columns:repeat(4,1fr)}
   #exp-overlay.open > .modal{left:0 !important}
+  /* [TILLAGT v5.273.0] Fem klasskort i bredd blir under sextio punkter breda pa
+     en telefon - figuren forsvinner och namnet bryts mitt i. Tre i bredd. */
+  .gc-classes{grid-template-columns:repeat(3,1fr)}
+  .gc-figwrap{height:74px}
+  .gc-cname{font-size:11px}
+  .gc-ctag{display:none}
+  .gate-newrow{flex-wrap:wrap}
+  .gate-newrow .gate-go.small{width:100%}
 }
 /* [TILLAGT v5.106.0] KARTAN PA TELEFON.
    Kartan ar ritad for 1100 pixlars bredd. I en telefonspalt pa 338 skalas dess
@@ -6480,9 +6531,18 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <div id="gate-chars" class="gate-step" style="display:none">
         <div class="gate-sub">Choose a character</div>
         <div class="gate-list" id="gate-charlist"></div>
-        <div class="gate-newrow" id="gate-newrow">
-          <input class="gate-input" id="gate-newname" placeholder="New character name" maxlength="16">
-          <button class="gate-go small" id="gate-create">Create</button>
+        <!-- [TILLAGT v5.273.0] KLASSVALET. Klass och namn hor ihop och skickas i
+             ETT anrop - annars kunde en karaktar bli till utan klass om nagon
+             stangde fliken mitt i. Knappen ar slackt tills bada finns. -->
+        <div id="gate-newrow">
+          <div class="gate-sub gc-classhead">Choose a class</div>
+          <div class="gc-classes" id="gate-classes"></div>
+          <div class="gc-cblurb" id="gate-classblurb"></div>
+          <div class="gate-note gc-perm">Your class is permanent. It cannot be changed later.</div>
+          <div class="gate-newrow">
+            <input class="gate-input" id="gate-newname" placeholder="New character name" maxlength="16">
+            <button class="gate-go small" id="gate-create" disabled>Create</button>
+          </div>
         </div>
         <div class="gate-msg" id="gate-msg2"></div>
         <button class="gate-link" id="gate-signout">Sign out</button>
@@ -6613,7 +6673,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.272.0 — YRKESKNAPPARNA RATTADE, TRE YRKESFARGER</div>
+        <div class="sn-ver">GENESIS v5.276.0 — PARAGON FRAN SERVERN</div>
       </div>
     </div>
   </aside>
@@ -7605,7 +7665,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.272.0 — YRKESKNAPPARNA RATTADE, TRE YRKESFARGER</div>
+            <div class="desc">GENESIS v5.276.0 — PARAGON FRAN SERVERN</div>
           </div>
         </div>
       </div>
@@ -8156,6 +8216,69 @@ const NET = {
   synced: false         // har forsta synken efter inloggning skett?
 };
 
+/* [TILLAGT v5.274.0] KLASSERNA OCH DERAS FORMAGOR. Bada listorna star pa
+   servern; klienten haller ingen egen kopia, av samma skal som prestationerna
+   byggdes om: tva listor driver alltid isar till slut. Hamtas en gang. */
+let CLASS_DEFS = null, CLASS_ABIL = null;
+async function netClasses(){
+  if (CLASS_DEFS && CLASS_ABIL) return;
+  const [d, a] = await Promise.all([
+    srvSelect('character_class_config', 'select=id,name,tagline,blurb&order=sort'),
+    srvSelect('class_ability_config',   'select=class_id,slot,effect,value,label')
+  ]);
+  CLASS_DEFS = {}; (d || []).forEach(r => { CLASS_DEFS[r.id] = r; });
+  CLASS_ABIL = {}; (a || []).forEach(r => {
+    (CLASS_ABIL[r.class_id] = CLASS_ABIL[r.class_id] || []).push(r);
+  });
+}
+function myClass(){ return (CLASS_DEFS && S.classId) ? CLASS_DEFS[S.classId] : null; }
+/* [TILLAGT v5.275.0] Klassens tal, samma vardet servern raknar med. Klienten
+   RAKNAR aldrig fram nagot eget - den laser samma tabell, sa de tva kan inte
+   sara pa sig. Utan svar fran servern blir det noll, och da ser skarmen ut som
+   den gjorde fore klasserna i stallet for att gissa. */
+function classVal(effect){
+  const rows = (CLASS_ABIL && S.classId) ? (CLASS_ABIL[S.classId] || []) : [];
+  let n = 0;
+  rows.forEach(r => { if (r.effect === effect) n += +r.value || 0; });
+  return n;
+}
+/* Klassens formagor pa profilkortet. Ordningen ar densamma varje gang, sa raden
+   inte hoppar omkring: strid, tomgang, signatur, formån. Har servern inte
+   svarat an ritas ingen rubrik alls - hellre tom an halv. */
+const CLASS_SLOT_ORDER = ['combat', 'idle', 'signature', 'perk'];
+const CLASS_SLOT_NAME = {combat:'In battle', idle:'While idle',
+                         signature:'Signature', perk:'Perk'};
+function classAbilHTML(){
+  const rows = (CLASS_ABIL && S.classId) ? (CLASS_ABIL[S.classId] || []) : [];
+  if (!rows.length) return '';
+  const sorted = rows.slice().sort(
+    (a, b) => CLASS_SLOT_ORDER.indexOf(a.slot) - CLASS_SLOT_ORDER.indexOf(b.slot));
+  return '<div class="section-label">' +
+    (myClass() ? esc(myClass().name) : 'Class') + ' abilities</div>' +
+    sorted.map(r => '<div class="pf-row cls-abil"><span>' +
+      esc(CLASS_SLOT_NAME[r.slot] || r.slot) + '</span><b>' + esc(r.label) + '</b></div>').join('');
+}
+/* Figuren foljer klassen - MEN bara om filen finns.
+   Rutans bild river sig sjalv om den inte gar att ladda, och da star bara ett
+   tecken kvar. Satte man klassens adress rakt pa skulle alltsa karaktaren
+   forsvinna helt sa lange bilderna saknas. Darfor provladdas den vid sidan om,
+   och bytet sker forst nar den gatt igenom. Saknas filen star den gamla figuren
+   kvar och ingenting hander. */
+function classFigureSrc(){
+  return S.classId ? 'assets/character/' + S.classId + '.png' : null;
+}
+let classFigureOk = null;
+function applyClassFigure(){
+  const vill = classFigureSrc();
+  if (!vill) return;
+  const satt = () => document.querySelectorAll('.char-figure, .sn-figart').forEach(img => {
+    if (img.getAttribute('src') !== vill) img.src = vill;
+  });
+  if (classFigureOk === vill){ satt(); return; }
+  const prov = new Image();
+  prov.onload = () => { classFigureOk = vill; satt(); };
+  prov.src = vill;
+}
 /* Hamta hela karaktaren fran servern och lagg den i S. Detta ERSATTER den
    lokala sparfilen som sanningskalla nar man ar inloggad. */
 /* Karaktarens rad, ren. Arbetsklockan svarar med sekunder och inte med hela
@@ -8175,6 +8298,10 @@ async function netPull(){
   S.xp        = +c.xp || 0;
   S.fuel      = +c.fuel || 0;
   S.credits   = +c.credits || 0;
+  /* [TILLAGT v5.274.0] KLASSEN. Den star pa karaktarsraden och kan aldrig vara
+     tom - servern kraver den vid skapandet. Anvands till figuren och till
+     rutan pa profilkortet. */
+  S.classId   = c.class_id || null;
   S.tokens    = +c.tokens || 0;
   /* Tiden sedan servern sist raknade: den ENDA sanningen om hur lange man
      varit borta. Den lokala sparfilens klocka ljog om man spelat pa en
@@ -10163,14 +10290,17 @@ async function netPullPets(){
     'character_id=eq.' + SRV.charId + '&select=id,species,rarity,affixes,xp,nickname,team_slot');
   const order = petOrderLoad();
   S.pets.owned = [];
-  S.pets.team  = [null, null, null];
+  /* [ANDRAT v5.275.0] Listan var fast TRE lang och filtret nedan slangde allt
+     over tre. En fjarde plats hade darfor funnits pa servern men aldrig kunnat
+     visas. Bada foljer antalet nu. */
+  S.pets.team  = new Array(Math.max(3, teamSlots())).fill(null);
   const rest = [];
   (rows || []).forEach(row => {
     const p = netPetFromRow(row);
     const at = order[row.id];
     if (Number.isInteger(at) && at >= 0 && at < 200 && !S.pets.owned[at]) S.pets.owned[at] = p;
     else rest.push(p);
-    if (row.team_slot != null && row.team_slot >= 0 && row.team_slot < 3){
+    if (row.team_slot != null && row.team_slot >= 0 && row.team_slot < S.pets.team.length){
       S.pets.team[row.team_slot] = p.uid;
     }
   });
@@ -13658,7 +13788,9 @@ function teamSlots(){
   for (let i = 0; i < PET_SLOT_LEVELS.length; i++) if (lvl >= PET_SLOT_LEVELS[i]) n++;
   /* Har lag ett pahang for en formån 'petSlot'. Den finns inte i omstartstradet,
      sa uppslagningen gav alltid noll - en dod rad som sag levande ut. */
-  return n;
+  /* [TILLAGT v5.275.0] Klassens extra plats. Servern raknar samma summa i sin
+     egen funktion; talet star pa ETT stalle i vardera. */
+  return n + classVal('team_slots');
 }
 function teamAt(i){ return petByUid(S.pets.team[i]); }
 function activeTeam(){
@@ -13788,7 +13920,7 @@ function petExtraFrags(rnd){
 
 let S = {
   data: 0, totalData: 0, ticks: 0, xp: 0,
-  pets: {owned: [], team: [null, null, null], seq: 1, seen: []},
+  pets: {owned: [], team: [null, null, null, null], seq: 1, seen: []},
   equip: {}, gearSeq: 1, moneyV: 2,
   fuel: 100, cells: 0, research: null, bags: [false, false, false, false, false],
   bagItems: [null, null, null, null, null],   // väskan som sitter i varje fack
@@ -14203,25 +14335,47 @@ function fmt(n){
    uppmatt tog niva 11-20 elva timmar och niva 41-50 fyrtio minuter.
    Nu: 375 275 XP till niva 50, ungefar 36 timmars aktivt spel, och tiden per
    tioniva-band STIGER hela vagen. Exakt samma tal som servern raknar. */
-const LEVEL_CAP = 50;
-function xpToNext(level){ return Math.round(607 * Math.pow(1.0845, Math.max(1, level) - 1)); }
+/* [ANDRAT v5.276.0] NIVA- OCH PARAGONTALEN KOMMER FRAN SERVERN.
+   De fyra talen stod inskrivna har OCH pa servern, med samma siffror. Sa lange
+   ingen rorde dem gick det bra, men paragon ska ge skillpoang framover, och da
+   maste servern vara den som avgor - annars kan siffran satas till vad som
+   helst harifran. Talen laddas en gang; formeln ar densamma pa bada sidor, men
+   TALEN har bara ett hem. Sakras vardena inte anvands de gamla, sa spelet gar
+   att spela aven om hamtningen faller. */
+const LEVEL_NUM = {level_base: 607, level_growth: 1.0845, level_cap: 50,
+                   paragon_base: 2614, paragon_growth: 1.03};
+async function netLevelNumbers(){
+  const rows = await srvSelect('level_config', 'select=key,value');
+  (rows || []).forEach(r => {
+    if (LEVEL_NUM[r.key] !== undefined) LEVEL_NUM[r.key] = +r.value;
+  });
+}
+function levelCap(){ return LEVEL_NUM.level_cap; }
+function xpToNext(level){
+  return Math.round(LEVEL_NUM.level_base
+    * Math.pow(LEVEL_NUM.level_growth, Math.max(1, level) - 1));
+}
 function xpToCap(){
   let t = 0;
-  for (let l = 1; l < LEVEL_CAP; l++) t += xpToNext(l);
+  for (let l = 1; l < levelCap(); l++) t += xpToNext(l);
   return t;
 }
 /* PARAGON: efter 50 fortsatter nivaerna oandligt. Forsta steget kostar som
    niva 15-16, sedan 3 % mer per steg, och varje steg ger 10 Tokens - inte
    kraft. Ger paragon kraft maste all PvE balanseras mot paragon 800 i stallet
    for mot niva 50, och det ar felet Diablo 3 gjorde. */
-function paragonCost(n){ return Math.round(1890 * Math.pow(1.03, Math.max(1, n) - 1)); }
+function paragonCost(n){
+  return Math.round(LEVEL_NUM.paragon_base
+    * Math.pow(LEVEL_NUM.paragon_growth, Math.max(1, n) - 1));
+}
 function levelInfo(){
+  const cap = levelCap();
   let lvl = 1, rem = S.xp;
-  while (lvl < LEVEL_CAP && rem >= xpToNext(lvl)){ rem -= xpToNext(lvl); lvl++; }
-  if (lvl < LEVEL_CAP) return {lvl, into: rem, need: xpToNext(lvl), para: 0};
+  while (lvl < cap && rem >= xpToNext(lvl)){ rem -= xpToNext(lvl); lvl++; }
+  if (lvl < cap) return {lvl, into: rem, need: xpToNext(lvl), para: 0};
   let para = 0;
   while (para < 100000 && rem >= paragonCost(para + 1)){ rem -= paragonCost(para + 1); para++; }
-  return {lvl: LEVEL_CAP, into: rem, need: paragonCost(para + 1), para: para};
+  return {lvl: cap, into: rem, need: paragonCost(para + 1), para: para};
 }
 /* Vad vi SENAST sag - inte "1", for da fyrade uppstigningen av vid varje start
    for den som redan har nivaer. Paragon raknas med: annars slutade all
@@ -15690,7 +15844,12 @@ function startExpedition(id){
    SENARE via uppgraderingar/premium och väskor/lådor man hittar/köper/craftar.
    Stackbara saker (resurser, material, flaskor) delar plats; gear tar en egen.
    Fullt är fullt: addInvItem säger ärligt nej — säljning/slängning löser plats. */
+/* [ANDRAT v5.275.0] GRUNDPLATSERNA AR EN FUNKTION NU. Talet lastes pa fem
+   stallen, och klassens extra platser maste synas pa alla fem - annars hade
+   raderna ritats med en langd och fyllts med en annan. Konstanten star kvar som
+   just grunden; det ar `invBaseSlots()` som ska anvandas. */
 const INV_BASE_SLOTS = 20;
+function invBaseSlots(){ return INV_BASE_SLOTS + classVal('bag_slots'); }
 /* Väskplatslåsen: fem lås, priserna på ETT ställe så balansen kan ändras utan
    kodgräv. De två första köps för GULD (ett tidigt mål man kan spara till), de tre
    sista för credits. Ingen ny valuta skapas — båda finns redan. */
@@ -15866,7 +16025,7 @@ function isGatherRow(row){ return !!(row && row.stack && !row.gear && isGatherKe
 /* Sorterna dina LARDA samlaryrken kan hitta. */
 /* [BORTTAGET v5.220.0] Raknade sorterna dina yrken kan ge. Det talet styrde
    vaskans storlek och gor det inte langre - den ar tio, fast. */
-function gbagStart(){ return INV_BASE_SLOTS + bagSlotsFrom(); }
+function gbagStart(){ return invBaseSlots() + bagSlotsFrom(); }
 /* [OMSKRIVET v5.223.0] DEN HAR RAKNADE FEL OCH DROG ALLT ANNAT MED SIG.
    Den raknade allt fran samlarvaskans borjan till slutet av listan - alltsa
    aven adelstenspasens rader, som ligger efter. Fler raknade rader gav en
@@ -16916,7 +17075,7 @@ function dedupeSlots(list){
 function invLayout(){
   /* Platserna i ordning: grunden först, sedan varje inbakad väska. */
   let order = [];
-  for (let i = 0; i < INV_BASE_SLOTS; i++) order.push(i);
+  for (let i = 0; i < invBaseSlots(); i++) order.push(i);
   bagSegments().forEach(seg => {
     if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
     for (let k = 0; k < seg.len; k++) order.push(seg.start + k);
@@ -16937,7 +17096,7 @@ function invLayout(){
 /* Platserna som huvudrutnätet ritar: grunden plus varje INBAKAD väskas intervall. */
 function mainInvIndices(){
   const out = [];
-  for (let i = 0; i < INV_BASE_SLOTS; i++) out.push(i);
+  for (let i = 0; i < invBaseSlots(); i++) out.push(i);
   bagSegments().forEach(seg => {
     if (seg.socket === undefined || bagIsOpen(seg.socket)) return;
     for (let k = 0; k < seg.len; k++) out.push(seg.start + k);
@@ -16945,8 +17104,8 @@ function mainInvIndices(){
   return dedupeSlots(out);
 }
 function bagSegments(){
-  const segs = [{name: 'Backpack', start: 0, len: INV_BASE_SLOTS}];
-  let at = INV_BASE_SLOTS;
+  const segs = [{name: 'Backpack', start: 0, len: invBaseSlots()}];
+  let at = invBaseSlots();
   for (let i = 0; i < BAG_SLOTS.length; i++){
     const b = bagIn(i);
     if (b && bagUnlocked(i) && ITEMS[b.t] && ITEMS[b.t].bag){
@@ -22221,6 +22380,11 @@ function renderPetPanel(){
   const grid = $('pet-team-grid'), buff = $('pet-buff-line'), cnt = $('pet-team-count');
   if (!grid) return;
   const slots = teamSlots();
+  /* [TILLAGT v5.275.0] Rutnatet var lagt for TRE. En fjarde plats hade darfor
+     hamnat ensam pa en egen rad, precis som svarighetsbrickan gjorde. Markningen
+     hanger pa ANTALET, inte pa klassen, sa den haller aven om nagot annat en dag
+     ger en fjarde plats. */
+  grid.classList.toggle('four', slots >= 4);
   let html = '', n = 0;
   for (let i = 0; i < slots; i++){
     const p = teamAt(i);
@@ -28046,10 +28210,15 @@ function renderProfile(){
     row('Handle', NET.on && SRV.handle ? '@' + SRV.handle : '—') +
     '<div class="section-label">Character</div>' +
     row('Name', (NET.on && SRV.charName) ? SRV.charName : 'Runner') +
+    /* [TILLAGT v5.274.0] KLASSEN. Namnet som en rad bland de andra; formagorna
+       som en egen liten lista under, eftersom de ar det enda stallet spelaren
+       kan se vad valet faktiskt gav. Texterna kommer fran servern. */
+    row('Class', myClass() ? myClass().name : '—') +
     row('Level', li.para ? (li.lvl + ' · Paragon ' + li.para) : li.lvl) +
     row('XP', Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US')) +
     row('Standing in', REGIONS[S.world.current] ? REGIONS[S.world.current].name : '—') +
     row('Reputation here', '★'.repeat(repRank()) + '☆'.repeat(5 - repRank())) +
+    classAbilHTML() +
     '<div class="section-label">Numbers</div>' +
     row('Gold', fmtMoneyFull(S.gold)) +
     row('Tokens', fmt(S.tokens || 0)) +
@@ -28714,6 +28883,9 @@ let gateMode = 'in';
 let gateKeepMsg = false;   /* halsningen fran mejllanken ska inte suddas bort */
 
 function gateShowAuth(){
+  /* [TILLAGT v5.273.0] Bredden nollas nar man gar tillbaka till inloggningen -
+     annars hade den breda rutan hangt kvar efter en utloggning. */
+  document.querySelector('.gate-hero').classList.remove('picking');
   $('gate-auth').style.display = '';
   $('gate-chars').style.display = 'none';
   $('gate-handle').style.display = 'none';
@@ -28817,6 +28989,53 @@ async function gateAfterAuth(){
   await gateShowChars();
 }
 const CHAR_MAX = 10;
+/* [TILLAGT v5.273.0] KLASSERNA. Listan kommer fran SERVERN, inte fran en lista
+   har - namn och beskrivningar ska kunna skrivas om utan att klienten roras,
+   och servern provar anda valet mot samma tabell. Hamtas en gang per besok. */
+let GATE_CLASSES = null;
+let gateClassPick = null;
+function gateClassArt(id){ return 'assets/character/' + id + '.png'; }
+async function gateLoadClasses(){
+  if (GATE_CLASSES) return GATE_CLASSES;
+  GATE_CLASSES = await srvSelect('character_class_config',
+    'select=id,name,tagline,blurb&active=eq.true&order=sort');
+  return GATE_CLASSES;
+}
+function gateRenderClasses(){
+  const box = $('gate-classes'); if (!box) return;
+  const rows = GATE_CLASSES || [];
+  if (!rows.length){
+    box.innerHTML = '<div class="gate-note">Classes could not be loaded. Try again in a moment.</div>';
+    return;
+  }
+  box.innerHTML = rows.map(c =>
+    '<div class="gc-cls' + (gateClassPick === c.id ? ' on' : '') + '" data-cls="' + c.id + '">' +
+      '<div class="gc-figwrap">' +
+        '<img src="' + gateClassArt(c.id) + '" alt="" draggable="false"' +
+        ' onerror="this.closest(\'.gc-figwrap\').classList.add(\'noart\')">' +
+        '<span class="gc-ph">\u25ef</span></div>' +
+      '<div class="gc-cname">' + esc(c.name) + '</div>' +
+      '<div class="gc-ctag">' + esc(c.tagline) + '</div>' +
+    '</div>').join('');
+  const pick = rows.find(c => c.id === gateClassPick);
+  const blurb = $('gate-classblurb');
+  if (blurb) blurb.textContent = pick ? pick.blurb : '';
+  box.querySelectorAll('[data-cls]').forEach(el => {
+    el.addEventListener('click', () => {
+      gateClassPick = el.dataset.cls;
+      gateRenderClasses();
+      gateCreateArm();
+    });
+  });
+}
+/* Knappen tands forst nar BADE klass och ett namn av ratt langd finns. Servern
+   provar samma tva saker - det har ar bara for att slippa ett fel i ansiktet. */
+function gateCreateArm(){
+  const b = $('gate-create'), n = $('gate-newname');
+  if (!b || !n) return;
+  const namn = n.value.trim();
+  b.disabled = !(gateClassPick && namn.length >= 3 && namn.length <= 16);
+}
 async function gateShowChars(){
   $('gate-auth').style.display = 'none';
   $('gate-chars').style.display = '';
@@ -28839,7 +29058,16 @@ async function gateShowChars(){
         gateAskDelete(el, el.dataset.id, el.dataset.name);
       });
     });
-    $('gate-newrow').style.display = (rows || []).length >= CHAR_MAX ? 'none' : '';
+    const kanSkapa = (rows || []).length < CHAR_MAX;
+    $('gate-newrow').style.display = kanSkapa ? '' : 'none';
+    /* Bredden hanger pa OM skapandesteget syns, inte pa vilket steg man ar pa -
+       ar karaktarerna slut finns inget klassval och da ska rutan vara smal. */
+    document.querySelector('.gate-hero').classList.toggle('picking', kanSkapa);
+    /* Klasserna hamtas nar rutan visas. Faller hamtningen far man ett besked i
+       klassrutan i stallet for en tom rad - och knappen forblir slackt. */
+    gateLoadClasses().then(gateRenderClasses)
+                     .catch(() => { GATE_CLASSES = []; gateRenderClasses(); });
+    gateCreateArm();
     if (!gateKeepMsg) gateSay('gate-msg2', '');
     gateKeepMsg = false;
   } catch (e){
@@ -28909,6 +29137,13 @@ async function gateEnter(id, name){
   gateSay('gate-msg2', 'Loading your character…', true);
   try {
     await netPullAll();       /* serverns tillstand ersatter det lokala helt */
+    /* [TILLAGT v5.274.0] Klasslistan hamtas EN gang vid insteget. Faller den
+       spelar man vidare utan klassrutan i stallet for att inte komma in alls -
+       formagorna raknas anda pa servern. */
+    try { await netClasses(); } catch (e){}
+    /* [TILLAGT v5.276.0] Niva- och paragontalen hamtas samtidigt. Faller det
+       anvands reservvardena och spelet gar vidare. */
+    try { await netLevelNumbers(); } catch (e){}
     await netSync();          /* och tiden sedan sist raknas fram */
     /* Vad karaktaren REDAN har ar inte nya nivaer. Utan detta small
        uppstigningen av direkt vid inloggning for var och en som har nagra. */
@@ -28917,6 +29152,7 @@ async function gateEnter(id, name){
     /* HELA skarmen ritas om, inte bara vaskan. Forut var burna handskar och
        stovlar osynliga efter en omladdning - servern hade dem, karaktarsbladet
        hade aldrig blivit ombett att rita dem. */
+    applyClassFigure();
     redrawAll();
   } catch (e){
     gateSay('gate-msg2', e.message);
@@ -28959,8 +29195,10 @@ $('gate-submit').addEventListener('click', async () => {
   $('gate-submit').disabled = false;
 });
 
+$('gate-newname').addEventListener('input', gateCreateArm);
 $('gate-create').addEventListener('click', async () => {
   const name = $('gate-newname').value.trim();
+  if (!gateClassPick){ gateSay('gate-msg2', 'Choose a class first.'); return; }
   if (!name){ gateSay('gate-msg2', 'Give the character a name.'); return; }
   /* Sag vad som ar fel INNAN servern svarar med ett databasfel. Forut fick den
      som skrev "Bjorn" med o ett ratt felmeddelande rakt i ansiktet. */
@@ -28974,14 +29212,17 @@ $('gate-create').addEventListener('click', async () => {
   $('gate-create').disabled = true;
   gateSay('gate-msg2', 'Creating…', true);
   try {
-    const row = await srvRpc('create_character', {p_name: name});
+    /* [ANDRAT v5.273.0] Klassen foljer med i SAMMA anrop som namnet. Servern
+       tar inte langre emot ett anrop utan klass. */
+    const row = await srvRpc('create_character', {p_name: name, p_class: gateClassPick});
     gateEnter(row.id, row.name);
   } catch (e){
     const m = String(e.message || '');
     gateSay('gate-msg2',
       /name_taken|duplicate|unique/i.test(m) ? 'That name is taken.' :
       /characters_name/i.test(m)             ? 'That name has characters the game cannot use.' :
-      /too_many/i.test(m)                    ? 'You already have the maximum number of characters.' :
+      /too_many|character_limit/i.test(m)    ? 'You already have the maximum number of characters.' :
+      /unknown_class/i.test(m)               ? 'That class is not available. Pick another one.' :
       'Could not create that character.');
   }
   $('gate-create').disabled = false;
