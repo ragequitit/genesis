@@ -5130,6 +5130,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   font-weight:900;letter-spacing:.1em;border:1px solid var(--border);
   background:rgba(255,255,255,.04);color:var(--text)}
 .ppb-tabs button.on{background:rgba(56,232,255,.16);border-color:var(--cyan-dim)}
+/* [TILLAGT v5.268.0] Stegets rubrik i receptboken: en linje och ett ord. */
+.ppb-tier{margin:12px 0 6px;padding-top:8px;border-top:1px solid var(--border-soft);
+  font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan)}
+.ppb-tier:first-child{margin-top:2px;padding-top:0;border-top:0}
 .ppb-list{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow-y:auto;padding-right:4px}
 .rr-time{font-size:9.5px;color:var(--text-faint);letter-spacing:.05em}
 .rr-craft.addq{white-space:nowrap}
@@ -6543,7 +6547,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.267.0 — VANSTERKLICKET NAR FRAM</div>
+        <div class="sn-ver">GENESIS v5.268.0 — STEGEN SYNS I BOKEN OCH PA PAPPERET</div>
       </div>
     </div>
   </aside>
@@ -7535,7 +7539,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.267.0 — VANSTERKLICKET NAR FRAM</div>
+            <div class="desc">GENESIS v5.268.0 — STEGEN SYNS I BOKEN OCH PA PAPPERET</div>
           </div>
         </div>
       </div>
@@ -12024,6 +12028,14 @@ const PAPER = {
   medic:       {en:'Formula',   fl:'Formulas',   bok:'Book of Formulas',   bild:'formula'},
   refiner:     {en:'Process',   fl:'Processes',  bok:'Book of Processes',  bild:'process'}
 };
+/* [TILLAGT v5.268.0] YRKETS TRAPPA (Chris). Recepten bar redan en rang ett till
+   fem; det som saknades var ett ORD for den. Nivakraven ligger sa har: rang 1 pa
+   niva 1, rang 2 pa 4-5, rang 3 pa 8-10, rang 4 pa 12-15, rang 5 pa 16-20 - ett
+   steg spanner alltsa over tva nivaer, och darfor star NIVAN kvar i texten
+   bredvid steget. Da kan kortet aldrig lova nagot det inte haller.
+   Samma trappa i alla yrken: "Adept Weaponsmith", "Adept Jewelcrafter". */
+const TIERS = ['Novice', 'Journeyman', 'Adept', 'Expert', 'Master'];
+function tierName(rank){ return TIERS[Math.max(1, Math.min(5, +rank || 1)) - 1]; }
 function paperOf(prof){
   return PAPER[prof] || {en:'Recipe', fl:'Recipes', bok:'Recipe Book', bild:'schematic'};
 }
@@ -19632,7 +19644,10 @@ function itemDef(row){
                ser vad papperet ar vart innan man last raden. */
             desc: cardLine('Use', 'Learn how to craft <b style="color:' + rarCol(sc.rar) +
                     '">' + esc(made || sc.name) + '</b>.') +
-                  (r ? cardLine('Req', esc(prof) + ' level ' + r.lvl + '.') : '') +
+                  (r ? cardLine('Req', '<b style="color:' +
+                       (profLvl(r.prof) >= r.lvl ? 'var(--text)' : 'var(--red)') + '">' +
+                       tierName(r.rank) + ' ' + esc(prof) + ' level ' + r.lvl +
+                       '</b>.') : '') +
                   cardNote(SCHEMATIC_SRC[sc.src] ? 'Found ' + SCHEMATIC_SRC[sc.src] + '.' : '')};
   }
   /* RECEPT: ett fynd som larer sitt recept nar man anvander det. */
@@ -23370,7 +23385,7 @@ function profPageHTML(p){
        spelarens bild: receptboken eller skilltradet i hogerspalten. */
     if (hasTree){
       h += '<div class="pp-tabs">' +
-        '<button class="pp-tabbtn' + (ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="book">\ud83d\udcd6 RECIPE BOOK</button>' +
+        '<button class="pp-tabbtn' + (ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="book">\ud83d\udcd6 ' + esc(paperOf(profId).fl.toUpperCase()) + '</button>' +
         '<button class="pp-tabbtn' + (ppTab === 'tree' ? ' on' : '') + '" data-ppttab="tree">\ud83c\udf33 SKILL TREE</button>' +
       '</div>';
     }
@@ -23466,8 +23481,8 @@ function ppBookHTML(profId){
   });
   const free = woCap(profId) - ppQueueLen(profId);
   let h = '<div class="section-label pp-sec" style="display:flex;justify-content:space-between;align-items:center">' +
-    'Recipe book <span class="ppq-count">' + free + ' slot' + (free === 1 ? '' : 's') + ' available</span></div>' +
-    '<div class="ppb-bar"><input id="ppb-search" type="text" placeholder="Search recipes\u2026" value="' +
+    esc(paperOf(profId).bok) + ' <span class="ppq-count">' + free + ' slot' + (free === 1 ? '' : 's') + ' available</span></div>' +
+    '<div class="ppb-bar"><input id="ppb-search" type="text" placeholder="Search ' + esc(paperOf(profId).fl.toLowerCase()) + '\u2026" value="' +
       QB.q.replace(/"/g, '&quot;') + '">' +
     '<span class="ppb-tabs">' + ['ALL'].concat(slots).map(t =>
       '<button data-qtab="' + t + '"' + (QB.tab === t ? ' class="on"' : '') + '>' + t.toUpperCase() + '</button>').join('') +
@@ -23478,7 +23493,14 @@ function ppBookHTML(profId){
 function ppBookRows(profId){
   const free = woCap(profId) - ppQueueLen(profId);
   const q = QB.q.trim().toLowerCase();
-  return RECIPES.filter(r => r.prof === profId && recipeKnown(r.id)).map(r => {
+  /* [ANDRAT v5.268.0] EN RUBRIK PER STEG (Chris). Forut lag alla recept i en
+     enda hog, och det enda som skvallrade om var ett recept horde hemma var
+     materiallistan. Nu bryts listan pa rangen, i ordning, med steget som
+     rubrik - samma ord som star pa papperet man hittar ute i varlden. */
+  let sistaRang = null;
+  return RECIPES.filter(r => r.prof === profId && recipeKnown(r.id))
+    .slice().sort((a, b) => (a.rank || 1) - (b.rank || 1) || a.lvl - b.lvl)
+    .map(r => {
     const D = ITEMS[r.item];
     const slotName = D && GEAR_SLOTS[D.slot] ? GEAR_SLOTS[D.slot].name : '';
     if (QB.tab !== 'ALL' && slotName !== QB.tab) return '';
@@ -23531,7 +23553,14 @@ function ppBookRows(profId){
        harifran. Bada gar nu samma vag, sa de inte kan glida isar igen. */
     /* [FLYTTAT v5.173.0] Bilden raknas fram langre upp nu, sa den lasta raden
        ocksa kan anvanda den utan att kasta ett fel. */
-    return '<div class="recipe-row' + (afford ? '' : ' cant') + '">' +
+    /* Rubriken ritas FORE forsta raden i varje steg - alltsa har, nar raden
+       overlevt sokning och flikval. */
+    let rubrik = '';
+    if ((r.rank || 1) !== sistaRang){
+      sistaRang = r.rank || 1;
+      rubrik = '<div class="ppb-tier">' + tierName(sistaRang) + '</div>';
+    }
+    return rubrik + '<div class="recipe-row' + (afford ? '' : ' cant') + '">' +
       '<div class="rr-art" style="' + artStyle + '">' + artInner + '</div>' +
       '<div class="rr-body">' +
         '<div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
