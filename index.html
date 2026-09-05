@@ -84,6 +84,13 @@ html,body{
 ::selection{background:transparent}
 ::-webkit-selection{background:transparent}
 input,select,textarea{user-select:text;-webkit-user-select:text}
+/* [RATTAT v5.287.0] MARKERINGEN SYNTES INTE I SKRIVFALTEN (Chris). Den genomskin-
+   liga markeringen ovanfor ar till for att spelet inte ska se ut som en webbsida
+   nar man drar over ytor - men den gallde ALLT, aven e-postrutan och gillets
+   text. Markeringen fungerade hela tiden; den var bara osynlig, sa det sag ut
+   som att musen inte tog. Skrivfalten far tillbaka en synlig markering. */
+input::selection, textarea::selection{background:rgba(56,232,255,.32);color:var(--text)}
+input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);color:var(--text)}
 
 /* ============================================================
    PANEL BAS — alla ramar/frames använder denna
@@ -3083,12 +3090,23 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
    OCH en avklippning. Jag slog bara av den forsta uppsattningen forra gangen,
    sa fonden stod kvar och sag ut som en foremalsram. Allt tre ar av nu; fyndet
    star fritt. */
+/* [RATTAT v5.286.0] FYNDET SYNTES INTE ALLS, OCH FYRKANTEN LAG KVAR (Chris).
+   Tva fel i samma ruta, bada foddes av forra rattningen:
+   1. Bilden ritas av samma efterlagg som halsdjursbilderna anvander. Forra
+      gangen slogs efterlagget AV for att bli av med avklippningen - och da
+      forsvann det enda som malar sjalva bilden. Nu star efterlagget kvar men
+      utan ram, fond och avklippning, sa figuren syns och star fritt.
+   2. Fyrkanten var ingen ram och ingen fond utan den GLOD som satts pa
+      elementet vid oppnandet. En glod runt ett element utan innehall ritar
+      elementets egen kvadrat. Regeln har maste vinna over den, alltsa viktig. */
 .hrev-stage .hrev-art, .hrev-stage .hrev-art.pet-sprite{
   position:relative;width:88px;height:88px;font-size:36px;
-  border:0 !important;background:none !important;border-radius:0;box-shadow:none;
-  overflow:visible;
+  border:0 !important;background:none !important;border-radius:0;
+  box-shadow:none !important;
+  overflow:visible !important;
   filter:drop-shadow(0 0 16px var(--rv)) drop-shadow(0 0 34px var(--rv))}
-.hrev-stage .hrev-art::after{display:none}
+.hrev-stage .hrev-art::after{
+  display:block;border-radius:0;background-color:transparent}
 .hrev-name{font-size:17px;font-weight:900;letter-spacing:.04em;color:var(--rv);margin-top:2px}
 .hrev-rar{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);
   font-weight:800;margin-bottom:10px}
@@ -5355,6 +5373,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   font-size:var(--csz);overflow:hidden;transition:opacity .25s}
 .chat-root.mode-compact .chat-panel{height:248px}
 .chat-root.mode-expanded .chat-panel{width:560px;height:min(520px,calc(100vh - 40px))}
+/* [TILLAGT v5.284.0] FLYTTAD CHATT. Rutan sitter normalt fast i hogra nedre
+   hornet. Har man dragit den nagon annanstans slapper hornet taget och rutan
+   styrs av sitt egna lage i stallet. Flikraden ar handtaget. */
+.chat-root.flyttad{right:auto;bottom:auto;align-items:flex-start}
+.chat-tabs{cursor:default}
+/* Greppet. Flikraden ar full av knappar, sa det finns ingen tom yta att ta i -
+   darfor ett eget synligt handtag som ser flyttbart ut. */
+.chat-grip{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+  color:var(--text-dim);cursor:grab;user-select:none;font-size:13px;line-height:1;opacity:.7;
+  /* Utan detta tolkar pekskarmen forsta fingerrorelsen som en rullning och
+     avbryter draget innan det borjat. Surfplattan ar bred nog att fa dra. */
+  touch-action:none}
+.chat-grip:hover{color:var(--cyan);opacity:1}
+.chat-root.drar .chat-tabs{cursor:grabbing}
 .chat-root.idle .chat-panel{opacity:.35}
 .chat-root.idle:hover .chat-panel{opacity:1}
 .chat-tabs{display:flex;align-items:center;gap:2px;padding:6px 8px 0;border-bottom:1px solid rgba(255,255,255,.07);flex:0 0 auto}
@@ -6687,7 +6719,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.283.0 — SERVERNS KLOCKA</div>
+        <div class="sn-ver">GENESIS v5.287.0 — MARKERINGEN SYNS</div>
       </div>
     </div>
   </aside>
@@ -7095,6 +7127,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <button class="chat-tab" data-ctab="guild">Guild<span class="ct-n"></span></button>
         <button class="chat-tab" data-ctab="whisper">Whispers<span class="ct-n"></span></button>
         <span class="chat-tools">
+          <span class="chat-grip" id="chat-grip" title="Drag to move &#183; double-click to snap back">&#10247;</span>
           <button id="chat-btn-set" title="Chat settings">⚙</button>
           <button id="chat-btn-exp" title="Expand">⤢</button>
           <button id="chat-btn-min" title="Minimize">—</button>
@@ -7679,7 +7712,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.283.0 — SERVERNS KLOCKA</div>
+            <div class="desc">GENESIS v5.287.0 — MARKERINGEN SYNS</div>
           </div>
         </div>
       </div>
@@ -25293,10 +25326,12 @@ function showCacheReveal(o){
   if (m) m.style.setProperty('--rv', col);
   $('hrev-kicker').textContent = o.kicker;
   const art = $('hrev-art');
+  /* [ANDRAT v5.286.0] Kanten och gloden sattes har och det var gloden som ritade
+     fyrkanten bakom fyndet. Stilmallen slar av bada nu, sa raderna var dod kod
+     som sag levande ut - borttagna, sa nasta lasare inte tror att de gor nagot. */
   art.setAttribute('style',
     (o.art ? '--pi:url(\'' + o.art + '\');' : '') +
-    'width:88px;height:88px;font-size:36px' +
-    ';border-color:' + col + ';box-shadow:0 0 22px -6px ' + col);
+    'width:88px;height:88px;font-size:36px');
   art.textContent = o.art ? '' : (o.letter || '?');
   $('hrev-name').textContent = o.name;
   $('hrev-name').style.color = col;
@@ -32022,7 +32057,9 @@ function chatOpenConv(cid, name){
   chatSync().then(() => { chatMarkRead(); chatRender(); });
   const inp = $('chat-text'); if (inp) inp.focus();
 }
-function chatMode(m){ CHAT.mode = m; chatApplyCfg(); chatCfgSave(); if (m !== 'min'){ chatSync().then(() => chatMarkRead()); } chatRender(); chatSettingsPlace(); }
+function chatMode(m){ CHAT.mode = m; chatApplyCfg(); chatCfgSave(); if (m !== 'min'){ chatSync().then(() => chatMarkRead()); } chatRender(); chatSettingsPlace();
+  /* Utfalld ruta ar storre och kan hamna utanfor kanten - klam om laget. */
+  try { chatPosKlam(); } catch (e){} }
 function chatSettingsRender(){
   const b = $('chat-settings'); if (!b) return;
   const on = (k) => CHAT_CFG[k] ? ' checked' : '';
@@ -32066,6 +32103,111 @@ document.querySelectorAll('.chat-tab').forEach(b => b.addEventListener('click', 
   $('chat-settings').classList.remove('on'); $('chat-picker').classList.remove('on');
   chatRender(); chatSync().then(() => { chatMarkRead(); chatRender(); });
 }));
+/* [TILLAGT v5.284.0] CHATTRUTAN GAR ATT FLYTTA (Chris).
+   Handtaget ar FLIKRADEN, inte hela rutan - texten i chatten ska gar att markera
+   och kopiera, och knapparna i raden ska fortfarande vara knappar.
+   Pa smala skarmar ligger rutan som ett blad underifran och ska inte flyttas;
+   dar ar draget avstangt, precis som for alla andra fonster.
+   Laget sparas lokalt i webblasaren, inte pa servern - det ar en installning
+   for den har skarmen, inte for karaktaren. Dubbelklick pa flikraden lamnar
+   tillbaka rutan till hornet. */
+const CHAT_POS_NYCKEL = 'genesis.chatpos';
+function chatPosKlam(){
+  const r = $('chat-root'), p = $('chat-panel');
+  if (!r || !p || !r.classList.contains('flyttad')) return;
+  /* Ar chatten minimerad ar det IKONEN som star dar, inte panelen. Matte vi
+     panelen skulle en liten ikon klammas som om den vore 440 punkter bred. */
+  const syns = (getComputedStyle(p).display !== 'none') ? p : ($('chat-fab') || p);
+  const w = syns.offsetWidth || 440, h = syns.offsetHeight || 248, m = 8;
+  const x = Math.max(m, Math.min(window.innerWidth  - w - m, parseFloat(r.style.left) || 0));
+  const y = Math.max(m, Math.min(window.innerHeight - h - m, parseFloat(r.style.top)  || 0));
+  r.style.left = Math.round(x) + 'px';
+  r.style.top  = Math.round(y) + 'px';
+}
+function chatPosSpara(){
+  const r = $('chat-root');
+  if (!r) return;
+  try {
+    if (r.classList.contains('flyttad')){
+      localStorage.setItem(CHAT_POS_NYCKEL, JSON.stringify({
+        x: parseFloat(r.style.left) || 0, y: parseFloat(r.style.top) || 0}));
+    } else {
+      localStorage.removeItem(CHAT_POS_NYCKEL);
+    }
+  } catch (e){ /* privat lage: rutan star kvar dar den ar tills sidan laddas om */ }
+}
+function chatPosTillHornet(){
+  const r = $('chat-root');
+  if (!r) return;
+  r.classList.remove('flyttad');
+  r.style.left = ''; r.style.top = '';
+  chatPosSpara();
+}
+function chatPosLas(){
+  const r = $('chat-root');
+  if (!r || isNarrowScreen()) return;
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(CHAT_POS_NYCKEL) || 'null'); } catch (e){}
+  if (!d || !isFinite(d.x) || !isFinite(d.y)) return;
+  r.classList.add('flyttad');
+  r.style.left = d.x + 'px'; r.style.top = d.y + 'px';
+  chatPosKlam();
+}
+(function chattDrag(){
+  const rad = $('chat-grip');
+  const r = $('chat-root'), p = $('chat-panel');
+  if (!rad || !r || !p) return;
+  rad.addEventListener('dblclick', () => chatPosTillHornet());
+  rad.addEventListener('pointerdown', e => {
+    if (isNarrowScreen()) return;
+    if (e.target.closest('button, input, textarea, select')) return;
+    /* Rutan flyttas fran DET LAGE DEN STAR I NU, aven forsta gangen - annars
+       hoppade den till noll,noll i samma stund man rorde den. */
+    const b = p.getBoundingClientRect();
+    if (!r.classList.contains('flyttad')){
+      r.classList.add('flyttad');
+      r.style.left = Math.round(b.left) + 'px';
+      r.style.top  = Math.round(b.top)  + 'px';
+    }
+    const bx = parseFloat(r.style.left) || 0, by = parseFloat(r.style.top) || 0;
+    const sx = e.clientX, sy = e.clientY;
+    let drar = false;
+    const flytta = ev => {
+      /* Troskel pa fem punkter: under det ar det ett tryck, inte ett drag. */
+      if (!drar){
+        if (Math.abs(ev.clientX - sx) < 5 && Math.abs(ev.clientY - sy) < 5) return;
+        drar = true; r.classList.add('drar');
+      }
+      r.style.left = (bx + ev.clientX - sx) + 'px';
+      r.style.top  = (by + ev.clientY - sy) + 'px';
+    };
+    const slapp = () => {
+      document.removeEventListener('pointermove', flytta);
+      document.removeEventListener('pointerup', slapp);
+      /* Ett AVBRUTET tryck - ett samtal, en gest, fingret utanfor rutan - ger
+         aldrig nagot slapp. Utan den har raden lag lyssnaren kvar och rutan
+         foljde markoren for alltid. */
+      document.removeEventListener('pointercancel', slapp);
+      r.classList.remove('drar');
+      if (drar){ chatPosKlam(); chatPosSpara(); }
+    };
+    document.addEventListener('pointermove', flytta);
+    document.addEventListener('pointerup', slapp);
+    document.addEventListener('pointercancel', slapp);
+    e.preventDefault();
+  });
+  window.addEventListener('resize', () => {
+    /* Blir skarmen smal tar bladet over, och ett sparat lage skulle kampa mot
+       det. Blir den bred igen kommer laget tillbaka. */
+    if (isNarrowScreen()){ r.classList.remove('flyttad'); r.style.left = ''; r.style.top = ''; }
+    else { chatPosLas(); chatPosKlam(); }
+    /* Installningsrutan ligger utanfor panelen i dokumentet och placeras mot
+       panelens kant. Andras fonstrets storlek maste den placeras om - det
+       gjordes inte forut, sa den blev kvar dar panelen stod fore. */
+    chatSettingsPlace();
+  });
+  chatPosLas();
+})();
 $('chat-btn-min').addEventListener('click', () => chatMode('min'));
 $('chat-fab').addEventListener('click', () => chatMode(isNarrowScreen() ? 'expanded' : 'compact'));
 $('chat-btn-exp').addEventListener('click', () => chatMode(CHAT.mode === 'expanded' ? 'compact' : 'expanded'));
