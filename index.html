@@ -53,6 +53,15 @@
   --rarity-legendary:  #ffc542;
   --rarity-mythic:     #ff3b3b;
 
+  /* [TILLAGT v5.279.0] NIVASKILLNADENS FARGER. Samma fem steg som servern:
+     gratt langt under dig, gront under, gult jamnt, orange over, rott langt
+     over. Alla fem ar farger som redan finns i paletten ovan. */
+  --diff-gra:       var(--text-faint);
+  --diff-gron:      var(--green);
+  --diff-gul:       var(--gold);
+  --diff-orange:    var(--orange);
+  --diff-rod:       var(--red);
+
   --radius:         12px;
   --radius-sm:      8px;
   --gap:            10px;
@@ -4465,6 +4474,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .gate-link{display:block;width:100%;margin-top:8px;padding:4px;background:none;border:0;
   color:var(--text-dim);font-size:11.5px;cursor:pointer;text-decoration:underline}
 .gate-link:hover{color:var(--cyan)}
+.zon-niva.gra{color:var(--diff-gra)}
+.zon-niva.gron{color:var(--diff-gron)}
+.zon-niva.gul{color:var(--diff-gul)}
+.zon-niva.orange{color:var(--diff-orange)}
+.zon-niva.rod{color:var(--diff-rod)}
 .pf-edit{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 .pf-edit input{flex:1 1 160px}
 .btn-neutral.wide{width:100%}
@@ -6673,7 +6687,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.277.0 — PJASENS NIVA FRAN KALLAN</div>
+        <div class="sn-ver">GENESIS v5.283.0 — SERVERNS KLOCKA</div>
       </div>
     </div>
   </aside>
@@ -7665,7 +7679,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.277.0 — PJASENS NIVA FRAN KALLAN</div>
+            <div class="desc">GENESIS v5.283.0 — SERVERNS KLOCKA</div>
           </div>
         </div>
       </div>
@@ -7809,9 +7823,20 @@ const SRV = {
   key:  'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH',
   token: null, refresh: null, user: null, expires: 0,
   charId: null, charName: null,
+  /* [TILLAGT v5.279.0] Serverns paragontal. Servern skriver det i samma
+     funktion som skriver erfarenheten, sa det ar alltid i takt med XP:n. */
+  paragon: null,
+  /* Skillnaden mellan serverns klocka och datorns, i millisekunder. */
+  skew: 0,
   online: false
 };
 const SRV_STORE = 'genesis.session';
+
+/* [TILLAGT v5.283.0] SERVERNS TID. Anvands overallt dar vi jamfor mot ett
+   slutdatum som SERVERN satt - expeditioner, post, resor, senaste tick.
+   Rent klientegna klockor (hantverksrutan, animationer) anvander Date.now()
+   som forut; de jamfor mot sig sjalva och behover ingen rattelse. */
+function nu(){ return Date.now() + (SRV.skew || 0); }
 
 function srvSaveSession(){
   try {
@@ -7924,6 +7949,21 @@ async function srvCall(path, opts){
     SRV.online = false;
     throw new Error('offline');
   }
+
+  /* [TILLAGT v5.283.0] SERVERNS KLOCKA. Varje svar bar med sig serverns tid i
+     en rubrik. Vi jamfor med den egna klockan och sparar skillnaden.
+     Utan det jamfordes serverns slutdatum - expeditioner, drönare, resor,
+     handlarens paafyllning - mot DIN dators klocka. Gar den fem minuter fel
+     ser en expedition ut att vara klar fem minuter for tidigt, och servern
+     sager nej utan att spelaren forstar varfor. Rattelsen fanns redan, men
+     bara for dagsbeloningarna. Nu galler den allt. */
+  try {
+    const d = res.headers.get('date');
+    if (d){
+      const t = Date.parse(d);
+      if (!isNaN(t)) SRV.skew = t - Date.now();
+    }
+  } catch (e){ /* rubriken saknas - da galler den egna klockan som forut */ }
 
   let data = null;
   const text = await res.text();
@@ -8306,7 +8346,7 @@ async function netPull(){
   /* Tiden sedan servern sist raknade: den ENDA sanningen om hur lange man
      varit borta. Den lokala sparfilens klocka ljog om man spelat pa en
      annan enhet. */
-  NET.awaySecs = c.ticked_at ? Math.max(0, (Date.now() - new Date(c.ticked_at).getTime()) / 1000) : 0;
+  NET.awaySecs = c.ticked_at ? Math.max(0, (nu() - new Date(c.ticked_at).getTime()) / 1000) : 0;
   if (c.region && REGIONS[c.region]) S.world.current = c.region;
   /* ZONEN OCKSA. Servern har vetat hela tiden var man star; klienten laste bara
      regionen och satte en i dess ingang, sa en omladdning kastade ut en ur
@@ -8543,11 +8583,8 @@ async function netSync(){
          Samma vakt som overallt annars, pa det enda stalle den saknades. */
       if (row.xp != null){
         S.xp = +row.xp;
-        const li = levelInfo();
-        if (li.lvl > lastLevel || li.para > lastPara){
-          lastLevel = li.lvl; lastPara = li.para || 0;
-          levelUpFx(li.lvl);
-        }
+        if (row.paragon != null) SRV.paragon = +row.paragon;
+        noteLevelChange();
       }
     }
     NET.predictedAt = Date.now();
@@ -8610,11 +8647,7 @@ function netTap(count, heldSecs){
 function netTakeXp(r){
   if (r && r.xp != null){
     S.xp = +r.xp;
-    const li = levelInfo();
-    if (li.lvl > lastLevel || li.para > lastPara){
-      lastLevel = li.lvl; lastPara = li.para || 0;
-      levelUpFx(li.lvl);
-    }
+    noteLevelChange();
     updateUI(true);
   }
   return r;
@@ -9050,8 +9083,17 @@ function showFightPlayback(enc, r){
       const rw = r.rewards || {};
       const scrap = rw.scrap_qty
         ? ' \u00b7 +' + rw.scrap_qty + ' ' + ((MATERIALS[rw.scrap_key] || {}).name || 'scrap') : '';
+      /* [TILLAGT v5.279.0] Fragmenten och hjalparcachen. Ett vunnet mote ger
+         numera bada; forut namndes ingetdera i rutan fast servern delade ut
+         dem, sa spelaren fick dem utan att fa veta det. */
+      const frg = rw.frags ? ' \u00b7 +' + rw.frags + ' Fragment' + (rw.frags > 1 ? 's' : '') : '';
+      const cch = rw.helper_cache ? ' \u00b7 Helper Cache' : '';
+      /* [TILLAGT v5.282.0] Ritningen. Servern rullade och gav den, men talet
+         kom aldrig med i svaret - spelaren fick papperet utan ett ord. */
+      const sch = rw.schematic
+        ? ' \u00b7 ' + ((SCHEMATICS[rw.schematic] || {}).name || 'Schematic') : '';
       const sgt = [starterGearText(rw.starter_gear), starterGearText(rw.gear)].filter(Boolean).join(' \u00b7 ');
-      res.innerHTML = '<b class="win">VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + scrap +
+      res.innerHTML = '<b class="win">VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + scrap + frg + cch + sch +
         (sgt ? '</span><span class="pve-starter">' + esc(sgt) : '') + '</span>';
     } else {
       res.innerHTML = '<b class="loss">DEFEAT</b><span>You barely made it out \u2014 1 HP. ' +
@@ -9403,7 +9445,8 @@ function dgcSupplyHTML(){
         opts('until', [50, 75, 100], st.until) + '</span>' +
     '</div>' +
     '<div class="dgc-lock"><i class="ic">' + DGC_ICONS.lock + '</i>' +
-      'Gear and medical supplies are locked when the run begins.</div>' +
+      'The whole run is decided the moment it begins. Swapping gear or drinking ' +
+      'anything afterwards changes nothing for this run.</div>' +
     (pveLowHealth() ? '<div class="dgc-low">Low health \u2014 patch up before you enter.</div>' : '') +
     '</div></div>';
 }
@@ -9564,7 +9607,11 @@ function showDungeonSummary(r){
     '<div class="pve-result"><b class="' + (r.died ? 'loss' : 'win') + '">' +
     (r.died ? 'PULLED OUT' : 'DUNGEON CLEARED') + '</b>' +
     '<span>' + r.bosses + ' bosses down \u00b7 +' + fmt(r.xp || 0) + ' XP' +
-    (scraps ? ' \u00b7 ' + scraps : '') + '</span></div>' +
+    (scraps ? ' \u00b7 ' + scraps : '') +
+    /* [TILLAGT v5.281.0] Hjalparcacherna namndes aldrig. Servern rullade ett
+       kast per vunnen strid och la dem i vaskan under tystnad. */
+    (r.helper_caches ? ' \u00b7 +' + r.helper_caches + ' Helper Cache' +
+                       (r.helper_caches > 1 ? 's' : '') : '') + '</span></div>' +
     /* [TILLAGT v5.148.0] Sager rakt ut att en avbruten korning inte ar en
        forlorad korning. Utan raden lasar man 5 bossar som malet och 2 som ett
        misslyckande - men de tva ar betalda och kvar. */
@@ -13136,6 +13183,21 @@ function addExtraAffix(g){
 /* [TILLAGT v5.277.0] Regionens nivaband, jamnt fordelat. Voxholm 1-10,
    Drakemark 11-20, och sa vidare. Samma tal som servern raknar fram, sa en
    hylla eller en melon aldrig kan visa ett annat spann offline an online. */
+/* [TILLAGT v5.279.0] ZONENS NIVA FOLJER DIG. Zonerna satt forut fast i
+   regionen medan spelaren rorde sig genom den, sa fran mitten av varje region
+   gav de laga zonerna noll erfarenhet men kostade anda halsa. Nu ligger zon
+   ett tva under dig och zon sex tre over, klamt i regionens tio nivaer.
+   Samma rakning som servern gor nar den valjer ut ett mote. */
+function zonForskjutning(zi){ return (zi | 0) - 2; }
+function zonNiva(regionId, zi){
+  const R = REGIONS[regionId];
+  if (!R) return levelInfo().lvl;
+  const lo = (R.tier | 0) * 10 + 1, hi = lo + 9;
+  const min = levelInfo().lvl;
+  /* Vid taket skalar varlden till dig och bandet slutar galla for nivan. */
+  if (min >= levelCap()) return levelCap();
+  return Math.max(lo, Math.min(hi, min + zonForskjutning(zi)));
+}
 function regionLevelRoll(regionId){
   const t = (REGIONS[regionId] && REGIONS[regionId].tier) | 0;
   return t * 10 + 1 + Math.floor(Math.random() * 10);
@@ -13348,11 +13410,14 @@ function equippedList(){ return GEAR_SLOTS.map((_, i) => S.equip[i] || null); }
    och all skada ur utrustning, sa en naken karaktar stod pa noll oavsett niva.
    Talen ar desamma som servern raknar med: fem kraft, tva skada och tjugo liv
    per niva. Ligger de har OCH pa servern maste bada andras samtidigt. */
-const BASE_POWER_LVL = 5, BASE_DAMAGE_LVL = 2, BASE_HEALTH_LVL = 20;
+/* [ANDRAT v5.280.0] Talen star i nivatabellen pa SERVERN och hamtas darifran.
+   Forut stod de bade dar och har - andrades de pa ett stalle visade
+   karaktarsbladet ett tal medan striden raknade ett annat. Vardena i
+   nivatabellens reserv galler bara om hamtningen faller. */
 function basLvl(){ try { return Math.min(50, Math.max(1, levelInfo().lvl)); } catch (e){ return 1; } }
-function basePower(){ return BASE_POWER_LVL * basLvl(); }
-function baseDamage(){ return BASE_DAMAGE_LVL * basLvl(); }
-function baseHealth(){ return BASE_HEALTH_LVL * basLvl(); }
+function basePower(){ return Math.round(LEVEL_NUM.base_power_lvl * basLvl()); }
+function baseDamage(){ return Math.round(LEVEL_NUM.base_damage_lvl * basLvl()); }
+function baseHealth(){ return Math.round(LEVEL_NUM.base_health_lvl * basLvl()); }
 function totalHP(){ return BASE_HP + baseHealth() + equippedList().reduce((s, it) => s + (it ? it.hp : 0), 0); }
 function totalPower(){ return basePower() + equippedList().reduce((s, it) => s + (it ? (it.pw || 0) : 0), 0); }
 function totalDamage(){ return baseDamage() + equippedList().reduce((s, it) => s + (it ? (it.dm || 0) : 0), 0); }
@@ -14364,12 +14429,55 @@ function fmt(n){
    TALEN har bara ett hem. Sakras vardena inte anvands de gamla, sa spelet gar
    att spela aven om hamtningen faller. */
 const LEVEL_NUM = {level_base: 607, level_growth: 1.0845, level_cap: 50,
-                   paragon_base: 2614, paragon_growth: 1.03};
+                   paragon_base: 32000, paragon_growth: 1.03,
+                   xp_share: 0.046875, expedition_damp: 0.33,
+                   base_power_lvl: 5, base_damage_lvl: 2, base_health_lvl: 20};
+/* [TILLAGT v5.279.0] NIVASKILLNADENS FAKTOR. Allt spelet delar ut hanger pa ETT
+   tal: skillnaden mellan din niva och kallans. Tabellen kommer FRAN SERVERN,
+   samma rader som servern sjalv raknar med - annars kunde rutan lova ett tal
+   och servern betala ett annat. Vardena nedan ar bara en reserv om hamtningen
+   faller, sa spelet gar att spela anda. */
+/* Expeditionens vikt per langd. Kommer FRAN SERVERN; talen nedan ar reserv. */
+const EXP_VIKT = {5: 3.5, 15: 9, 45: 24, 120: 50, 240: 75, 480: 110};
+const DIFF_FAKTOR = {'-5':0.10, '-4':0.20, '-3':0.40, '-2':0.60, '-1':0.80,
+                     '0':1.00, '1':1.10, '2':1.20, '3':1.30, '4':1.40};
+const DIFF_FARG   = {'-5':'gra', '-4':'gron', '-3':'gron', '-2':'gron', '-1':'gul',
+                     '0':'gul', '1':'gul', '2':'orange', '3':'rod', '4':'rod'};
+let DIFF_LO = -5, DIFF_HI = 4;
 async function netLevelNumbers(){
   const rows = await srvSelect('level_config', 'select=key,value');
   (rows || []).forEach(r => {
     if (LEVEL_NUM[r.key] !== undefined) LEVEL_NUM[r.key] = +r.value;
   });
+  try {
+    const w = await srvSelect('expedition_weight_config', 'select=mins,vikt&order=mins');
+    if (w && w.length){ w.forEach(r => { EXP_VIKT[+r.mins] = +r.vikt; }); }
+  } catch (e){ /* reserven i EXP_VIKT galler */ }
+  try {
+    const d = await srvSelect('level_diff_config', 'select=d,factor,farg&order=d');
+    if (d && d.length){
+      DIFF_LO = +d[0].d; DIFF_HI = +d[d.length - 1].d;
+      d.forEach(r => { DIFF_FAKTOR[String(r.d)] = +r.factor; DIFF_FARG[String(r.d)] = r.farg; });
+    }
+  } catch (e){ /* reserven ovan galler */ }
+}
+/* Skillnaden klams i bada andarna: langre ner an botten ger botten, hogre an
+   toppen ger toppen. Samma klamning som servern. */
+function diffSteg(dinNiva, kallansNiva){
+  return Math.max(DIFF_LO, Math.min(DIFF_HI, (kallansNiva | 0) - (dinNiva | 0)));
+}
+function diffFaktor(dinNiva, kallansNiva){
+  const f = DIFF_FAKTOR[String(diffSteg(dinNiva, kallansNiva))];
+  return f === undefined ? 1 : f;
+}
+function diffFarg(dinNiva, kallansNiva){
+  return DIFF_FARG[String(diffSteg(dinNiva, kallansNiva))] || 'gul';
+}
+/* DET ENDA STALLET DAR KLIENTEN RAKNAR FRAM ERFARENHET. Samma formel som
+   serverns: ditt nivasteg, gange vikten, gange andelen, gange faktorn. */
+function xpAward(dinNiva, kallansNiva, vikt){
+  return xpToNext(Math.max(1, dinNiva | 0)) * (vikt || 1)
+       * LEVEL_NUM.xp_share * diffFaktor(dinNiva, kallansNiva);
 }
 function levelCap(){ return LEVEL_NUM.level_cap; }
 function xpToNext(level){
@@ -14394,8 +14502,12 @@ function levelInfo(){
   let lvl = 1, rem = S.xp;
   while (lvl < cap && rem >= xpToNext(lvl)){ rem -= xpToNext(lvl); lvl++; }
   if (lvl < cap) return {lvl, into: rem, need: xpToNext(lvl), para: 0};
+  /* [ANDRAT v5.279.0] PARAGONTALET KOMMER FRAN SERVERN. Servern skriver det i
+     samma funktion som skriver erfarenheten, sa det kan aldrig hamna efter.
+     Raknas har bara nar servern inte svarat an, eller i offlineläget. */
   let para = 0;
   while (para < 100000 && rem >= paragonCost(para + 1)){ rem -= paragonCost(para + 1); para++; }
+  if (NET.on && SRV.paragon != null) para = SRV.paragon | 0;
   return {lvl: cap, into: rem, need: paragonCost(para + 1), para: para};
 }
 /* Vad vi SENAST sag - inte "1", for da fyrade uppstigningen av vid varje start
@@ -14417,9 +14529,21 @@ function grantXP(n){
   const gained = n * (1 + (gearBonus('xp') + flaskPct('xp')) / 100);
   S.xp += gained;
   grantPetXP(gained);
+  noteLevelChange();
+}
+/* [TILLAGT v5.277.0] EN NY NIVA LAKER DIG HELT. Samma regel som servern, som
+   ocksa ar den som faktiskt bestammer - den har raden far bara halsomatarna att
+   fylla sig med en gang i stallet for vid nasta hamtning.
+   PARAGON RAKNAS INTE. En spelare pa femtio far paragon hela tiden; lade vi
+   lakningen dar hade den aldrig slutat.
+   Samma kontroll stod pa TRE stallen i klienten - synken, XP-svaret och
+   offlinelagets utdelning. Nu pa ett. */
+function noteLevelChange(){
   const li = levelInfo();
-  if (li.lvl > lastLevel || li.para > lastPara){
+  const nyNiva = li.lvl > lastLevel;
+  if (nyNiva || li.para > lastPara){
     lastLevel = li.lvl; lastPara = li.para || 0;
+    if (nyNiva){ PVE.pct = 100; PVE.at = Date.now(); }
     levelUpFx(li.lvl);
   }
 }
@@ -15247,7 +15371,7 @@ function renderExpBadge(){
   const runs = (S.exp && S.exp.runs) || [];
   /* Bara korningar med en GILTIG, passerad sluttid raknas. En rad utan endsAt
      (NaN) far aldrig lysa - da hade market kunnat sta kvar for evigt. */
-  const n = runs.filter(r => r && isFinite(+r.endsAt) && Date.now() >= +r.endsAt).length;
+  const n = runs.filter(r => r && isFinite(+r.endsAt) && nu() >= +r.endsAt).length;
   b.textContent = n; b.style.display = n ? '' : 'none';
 }
 function renderMailBadge(){
@@ -15739,15 +15863,16 @@ const EXPEDITIONS = {
     ]
   }
 };
-const EXP_SLOTS_BASE = 2;
-/* Antalet platser ar inte langre en konstant: omstartsformånen hojer det.
-   Klienten trodde alltid 2 medan servern raknade ratt - samma spel, tva
-   sanningar. Nu fragar bada samma stalle. */
-/* [RATTAT v5.158.0] Stod fast pa tva. Med Voxholms sten slapper servern igenom
-   en tredje, men rutan sa "Slots 2 / 2 - all busy" och slackte Start-knappen. */
+/* [ANDRAT v5.279.0] PLATSERNA HANGER PA HJALPARNA. En hjalpare i laget = en
+   plats. Noll hjalpare = noll platser - det ar hjalparna som GOR
+   expeditionerna, och forut var det bara sagt, aldrig byggt. Adelstenen ger en
+   till. Samma rakning som servern. */
+function aktivaHjalpare(){
+  if (!S.pets || !Array.isArray(S.pets.team)) return 0;
+  return S.pets.team.filter(uid => uid != null).length;
+}
 function expSlots(){
-  return EXP_SLOTS_BASE + (NET.on ? perkLvl('expSlot') : 0) +
-         (gemPower('exp_slot') ? 1 : 0);
+  return aktivaHjalpare() + (gemPower('exp_slot') ? 1 : 0);
 }
 
 /* Varje uppdrag far med sig VAR det ligger, precis som expDefById gor. Utan det
@@ -17317,10 +17442,24 @@ function expGoldRange(def){
    minst ett, plus Fragment Find pa utrustningen och Fragment Nose hos hjalparen.
    Det ar exakt vad servern betalar. Forut rakande klienten ur nivan, sa en lang
    kortur pa lag niva lovade 1-2 och betalade 24. */
+/* [ANDRAT v5.279.0] EXPEDITIONENS XP FOLJER LINJEN. Forut: potens 1,8 pa
+   regionen och potens 0,55 pa tiden - en egen kurvform som ingen annan del av
+   spelet delade. Nu ditt nivasteg gange langdens vikt, dampat till en
+   tredjedel eftersom expeditioner gar parallellt med allt annat.
+   Vikterna ar samma tabell som servern har. */
+function expVikt(mins){
+  if (EXP_VIKT[mins] !== undefined) return EXP_VIKT[mins];
+  const nycklar = Object.keys(EXP_VIKT).map(Number).sort((a, b) => a - b);
+  let n = nycklar[0];
+  nycklar.forEach(k => { if (k <= mins) n = k; });
+  return EXP_VIKT[n];
+}
 function expXpReward(def){
-  const R = REGIONS[def.region];
-  return Math.round(48 * Math.pow(1.8, R ? Math.min(4, R.tier | 0) : 0)
-                       * Math.pow(Math.max(1, def.mins || 1), 0.55));
+  const min = levelInfo().lvl;
+  /* Vid taket skalar varlden till dig - expeditionen har ingen egen niva da. */
+  const kallan = (min >= levelCap()) ? min : (def.lvl || 1);
+  return Math.round(xpAward(min, kallan, expVikt(def.mins || 1))
+                    * LEVEL_NUM.expedition_damp);
 }
 /* [OBALANS] RESTEN KASTADES. Fragmenten raknades som minuter delat med fem,
    avrundat NEDAT - sa allt mellan fem och tio minuter gav exakt ett fragment.
@@ -17466,7 +17605,7 @@ function rollExpeditionLoot(def){
    egen bild av korningen (som stod pa noll for allt man inte startat i samma
    session - darfor "+0 Data" fast 60 kom in). */
 function claimExpedition(id){
-  const run = S.exp.runs.find(r => r.id === id && Date.now() >= r.endsAt);
+  const run = S.exp.runs.find(r => r.id === id && nu() >= r.endsAt);
   if (!run) return;
   if (NET.on){
     if (expClaiming) return;
@@ -17512,6 +17651,16 @@ function claimExpedition(id){
             shard: r.shard || null
           }
         }, true);
+        /* [TILLAGT v5.281.0] VARVET RUNT EN REGION BETALADE TYST. Har man klarat
+           varenda expedition i en region inom ett varv betalar servern en stor
+           puckel guld och fragment - och sa returnerade den svaret utan att
+           klienten sa ett ord. Spelaren fick pengarna utan att veta varfor. */
+        if (r.lap && r.lap.lap){
+          say('Region lap complete \u2014 every expedition in ' +
+              ((REGIONS[r.lap.region] || {}).name || 'the region') +
+              ' \u00b7 +' + moneyPlain(r.lap.gold || 0) +
+              ' \u00b7 +' + (r.lap.frags || 0) + ' Fragments');
+        }
         renderExpPanel(); updateUI(true);
       })
       .catch(e => {
@@ -17686,7 +17835,7 @@ function confirmClaim(){
     return;
   }
   if (pendingClaimId == null) return;
-  const i = S.exp.runs.findIndex(r => r.id === pendingClaimId && Date.now() >= r.endsAt && r.loot);
+  const i = S.exp.runs.findIndex(r => r.id === pendingClaimId && nu() >= r.endsAt && r.loot);
   pendingClaimId = null;
   $('reward-overlay').classList.remove('open');
   if (i < 0) return;
@@ -19299,7 +19448,7 @@ const MAIL_UNREAD_TTL = 30 * 86400000;
 function mailExpiresAt(m){
   return m.readAt ? m.readAt + MAIL_READ_TTL : m.at + MAIL_UNREAD_TTL;
 }
-function mailLeftMs(m){ return Math.max(0, mailExpiresAt(m) - Date.now()); }
+function mailLeftMs(m){ return Math.max(0, mailExpiresAt(m) - nu()); }
 function pruneMail(){
   /* SERVERLAGE: serverns lada gallras dar, inte har. Gallrade vi lokalt
      forsvann brev ur listan som fortfarande fanns kvar hos servern. */
@@ -20065,7 +20214,7 @@ function travelSeconds(base){
 /* Premiumgenvägen: hoppa över resten av väntan. En credit per påbörjad minut kvar. */
 function skipCost(){
   if (!S.world.travel) return 0;
-  return Math.max(1, Math.ceil((S.world.travel.eta - Date.now()) / 60000));
+  return Math.max(1, Math.ceil((S.world.travel.eta - nu()) / 60000));
 }
 /* Undersökningen kostar TID; credits köper bort den. Samma taxa som resan:
    en credit per påbörjad återstående minut, så priset sjunker medan man väntar
@@ -21242,7 +21391,9 @@ function openZone(regionId, zi, keepNote){
     '<div class="zone-crumb" id="zone-back">‹ ' + R.name + '</div>' +
     '<div class="region-kv">' +
     '<div class="kv"><span class="k">Region</span><span class="v">' + R.name + '</span></div>' +
-    (zone === TRADE_ZONE ? '' : '<div class="kv"><span class="k">Level band</span><span class="v">' + R.band + '</span></div>') +
+    (zone === TRADE_ZONE ? '' : '<div class="kv"><span class="k">Enemies here</span>' +
+      '<span class="v zon-niva ' + diffFarg(levelInfo().lvl, zonNiva(regionId, zi)) + '">Level ' +
+      zonNiva(regionId, zi) + '</span></div>') +
     '</div>' +
     (zone === TRADE_ZONE
       ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
@@ -28651,7 +28802,8 @@ $('quest-body').addEventListener('click', async (e) => {
         say('Quest complete: ' + qname + (rw ? ' \u2014 ' + rw : '') + (sgt ? ' \u00b7 ' + sgt : ''));
         const row = await srvCharacterRow();
         if (row){ S.gold = +row.gold_copper || S.gold; S.frags = +row.fragments || S.frags;
-                  if (row.xp != null) S.xp = +row.xp; }
+                  if (row.xp != null) S.xp = +row.xp;
+                  if (row.paragon != null) SRV.paragon = +row.paragon; }
         netPullItems().then(() => renderInventory && renderInventory()).catch(() => {});
         updateUI(true);
       }
@@ -31039,7 +31191,6 @@ const DAILY_REGION_HUE = {voxholm: '#7ddc5a', drakemark: '#a78bfa', cutlassbay: 
 const DAILY_GOLD_NAME = {small: 'Small Gold Cache', medium: 'Medium Gold Cache',
                          large: 'Large Gold Cache', genesis: 'Genesis Gold Cache'};
 let DAILY = null;          /* serverns senaste svar */
-let DAILY_SKEW = 0;        /* serverklocka minus klientklocka, ms */
 let dailyTimer = null;
 let dailyBusy = false;
 function isCacheTicket(key){ return key === 'cache_helper' || key === 'cache_gear'; }
@@ -31048,7 +31199,7 @@ async function netDailyState(){
   const r = await srvRpc('daily_state', {p_character: SRV.charId});
   if (r){
     DAILY = r;
-    if (r.server_now) DAILY_SKEW = new Date(r.server_now).getTime() - Date.now();
+    if (r.server_now) SRV.skew = new Date(r.server_now).getTime() - Date.now();
   }
   renderDailyBadge();
   return r;
@@ -31143,7 +31294,7 @@ function dailyCountdown(){
   const w = $('daily-overlay');
   if (!w || !w.classList.contains('open')){ if (dailyTimer){ clearInterval(dailyTimer); dailyTimer = null; } return; }
   if (DAILY.claimable && !DAILY.completed){ el.innerHTML = 'Current reward: <b>Day ' + DAILY.day + '</b>'; return; }
-  const left = Math.max(0, new Date(DAILY.next_at).getTime() - (Date.now() + DAILY_SKEW));
+  const left = Math.max(0, new Date(DAILY.next_at).getTime() - nu());
   const s = Math.floor(left / 1000);
   const hh = String(Math.floor(s / 3600)).padStart(2, '0'),
         mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
