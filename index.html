@@ -4013,6 +4013,10 @@ body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   font-size:11px;font-weight:800;letter-spacing:.14em;background:var(--bg-inset);
   border:1px solid var(--border-soft);color:var(--text-dim)}
 .pp-tabbtn.on{color:var(--cyan);border-color:var(--cyan-dim);box-shadow:0 0 12px -6px var(--cyan)}
+/* [TILLAGT v5.291.0] Glom-knappen bar samma form som de tva ovanfor men rodens
+   sprak, sa den laser som ett annat slags handling utan att bli en egen sort. */
+.pp-tabbtn.danger{color:var(--red);border-color:rgba(255,77,109,.38);background:rgba(255,77,109,.07)}
+.pp-tabbtn.danger:hover{border-color:var(--red);box-shadow:0 0 12px -6px var(--red)}
 .pt-wrap{display:flex;flex-direction:column;gap:2px}
 /* ---------- SKILLTRADET SOM RUTNAT (v5.214.0) ----------
    Tre kolumner, fem rader. Strecken ritas som egna element MELLAN raderna och
@@ -6706,7 +6710,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.290.0 — INGEN BOKSTAV BAKOM BILDEN</div>
+        <div class="sn-ver">GENESIS v5.292.0 — KLOCKAN FASTNAR INTE</div>
       </div>
     </div>
   </aside>
@@ -6818,7 +6822,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
             <div class="qa-btn" data-qa="helpers" id="qa-pets"><span class="ico"><span class="qi qi-pets"></span></span><span class="lbl">Helpers</span></div>
             <div class="qa-btn" data-qa="quests" id="qa-quests"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span></div>
             <div class="qa-btn" data-qa="auction"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
-            <div class="qa-btn" data-qa="professions"><span class="ico"><span class="qi qi-professions"></span></span><span class="lbl">Professions</span></div>
+            <!-- [BORTTAGET v5.291.0] YRKESKNAPPEN (Chris beslut 2). Den ledde
+                 till platsvyn, och yrkena star redan pa mainskarmen uppe till
+                 hoger - det ar den snabbaste vagen. Kvar ar nio knappar; se
+                 anteckningen om raden nedan. -->
             <div class="qa-btn" data-qa="friends" id="qa-friends"><span class="ico"><span class="qi qi-friends"></span></span><span class="lbl">Friends</span><span class="notif" id="friend-badge" style="display:none">0</span></div>
             <div class="qa-btn" data-qa="guild" id="qa-guild"><span class="ico"><span class="qi qi-guild"></span></span><span class="lbl">Guild</span><span class="notif" id="guild-badge" style="display:none">0</span></div>
             <!-- [TILLAGT v5.105.0] Uppdragen forlorade sin ruta i mittkolumnen
@@ -7698,7 +7705,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.290.0 — INGEN BOKSTAV BAKOM BILDEN</div>
+            <div class="desc">GENESIS v5.292.0 — KLOCKAN FASTNAR INTE</div>
           </div>
         </div>
       </div>
@@ -8624,8 +8631,17 @@ async function netSync(){
     /* Tappad uppkoppling far inte krascha spelet. Vi visar det och fortsatter
        forutsaga - nasta lyckade synk rattar allt anda. */
     NET.error = e.message;
+  } finally {
+    /* [RATTAT v5.292.0] KLOCKAN KUNDE STANNA FOR GOTT. Spärren som hindrar tva
+       synkar samtidigt nollades pa sista raden i funktionen - men en gren mitt
+       inne hoppade UT ur funktionen med return, och da kordes raden aldrig.
+       Sparren stod alltsa kvar som pastagen, och varje kommande synk vande i
+       dorren: arbetsklockan stannade, insamlingen slutade betala och narvaro-XP
+       slutade rapporteras, medan allt annat i spelet fortsatte fungera som
+       vanligt. Nollningen ligger nu i ett finally, sa den kors oavsett vilken
+       vag funktionen tar ut. */
+    NET.syncing = false;
   }
-  NET.syncing = false;
 }
 
 /* Forutsagelsen mellan synkarna. Aldrig sparad, aldrig skickad - bara visad.
@@ -11893,8 +11909,17 @@ function profBlockReason(id){
   return null;
 }
 function profLvl(id){ return S.prof && S.prof.known[id] ? profLevelInfo(S.prof.known[id].xp).lvl : 0; }
-function learnProfession(id){
-  if (NET.on){ netLearnProfession(id).catch(e => say(srvErrText(e))); return true; }
+/* [ANDRAT v5.291.0] KOPET VANTAR PA SERVERN (Chris beslut 3). Funktionen sag
+   forut ja direkt och skickade anropet vidare utan att vanta - skarmen
+   gratulerade alltsa innan servern hunnit svara, och nekade den fick man bade
+   ett grattis och ett fel. Nu ar den en loftesfunktion: den svarar ja forst nar
+   yrket faktiskt star pa karaktaren. Det ar ocksa forutsattningen for att kunna
+   oppna yrkets egen ruta efterat - den ratade annars pa ett yrke som inte fanns. */
+async function learnProfession(id){
+  if (NET.on){
+    try { await netLearnProfession(id); return true; }
+    catch(e){ say(srvErrText(e)); return false; }
+  }
   const why = profBlockReason(id);
   if (why){ say(why); return false; }
   const cost = profLearnCost(id);
@@ -23710,6 +23735,17 @@ document.addEventListener('contextmenu', e => {
   skillTakeBack(profPageRef, +parts[0], parts[1]);
 });
 document.addEventListener('click', e => {
+  /* [TILLAGT v5.291.0] Glomknappen i yrkesrutan. Gar det igenom stangs rutan -
+     den skulle annars sta kvar och rita ett yrke karaktaren inte langre har. */
+  const fg = e.target.closest('[data-ppforget]');
+  if (fg){
+    unlearnProfession(fg.dataset.ppforget).then(ok => {
+      if (!ok) return;
+      const w = $('profpage-overlay');
+      if (w){ w.classList.remove('open'); profPageRef = null; profPageSig = ''; }
+    });
+    return;
+  }
   const tab = e.target.closest('[data-ppttab]');
   if (tab){ ppTab = tab.dataset.ppttab; PPT.buyArm = null; PPT.resetArmed = false; ppForceRender(); return; }
   /* [ANDRAT v5.228.0] Ett vansterklick pa noden VALJER den och lagger en poang
@@ -23862,6 +23898,14 @@ function profPageHTML(p){
   /* [ANDRAT v5.43.0] ALLA yrken far den breda rutan - en mall, ett utseende.
      Hoger sida ar det enda som skiljer: receptbok for dem som koar, och
      arbetspasset + fynden for samlarna. */
+  /* [TILLAGT v5.291.0] GLOM YRKET HARIFRAN (Chris beslut 2). Knappen satt forut
+     bara i den delade yrkesrutan, och den rutan ar pa vag bort. Har star den
+     dar spelaren redan ar - i yrkets egen ruta, under de tva knapparna i
+     vansterspalten - och den galler alla tre sorters yrken eftersom hela
+     vansterspalten byggs har. */
+  h += '<div class="pp-tabs"><button class="pp-tabbtn danger" data-ppforget="' + p.id +
+       '">\u267b UNLEARN</button></div>';
+
   const right = (ppTab === 'tree' && hasTree)
     ? ppTreeHTML(p.id)
     : (queued ? ppBookHTML(p.id) : ppGatherRightHTML(p.id));
@@ -24792,6 +24836,11 @@ function renderProfessions(){
     if (bot.length) h += '<div class="section-label" style="margin-top:8px">Secondary</div>' +
       '<div class="pf-grid auto few">' + bot.map(p => profCardHTML(p, canBuySec)).join('') + '</div>';
     h += '</div>';
+    /* [FLYTTAT v5.291.0] Vagen in i uppslaget lag i platsvyns fot. Den vyn nas
+       inte langre, sa lanken star har i stallet - annars hade uppslaget over
+       alla yrken blivit oatkomligt utan att nagon markt det. */
+    h += '<button class="pf-others" data-browse="1">Other professions ' +
+         '<span class="pf-i">i</span></button>';
   } else {
     /* SCEN 1 och 3: dina platser. Tomma platser bjuder in, larda visar arbetet. */
     h += '<div class="pf-head"><div class="pf-h1">YOUR PROFESSIONS</div>' +
@@ -24833,15 +24882,29 @@ function renderProfessions(){
   wrap.querySelectorAll('[data-browse]').forEach(b => b.addEventListener('click', () => {
     profScene = 'browse'; renderProfessions();
   }));
+  /* [ANDRAT v5.291.0] Bakatknappen ledde till platsvyn, som inte langre nas.
+     Fran uppslaget backar man till valet; fran valet stanger man rutan. */
   const back = wrap.querySelector('.pf-back');
-  if (back) back.addEventListener('click', () => { profScene = null; renderProfessions(); });
-  wrap.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', e => {
+  if (back) back.addEventListener('click', () => {
+    if (profScene === 'browse'){ profScene = 'pick'; renderProfessions(); return; }
+    const w = $('prof-overlay'); if (w) w.classList.remove('open');
+  });
+  /* [ANDRAT v5.291.0] EFTER KOPET LANDAR MAN I YRKET (Chris beslut 1). Forut
+     slangdes man tillbaka till platsvyn - en lista over vad man ager, mitt i det
+     ogonblick da man vill se vad man KOPT. Nu stangs valrutan och yrkets egen
+     ruta oppnas. Knappen last medan servern svarar, sa ett andra tryck inte
+     kopar tva. */
+  wrap.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
     if (b.disabled) return;
-    if (learnProfession(b.dataset.learn)){
-      say('Learned ' + PROF_BY[b.dataset.learn].name + '!');
-      profScene = null; renderProfessions();
-    }
+    const id = b.dataset.learn;
+    b.disabled = true;
+    const ok = await learnProfession(id);
+    if (!ok){ b.disabled = false; return; }
+    say('Learned ' + PROF_BY[id].name + '!');
+    const w = $('prof-overlay');
+    if (w) w.classList.remove('open');
+    profCardOpen(id, 'book');
   }));
   /* De har tva satt FORUT inuti learn-knappens callback, sa knapparna kopplades
      inte forran man rakat lara sig ett yrke. En felplacerad klammer. */
@@ -25127,7 +25190,10 @@ function openProfessions(){
   w.classList.add('open');
   bringToFront(w);
   /* Rutan oppnas ALLTID pa dina yrken, aldrig mitt i ett val man lamnat. */
-  if (!wasOpen){ profScene = null; }
+  /* [ANDRAT v5.291.0] Rutan oppnar direkt pa VALET. Platsvyn - listan over de
+     yrken man redan har - ar borttagen ur floet: yrkena star pa mainskarmen
+     uppe till hoger, och glomknappen bor numera i yrkets egen ruta. */
+  if (!wasOpen){ profScene = 'pick'; }
   renderProfessions();
   if (!wasOpen){
     /* Bredvid karaktarsbladet, precis som vaskan - sa bada syns samtidigt. */
