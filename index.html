@@ -394,6 +394,18 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   .sn-player{flex:1 1 100%;flex-direction:row;gap:8px;align-items:center;text-align:left}
   .sn-player .avatar{flex:0 0 40px}
   .sn-player .xp-bar{flex:1 1 60px}
+  /* [TILLAGT v5.304.0] KORTET TOG EN TREDJEDEL AV TELEFONEN (Chris). Det var
+     byggt for datorns smala vansterspalt, dar fyra rader under varandra ar
+     billigt - pa en telefon ligger kortet i full bredd och blir en vagg.
+     Nu: bilden, och till hoger namnet med nivan, mataren och hur langt man
+     kommit i procent pa EN rad. De exakta XP-talen bor pa profilsidan. */
+  .sn-player{min-height:54px}
+  .sn-fig{flex:0 0 52px;width:52px}
+  .sn-pinfo{flex-direction:row;align-items:center;gap:8px;padding-bottom:0}
+  .sn-name{flex:0 1 auto;font-size:12.5px}
+  .sn-lvl{flex:0 0 auto;font-size:10px}
+  .sn-player .xp-bar{flex:1 1 40px;height:5px;min-width:36px}
+  .sn-xp{flex:0 0 auto;font-size:9.5px;color:var(--text)}
   .sn-cur{flex:1 1 100%;flex-direction:row;flex-wrap:wrap}
   .sn-cur .res-pill{flex:1 1 22%;width:auto}
   .sn-nav{flex:1 1 100%;flex-direction:row;flex-wrap:wrap;overflow:visible}
@@ -4721,6 +4733,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .ah-tab{flex:1 1 0;min-width:0;padding:10px 4px;font-size:11px;letter-spacing:1px}
   .ah-main,.ah-side,.ah-row,.ah-bottom,.ah-b-sec{min-width:0}
   .ah-b-lbl,.ah-b-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* [TILLAGT v5.303.0] SALJFLIKEN KNUFFADE BORT FLIKARNA (Chris). Bladet vaxte
+     med sitt innehall och saljformularet ar hogt - da sköts huvudraden upp
+     ovanfor skarmkanten och man kom inte tillbaka till de andra flikarna.
+     Bladet far en TAKHOJD, och det ar MITTEN som rullar, inte hela huset.
+     Huvudraden med flikarna star darmed alltid kvar overst i bladet. */
+  #ah-overlay.open{align-items:flex-end}
+  .ah-win{height:auto;min-height:0;max-height:88vh;
+    grid-template-rows:auto minmax(0,1fr) auto auto}
+  /* Mitten var ett rutnat med en fast hojd, och da klamdes ett hogt formular
+     ihop i stallet for att bli rullbart. Rakt under varandra i stallet: da vaxer
+     innehallet och rullningen far nagot att gora. */
+  .ah-main{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    display:block;grid-template-rows:none}
+  .ah-main > .ah-side,.ah-main > .ah-mid,.ah-main > .ah-sellp{margin-bottom:10px}
 }
 
 /* ==================== PORTEN / LANDNINGSSIDAN (v0.99.0) ====================
@@ -6646,7 +6672,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.302.0 — AUKTIONSHUSET FAR PLATS</div>
+        <div class="sn-ver">GENESIS v5.304.0 — PROFILKORTET KRYMPER</div>
       </div>
     </div>
   </aside>
@@ -7642,7 +7668,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.302.0 — AUKTIONSHUSET FAR PLATS</div>
+            <div class="desc">GENESIS v5.304.0 — PROFILKORTET KRYMPER</div>
           </div>
         </div>
       </div>
@@ -18929,8 +18955,16 @@ function updateUI(force){
   }
   /* Handlen star INTE har - karaktarens namn racker pa kortet. Kontot med sitt
      namn bor pa profilsidan, dit kortet leder. */
-  el.xpFill.style.width = Math.min(100, (li.into / li.need) * 100) + '%';
-  el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
+  const xpPct = Math.min(100, (li.into / li.need) * 100);
+  el.xpFill.style.width = xpPct + '%';
+  /* [ANDRAT v5.304.0] PROFILKORTET PA TELEFON (Chris). Pa en telefon tog kortet
+     nastan en tredjedel av skarmen, och de exakta XP-talen var det som kravde
+     bredden. Dar star nu bara hur langt man kommit i procent - de exakta talen
+     bor pa profilsidan, dit kortet leder. En text, en skrivare, tva satt att
+     saga samma sak beroende pa skarmens bredd. */
+  el.xpLabel.textContent = isNarrowScreen()
+    ? Math.floor(xpPct) + '%'
+    : Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
 
   /* [ANDRAT v5.64.0] Mataren tomdes sa fort man slappte, sa buffen syntes inte
      alls pa noden. Nu bar SAMMA matare de fem minuterna: den fylls medan man
