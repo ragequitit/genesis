@@ -4698,6 +4698,30 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .ah-title h1{font-size:17px;letter-spacing:2px}
   .ah-gavel{width:34px;height:34px}
 }
+/* [TILLAGT v5.302.0] AUKTIONSHUSET PA TELEFON (Chris). Huvudraden lag som ett
+   rutnat pa tre spalter - flikar, titel, kryss - och de tre kunde inte krympa.
+   Uppmatt pa en 390 punkter bred skarm: raden blev 511 punkter, alltsa 126
+   utanfor, och KRYSSET lag 70 punkter utanfor kanten. Huset gick inte att
+   stanga och listans rader var avskurna till hoger.
+   Har far raden tva vaningar: titel och kryss overst, flikarna under i full
+   bredd. Allt som kan krympa far krympa - ett rutnat som inte far bli smalare
+   an sitt innehall spranger alltid en telefon. */
+@media (max-width:560px){
+  .ah-win{width:100%;max-width:100%;height:100%;border-radius:0}
+  .ah-head{
+    grid-template-columns:1fr auto;
+    grid-template-areas:'titel kryss' 'flikar flikar';
+    gap:8px;padding:10px 12px 0;min-width:0}
+  .ah-title{grid-area:titel;justify-self:start;min-width:0;gap:8px}
+  .ah-title h1{font-size:15px;letter-spacing:1px}
+  .ah-title p{display:none}
+  .ah-gavel{width:26px;height:26px;flex:0 0 auto}
+  .ah-x{grid-area:kryss;align-self:center}
+  .ah-tabs{grid-area:flikar;justify-self:stretch;width:100%}
+  .ah-tab{flex:1 1 0;min-width:0;padding:10px 4px;font-size:11px;letter-spacing:1px}
+  .ah-main,.ah-side,.ah-row,.ah-bottom,.ah-b-sec{min-width:0}
+  .ah-b-lbl,.ah-b-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 
 /* ==================== PORTEN / LANDNINGSSIDAN (v0.99.0) ====================
    Detta ar ett RIKTIGT lock: fast, over allt, med egen rullning. Spelet under
@@ -5417,7 +5441,16 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .chat-root:not(.mode-min) .chat-panel{position:fixed;left:0;right:0;bottom:0;width:100%;max-width:100%;
     height:min(78vh,620px) !important;border-radius:14px 14px 0 0}
   .chat-root.mode-compact .chat-panel{height:min(60vh,480px) !important}
-  .chat-tab{padding:9px 8px;font-size:9px;min-height:44px}
+  /* [RATTAT v5.301.0] STANGKNAPPEN LAG UTANFOR SKARMEN (Chris, telefon).
+     Fyra flikar med telefonens storre tryckytor blev bredare an rutan, och
+     verktygen langst till hoger knuffades ut - uppmatt 43 punkter utanfor
+     kanten. Alltsa gick chatten inte att stanga alls. Flikarna far krympa,
+     verktygen far aldrig krympa, och greppet - som anda inte gar att dra pa
+     telefon - tar ingen plats har. */
+  .chat-tab{padding:9px 4px;font-size:8.5px;min-height:44px;flex:1 1 0;min-width:0;overflow:hidden}
+  .chat-tabs{flex-wrap:nowrap}
+  .chat-tools{flex:0 0 auto;margin-left:4px}
+  .chat-grip{display:none}
   .chat-tools button,.chat-input .chat-ico,.chat-input .chat-mode{width:44px;height:44px}
   .chat-input input,.chat-input .chat-send{height:44px}
   .chat-fab{width:52px;height:52px}
@@ -6613,7 +6646,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <span id="save-status">Not saved yet</span>
         </div>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.300.0 — INGEN UTLOGGNING VID OMLADDNING</div>
+        <div class="sn-ver">GENESIS v5.302.0 — AUKTIONSHUSET FAR PLATS</div>
       </div>
     </div>
   </aside>
@@ -7609,7 +7642,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.300.0 — INGEN UTLOGGNING VID OMLADDNING</div>
+            <div class="desc">GENESIS v5.302.0 — AUKTIONSHUSET FAR PLATS</div>
           </div>
         </div>
       </div>
@@ -32246,6 +32279,21 @@ let chatDrogNyss = 0;
   chatPosLas();
 })();
 $('chat-btn-min').addEventListener('click', () => chatMode('min'));
+/* [TILLAGT v5.301.0] TRYCK UTANFOR STANGER CHATTEN - BARA PA TELEFON (Chris).
+   Pa telefon ligger chatten som ett blad over halva skarmen och det finns ingen
+   sjalvklar vag ut. Pa dator ar rutan liten och star bredvid det man gor; dar
+   skulle samma regel stanga den varje gang man klickade i spelet, och det ar
+   bara i vagen. Darfor smal skarm och inget annat.
+   Installningsrutan och valjaren ligger UTANFOR panelen i dokumentet - raknas de
+   inte med stanger chatten sig sa fort man ror sina egna installningar. */
+document.addEventListener('pointerdown', e => {
+  if (!isNarrowScreen()) return;
+  if (CHAT.mode === 'min') return;
+  const r = $('chat-root');
+  if (!r || getComputedStyle(r).display === 'none') return;
+  if (e.target.closest('#chat-root, #chat-settings, #chat-picker, .chat-gearcard-close')) return;
+  chatMode('min');
+});
 $('chat-fab').addEventListener('click', () => {
   if (Date.now() - chatDrogNyss < 250) return;   /* det var ett drag, inte ett tryck */
   chatMode(isNarrowScreen() ? 'expanded' : 'compact');
