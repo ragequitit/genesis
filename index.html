@@ -406,8 +406,28 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   .sn-lvl{flex:0 0 auto;font-size:10px}
   .sn-player .xp-bar{flex:1 1 40px;height:5px;min-width:36px}
   .sn-xp{flex:0 0 auto;font-size:9.5px;color:var(--text)}
-  .sn-cur{flex:1 1 100%;flex-direction:row;flex-wrap:wrap}
-  .sn-cur .res-pill{flex:1 1 22%;width:auto}
+  /* [ANDRAT v5.305.0] FYRA VALUTOR PA EN RAD (Chris). De lag pa 22 procent var
+     med ordet utskrivet, sa den fjarde foll ner pa en egen rad och texten
+     klipptes mitt i - "CREDIT" utan sitt S, branslet som "100/1". Pa en rad av
+     fyra finns det inte plats for bade ord och tal, och talet ar det man
+     tittar pa. Ordet star kvar for skarmlasare via rutans egen markning. */
+  .sn-cur{flex:1 1 100%;flex-direction:row;flex-wrap:nowrap;gap:6px}
+  .sn-cur .res-pill{flex:1 1 0;width:auto;min-width:0;padding:6px 5px;gap:4px}
+  .sn-cur .res-pill .res-lbl{display:none}
+  /* Emblemet at 38 av rutans 84 punkter och lamnade 24 at talet - branslets
+     "100/100" behover 46. Emblemet far ge plats, inte talet. */
+  .sn-cur .res-pill .res-icon{font-size:0;flex:0 0 22px;width:22px;height:22px}
+  .sn-cur .res-pill .res-icon .qi{width:16px;height:16px}
+  /* Branslet ar det enda som bar tva tal ("100/100") och det ar det som satter
+     hur litet det maste vara for att inte klippas i den smalaste rutan. */
+  .sn-cur .res-pill .res-value{font-size:11px;letter-spacing:0;overflow:hidden;text-overflow:ellipsis}
+}
+/* Pa de smalaste telefonerna racker inte 11 punkter till branslets tva tal. */
+@media (max-width:380px){
+  .sn-cur .res-pill{padding:6px 4px;gap:3px}
+  .sn-cur .res-pill .res-icon{flex:0 0 19px;width:19px;height:19px}
+  .sn-cur .res-pill .res-icon .qi{width:14px;height:14px}
+  .sn-cur .res-pill .res-value{font-size:10px}
   .sn-nav{flex:1 1 100%;flex-direction:row;flex-wrap:wrap;overflow:visible}
   .sn-nav .nav-btn{flex:1 1 60px;width:auto}
   .sn-foot{flex:1 1 100%;flex-direction:row;justify-content:space-between;flex-wrap:wrap}
@@ -1101,6 +1121,9 @@ body.dragging *{cursor:grabbing !important}
 }
 #say-box.on{opacity:1;transform:translate(-50%,0)}
 /* Ljudet i bottenraden: gront nar det later, rott nar det ar tyst. */
+.sn-signout{cursor:pointer;user-select:none;font-size:10.5px;letter-spacing:.06em;
+  color:var(--text-dim)}
+.sn-signout:hover{color:var(--red);text-decoration:underline}
 .snd-toggle{cursor:pointer;user-select:none}
 .snd-toggle span{font-weight:800;letter-spacing:.06em}
 .snd-toggle.snd-on  span{color:var(--green)}
@@ -6671,8 +6694,12 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <i class="sn-dot" id="save-dot"></i>
           <span id="save-status">Not saved yet</span>
         </div>
+        <!-- [TILLAGT v5.305.0] UTLOGGNING (Chris). Den fanns bara pa porten och
+             i karaktarsvalet - alltsa maste man redan vara ute for att komma ut.
+             Har star den dar man ar. -->
+        <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.304.0 — PROFILKORTET KRYMPER</div>
+        <div class="sn-ver">GENESIS v5.306.0 — RADEN OPPNAR SIN RUTA</div>
       </div>
     </div>
   </aside>
@@ -7668,7 +7695,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.304.0 — PROFILKORTET KRYMPER</div>
+            <div class="desc">GENESIS v5.306.0 — RADEN OPPNAR SIN RUTA</div>
           </div>
         </div>
       </div>
@@ -18957,14 +18984,10 @@ function updateUI(force){
      namn bor pa profilsidan, dit kortet leder. */
   const xpPct = Math.min(100, (li.into / li.need) * 100);
   el.xpFill.style.width = xpPct + '%';
-  /* [ANDRAT v5.304.0] PROFILKORTET PA TELEFON (Chris). Pa en telefon tog kortet
-     nastan en tredjedel av skarmen, och de exakta XP-talen var det som kravde
-     bredden. Dar star nu bara hur langt man kommit i procent - de exakta talen
-     bor pa profilsidan, dit kortet leder. En text, en skrivare, tva satt att
-     saga samma sak beroende pa skarmens bredd. */
-  el.xpLabel.textContent = isNarrowScreen()
-    ? Math.floor(xpPct) + '%'
-    : Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
+  /* [ANDRAT v5.305.0] Talen tillbaka aven pa telefon (Chris). Kortet ar en rad
+     nu och har rad med dem - det var hojden som var problemet, inte talen. En
+     text, en skrivare, samma ord pa alla skarmar. */
+  el.xpLabel.textContent = Math.floor(li.into).toLocaleString('en-US') + ' / ' + li.need.toLocaleString('en-US') + ' XP';
 
   /* [ANDRAT v5.64.0] Mataren tomdes sa fort man slappte, sa buffen syntes inte
      alls pa noden. Nu bar SAMMA matare de fem minuterna: den fylls medan man
@@ -29488,6 +29511,13 @@ $('gate-handle-go').addEventListener('click', async () => {
 $('gate-handle-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') $('gate-handle-go').click();
 });
+$('nav-signout').addEventListener('click', async () => {
+  const ja = await askConfirm({title: 'Log out?',
+    body: 'You can sign back in with the same account.', yes: 'LOG OUT'});
+  if (!ja) return;
+  srvSignOut().catch(() => {});
+  srvClearSession(); SRV.handle = null; gateShowAuth();
+});
 $('gate-handle-signout').addEventListener('click', () => {
   srvSignOut().catch(() => {});
   srvClearSession(); SRV.handle = null; gateShowAuth();
@@ -32728,8 +32758,13 @@ function nodeZoneHTML(){
   /* Vad finns att gora har? Bara det som faktiskt ar uppe raknas upp. */
   let what = '';
   /* [ANDRAT v5.157.0] Zonrutan namnde ETT kontrakt aven nar tva vantade. */
+  /* [ANDRAT v5.306.0] KONTRAKTEN OCH HANDLAREN VAR BARA TEXT (Chris). Motet,
+     expeditionen och dungeonen hade var sin genvag; dessa tva hade ingen alls,
+     sa de sag likadana ut men gjorde ingenting nar man tryckte. Kontraktets
+     eget id foljer med - tva kontrakt i samma zon far annars samma ruta. */
   nodeQuestsAt().forEach(q => {
-    what += '<div class="nd-what"><span class="ic">\uD83D\uDCDC</span>' +
+    what += '<div class="nd-what" data-ndgo="quest" data-q="' + esc(q.quest_id) + '">' +
+      '<span class="ic">\uD83D\uDCDC</span>' +
       '<span class="tx">' + esc(q.name) + '<i>Contract waiting</i></span></div>';
   });
   const enc = (PVE.enc && PVE.enc.region === NODE.region && PVE.enc.zone === NODE.zone) ? PVE.enc : null;
@@ -32758,7 +32793,8 @@ function nodeZoneHTML(){
     what += '<div class="nd-what" data-ndgo="dg"><span class="ic">\uD83D\uDD79\uFE0F</span>' +
       '<span class="tx">' + esc(DUNGEON_TEASER[NODE.region + '|' + NODE.zone]) +
       '<i>Dungeon</i></span></div>';
-  if (NODE.zone === TRADE_ZONE) what += '<div class="nd-what"><span class="ic">\uD83D\uDED2</span>' +
+  if (NODE.zone === TRADE_ZONE) what += '<div class="nd-what" data-ndgo="town">' +
+    '<span class="ic">\uD83D\uDED2</span>' +
     '<span class="tx">Trader<i>Buys and sells</i></span></div>';
   h += '<div class="section-label" style="margin-top:10px">Right now</div>' +
     (what || '<div class="shelf-empty">Quiet \u2014 nothing waiting here.</div>');
@@ -32948,6 +32984,28 @@ function wireNodeWin(){
      hoppar till sitt eget avsnitt direkt. */
   box.querySelectorAll('[data-ndgo]').forEach(rad => rad.addEventListener('click', () => {
     const vart = rad.dataset.ndgo;
+    /* [TILLAGT v5.306.0] PA TELEFON OPPNAR RADEN SIN EGEN RUTA (Chris). Pa dator
+       ar zonsidan bred och ligger bredvid det man gor, sa ett hopp dit ar en
+       genvag. Pa telefon ar den ett blad som tacker halva skarmen och avsnittet
+       hamnar i underkanten - man laser "Encounter" och far en sida, inte motet.
+       Har oppnas det man tryckte pa, direkt. */
+    const reg = NODE.region, zon = NODE.zone;
+    if (isNarrowScreen()){
+      closeNodeWin();
+      if (vart === 'enc'){ openNodeWin('encounter', reg, zon); return; }
+      if (vart === 'exp'){ openNodeWin('expedition', reg, zon); return; }
+      if (vart === 'quest'){ openNodeWin('quest', reg, zon, false, rad.dataset.q || null); return; }
+      if (vart === 'town'){
+        const t = (typeof townOf === 'function') ? townOf(zon) : null;
+        if (t){ openTownWin(t, reg); return; }
+      }
+      if (vart === 'dg' && reg === S.world.current && zon === S.world.zone){ openDgChoice(); return; }
+      /* Faller nagot igenom - en dungeon man inte star vid - oppnas zonsidan
+         som forut i stallet for att ingenting hander. */
+      const j = REGIONS[reg] ? REGIONS[reg].zones.indexOf(zon) : -1;
+      if (j >= 0) openZone(reg, j);
+      return;
+    }
     const i = REGIONS[NODE.region] ? REGIONS[NODE.region].zones.indexOf(NODE.zone) : -1;
     if (i < 0) return;
     closeNodeWin();
