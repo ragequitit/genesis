@@ -104,6 +104,17 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 }
 .panel-title .sub{font-size:10px;letter-spacing:.05em;color:var(--text-dim);font-weight:500;text-transform:none}
 .panel-title .link{font-size:10px;color:var(--cyan);cursor:pointer;letter-spacing:.06em}
+/* [TILLAGT v5.336.0] EN PANELRUBRIK SOM GAR ATT TRYCKA PA. Bara ORDET ar
+   klickbart, inte hela raden: rubriken ar en flexrad som spanner hela panelens
+   bredd, och ett tryck i den tomma ytan till hoger som plotsligt oppnar ett
+   fonster kanns som en felklick, inte som en funktion.
+   Den behover synas som klickbar utan att skrika - en rubrik ar fortfarande en
+   rubrik. Darfor bara pekaren och en svag understrykning som tands vid hovring;
+   pa telefon finns ingen hovring, sa understrykningen ligger dampad hela tiden
+   och sager att har finns nagot. */
+.pt-open{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(56,232,255,.28);
+  text-underline-offset:4px;transition:color .15s,text-decoration-color .15s}
+.pt-open:hover{color:var(--cyan);text-decoration-color:var(--cyan)}
 
 /* ============================================================
    HUVUDGRID — 3 kolumner: vänster / mitt / höger
@@ -6853,7 +6864,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.334.0 — RUTNATEN OCH BELONINGARNA</div>
+        <div class="sn-ver">GENESIS v5.336.0 — RUBRIKEN OPPNAR YRKESVALET</div>
       </div>
     </div>
   </aside>
@@ -7072,7 +7083,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
            borta ur skarmen. Pa dess plats: tva upprattstaende huvudyrkeskort
            och en servicestation under. Inga flikar - allt syns pa en gang. -->
       <section class="panel" id="panel-professions">
-        <div class="panel-title">Professions</div>
+        <!-- [TILLAGT v5.336.0] Rubriken oppnar yrkesvalet (Chris). Den bar SAMMA
+             marke som plustecknet pa det tomma kortet, data-pickprof, sa bada
+             gar genom en och samma lyssnare. En egen onclick har hade varit en
+             andra kropp for samma handling - och nasta gang nagon andrar vad
+             valet gor hade bara den ena andrats. -->
+        <div class="panel-title"><span class="pt-open" data-pickprof="1"
+             title="See every profession">Professions</span></div>
         <div class="prof-cards" id="prof-cards"></div>
         <!-- [BORTTAGET v5.10.0] Egen rubrik for servicestationen. Sidoyrket ar
              ett kort i samma lista nu, markt SECONDARY. -->
@@ -7885,7 +7902,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.334.0 — RUTNATEN OCH BELONINGARNA</div>
+            <div class="desc">GENESIS v5.336.0 — RUBRIKEN OPPNAR YRKESVALET</div>
           </div>
         </div>
       </div>
@@ -8380,6 +8397,15 @@ const SRV_ERRORS = {
   cannot_invite_self:       'That is you.',
   invite_gone:              'That invitation is gone.',
   request_gone:             'That request is gone.',
+  /* [TILLAGT v5.335.0] quest_decline kastar detta nar erbjudandet redan ar borta
+     - en andra flik hann tacka nej, eller sidan stod oppen medan platsen fylldes
+     om. Utan raden hade spelaren fatt se sjalva felkoden. */
+  quest_not_offered:        'That contract is no longer on offer.',
+  /* [TILLAGT v5.335.0] quest_abandon kastar detta nar uppdraget inte langre ar
+     aktivt - det hann bli klart, eller en annan flik overgav det. Felet har
+     funnits sedan uppdragen byggdes men aldrig haft nagon text, sa spelaren fick
+     se kodnamnet. */
+  quest_not_active:         'That contract is no longer active.',
   invite_only:              'That guild is invite only.',
   not_a_member:             'That player is not in your guild.',
   joined_too_late:          'You joined after this week began — rewards resume next week.',
@@ -29179,8 +29205,17 @@ function questRowHTML(q, mode, activeFull){
 /* [TILLAGT v5.317.0] KONTRAKTSFONSTRET. Listan visar raderna; harifran oppnas
    sidan. Den ritas ur SAMMA quest-objekt som raden, sa de tva kan inte hamna i
    otakt - det ar en av de aldsta fallgroparna i den har filen.
-   DECLINE ar bara "nej tack": den stanger sidan och lamnar erbjudandet kvar pa
-   sin plats. Den river ingenting och startar ingen vila (Chris beslut). */
+   [ANDRAT v5.335.0] DECLINE TACKAR NU FAKTISKT NEJ (Chris beslut). Forut stangde
+   den bara sidan och lamnade erbjudandet kvar i sin plats - och eftersom kartans
+   gula nod ritas ur platsen kom SAMMA uppdrag tillbaka varje gang man klickade
+   pa noden. Enda vagen bort var att acceptera och sedan overge, till abandons
+   fulla pris for nagot man aldrig atagit sig.
+   Nu tommer den platsen pa servern (quest_decline) och tar 300 sekunders vila
+   mot abandons 900: att valja bort i forvag ar inte samma sak som att svika ett
+   uppdrag man redan tagit pa sig.
+   Gratis ar den med FLIT inte - da hade man kunnat dra om tills det basta
+   kontraktet dok upp, och viktningen i quest_config hade slutat avgora vad man
+   spelar. */
 function questById(id){
   const st = QUESTS.state || {};
   return (st.active || []).find(q => q.quest_id === id)
@@ -29290,7 +29325,7 @@ function openQuestWin(id){
       '<button class="' + (fjarran ? '' : 'main') + '" data-qaccept="' + q.quest_id + '"' +
         (fullt ? ' disabled title="You already have the maximum of 3 active quests"' : '') +
         '>Accept' + (fjarran ? '' : ' quest') + '</button>' +
-      '<button data-qwinclose="1">Decline</button>'
+      '<button data-qdecline="' + q.quest_id + '">Decline</button>'
     : laget === 'done'
       ? '<button class="main" data-qclaim="' + q.quest_id + '">Claim rewards</button>' +
         '<button data-qwinclose="1">Close</button>'
@@ -29415,12 +29450,20 @@ $('quest-body').addEventListener('click', (e) => {
    star, och nasta fonster som far en accept-knapp fungerar utan att nagon
    minns att koppla den. Samma slutsats som receptbokens knapp drog en gang. */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-qaccept],[data-qclaim],[data-qabandon]');
+  const t = e.target.closest('[data-qaccept],[data-qclaim],[data-qabandon],[data-qdecline]');
   if (!t || QUESTS.busy) return;
   QUESTS.busy = true;                 /* en hamtning at gangen - dubbletternas vakt */
   try {
     if (t.dataset.qaccept)  await srvRpc('quest_accept',  {p_character: SRV.charId, p_quest: t.dataset.qaccept});
     if (t.dataset.qabandon) await srvRpc('quest_abandon', {p_character: SRV.charId, p_quest: t.dataset.qabandon});
+    /* [TILLAGT v5.335.0] Nej tack. Servern tommer platsen och satter vilan; har
+       sags det bara till, for annars ser det ut som att knappen inte gjorde
+       nagot - noden forsvinner tyst och man vet inte om det var meningen.
+       refreshQuests() langre ned ritar om bade listan och kartans noder. */
+    if (t.dataset.qdecline){
+      await srvRpc('quest_decline', {p_character: SRV.charId, p_quest: t.dataset.qdecline});
+      say('Contract declined \u2014 a new one is offered here in 5 minutes.');
+    }
     /* Sidan visar ETT kontrakt i ETT lage. Har laget just bytt ar den inaktuell
        i samma sekund, sa den stangs i stallet for att sta och ljuga. */
     closeQuestWin();
@@ -33273,26 +33316,21 @@ function nodeQuestHTML(){
      nya sidan i v5.317.0 - men noden pa kartan ritade fortfarande sin egen lilla
      ruta, sa den som oppnade ett kontrakt darifran sag den gamla. Det ar samma
      familj som bitit oss forr: samma sak byggd i tva kroppar, andrad i den ena.
-     Noden ritar ingen egen ruta langre; den oppnar sidan. */
-  if (q && typeof openQuestWin === 'function'){
+     Noden ritar ingen egen ruta langre; den oppnar sidan.
+     [RIVET v5.335.0] Den gamla rutan lag kvar som DOD KOD under det tidiga
+     returnerandet - trettio rader som inte kunde koras, plus en egen
+     Accept-knapp med en EGEN quest_accept-kropp. Tva kroppar for samma handling
+     ar precis det som bet oss forra gangen, och en av dem gick inte ens att
+     upptacka genom att spela. Borta nu.
+     Provet "typeof openQuestWin === 'function'" ar ocksa borta: den ar en vanlig
+     funktionsdeklaration langre upp i filen, alltid hissad och alltid sann. Kvar
+     hade den bara pekat mot en reservvag som inte finns langre. */
+  if (q){
     setTimeout(() => { closeNodeWin(); openQuestWin(q.quest_id); }, 0);
     return h + '<div class="shelf-empty">Opening the contract\u2026</div>';
   }
-  if (!q) return h + '<div class="shelf-empty">No contract waiting here.</div>' +
+  return h + '<div class="shelf-empty">No contract waiting here.</div>' +
     '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
-  const here = nodeHere();
-  h += '<div class="pve-card"><div class="pve-name">' + esc(q.name) + '</div>' +
-    (q.flavor ? '<div class="pve-blurb">' + esc(q.flavor) + '</div>' : '') + '</div>';
-  h += '<div class="nd-line"><span class="k">Objective</span><span>' +
-    esc(questObjText ? questObjText(q) : ((q.kind || '') + ' \u00d7' + (q.qty || 1))) + '</span></div>';
-  if (q.reward || q.rew)
-    h += '<div class="nd-line"><span class="k">Reward</span><span>' +
-      questRewText(q.reward || q.rew) + '</span></div>';
-  h += '<div class="nd-acts">' +
-    '<button class="btn-primary" data-nd="' + (here ? 'accept' : 'travelaccept') + '" data-q="' + q.quest_id + '">' +
-      (here ? 'Accept' : 'Travel and accept') + '</button>' +
-    '<button class="btn-neutral" data-nd="close">Decline</button></div>';
-  return h;
 }
 /* [TILLAGT v5.245.0] RESEKNAPPENS TEXT PA ETT STALLE (Chris punkt 2). Knappen
    finns i zonrutan och i husrutan, och kostnaden skrevs forut ut pa var sitt
@@ -33669,18 +33707,11 @@ function wireNodeWin(){
       } else go();
       return;
     }
-    if (a === 'accept' || a === 'travelaccept'){
-      const qid = btn.dataset.q;
-      const go = () => {
-        btn.disabled = true;
-        srvRpc('quest_accept', {p_character: SRV.charId, p_quest: qid})
-          .then(() => refreshQuests())
-          .then(() => { say('Contract accepted.'); closeNodeWin(); })
-          .catch(e => { say(srvErrText(e)); btn.disabled = false; });
-      };
-      if (a === 'travelaccept') nodeTravelThen(go); else go();
-      return;
-    }
+    /* [RIVET v5.335.0] Har lag en ANDRA quest_accept-kropp, for nodens egen
+       Accept-knapp. Den knappen ritades bara i den doda rutan ovan, sa
+       hanteraren gick inte att na - men den fanns, och nasta andring av hur ett
+       kontrakt tas emot hade behovt goras pa tva stallen dar bara det ena
+       syntes. Kontrakt tas emot i kontraktsfonstret, ett stalle. */
   }));
 }
 /* [TILLAGT v5.145.0] SVARIGHETSRUTANS KNAPPAR genom EN lyssnare pa rutan
