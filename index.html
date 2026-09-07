@@ -3123,6 +3123,11 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   .float-win .inv-x{min-width:40px; min-height:40px; font-size:16px}
   /* Emblemet som stack ut ovanfor rutan far inte hanga utanfor skarmen. */
   .float-win .inv-emblem{display:none}
+  /* En andel per spalt, och raden lika hog som rutan ar bred. Rutnatet kan da
+     valja hur manga spalter som helst utan att spranga skarmen. */
+  .inv-grid, .pet-grid, .vault-grid{--inv-cell:minmax(0,1fr);--inv-row:auto;width:100%}
+  .inv-grid .inv-slot, .pet-grid .pet-cell{aspect-ratio:1;width:auto;height:auto}
+  .inv-bagrow{flex-wrap:wrap}
   @keyframes sheetUp{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
 }
 @media (max-width:760px) and (prefers-reduced-motion:reduce){
@@ -3545,9 +3550,16 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .bagwin-grid{display:grid;grid-auto-flow:column;gap:6px}
 .inv-capline b{color:var(--cyan);font-family:var(--font-mono)}
 /* Rutnätet: 4 breda, kraftiga urgröpta fack med fasade kanter — förlagans ramverk */
-.inv-grid{display:grid;grid-template-columns:repeat(4, 52px);gap:6px;justify-content:center}
+/* [ANDRAT v5.333.0] RUTORNA KAPTES I KANTEN PA TELEFON (Chris). Rutnatet raknar
+   fram sitt spaltantal sjalvt - 34 platser blir sju spalter - och varje ruta var
+   fast 52 punkter. Sju gonger 52 plus mellanrummen blir 400, och telefonen ar
+   390 bred: forsta och sista spalten hamnade utanfor.
+   Storleken ar en VARIABEL nu, och pa smal skarm ar den en andel i stallet for
+   ett tal. Da spelar det ingen roll hur manga spalter rutnatet valjer - de far
+   alltid plats, ocksa den dag vaskan vaxer till atta. */
+.inv-grid{display:grid;grid-template-columns:repeat(4, var(--inv-cell, 52px));gap:6px;justify-content:center}
 .inv-slot{
-  width:52px;height:52px;border-radius:8px;position:relative;
+  width:var(--inv-cell, 52px);height:var(--inv-row, 52px);border-radius:8px;position:relative;
   border:2px solid #0c1226;
   background:linear-gradient(180deg, #171f3e, #0d1229);
   box-shadow:
@@ -3775,12 +3787,15 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 /* ---------- HUSDJURSRUTNATET (v0.74.0) ----------
    Byggt pa vaskans rutor med flit: samma storlek, samma ram, samma kanslar. Hela
    spelet ska se ut som ett spel, inte som fem sidor byggda av olika personer. */
+/* [ANDRAT v5.334.0] Samma variabel som vaskan (Chris). Sex spalter gonger 52
+   ryms idag, men rutnatet ar byggt likadant och hade akt ut i kanten den dag
+   det vaxer. Talet star pa ETT stalle nu. */
 .pet-grid{
-  display:grid;grid-template-columns:repeat(6,52px);gap:6px;
+  display:grid;grid-template-columns:repeat(6, var(--inv-cell, 52px));gap:6px;
   justify-content:center;margin-bottom:12px;
 }
 .pet-cell{
-  width:52px;height:52px;border-radius:8px;position:relative;
+  width:var(--inv-cell, 52px);height:var(--inv-row, 52px);border-radius:8px;position:relative;
   border:2px solid #0c1226;
   background:linear-gradient(180deg, #171f3e, #0d1229);
   box-shadow:inset 0 0 0 1px #333f6e, inset 0 3px 10px rgba(0,0,0,.65);
@@ -4383,8 +4398,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 #qwin-overlay .qwin-modal{width:min(700px,94vw);max-width:min(700px,94vw);max-height:92vh;display:flex;flex-direction:column;
   padding:26px 0 0;overflow:visible}
 /* [ANDRAT v5.325.0] Raden gick ut i kanterna. I de ovriga fonstren ar den en
-   indragen list med egen ram - samma har nu. */
-#qwin-overlay .qwin-bar{margin:0 12px 0}
+   indragen list med egen ram - samma har nu.
+   [ANDRAT v5.334.0] Och den satt for tatt: titeln nuddade nastan krysset och
+   ramen ovanfor. Luft over, under och in mot krysset. */
+#qwin-overlay .qwin-bar{margin:6px 12px 8px;padding:12px 14px;gap:14px}
+#qwin-overlay .qwin-bar .inv-title{padding-right:4px}
 #qwin-overlay .qwin-grid{display:grid;grid-template-columns:1fr 250px;gap:0;min-height:0;
   overflow:auto;border-radius:0 0 12px 12px;border-top:1px solid var(--border)}
 #qwin-overlay .qwin-left{padding:14px 16px 16px;min-width:0}
@@ -6835,7 +6853,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.331.0 — HAMTNINGEN SKER I RUTAN</div>
+        <div class="sn-ver">GENESIS v5.334.0 — RUTNATEN OCH BELONINGARNA</div>
       </div>
     </div>
   </aside>
@@ -7867,7 +7885,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.331.0 — HAMTNINGEN SKER I RUTAN</div>
+            <div class="desc">GENESIS v5.334.0 — RUTNATEN OCH BELONINGARNA</div>
           </div>
         </div>
       </div>
@@ -15408,8 +15426,8 @@ function renderVault(){
   const dim = packDims(idxs.length);
   let h = '';
   idxs.forEach(i => { h += vaultCellHTML(i); });
-  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', 52px)';
-  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', 52px)';
+  grid.style.gridTemplateColumns = 'repeat(' + dim.cols + ', var(--inv-cell, 52px))';
+  grid.style.gridTemplateRows = 'repeat(' + dim.rows + ', var(--inv-row, 52px))';
   grid.innerHTML = h;
   $('vault-cap').textContent = vaultUsed() + ' / ' + cap;
   renderVaultBagSlots();
@@ -17626,8 +17644,9 @@ function renderInventory(){
   /* Huvudrutnätet ritar grunden plus de väskor som är inbakade, i den form
      invLayout räknat ut: bredd först, sedan nedåt. */
   const L = invLayout();
-  grid.style.gridTemplateColumns = 'repeat(' + L.cols + ', 52px)';
-  grid.style.gridTemplateRows = 'repeat(' + L.rows + ', 52px)';
+  /* Talet star i stilmallen, inte har: pa telefon ar rutan en andel av bredden. */
+  grid.style.gridTemplateColumns = 'repeat(' + L.cols + ', var(--inv-cell, 52px))';
+  grid.style.gridTemplateRows = 'repeat(' + L.rows + ', var(--inv-row, 52px))';
   let h = '';
   L.cells.forEach(c => {
     h += invCellHTML(c.slot, c);
@@ -21304,7 +21323,15 @@ function gmSetTravel(){
     }
   } catch (e){ try { api.setTravel(null); } catch (e2){} }
 }
+/* [TILLAGT v5.332.0] TRYCKET SLOG IGENOM (Chris, telefon). Stanger man rutan med
+   krysset forsvinner den redan pa NEDTRYCKET - och nar fingret sedan lyfts star
+   kartan under, sa webblasarens efterfoljande klick landar pa zonen och rutan
+   oppnas igen direkt. Det ar samma finger, inte ett nytt tryck.
+   Kartan far darfor en kort dovhet efter att en nodruta stangts: ett halvt
+   sekund dar dess val inte raknas. Ett riktigt andra tryck hinner aldrig dit. */
+let gmDovTill = 0;
 function gmPick(o){
+  if (Date.now() < gmDovTill) return;
   if (!o || !o.kind) return;
   const region = o.region || S.world.current;
   /* Kartan talar om zoner med NAMN; spelet oppnar dem med deras PLATS i
@@ -29173,7 +29200,15 @@ function qwinRewHTML(r){
     ['frag', r.frags || 0,            'fragments', 'assets/ui/fragments.png',   '\ud83d\udd37', 'var(--purple)'],
     ['xp',   r.xp || 0,               'xp',        'assets/ui/experience.png',  '\u2728',       'var(--cyan)']
   ];
-  return rutor.map(x => {
+  /* [ANDRAT v5.334.0] BARA DET MAN FAKTISKT FAR (Chris). En ruta med "0
+     FRAGMENTS" lovar ingenting och tar plats fran det som ar sant. Rutorna
+     ritas ur belaningen, sa listan foljer med av sig sjalv den dag ett kontrakt
+     borjar ge nagot nytt. Rykte, guld och XP finns alltid; fragment gor det
+     bara ibland. */
+  return rutor.filter(x => {
+    const v = x[1];
+    return typeof v === 'number' ? v > 0 : !!v;
+  }).map(x => {
     const src = x[3] ? artUnlessMissing(x[3]) : null;
     const bild = src
       ? '<span class="qr-ico art-wrap">' + artWithFallback(src, x[4]) + '</span>'
@@ -33067,6 +33102,9 @@ function placeNodeWin(){
   w.style.top = winTop(120) + 'px';
 }
 function closeNodeWin(){
+  /* Se gmPick: stangningen dovar kartan en kort stund sa samma finger inte
+     hinner oppna nasta ruta pa vagen upp. */
+  gmDovTill = Date.now() + 500;
   const w = $('node-overlay');
   w.classList.remove('open');
   /* Stenrutans egen centrering far inte halla i sig till nasta fonster. */
