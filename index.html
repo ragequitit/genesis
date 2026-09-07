@@ -6792,7 +6792,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.319.0 — GREPP OCH EMBLEM</div>
+        <div class="sn-ver">GENESIS v5.320.0 — RES OCH ACCEPTERA</div>
       </div>
     </div>
   </aside>
@@ -7819,7 +7819,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.319.0 — GREPP OCH EMBLEM</div>
+            <div class="desc">GENESIS v5.320.0 — RES OCH ACCEPTERA</div>
           </div>
         </div>
       </div>
@@ -29106,10 +29106,20 @@ function openQuestWin(id){
 
   const st = QUESTS.state || {};
   const fullt = (st.active || []).length >= (st.max_active || 3);
+  /* [ATERSTALLT v5.320.0] RES OCH ACCEPTERA (Chris). Nodens gamla ruta hade den
+     och den foll bort nar noden slutade rita sin egen. Star man i uppdragets zon
+     behovs den inte - da ar knappen bara Accept, som forut. */
+  const fjarran = laget === 'offer' && q.zone && !har;
   $('qwin-act').innerHTML = laget === 'offer'
-    ? '<button class="main" data-qaccept="' + q.quest_id + '"' +
+    ? (fjarran
+        ? '<button class="main" data-qtravel="' + q.quest_id + '"' +
+            (fullt ? ' disabled title="You already have the maximum of 3 active contracts"' : '') +
+            '>Travel and accept</button>'
+        : '') +
+      '<button class="' + (fjarran ? '' : 'main') + '" data-qaccept="' + q.quest_id + '"' +
         (fullt ? ' disabled title="You already have the maximum of 3 active contracts"' : '') +
-        '>Accept contract</button><button data-qwinclose="1">Decline</button>'
+        '>Accept' + (fjarran ? '' : ' contract') + '</button>' +
+      '<button data-qwinclose="1">Decline</button>'
     : laget === 'done'
       ? '<button class="main" data-qclaim="' + q.quest_id + '">Claim rewards</button>' +
         '<button data-qwinclose="1">Close</button>'
@@ -29126,6 +29136,23 @@ function closeQuestWin(){ const w = $('qwin-overlay'); if (w) w.classList.remove
    kantvakten och beter sig likadant. */
 makeDraggable($('qwin-overlay'), [$('qwin-overlay').querySelector('.qwin-bar')]);
 $('qwin-close').addEventListener('click', closeQuestWin);
+/* [TILLAGT v5.320.0] Resan gar till UPPDRAGETS egen zon, inte till nodens - den
+   har sidan kan oppnas fran listan ocksa, och da finns ingen nod. */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-qtravel]');
+  if (!t || t.disabled) return;
+  const q = questById(t.dataset.qtravel); if (!q) return;
+  t.disabled = true;
+  try {
+    const ok = await goToZone(q.region + '|' + q.zone);
+    if (!ok){ t.disabled = false; return; }   /* goToZone har redan sagt varfor */
+    updateUI(true);
+    await srvRpc('quest_accept', {p_character: SRV.charId, p_quest: q.quest_id});
+    await refreshQuests();
+    say('Contract accepted.');
+    closeQuestWin();
+  } catch (err){ say(srvErrText(err)); t.disabled = false; }
+});
 document.addEventListener('click', e => {
   if (e.target.closest('[data-qwinclose]')){ closeQuestWin(); return; }
   const rad = e.target.closest('[data-qopen]');
