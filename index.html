@@ -4370,6 +4370,7 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .q-row.offer{--qc:var(--border-glow)}
 .q-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .q-name{font-size:11.5px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:var(--text)}
+.q-tag.giver{color:var(--gold);border-color:rgba(255,196,74,.42);background:rgba(255,196,74,.10)}
 .q-tag{font-size:8.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
   padding:2px 6px;border-radius:6px;color:var(--qc);
   border:1px solid color-mix(in srgb, var(--qc) 55%, var(--border));
@@ -6699,7 +6700,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.311.0 — RATT HYLLA</div>
+        <div class="sn-ver">GENESIS v5.316.0 — VOXHOLMS 25 PA ENGELSKA</div>
       </div>
     </div>
   </aside>
@@ -7695,7 +7696,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.311.0 — RATT HYLLA</div>
+            <div class="desc">GENESIS v5.316.0 — VOXHOLMS 25 PA ENGELSKA</div>
           </div>
         </div>
       </div>
@@ -8218,6 +8219,9 @@ const SRV_ERRORS = {
   use_gem_slot:             'The Character Gem has its own place \u2014 set it there, not in a gear slot.',
   gem_is_equipped:          'That gem is worn right now. Take it off first.',
   already_have_one:         'You already have one. Hand it in before buying another.',
+  /* [TILLAGT v5.313.0] Kontraktsvaran finns bara hos handlaren i kontraktets
+     egen region. Utan den har raden hade nekandet sagt "servern sa nej". */
+  not_at_vendor:            'That one is only sold by the vendor in the contract\u2019s own region.',
   not_in_shop:              'The trader does not stock that.',
   /* [TILLAGT v5.195.0] Att TA AV stenen ar nytt, och karensen galler aven dar. */
   no_gem_set:               'You have no gem set.',
@@ -19781,6 +19785,64 @@ const ITEM_DEFS = {
     desc: 'Plant it, walk the route, and the office finally believes you.',
     noSell: true, sell: 0
   },
+  /* [TILLAGT v5.315.0, OVERSATT v5.316.0] DE NIO VOXHOLM-VARORNA (Chris). Samma sort som de fyra
+     ovanfor: de finns bara hos handlaren i Voxholm medan sitt kontrakt loper,
+     gar inte att salja och ar till for att lamnas in. Bilderna kommer fran
+     Chris; tecknet star kvar tills filen finns. */
+  q_signalkub: {
+    name: 'Signal Cube', ico: '\ud83d\udd37',
+    art: 'assets/items/quest/q_signalkub.png', kind: 'Contract item',
+    desc: 'Bram\'s road signs are dark without one of these.',
+    noSell: true, sell: 0
+  },
+  q_forseglat_reservdelspaket: {
+    name: 'Sealed Parts Parcel', ico: '\ud83d\udce6',
+    art: 'assets/items/quest/q_forseglat_reservdelspaket.png', kind: 'Contract item',
+    desc: 'Paid for already. The fee is just for handing it over.',
+    noSell: true, sell: 0
+  },
+  q_hissakring: {
+    name: 'Lift Fuse', ico: '\u26a1',
+    art: 'assets/items/quest/q_hissakring.png', kind: 'Contract item',
+    desc: 'The one currently in the lift is a spoon.',
+    noSell: true, sell: 0
+  },
+  q_forseglat_varmeprov: {
+    name: 'Sealed Heat Sample', ico: '\ud83c\udf21\ufe0f',
+    art: 'assets/items/quest/q_forseglat_varmeprov.png', kind: 'Contract item',
+    desc: 'Sealed while hot. Do not open it to check.',
+    noSell: true, sell: 0
+  },
+  q_frolada: {
+    name: 'Seed Crate', ico: '\ud83c\udf31',
+    art: 'assets/items/quest/q_frolada.png', kind: 'Contract item',
+    desc: 'Liv left it at the counter. It is already paid for.',
+    noSell: true, sell: 0
+  },
+  q_morkt_rotprov: {
+    name: 'Dark Root Sample', ico: '\ud83e\udeb5',
+    art: 'assets/items/quest/q_morkt_rotprov.png', kind: 'Contract item',
+    desc: 'Cut from a root that stopped answering the light.',
+    noSell: true, sell: 0
+  },
+  q_brobindare: {
+    name: 'Bridge Binder', ico: '\ud83e\uddf4',
+    art: 'assets/items/quest/q_brobindare.png', kind: 'Contract item',
+    desc: 'Holds when the clouds go straight through the bridge.',
+    noSell: true, sell: 0
+  },
+  q_talfilter: {
+    name: 'Speech Filter', ico: '\ud83c\udf99\ufe0f',
+    art: 'assets/items/quest/q_talfilter.png', kind: 'Contract item',
+    desc: 'Stops the collar translating every third sentence to potato.',
+    noSell: true, sell: 0
+  },
+  q_slussnyckel: {
+    name: 'Sluice Key', ico: '\ud83d\udddd\ufe0f',
+    art: 'assets/items/quest/q_slussnyckel.png', kind: 'Contract item',
+    desc: 'One of a pair. The lock in the deep needs both.',
+    noSell: true, sell: 0
+  },
   fuelcell: {
     name: 'Fuel Cell',
     ico: '⛽',
@@ -21858,6 +21920,24 @@ function buildTrader(regionId){
     '</div></div>';
   /* Flaskorna: samma sorts rad som cellen, en per boost. De stackar och köps med
      guld, så de är en guldsänka som inte kräver att man reser någonstans särskilt. */
+  /* [TILLAGT v5.313.0] Kontraktsvarorna ligger allra overst - de ar det man kom
+     hit for, och de finns bara medan sitt kontrakt loper. En i taget: servern
+     vagrar den andra, sa knappen ska inte lova nagot annat. */
+  const kr = vendorQuestRows(regionId);
+  if (kr.length){
+    sup = kr.map(it => {
+      const D = ITEM_DEFS[it.key] || {};
+      const har = shopOwned(it.key) > 0;
+      return '<div class="trader-row gift"><div class="tr-item">' +
+        supIco(it.key, '\ud83d\udce6') +
+        '<div><div class="tr-name">' + (D.name || it.key) + '</div>' +
+        '<div class="tr-sub">Contract goods \u00b7 one at a time</div></div></div>' +
+        '<div class="tr-buy">' +
+        btn(har ? 'In bag' : 'Buy \u2014 ' + fmtMoney(it.price),
+            ' data-shopbuy="' + it.key + '" data-qty="1"', !har) +
+        '</div></div>';
+    }).join('') + sup;
+  }
   /* Väntar ett femstjärnepaket ligger det ÖVERST — det är dit man rest. */
   if (vendorGiftReady(regionId)){
     sup = '<div class="trader-row gift"><div class="tr-item">' +
@@ -25701,10 +25781,25 @@ const SHOP_QUEST_ITEMS = [
   {key: 'q_fuel_gem',      price: 200, quest: 'q_start_brody'},
   {key: 'q_spare_toolkit', price: 200, quest: 'q_start_manual'},
   {key: 'q_dressing_roll', price: 200, quest: 'q_start_patch'},
-  {key: 'q_route_marker',  price: 200, quest: 'q_start_route'}
+  {key: 'q_route_marker',  price: 200, quest: 'q_start_route'},
+  {key: 'q_signalkub',                price: 300, quest: 'vx_bram_02'},
+  {key: 'q_forseglat_reservdelspaket', price: 400, quest: 'vx_bram_03'},
+  {key: 'q_hissakring',               price: 500, quest: 'vx_torv_03'},
+  {key: 'q_forseglat_varmeprov',      price: 800, quest: 'vx_torv_04'},
+  {key: 'q_frolada',                  price: 400, quest: 'vx_liv_04'},
+  {key: 'q_morkt_rotprov',            price: 400, quest: 'vx_liv_05'},
+  {key: 'q_brobindare',               price: 600, quest: 'vx_siv_03'},
+  {key: 'q_talfilter',                price: 400, quest: 'vx_flisa_03'},
+  {key: 'q_slussnyckel',              price: 500, quest: 'vx_flisa_05'}
 ];
-function shopQuestRows(){
-  const akt = ((QUESTS.state && QUESTS.state.active) || []).map(q => q.template);
+/* [ANDRAT v5.313.0] KONTRAKTSVARAN FLYTTAR TILL HANDLAREN (Chris). Den stod i
+   Shop, som man nar fran vilken plats som helst - da var kopet ingen resa och
+   leveransen ingen leverans. Nu star den hos handlaren i kontraktets EGEN
+   region, overst i hans forradsflik, och servern vagrar salja den nagon
+   annanstans. Listan hor alltsa till handlaren nu, inte till Shop. */
+function vendorQuestRows(regionId){
+  const akt = ((QUESTS.state && QUESTS.state.active) || [])
+    .filter(q => q.region === regionId).map(q => q.template);
   return SHOP_QUEST_ITEMS.filter(r => akt.indexOf(r.quest) >= 0);
 }
 const SHOP_LIST = [
@@ -25727,9 +25822,7 @@ function shopOwned(key){
 function renderShopSupplies(){
   const box = $('shop-supplies');
   if (!box) return;
-  /* [ANDRAT v5.200.0] Kontraktsvarorna star OVERST och bara nar deras kontrakt
-     loper - de ar det man kom hit for. Resten av hyllan ar oforandrad. */
-  const rader = shopQuestRows().concat(SHOP_LIST);
+  const rader = SHOP_LIST;
   box.innerHTML = rader.map(it => {
     const name = (MATERIALS[it.key] && MATERIALS[it.key].name) ||
                  (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].name) || it.key;
@@ -25761,7 +25854,10 @@ function renderShopSupplies(){
   }).join('');
 }
 async function shopBuy(key, qty){
-  const it = SHOP_LIST.find(x => x.key === key) || shopQuestRows().find(x => x.key === key);
+  /* [ANDRAT v5.313.0] Kontraktsvaran hittas i sin egen lista nu, inte i Shops.
+     Samma kopfunktion bar bada knapparna - en vag in, ett stalle att laga. */
+  const it = SHOP_LIST.find(x => x.key === key)
+          || SHOP_QUEST_ITEMS.find(x => x.key === key);
   if (!it) return;
   const cost = it.price * qty;
   if (S.gold < cost){ say('Not enough money \u2014 you need ' + moneyText(cost - S.gold) + ' more.'); return; }
@@ -25770,7 +25866,7 @@ async function shopBuy(key, qty){
       const r = await srvRpc('shop_buy', {p_character: SRV.charId, p_key: key, p_qty: qty});
       if (r && r.gold != null) S.gold = +r.gold;
       await netPullItems();
-    } catch (e){ say(srvErrText(e, 'The shop refused the trade.')); return; }
+    } catch (e){ say(srvErrText(e, 'The trade was refused.')); return; }
   } else {
     S.gold -= cost;
     if (MATERIALS[key]) giveMaterial(key, qty);
@@ -28699,9 +28795,18 @@ function questObjText(q){
            saljs i Shop - rutan i sidopanelen - men malet sa "the trader's
            shelf", och handlaren ar en helt annan sak: en nod ute i en zon. Man
            letade alltsa dar varan aldrig funnits. */
-        : (C.kind === 'Contract item') ? ' \u2014 in the Shop while this contract runs'
+        /* [ANDRAT v5.313.0] Malet sager nu VILKEN handlare. Varan finns bara hos
+           handlaren i kontraktets egen region, sa utan regionen ar raden en
+           gata. */
+        : (C.kind === 'Contract item') ? ' \u2014 from the vendor in ' + reg
         : '';
-      return 'Deliver ' + q.qty + ' \u00d7 ' + namn + varifran;
+      /* [ANDRAT v5.312.0] MALET SA ALDRIG VART (Chris). Leveransen raknades pa
+         vad man agde, sa kontraktet var klart i samma stund varan lag i vaskan
+         - man behovde inte flytta sig en meter. Nu kravs det att man STAR i
+         zonen, och da maste malet saga vilken zon. Zonen far aldrig vara den
+         man stod i nar erbjudandet drogs, sa det ar alltid en resa. */
+      return 'Deliver ' + q.qty + ' \u00d7 ' + namn +
+        (q.zone ? ' to ' + q.zone : '') + varifran;
     }
     /* [ANDRAT v5.101.0] Tre PvE-varianter i samma mal: regionen (ingen nyckel),
        zonen (nyckeln 'zone'), eller en FIENDETYP (allt annat). Typerna finns pa
@@ -28776,8 +28881,13 @@ function questRowHTML(q, mode, activeFull){
     ? 'Contract · ' + (q.step_no ? 'step ' + q.step_no + '/' + q.step_total
                                       : q.step_total + ' steps')
     : q.tier;
+  /* [TILLAGT v5.314.0] GIVAREN (Chris). De handskrivna kontrakten kommer fem och
+     fem fran var sin gestalt. Star inte namnet nagonstans ar gestalterna bara
+     en anteckning i en tabell. Brickan visas bara nar en givare finns, sa de 32
+     gamla ser ut precis som forut. */
   return '<div class="' + cls + '">' +
     '<div class="q-top"><span class="q-name">' + q.name + '</span>' +
+      (q.giver ? '<span class="q-tag giver">' + esc(q.giver) + '</span>' : '') +
       '<span class="q-tag">' + tag + '</span>' +
       (done ? '<span class="q-tag">Completed</span>' : '') + '</div>' +
     '<div class="q-act">' + btn + '</div>' +
