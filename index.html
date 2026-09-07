@@ -4375,9 +4375,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
    innehallet som klipps i stallet, sa de rundade hornen star kvar. */
 #qwin-overlay .qwin-modal{width:min(700px,94vw);max-width:min(700px,94vw);max-height:92vh;display:flex;flex-direction:column;
   padding:26px 0 0;overflow:visible}
-#qwin-overlay .qwin-bar{border-bottom:1px solid var(--border)}
+/* [ANDRAT v5.325.0] Raden gick ut i kanterna. I de ovriga fonstren ar den en
+   indragen list med egen ram - samma har nu. */
+#qwin-overlay .qwin-bar{margin:0 12px 0}
 #qwin-overlay .qwin-grid{display:grid;grid-template-columns:1fr 250px;gap:0;min-height:0;
-  overflow:auto;border-radius:0 0 12px 12px}
+  overflow:auto;border-radius:0 0 12px 12px;border-top:1px solid var(--border)}
 #qwin-overlay .qwin-left{padding:14px 16px 16px;min-width:0}
 #qwin-overlay .qwin-here{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--green,#37e08a)}
 #qwin-overlay .qwin-title{font-size:22px;font-weight:900;letter-spacing:.02em;margin:6px 0 10px;color:var(--text)}
@@ -4423,11 +4425,25 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 #qwin-overlay .qwin-right{position:relative;border-left:1px solid var(--border);
   background:linear-gradient(180deg, rgba(56,232,255,.06), transparent 60%);
   display:flex;flex-direction:column;justify-content:flex-end;min-height:300px}
+/* [ANDRAT v5.325.0] Dubbelt sa stort och tatt over huvudet (Chris), med en gul
+   glod som andas bakom. Gloden ar ett EGET lager under tecknet - pulsar man
+   sjalva texten blir bokstaven suddig i halva takten. */
 #qwin-overlay .qwin-mark{
-  position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:4;
-  font-size:44px;font-weight:900;line-height:1;color:var(--gold);
-  text-shadow:0 0 14px rgba(255,196,74,.75), 0 2px 0 rgba(0,0,0,.55);
+  position:absolute;left:50%;top:6px;transform:translateX(-50%);z-index:4;
+  width:96px;height:96px;display:flex;align-items:center;justify-content:center;
+  font-size:88px;font-weight:900;line-height:1;color:var(--gold);
+  text-shadow:0 0 18px rgba(255,196,74,.9), 0 3px 0 rgba(0,0,0,.55);
   pointer-events:none}
+#qwin-overlay .qwin-mark::before{
+  content:'';position:absolute;left:50%;top:50%;width:104px;height:104px;
+  margin:-52px 0 0 -52px;border-radius:50%;
+  background:radial-gradient(circle at center, rgba(255,196,74,.55), transparent 68%);
+  filter:blur(10px);animation:qmarkPuls 2.6s ease-in-out infinite}
+@keyframes qmarkPuls{
+  0%,100%{transform:scale(.9);opacity:.45}
+  50%    {transform:scale(1.12);opacity:.85}}
+@media (prefers-reduced-motion: reduce){
+  #qwin-overlay .qwin-mark::before{animation:none;opacity:.6}}
 #qwin-overlay .qwin-por{position:absolute;inset:0;overflow:hidden}
 #qwin-overlay .qwin-por .art-img{width:100%;height:100%;object-fit:contain;object-position:bottom center}
 #qwin-overlay .qwin-por .art-fall{display:none}
@@ -6797,7 +6813,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.324.0 — KNAPPARNA LEVER</div>
+        <div class="sn-ver">GENESIS v5.325.0 — MARKET OCH LISTEN</div>
       </div>
     </div>
   </aside>
@@ -7829,7 +7845,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.324.0 — KNAPPARNA LEVER</div>
+            <div class="desc">GENESIS v5.325.0 — MARKET OCH LISTEN</div>
           </div>
         </div>
       </div>
@@ -22822,6 +22838,12 @@ function afterZoneHop(regionId, zone){
   viewedRegion = regionId;
   say('Arrived in ' + zone + '.');
   renderMap(); refreshRegionUI(); refreshWarp(); renderExpPanel(); updateUI(true);
+  /* [TILLAGT v5.325.0] ETT ERBJUDANDE SOM ÄR FARDIGT DAR MAN STAR (Chris, tredje
+     gangen). Servern slapper "res till byn" nar man kommit fram - men klienten
+     satt kvar med sin gamla lista tills nasta synk, sa kartan visade fortfarande
+     noden och rutan gick att oppna. Kontrakten hamtas om direkt vid framkomst,
+     sa listan och verkligheten inte glider isar. */
+  if (NET.on) refreshQuests().catch(() => {});
   save();
 }
 /* ---------- HUSDJUREN: panel, samling, cachen ---------- */
