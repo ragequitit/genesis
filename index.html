@@ -4372,7 +4372,9 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 #qwin-overlay .qwin-modal{width:min(860px,94vw);max-width:min(860px,94vw);max-height:92vh;display:flex;flex-direction:column;
   padding:0;overflow:hidden}
 #qwin-overlay .qwin-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:12px 14px;border-bottom:1px solid var(--border)}
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  cursor:grab;user-select:none;touch-action:none}
+#qwin-overlay .qwin-bar:active{cursor:grabbing}
 /* Krysset ar absolut placerat i grundrutan och hamnade darfor mitt pa hogerkanten,
    ovanpa gestalten. Har sitter det i raden dar det hor hemma. */
 #qwin-overlay .qwin-bar .inv-x{position:static;flex:0 0 auto;margin:0}
@@ -4400,8 +4402,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .qo-done{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--green,#37e08a);margin-top:5px}
 #qwin-overlay .qwin-rew{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-#qwin-overlay .qwin-rew .qr{border:1px solid var(--border);border-radius:10px;padding:10px 6px;
-  text-align:center;background:var(--bg-inset)}
+#qwin-overlay .qwin-rew .qr{border:1px solid var(--border);border-radius:10px;padding:9px 6px;
+  text-align:center;background:var(--bg-inset);
+  display:flex;flex-direction:column;align-items:center;gap:3px}
+#qwin-overlay .qwin-rew .qr-ico{width:30px;height:30px}
+#qwin-overlay .qwin-rew .qr-ico .qi{width:16px;height:16px}
 #qwin-overlay .qwin-rew .qr b{display:block;font-size:15px;font-weight:900;line-height:1.1}
 #qwin-overlay .qwin-rew .qr span{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
 #qwin-overlay .qwin-rew .qr.rep{border-color:rgba(55,224,138,.42);color:var(--green,#37e08a)}
@@ -6787,7 +6792,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.318.0 — EN KONTRAKTSRUTA, INTE TVA</div>
+        <div class="sn-ver">GENESIS v5.319.0 — GREPP OCH EMBLEM</div>
       </div>
     </div>
   </aside>
@@ -7814,7 +7819,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.318.0 — EN KONTRAKTSRUTA, INTE TVA</div>
+            <div class="desc">GENESIS v5.319.0 — GREPP OCH EMBLEM</div>
           </div>
         </div>
       </div>
@@ -29040,15 +29045,22 @@ function questById(id){
   return (st.active || []).find(q => q.quest_id === id)
       || (st.offers || []).find(q => q.quest_id === id) || null;
 }
+/* [ANDRAT v5.319.0] BRICKORNA FAR SPELETS EGNA EMBLEM (Chris). Talen stod
+   ensamma; nu bar varje bricka samma glodande sexkant som valutorna och
+   sidopanelen anvander, i sin egen farg. Samma emblem pa alla stallen betyder
+   att en ny ikon byts pa ETT stalle, inte fyra. */
 function qwinRewHTML(r){
   r = r || {};
   const rutor = [
-    ['rep',  r.rep || 0,                'rep'],
-    ['gold', moneyPlain(r.gold || 0),   'gold'],
-    ['frag', r.frags || 0,              'fragments'],
-    ['xp',   r.xp || 0,                 'xp']
+    ['rep',  r.rep || 0,              'rep',       'qi-achievements', 'var(--green, #37e08a)'],
+    ['gold', moneyPlain(r.gold || 0), 'gold',      'qi-money',        'var(--gold)'],
+    ['frag', r.frags || 0,            'fragments', 'qi-fragments',    'var(--purple)'],
+    ['xp',   r.xp || 0,               'xp',        'qi-data',         'var(--cyan)']
   ];
-  return rutor.map(x => '<div class="qr ' + x[0] + '"><b>' + x[1] + '</b><span>' + x[2] + '</span></div>').join('');
+  return rutor.map(x =>
+    '<div class="qr ' + x[0] + '">' +
+      '<span class="res-icon sn-hex qr-ico" style="--hxc:' + x[4] + '"><span class="qi ' + x[3] + '"></span></span>' +
+      '<b>' + x[1] + '</b><span>' + x[2] + '</span></div>').join('');
 }
 function openQuestWin(id){
   const q = questById(id); if (!q) return;
@@ -29108,6 +29120,11 @@ function openQuestWin(id){
   if (typeof fitFloatWin === 'function') fitFloatWin(w);
 }
 function closeQuestWin(){ const w = $('qwin-overlay'); if (w) w.classList.remove('open'); }
+/* [TILLAGT v5.319.0] SIDAN GICK INTE ATT FLYTTA (Chris). Den ar ett flyttbart
+   fonster som alla andra, men ingen hade kopplat ett grepp till den. Raden
+   overst ar greppet - samma rutin som de ovriga fonstren anvander, sa den arver
+   kantvakten och beter sig likadant. */
+makeDraggable($('qwin-overlay'), [$('qwin-overlay').querySelector('.qwin-bar')]);
 $('qwin-close').addEventListener('click', closeQuestWin);
 document.addEventListener('click', e => {
   if (e.target.closest('[data-qwinclose]')){ closeQuestWin(); return; }
