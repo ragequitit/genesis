@@ -6787,7 +6787,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.317.0 — KONTRAKTSFONSTRET</div>
+        <div class="sn-ver">GENESIS v5.318.0 — EN KONTRAKTSRUTA, INTE TVA</div>
       </div>
     </div>
   </aside>
@@ -7814,7 +7814,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.317.0 — KONTRAKTSFONSTRET</div>
+            <div class="desc">GENESIS v5.318.0 — EN KONTRAKTSRUTA, INTE TVA</div>
           </div>
         </div>
       </div>
@@ -29062,7 +29062,9 @@ function openQuestWin(id){
   $('qwin-title').textContent = q.name || '';
   $('qwin-bubble').textContent = q.flavor || '';
   $('qwin-giver').textContent = q.giver || 'Network relay';
-  $('qwin-role').textContent = q.giver ? (reg + ' contact') : 'Automated contract';
+  /* [ANDRAT v5.318.0] Titeln kommer fran servern nu (Chris). Saknas den faller
+     den tillbaka pa regionen, sa raden aldrig star tom. */
+  $('qwin-role').textContent = q.giver ? (q.giver_role || (reg + ' contact')) : 'Automated contract';
 
   const art = questArt(q);
   const por = $('qwin-por');
@@ -33039,6 +33041,15 @@ function nodeQuestHTML(){
   let h = nodeWhereHTML();
   if (!NET.on) return h + '<div class="shelf-empty">Contracts need a live connection.</div>';
   const q = nodeQuestAt();
+  /* [ANDRAT v5.318.0] KONTRAKTET RITADES PA TVA STALLEN (Chris). Listan fick den
+     nya sidan i v5.317.0 - men noden pa kartan ritade fortfarande sin egen lilla
+     ruta, sa den som oppnade ett kontrakt darifran sag den gamla. Det ar samma
+     familj som bitit oss forr: samma sak byggd i tva kroppar, andrad i den ena.
+     Noden ritar ingen egen ruta langre; den oppnar sidan. */
+  if (q && typeof openQuestWin === 'function'){
+    setTimeout(() => { closeNodeWin(); openQuestWin(q.quest_id); }, 0);
+    return h + '<div class="shelf-empty">Opening the contract\u2026</div>';
+  }
   if (!q) return h + '<div class="shelf-empty">No contract waiting here.</div>' +
     '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
   const here = nodeHere();
