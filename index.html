@@ -4423,6 +4423,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 #qwin-overlay .qwin-right{position:relative;border-left:1px solid var(--border);
   background:linear-gradient(180deg, rgba(56,232,255,.06), transparent 60%);
   display:flex;flex-direction:column;justify-content:flex-end;min-height:300px}
+#qwin-overlay .qwin-mark{
+  position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:4;
+  font-size:44px;font-weight:900;line-height:1;color:var(--gold);
+  text-shadow:0 0 14px rgba(255,196,74,.75), 0 2px 0 rgba(0,0,0,.55);
+  pointer-events:none}
 #qwin-overlay .qwin-por{position:absolute;inset:0;overflow:hidden}
 #qwin-overlay .qwin-por .art-img{width:100%;height:100%;object-fit:contain;object-position:bottom center}
 #qwin-overlay .qwin-por .art-fall{display:none}
@@ -6792,7 +6797,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.323.0 — EMBLEMET RUNT</div>
+        <div class="sn-ver">GENESIS v5.324.0 — KNAPPARNA LEVER</div>
       </div>
     </div>
   </aside>
@@ -7410,6 +7415,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <div class="qwin-act" id="qwin-act"></div>
         </div>
         <div class="qwin-right">
+          <div class="qwin-mark" id="qwin-mark"></div>
           <div class="qwin-por art-wrap" id="qwin-por"></div>
           <div class="qwin-who">
             <div class="qwin-name" id="qwin-giver"></div>
@@ -7823,7 +7829,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.323.0 — EMBLEMET RUNT</div>
+            <div class="desc">GENESIS v5.324.0 — KNAPPARNA LEVER</div>
           </div>
         </div>
       </div>
@@ -29074,8 +29080,11 @@ function openQuestWin(id){
   const q = questById(id); if (!q) return;
   const w = $('qwin-overlay'); if (!w) return;
   const laget = q.status === 'offered' ? 'offer' : (q.done ? 'done' : 'active');
-  $('qwin-kicker').textContent = laget === 'offer' ? 'Incoming contract'
-    : laget === 'done' ? 'Contract complete' : 'Contract in progress';
+  /* [ANDRAT v5.324.0] Spelet kallar dem QUESTS overallt annars - knappen i
+     snabbvalet, fonstrets titel, historiken. Sidan sa "contract" och blev en
+     egen dialekt. Ett ord, overallt. */
+  $('qwin-kicker').textContent = laget === 'offer' ? 'Incoming quest'
+    : laget === 'done' ? 'Quest complete' : 'Quest in progress';
   const reg = REGIONS[q.region] ? REGIONS[q.region].name : q.region;
   const har = (S.world && S.world.current === q.region && S.world.zone === q.zone);
   $('qwin-here').textContent = reg + (q.zone ? ' \u00b7 ' + q.zone : '') + (har ? ' \u00b7 you are here' : '');
@@ -29094,7 +29103,16 @@ function openQuestWin(id){
   /* [TILLAGT v5.323.0] Saknas bilden syns bara en silhuett, och da gar det inte
      att se VILKEN vag som inte fanns. Vagen star i rutans titel - hall musen
      over silhuetten sa star den dar. */
-  por.title = art || 'no portrait for this contract';
+  por.title = art || 'no portrait for this quest';
+  /* [TILLAGT v5.324.0] MARKET OVER HUVUDET (Chris). Gult utropstecken nar
+     uppdraget erbjuds, gult fragetecken nar det ar klart att lamna in - samma
+     sprak som varje spel med uppdragsgivare anvander. Pagaende uppdrag far
+     inget marke; da har man redan sagt ja. */
+  const mark = $('qwin-mark');
+  if (mark){
+    mark.textContent = laget === 'offer' ? '!' : laget === 'done' ? '?' : '';
+    mark.style.display = (laget === 'offer' || laget === 'done') ? '' : 'none';
+  }
 
   /* Malets bild ar varans egen dar det finns en vara - samma vag som vaskan och
      handlaren anvander, sa den kan inte visa nagot annat an det man ska lamna. */
@@ -29129,8 +29147,8 @@ function openQuestWin(id){
             '>Travel and accept</button>'
         : '') +
       '<button class="' + (fjarran ? '' : 'main') + '" data-qaccept="' + q.quest_id + '"' +
-        (fullt ? ' disabled title="You already have the maximum of 3 active contracts"' : '') +
-        '>Accept' + (fjarran ? '' : ' contract') + '</button>' +
+        (fullt ? ' disabled title="You already have the maximum of 3 active quests"' : '') +
+        '>Accept' + (fjarran ? '' : ' quest') + '</button>' +
       '<button data-qwinclose="1">Decline</button>'
     : laget === 'done'
       ? '<button class="main" data-qclaim="' + q.quest_id + '">Claim rewards</button>' +
@@ -29240,14 +29258,20 @@ function openQuests(){
 }
 $('qa-quests').addEventListener('click', openQuests);
 $('quest-close').addEventListener('click', () => $('quest-overlay').classList.remove('open'));
-$('quest-body').addEventListener('click', async (e) => {
+$('quest-body').addEventListener('click', (e) => {
   const nav = e.target.closest('[data-qhist],[data-qback]');
-  if (nav){
-    QUESTS.view = nav.dataset.qhist ? 'history' : 'main';
-    if (QUESTS.view === 'history'){ QUESTS.hist = null; renderQuestHistory(); refreshQuestHistory(); }
-    else renderQuests();
-    return;
-  }
+  if (!nav) return;
+  QUESTS.view = nav.dataset.qhist ? 'history' : 'main';
+  if (QUESTS.view === 'history'){ QUESTS.hist = null; renderQuestHistory(); refreshQuestHistory(); }
+  else renderQuests();
+});
+/* [ANDRAT v5.324.0] KNAPPARNA VAR DODA I DEN NYA SIDAN (Chris). Lyssnaren satt
+   pa LISTANS behallare, sa den nadde bara knappar som stod i listan. Sidan
+   ligger i ett eget fonster och dess Accept gjorde darfor ingenting alls.
+   En lyssnare pa hela sidan i stallet: da spelar det ingen roll VAR knappen
+   star, och nasta fonster som far en accept-knapp fungerar utan att nagon
+   minns att koppla den. Samma slutsats som receptbokens knapp drog en gang. */
+document.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-qaccept],[data-qclaim],[data-qabandon]');
   if (!t || QUESTS.busy) return;
   QUESTS.busy = true;                 /* en hamtning at gangen - dubbletternas vakt */
@@ -33407,6 +33431,15 @@ function wireNodeWin(){
        hamnar i underkanten - man laser "Encounter" och far en sida, inte motet.
        Har oppnas det man tryckte pa, direkt. */
     const reg = NODE.region, zon = NODE.zone;
+    /* [ANDRAT v5.324.0] KONTRAKTSRADEN OPPNAR SIDAN OVERALLT (Chris). Genvagen
+       till zonsidan var vettig for moten och expeditioner - men ett kontrakt HAR
+       en egen sida nu, och att hoppa till zonsidan i stallet ar att visa fel
+       ruta. Kontrakt gar direkt till sin sida pa alla skarmar. */
+    if (vart === 'quest'){
+      const qid = rad.dataset.q;
+      closeNodeWin();
+      if (qid && typeof openQuestWin === 'function'){ openQuestWin(qid); return; }
+    }
     if (isNarrowScreen()){
       closeNodeWin();
       if (vart === 'enc'){ openNodeWin('encounter', reg, zon); return; }
