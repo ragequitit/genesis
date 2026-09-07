@@ -5181,16 +5181,16 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .ppq-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
 .ppq-bar i{display:block;height:100%;width:0;background:var(--pp-col,var(--cyan));transition:width 1s linear}
 .ppq-dash{font-size:10px;letter-spacing:.06em}
+/* [ANDRAT v5.307.0] KRYSSET SYNS (Chris). Det stod i samma gra som texten runt
+   omkring och lastes som en dekoration - man sag inte att raden gick att ta
+   bort. Rott och med egen kant: nu ser det ut som det det ar. */
 .ppq-x{flex:0 0 auto;width:26px;height:26px;border-radius:7px;cursor:pointer;
-  border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text-dim)}
-.ppq-x:hover{border-color:#ff5964;color:#ff5964}
+  border:1px solid rgba(255,89,100,.45);background:rgba(255,89,100,.10);color:#ff8a92}
+.ppq-x:hover{border-color:#ff5964;background:rgba(255,89,100,.20);color:#ff5964}
 .ppq-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;
   font-size:9.5px;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase}
 .ppq-foot b{color:var(--text)}
-.ppq-clear{padding:8px 12px;border-radius:8px;cursor:pointer;font-size:9.5px;font-weight:900;
-  letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(255,89,100,.5);
-  background:rgba(255,89,100,.08);color:#ff8a92}
-.ppq-clear:hover{background:rgba(255,89,100,.18)}
+/* [BORTTAGET v5.307.0] Knappens egen stil foll med knappen. */
 .ppq-out{display:flex;align-items:center;justify-content:space-between;gap:10px;
   border:1px solid var(--border);border-radius:9px;padding:10px;font-size:10.5px}
 .ppb-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
@@ -6699,7 +6699,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.306.0 — RADEN OPPNAR SIN RUTA</div>
+        <div class="sn-ver">GENESIS v5.311.0 — RATT HYLLA</div>
       </div>
     </div>
   </aside>
@@ -7695,7 +7695,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.306.0 — RADEN OPPNAR SIN RUTA</div>
+            <div class="desc">GENESIS v5.311.0 — RATT HYLLA</div>
           </div>
         </div>
       </div>
@@ -8473,10 +8473,9 @@ async function netClaimOrder(prof){
   if (!NET.on) return null;
   return srvRpc('claim_work_order', {p_character: SRV.charId, p_prof: prof});
 }
-async function netCancelOrder(prof){
-  if (!NET.on) return null;
-  return srvRpc('cancel_work_order', {p_character: SRV.charId, p_prof: prof});
-}
+/* [BORTTAGET v5.308.0] Kopplingen till den andra avbrytfunktionen - den som
+   tomde hela yrkets ko. Ingen rad anropade den, och serverfunktionen bakom ar
+   riven i samma andetag. Krysset per rad ar den enda vagen ut ur kon nu. */
 async function netStationCollect(){
   if (!NET.on || !SRV.charId) return null;
   const sec = mySecondaryProf();
@@ -23957,12 +23956,18 @@ function ppQueueHTML(profId, col){
           '<span class="ppq-bar"><i id="ppq-fill" style="width:' + done + '%"></i></span>'
         : '<span class="ppq-state">' + (i === 1 ? 'NEXT' : 'QUEUED') + ' \u00b7 ' + fmtDur(left) + '</span>') +
       '</span>' +
-      '<button class="ppq-x" data-cancelat="' + row.id + '" title="Cancel \u2014 materials come back">\u2715</button>' +
+      /* [ANDRAT v5.308.0] Raden som ARBETAS PA nu bar en markering, sa krysset
+         vet att den ska fraga forst. En kad rad avbryts pa ett tryck; den som
+         redan gatt en bit gor det inte. */
+      '<button class="ppq-x" data-cancelat="' + row.id + '"' + (i === 0 ? ' data-active="1"' : '') +
+        ' title="Cancel \u2014 materials come back">\u2715</button>' +
       '</div>';
   }
-  h += '<div class="ppq-foot"><span>TOTAL TIME <b id="ppq-total">' + fmtDur(total) + '</b></span>' +
-    (q.length ? '<button class="ppq-clear" data-clearqueue="' + profId + '">\ud83d\uddd1 Clear queue</button>' : '') +
-    '</div>';
+  /* [BORTTAGET v5.307.0] TOM KON-KNAPPEN (Chris). Krysset pa varje rad gor redan
+     samma sak, en rad i taget, och det ar det man vill nastan jamt. En knapp som
+     river hela kon pa ett tryck ar mest en risk. Krysset ar rott nu i stallet, sa
+     det syns att det gar att trycka pa. */
+  h += '<div class="ppq-foot"><span>TOTAL TIME <b id="ppq-total">' + fmtDur(total) + '</b></span></div>';
   /* [BORTTAGET v5.44.0] OUTPUT-rutan. En fardig pjas som inte far plats i vaskan
      skickas nu rakt till INKORGEN i stallet for att vanta har - kon fastnar
      aldrig och rutan behovs inte. */
@@ -24214,22 +24219,24 @@ document.addEventListener('click', e => {
     craftRecipe(rid); redrawAll(); renderProfPage(); ppRedrawBook();
   }
 });
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const b = e.target.closest('[data-cancelat]');
   if (!b) return;
+  /* [TILLAGT v5.308.0] EN FRAGA BARA NAR DET REDAN BORJAT (Chris). En rad som
+     bara star och vantar kostar ingenting att slappa - dar ar fragan i vagen.
+     Den som redan tillverkas har hunnit en bit, och da ar ett tryck for lite. */
+  if (b.dataset.active){
+    const ja = await askConfirm({title: 'Cancel this one?',
+      body: 'It is being made right now. The materials come back.', yes: 'CANCEL IT', no: 'KEEP GOING'});
+    if (!ja) return;
+  }
   srvRpc('cancel_work_order_at', {p_character: SRV.charId, p_id: b.dataset.cancelat})
     .then(() => Promise.all([netWorkOrders(), netPullItems()]))
     .then(() => { say('Cancelled \u2014 the materials are back.'); renderProfPage(); ppRedrawBook(); redrawAll(); })
     .catch(err => say(srvErrText(err, 'Could not cancel it.')));
 });
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-clearqueue]');
-  if (!b) return;
-  srvRpc('clear_work_orders', {p_character: SRV.charId, p_prof: b.dataset.clearqueue})
-    .then(() => Promise.all([netWorkOrders(), netPullItems()]))
-    .then(() => { say('Queue cleared \u2014 everything refunded.'); renderProfPage(); ppRedrawBook(); redrawAll(); })
-    .catch(err => say(srvErrText(err, 'Could not clear it.')));
-});
+/* [BORTTAGET v5.307.0] Lyssnaren till tom kon-knappen. Ingen knapp skickar det
+   langre. Serverfunktionen star kvar orord - den ar inte min att riva. */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-collectout]');
   if (!b) return;
@@ -24257,17 +24264,11 @@ document.addEventListener('click', e => {
   document.querySelectorAll('[data-qtab]').forEach(x => x.classList.toggle('on', x.dataset.qtab === QB.tab));
   ppRedrawBook();
 });
-document.addEventListener('click', e => {
-  const c = e.target.closest('[data-cancelorder]');
-  if (!c) return;
-  const prof = c.dataset.cancelorder;
-  if (NET.on){
-    netCancelOrder(prof).then(() => { delete S.orders[prof];
-      say('Order cancelled — the materials are back.');
-      netPullItems().then(() => redrawAll()); })
-      .catch(err => say(srvErrText(err, 'Could not cancel it.')));
-  } else { delete S.orders[prof]; redrawAll(); }
-});
+/* [BORTTAGET v5.308.0] Tredje ledet: lyssnaren som anropade kopplingen. Ingen
+   knapp i hela filen bar markningen den lyssnade pa, sa den kunde aldrig ga
+   igang - och hade den gjort det hade den kastat, for kopplingen ar riven. Tre
+   led i samma kedja: en knapp som inte finns, en lyssnare utan knapp, en
+   koppling utan lyssnare, och en serverfunktion utan koppling. */
 
 /* ===== HJALPARVALJAREN (v5.32.0, ATERBYGGD) =====
    Den byggdes i v5.8.0 och forsvann i en senare omskrivning - platserna hade
@@ -28694,7 +28695,11 @@ function questObjText(q){
       const namn = M.name || C.name || q.key;
       const varifran = M.prof === 'any' ? ' \u2014 found on expeditions and encounters'
         : (M.prof && PROF_BY[M.prof]) ? ' \u2014 gathered by ' + PROF_BY[M.prof].name
-        : (C.kind === 'Contract item') ? ' \u2014 on the trader\u2019s shelf while this contract runs'
+        /* [RATTAT v5.311.0] TEXTEN SKICKADE DIG TILL FEL STALLE (Chris). Varan
+           saljs i Shop - rutan i sidopanelen - men malet sa "the trader's
+           shelf", och handlaren ar en helt annan sak: en nod ute i en zon. Man
+           letade alltsa dar varan aldrig funnits. */
+        : (C.kind === 'Contract item') ? ' \u2014 in the Shop while this contract runs'
         : '';
       return 'Deliver ' + q.qty + ' \u00d7 ' + namn + varifran;
     }
@@ -28711,14 +28716,15 @@ function questObjText(q){
       return 'Win ' + q.qty + ' PvE encounter' + (q.qty > 1 ? 's' : '') +
         ' in ' + ((q.key === 'zone' && q.zone) ? q.zone : reg) + after;
     }
-    /* [ANDRAT v5.182.0] Malet sa bara "Complete 1 expedition in <region>", men
-       servern raknar BARA korningar som startats EFTER att kontraktet antogs,
-       och forst nar belaningen ar hamtad. Bada villkoren var osynliga - man
-       kunde ha en korning igang, hamta den, och undra varfor inget hande.
-       Nu star regeln i malet. Samma sak galler moten, sa de sager det ocksa. */
+    /* [ANDRAT v5.310.0] KRAVET PA ATT STARTA EFTERAT AR BORTA (Chris). Servern
+       raknade forut bara korningar som STARTATS efter att kontraktet antogs.
+       Med en enda expeditionsplats blev det en falla: hade man en korning igang
+       stod raknaren still hur mycket man an gjorde. Nu raknas HAMTNINGEN, sa
+       villkoret ar bara ett - och det ar det malet redan sager. Kvar star
+       paminnelsen om att belaningen maste hamtas, for det ar fortfarande sant. */
     case 'expeditions': return 'Complete ' + q.qty + ' expedition' + (q.qty > 1 ? 's' : '') +
       (q.key ? ' of ' + q.key + '+ minutes' : '') + ' in ' + reg +
-      ' \u2014 start ' + (q.qty > 1 ? 'them' : 'it') + ' after accepting, then collect the reward';
+      ' \u2014 collect the reward to make ' + (q.qty > 1 ? 'them' : 'it') + ' count';
     case 'travel':      return 'Travel to ' + q.zone;
     default:            return '';
   }
@@ -30036,9 +30042,17 @@ function ahRenderTable(){
         '<span class="ah-c-qty">' + row.quantity + '</span>' +
         '<span class="ah-c-price">' + moneyText(row.total_price) + '</span>' +
         '<span class="ah-c-left">' + ahLeftText(row.ends_in) + '</span>' +
+        /* [RATTAT v5.309.0] FRAGAN VISADE ALDRIG PRISET (Chris). Knappen bar
+           row.price - ett falt servern inte skickar. Den listar unit_price och
+           total_price; priset i listans egen kolumn ar total_price. Faltet var
+           alltsa alltid tomt, och fragan foll varje gang tillbaka pa "the
+           asking price". Ett dott varde som sag levande ut. Nu bar knappen
+           SAMMA tal som raden visar, plus antalet. */
         '<span class="ah-c-buy"><button class="ah-buy" data-id="' + row.id +
           '" data-namn="' + String(row.name || 'this listing').replace(/"/g, '') +
-          '" data-pris="' + (row.price == null ? '' : row.price) + '"' +
+          '" data-pris="' + (row.total_price == null ? '' : row.total_price) + '"' +
+          ' data-styck="' + (row.unit_price == null ? '' : row.unit_price) + '"' +
+          ' data-antal="' + (row.quantity || 1) + '"' +
           (row.mine ? ' disabled title="Your own listing"' : '') + '>BUY</button></span>' +
       '</div>').join('');
   }
@@ -30060,7 +30074,10 @@ function ahRenderTable(){
     AH.page = 1; ahLoad();
   }));
   mid.querySelectorAll('.ah-buy').forEach(el => el.addEventListener('click', () => ahBuyAsk(el.dataset.id, el,
-    {name: el.dataset.namn, price: el.dataset.pris === '' ? null : +el.dataset.pris})));
+    {name: el.dataset.namn,
+     price: el.dataset.pris === '' ? null : +el.dataset.pris,
+     unit:  el.dataset.styck === '' ? null : +el.dataset.styck,
+     qty:   +el.dataset.antal || 1})));
   ahRenderPages(r);
 }
 function ahToggleFilterPop(){
@@ -30104,10 +30121,15 @@ function ahRenderPages(r){
    har - den fragan maste stallas. */
 async function ahBuyAsk(id, btn, rad){
   const namn = (rad && rad.name) || 'this listing';
+  const antal = (rad && rad.qty > 1) ? rad.qty : 0;
   const pris = (rad && rad.price != null) ? moneyText(rad.price) : 'the asking price';
+  /* Ar det en trave star styckpriset under - annars maste man dividera i huvudet
+     for att veta om det ar ett bra kop. */
+  const styck = (antal && rad.unit != null)
+    ? '<div style="margin-top:6px;opacity:.75">' + moneyText(rad.unit) + ' each</div>' : '';
   const ja = await askConfirm({
     title: 'BUY FROM THE AUCTION HOUSE',
-    body: 'Buy <b>' + namn + '</b> for <b>' + pris + '</b>?',
+    body: 'Buy <b>' + (antal ? antal + '\u00d7 ' : '') + namn + '</b> for <b>' + pris + '</b>?' + styck,
     ico: '\u2696\ufe0f', color: 'var(--gold)', yes: 'BUY', no: 'CANCEL'
   });
   if (!ja) return;
