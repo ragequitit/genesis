@@ -2435,6 +2435,12 @@ body.dragging *{cursor:grabbing !important}
   border-radius:99px;background:var(--red);color:#fff;font-size:10px;font-weight:800;
   display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-page);
 }
+/* [RATTAT v5.326.0] NOTISEN KAPTES I HORNET (Chris). Market hanger fem punkter
+   UTANFOR sin knapp, och snabbvalets yttersta spalt star mot panelens kant -
+   da klipps halva cirkeln bort. Har ligger det innanfor knappen i stallet, sa
+   det inte kan hamna utanfor nagon kant. Menyknapparna till vanster har gott om
+   luft omkring sig och ar ororda. */
+.qa-btn .notif{top:3px;right:3px}
 
 /* ============================================================
    FOOTER
@@ -3697,6 +3703,7 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .rr-name{font-size:14px;font-weight:800;margin-bottom:4px}
 .rr-rar{font-size:10px;font-weight:800;letter-spacing:.06em;margin-left:4px}
 .rr-cost{display:flex;flex-wrap:wrap;gap:4px 10px}
+[data-mat]{cursor:help}
 .rc-mat{font-size:10px;color:var(--text-dim)}
 .rc-mat.short{color:#ff8a8a}
 .rc-mat b{color:var(--text);font-family:var(--font-mono);font-weight:700}
@@ -6813,7 +6820,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.325.0 — MARKET OCH LISTEN</div>
+        <div class="sn-ver">GENESIS v5.327.0 — VAR FAR MAN TAG PA DET</div>
       </div>
     </div>
   </aside>
@@ -7845,7 +7852,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.325.0 — MARKET OCH LISTEN</div>
+            <div class="desc">GENESIS v5.327.0 — VAR FAR MAN TAG PA DET</div>
           </div>
         </div>
       </div>
@@ -24281,7 +24288,8 @@ function ppBookRows(profId){
     const afford = canAfford(r.id);
     const cost = Object.keys(r.cost).map(k => {
       const have = matCount(k), need = r.cost[k];
-      return '<span class="rc-mat' + (have >= need ? '' : ' short') + '">' + MATERIALS[k].ico + ' ' +
+      return '<span class="rc-mat' + (have >= need ? '' : ' short') + '" data-mat="' + k +
+        '" title="Where do I get this?">' + MATERIALS[k].ico + ' ' +
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
     /* [ANDRAT v5.47.0] SAMMA RITNING SOM DEN ANDRA RECEPTBOKEN. Det finns tva
@@ -24625,7 +24633,8 @@ function stationBodyHTML(p){
       const need = r.cost[k], got = matCount(k), ok = got >= need;
       /* [ANDRAT v5.43.0] Punkt 1: antalet man HAR star efter varje material,
          alltid - inte bara nar det saknas. */
-      return '<span class="pf-tag" style="' + (ok ? '' : 'color:var(--red);border-color:var(--red)') + '">' +
+      return '<span class="pf-tag" data-mat="' + k + '" title="Where do I get this?" style="' +
+        (ok ? '' : 'color:var(--red);border-color:var(--red)') + '">' +
         MATERIALS[k].ico + ' ' + need + ' ' + MATERIALS[k].name + ' (' + got + ')</span>';
     }).join('');
     const canMake = !locked && canAfford(r.id);
@@ -25286,7 +25295,8 @@ function renderRecipeBook(){
     const isFl = isFlask(r.item);
     const cost = Object.keys(r.cost).map(k => {
       const have = matCount(k), need = r.cost[k], enough = have >= need;
-      return '<span class="rc-mat' + (enough ? '' : ' short') + '">' + MATERIALS[k].ico + ' ' +
+      return '<span class="rc-mat' + (enough ? '' : ' short') + '" data-mat="' + k +
+        '" title="Where do I get this?">' + MATERIALS[k].ico + ' ' +
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
     /* [ANDRAT v5.47.0] Kortet kande bara TVA sorters utfall: en flaska (emoji,
@@ -29032,6 +29042,32 @@ function questArt(q){
   if (!q || !q.giver || !q.region || !q.template) return null;
   return 'assets/quest/' + q.region + '/' + q.template + '.png';
 }
+/* [TILLAGT v5.327.0] VAR FAR MAN TAG PA DET HAR? (Chris). En receptrad sa att
+   man saknade ett material men aldrig var det kom ifran. Kallan star i
+   materialtabellen - yrket som samlar det, 'any' for sadant som faller overallt,
+   'vendor' for det handlaren saljer - sa raden byggs ur samma data som droppen.
+   EN funktion och EN lyssnare: de tre stallen som ritar en kostnadsrad far bara
+   satta markningen, sa de inte kan saga olika saker om samma material. */
+function matSourceText(key){
+  const M = (typeof MATERIALS !== 'undefined' && MATERIALS[key]) || null;
+  if (!M) return '';
+  const namn = M.name || key;
+  if (M.prof === 'vendor')  return namn + ' is sold by the vendor in any region.';
+  if (M.prof === 'any')     return namn + ' is found on expeditions and in encounters.';
+  if (M.prof && typeof PROF_BY !== 'undefined' && PROF_BY[M.prof]){
+    const P = PROF_BY[M.prof];
+    return P.kind === 'secondary'
+      ? namn + ' is produced by your ' + P.name + ' station.'
+      : namn + ' is gathered by ' + P.name + '.';
+  }
+  return namn + ' has no known source yet.';
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-mat]');
+  if (!t) return;
+  const txt = matSourceText(t.dataset.mat);
+  if (txt) say(txt);
+});
 function questRowHTML(q, mode, activeFull){
   const reg = REGIONS[q.region] ? REGIONS[q.region].name : q.region;
   const done = mode === 'active' && q.done;
