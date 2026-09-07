@@ -4369,10 +4369,15 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 /* Grundrutan har en takbredd pa 420 punkter. Utan den har raden vinner taket
    over bredden och sidan blir en smal remsa - samma familj som fyrkanten bakom
    fyndet: en regel langre ned som ater upp en regel langre upp. */
+/* [RATTAT v5.323.0] EMBLEMET KAPTES (Chris). Det hanger halvvags OVANFOR ramen,
+   och rutan hade overflow:hidden - alltsa klipptes den runda halvan bort och det
+   sag ut som en fyrkant med ett streck. Rutan slapper fram det nu, och det ar
+   innehallet som klipps i stallet, sa de rundade hornen star kvar. */
 #qwin-overlay .qwin-modal{width:min(700px,94vw);max-width:min(700px,94vw);max-height:92vh;display:flex;flex-direction:column;
-  padding:0;overflow:hidden}
+  padding:26px 0 0;overflow:visible}
 #qwin-overlay .qwin-bar{border-bottom:1px solid var(--border)}
-#qwin-overlay .qwin-grid{display:grid;grid-template-columns:1fr 250px;gap:0;min-height:0;overflow:auto}
+#qwin-overlay .qwin-grid{display:grid;grid-template-columns:1fr 250px;gap:0;min-height:0;
+  overflow:auto;border-radius:0 0 12px 12px}
 #qwin-overlay .qwin-left{padding:14px 16px 16px;min-width:0}
 #qwin-overlay .qwin-here{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--green,#37e08a)}
 #qwin-overlay .qwin-title{font-size:22px;font-weight:900;letter-spacing:.02em;margin:6px 0 10px;color:var(--text)}
@@ -6787,7 +6792,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.321.0 — SAMMA HATT, TATARE KORT</div>
+        <div class="sn-ver">GENESIS v5.323.0 — EMBLEMET RUNT</div>
       </div>
     </div>
   </aside>
@@ -7818,7 +7823,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.321.0 — SAMMA HATT, TATARE KORT</div>
+            <div class="desc">GENESIS v5.323.0 — EMBLEMET RUNT</div>
           </div>
         </div>
       </div>
@@ -25343,11 +25348,15 @@ function fitFloatWin(w){
   const ruta = w.querySelector('.modal'); if (!ruta) return;
   const r = ruta.getBoundingClientRect();
   if (!r.width || !r.height) return;
+  /* [ANDRAT v5.323.0] Emblemet hanger HALVVAGS OVANFOR rutan. Raknar man bara pa
+     rutans egen ovankant hamnar emblemet utanfor skarmen - uppmatt trettio
+     punkter ovanfor. Fonster med emblem far darfor ett hogre tak. */
+  const topp = w.querySelector('.inv-emblem') ? 40 : 8;
   let dx = 0, dy = 0;
   if (r.right  > window.innerWidth  - 8) dx = (window.innerWidth  - 8) - r.right;
   if (r.left + dx < 8)                   dx = 8 - r.left;
   if (r.bottom > window.innerHeight - 8) dy = (window.innerHeight - 8) - r.bottom;
-  if (r.top + dy < 8)                    dy = 8 - r.top;
+  if (r.top + dy < topp)                 dy = topp - r.top;
   if (!dx && !dy) return;
   const nu = w.getBoundingClientRect();
   /* Bada kanterna sätts, aldrig bara den ena: satter man left pa ett fonster
@@ -29082,6 +29091,10 @@ function openQuestWin(id){
   por.classList.remove('noart');
   por.innerHTML = art ? artWithFallback(art, '\ud83d\udc64') : '<i class="art-fall">\ud83d\udc64</i>';
   if (!art) por.classList.add('noart');
+  /* [TILLAGT v5.323.0] Saknas bilden syns bara en silhuett, och da gar det inte
+     att se VILKEN vag som inte fanns. Vagen star i rutans titel - hall musen
+     over silhuetten sa star den dar. */
+  por.title = art || 'no portrait for this contract';
 
   /* Malets bild ar varans egen dar det finns en vara - samma vag som vaskan och
      handlaren anvander, sa den kan inte visa nagot annat an det man ska lamna. */
@@ -32344,11 +32357,13 @@ async function chatMarkRead(){
   if (!NET.on || !SRV.charId) return;
   /* [ANDRAT v5.296.0] Gillet vande har och sa aldrig till servern att raderna
      var lasta - det var darfor siffran overlevde varje inloggning. */
+  /* [ANDRAT v5.322.0] VISKNINGARNAS SIFFRA GICK ALDRIG NER (Chris). Raden vande
+     har om man inte hade ett samtal ÖPPET - men fliken visar LISTAN over samtal,
+     och den som last listan har sett dem allihop. Nu skickas markeringen aven
+     utan valt samtal, och servern nollar da varje samtal i stallet for ett. */
   const t = CHAT.tab;
-  if (t === 'whisper' && !CHAT.conv) return;
   CHAT.unread[t] = 0;
-  try { await srvRpc('chat_mark_read', {p_character: SRV.charId, p_channel: t, p_conv_char: t === 'whisper' ? CHAT.conv : null}); } catch (e){}
-  if (t === 'whisper') CHAT.unread.whisper = Math.max(0, CHAT.unread.whisper);
+  try { await srvRpc('chat_mark_read', {p_character: SRV.charId, p_channel: t, p_conv_char: t === 'whisper' ? (CHAT.conv || null) : null}); } catch (e){}
 }
 function chatSockOpen(){
   chatSockClose();
