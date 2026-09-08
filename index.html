@@ -7133,7 +7133,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.368.0 — LUFT OCH TID AT MYNTEN</div>
+        <div class="sn-ver">GENESIS v5.373.0 — RLS OCH DODA UPPSLAG</div>
       </div>
     </div>
   </aside>
@@ -8174,7 +8174,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.368.0 — LUFT OCH TID AT MYNTEN</div>
+            <div class="desc">GENESIS v5.373.0 — RLS OCH DODA UPPSLAG</div>
           </div>
         </div>
       </div>
@@ -8597,7 +8597,12 @@ const SRV_ERRORS = {
   insufficient_fragments:   'Not enough fragments.',
   insufficient_data:        'Not enough Data.',
   insufficient_fuel:        'Not enough fuel for that trip.',
-  cannot_be_sold:           'The vendor does not buy that.',
+  /* [RIVET v5.372.0] Fyra felmeddelanden stod TVA ganger i den har listan, och
+     i en objektlista vinner den SENARE tyst - de har raderna kunde aldrig visas.
+     cannot_be_sold, chat_too_long, chat_too_fast och chat_empty: den forsta av
+     varje ar riven, den andra star kvar langre ned.
+     En av dem ljog dessutom: den doda chat_too_long sa "300 characters max" nar
+     serverns tak ar 240. Att den var dod var ren tur. */
   tuning_locked:            'Gear Tuning opens at character level 25.',
   tuning_exhausted:         'This piece has been tuned five times — that is the limit.',
   nothing_to_revert:        'There is nothing to go back to.',
@@ -8694,9 +8699,6 @@ const SRV_ERRORS = {
   milestone_not_reached:    'That milestone has not been reached yet.',
   no_cycle:                 'No weekly operations yet — check back in a moment.',
   no_such_op:               'That operation does not exist.',
-  chat_too_long:            'Message too long (300 characters max).',
-  chat_too_fast:            'Easy — one message every couple of seconds.',
-  chat_empty:               'Write something first.',
   bad_avatar:               'That portrait does not exist.',
   /* [NYTT v5.124.0] Manage Guild. */
   you_are_muted:            'You are muted in guild chat right now.',
@@ -9041,6 +9043,8 @@ async function netSync(){
        Tva sekunders slack: klockan ar servertid mot lokal tid, och en halv sekunds
        glapp ska inte lasas som en paafyllning. */
     if (clock && clock.sync_until != null){
+      if (clock.sync_from !== undefined)
+        S.syncFrom = clock.sync_from ? new Date(clock.sync_from).getTime() : null;
       const nyUntil = clock.sync_until ? new Date(clock.sync_until).getTime() : null;
       const vaxte = nyUntil && S.syncUntil && (nyUntil - S.syncUntil) > 2000;
       if (vaxte) spawnFloat({text: '+' + fmtDur((nyUntil - S.syncUntil) / 1000) + ' sync'});
@@ -9078,8 +9082,10 @@ async function netSync(){
        S.gold rors inte: den sätts ur karaktarsradens absoluta varde langre ned.
        Adderar bada sidor kan de rakna isar, och da visar pillret ett tal som
        inte finns pa servern. */
-    if (clock && (clock.idle_gold | 0) > 0 && !(firstSync && NET.awaySecs > 120)){
-      spawnFloat({text: '+' + moneyIcoText(clock.idle_gold | 0)});
+    /* [RATTAT v5.370.0] Math.floor i stallet for "| 0" - se myntIco. */
+    const idleGuld = Math.max(0, Math.floor(+clock.idle_gold || 0));
+    if (clock && idleGuld > 0 && !(firstSync && NET.awaySecs > 120)){
+      spawnFloat({text: '+' + moneyIcoText(idleGuld)});
     }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
@@ -13794,7 +13800,7 @@ const UI_ICO = {
    Bara for korta, flyktiga texter. Rader man LASER behaller bokstaverna: de gar
    att markera och kopiera, och de bryter inte om en bild saknas. */
 function moneyIcoText(koppar){
-  const m = splitMoney(Math.max(0, koppar | 0));
+  const m = splitMoney(Math.max(0, Math.floor(+koppar || 0)));
   const d = [];
   /* [ANDRAT v5.368.0] Ett halt mellanrum mellan talet och myntet (Chris). De
      satt ihop och lastes som ett enda tecken. Mellanrummet star i CSS i stallet
@@ -13806,7 +13812,11 @@ function moneyIcoText(koppar){
   return d.join('&nbsp;&nbsp;');
 }
 function myntIco(koppar){
-  const m = splitMoney(Math.max(0, koppar | 0));
+  /* [RATTAT v5.370.0] "| 0" ar en 32-BITARS operation. Over 2 147 483 647 koppar
+     - drygt 214 000 guld - slar den runt till ett negativt tal, och da visade
+     rutan "-129 497g". splitMoney sjalv anvander Math.floor och var aldrig
+     drabbad; det var mina egna omslag som slarvade. */
+  const m = splitMoney(Math.max(0, Math.floor(+koppar || 0)));
   return uiIco(m.g ? 'gold' : (m.s ? 'silver' : 'copper'));
 }
 function uiIco(key){
@@ -13853,7 +13863,15 @@ function itemArtFor(key, rarIdx){
 }
 function gearArt(it){ return itemArtFor(it.t, it.r); }
 function gearName(it){ const D = ITEMS[it.t]; return D ? D.name : 'Unknown item'; }
-function rarCol(rarIdx){ return 'var(--rarity-' + GEAR_RAR[rarIdx].id.replace('mythical', 'mythic') + ')'; }
+/* [RIVET v5.371.0] EN ANDRA rarCol LAG HAR. Den las GEAR_RAR och skrev om
+   'mythical' till 'mythic'; en tredje tusen rader ned star en till som laser
+   RARITIES. Den SENARE vann tyst - funktionsdeklarationer skriver over varandra
+   - sa den har raden har aldrig kort, trots att den star mitt bland
+   gearfunktionerna dar man letar efter den.
+   De gav samma svar for alla sex sallsyntheter, sa ingenting sag fel ut. Det ar
+   just darfor den var farlig: laggs en sallsynthet till i GEAR_RAR men inte i
+   RARITIES sarar de sig, och den enda som syns i koden ar den som inte kors.
+   Kvar star EN, vid husdjuren, som laser RARITIES. Se kommentaren dar. */
 /* TILLVERKAT BAR EN EGENSKAP EXTRA (v4.32.0). Det ar skalet att tillverka aven
    nar dropparna gar bra: en tillverkad common har TVA egenskaper dar ett dropp
    har en. Trappan ar orord - en common ar fortfarande en common, med commons
@@ -16301,9 +16319,14 @@ function checkAchievements(silent){
 /* ---------- DOM ---------- */
 const $ = id => document.getElementById(id);
 const el = {
-  data: $('res-data'), dps: $('res-dps'),
+  /* [RIVET v5.373.0] data, dps, list, shelf och core pekade pa element som inte
+     finns i markupen langre - res-data, res-dps, machine-list, milestone-shelf
+     och core-upgrades revs nar Data, maskinerna och milstolparna togs bort.
+     De stod kvar som null i det har uppslaget, och INGEN av dem lastes nagonstans
+     (el.data-traffarna i filen ar alla 'el.dataset' pa lokala variabler).
+     Det ar inte en krasch - det ar en fralla: raden ser levande ut, sa nasta
+     person skriver 'el.list.appendChild(...)' och far felet da i stallet. */
   hex: $('core-hex'), coreWrap: $('core-wrap'), coreSpark: $('core-spark'), hint: $('hold-hint'), meter: $('hold-meter'), fill: $('hold-meter-fill'),
-  list: $('machine-list'), shelf: $('milestone-shelf'), core: $('core-upgrades'),
   stage: $('core-stage'), saveStatus: $('save-status'), nextSave: $('next-save'),
   playerName: $('player-name'),
   lvlBadge: $('lvl-badge'), lvlText: $('player-level-text'), xpFill: $('xp-fill'), xpLabel: $('xp-label'),
@@ -16455,10 +16478,16 @@ function coreSyncActivate(){
      raden "borjar om, staplar aldrig" - riktigt nar trettio minuter var taket.
      Med paafyllning fran aktiviteter kan fonstret bli timmar langt, och da hade
      ett tryck pa noden KOSTAT tid. Servern gor samma sak med greatest(). */
+  if (coreSyncLeft() <= 0) S.syncFrom = Date.now();   /* var slack: nytt fonster */
   S.syncUntil = Math.max(S.syncUntil || 0, Date.now() + CORE_SYNC_SECS * 1000);
   if (NET.on){
     srvRpc('core_sync_activate', {p_character: SRV.charId})
-      .then(r => { if (r && r.sync_until) S.syncUntil = new Date(r.sync_until).getTime(); })
+      .then(r => {
+        if (!r) return;
+        if (r.sync_until) S.syncUntil = new Date(r.sync_until).getTime();
+        if (r.sync_from !== undefined)
+          S.syncFrom = r.sync_from ? new Date(r.sync_from).getTime() : null;
+      })
       .catch(() => {});
   }
   say(first ? 'CORE SYNC \u2014 all your professions run 15% faster. Finish things to keep it running.'
@@ -19713,8 +19742,17 @@ function updateUI(force){
      haller, och nar synken ar tand rullar den bakat mot noll i guld. Slappt
      utan tand synk star den tom som forut. */
   const syncLeft0 = coreSyncLeft();
+  /* [RATTAT v5.369.0] MATAREN RAKNADE MOT EN FAST HALVTIMME. Sa lange synken
+     alltid var 1800 sekunder stamde det. Med paafyllning fran aktiviteter kan
+     fonstret bli timmar langt - och da blev bredden 600 %, stapeln stod klippt
+     och full i flera timmar, och borjade rora sig forst sista halvtimmen.
+     Nu rakas den mot fonstrets EGEN langd: slutet minus borjan, bada fran
+     servern. Saknas borjan (aldre server) faller den tillbaka pa halvtimmen,
+     men klamd till 100 % sa den aldrig kan spilla ut ur sitt spar igen. */
+  const syncSpan = (S.syncFrom && S.syncUntil && S.syncUntil > S.syncFrom)
+    ? (S.syncUntil - S.syncFrom) / 1000 : CORE_SYNC_SECS;
   const p = holding ? Math.min(1, holdT / HOLD.duration)
-                    : (syncLeft0 > 0 ? syncLeft0 / CORE_SYNC_SECS : 0);
+                    : (syncLeft0 > 0 ? Math.min(1, syncLeft0 / syncSpan) : 0);
   el.fill.style.width = (p * 100) + '%';
   el.meter.classList.toggle('synced', !holding && syncLeft0 > 0);
   const full = holding && holdT >= HOLD.duration;
@@ -19930,7 +19968,8 @@ function showOffline(o){
   /* [TILLAGT v5.339.0] Guldet star FORST. Det ar den enda raden varje spelare
      alltid far - fynd, bestallningar och samlarpass kraver att man satt igang
      nagot innan man gick. Star det sist hamnar det under en tom lista. */
-  if ((o.idleGold | 0) > 0) lines.push(myntIco(o.idleGold | 0) + ' ' + moneyText(o.idleGold | 0));
+  const idleGuld = Math.max(0, Math.floor(+o.idleGold || 0));   /* [RATTAT v5.370.0] */
+  if (idleGuld > 0) lines.push(myntIco(idleGuld) + ' ' + moneyText(idleGuld));
   if (o.drops) Object.keys(o.drops).forEach(k => {
     const m = MATERIALS[k];
     lines.push((m ? m.ico + ' ' + m.name : k) + ' \u00d7' + o.drops[k]);
@@ -23026,7 +23065,13 @@ function coreSyncTipHTML(){
      om det. En formån man far utan att fa veta ar ingen formån. */
   rows.push('<div class="cst-row"><b>Idle production</b><span>+15% XP</span></div>');
   rows.push('<div class="cst-row"><b>Idle gold</b><span>+15% gold</span></div>');
-  if (rows.length === 1) rows.push('<div class="cst-row off"><span>Learn a profession to feel more of this.</span></div>');
+  /* [RATTAT v5.369.0] RADEN KUNDE ALDRIG VISAS. Villkoret rakade rows.length,
+     men de tva raderna ovanfor ("Idle production" och "Idle gold") laggs till
+     ALLTID - sa langden var minst tva och testet aldrig sant. Dod sedan
+     v5.185.0, och guldraden i dag gjorde den an dodare.
+     Nu fragas det som villkoret handlar om: har spelaren nagot yrke alls? */
+  if (!S.prof || !S.prof.known || !Object.keys(S.prof.known).length)
+    rows.push('<div class="cst-row off"><span>Learn a profession to feel more of this.</span></div>');
   /* [BORTTAGET v5.68.1] Fotnoten om att ett nytt hall borjar om de fem
      minuterna. Kortet ska saga vad man FAR, inte forklara mekaniken. */
   /* [TILLAGT v5.359.0] VAD SOM HALLER FONSTRET IGANG (Chris). Hallet ar bara en
@@ -23462,6 +23507,16 @@ function afterZoneHop(regionId, zone){
   save();
 }
 /* ---------- HUSDJUREN: panel, samling, cachen ---------- */
+/* SALLSYNTHETENS FARG, pa ETT stalle. Las ur RARITIES - id:na dar matchar
+   CSS-variablerna rakt av (--rarity-common ... --rarity-mythic).
+   [ANDRAT v5.371.0] En andra kopia av den har funktionen lag bland
+   gearfunktionerna och las GEAR_RAR i stallet. Den var overskriven av den har
+   och kunde aldrig kora; nu ar den riven.
+   GEAR_RAR och RARITIES ar fortfarande TVA tabeller over samma sex
+   sallsyntheter - GEAR_RAR bar dessutom fil, egenskaper och guldband. De
+   maste hallas i takt: id nummer N ska betyda samma sak i bada. GEAR_RAR
+   stavar den hogsta 'mythical', RARITIES stavar den 'mythic'; det ar samma
+   sallsynthet, och CSS anvander den senare. */
 function rarCol(r){ return 'var(--rarity-' + RARITIES[r].id + ')'; }
 /* En rad per formaga. Sammanfogaren skickas in av den som ritar, for panelen har
    en rad medan fonstret har flera. */
@@ -25404,7 +25459,7 @@ function claimBonusFind(kind){
         /* [TILLAGT v5.363.0] Mynten har sin egen rad: talet ar KOPPAR och ska
            skrivas i valorer, inte som "+1240 Order time". */
         if (r.kind === 'money'){
-          say('+' + moneyText(r.copper | 0));
+          say('+' + moneyText(Math.max(0, Math.floor(+r.copper || 0))));
           srvCharacterRow().then(row => { if (row){ S.gold = +row.gold_copper || S.gold; updateUI(true); } })
             .catch(() => {});
           return;
@@ -29898,7 +29953,8 @@ function questById(id){
    ett kontrakt ger 22s 59c skrivs hela beloppet ut i stallet. Aldrig ett tal
    som ser exakt ut men doljer en rest. */
 function qwinMynt(c){
-  c = Math.max(0, c | 0);
+  /* [RATTAT v5.370.0] Se myntIco - "| 0" trunkerar vid 32 bitar. */
+  c = Math.max(0, Math.floor(+c || 0));
   const m = splitMoney(c);
   if (m.g) return m.s || m.c
     ? ['gold', moneyPlain(c), 'gold', 'assets/ui/money.png']
@@ -32403,7 +32459,11 @@ function guildChatHTML(st){
     '<div class="gd-msgs" id="gd-msgs"><div class="gd-sys">Loading\u2026</div></div>' +
     '<div class="gd-send"><span class="gd-live' + (GUILD.sockOn ? ' on' : '') +
       '" id="gd-live" title="Live connection"></span>' +
-    '<input class="gate-input" id="gd-input" maxlength="300" placeholder="Write a message\u2026">' +
+    /* [RATTAT v5.372.0] Faltet slappte igenom 300 tecken medan servern kapar vid
+       240 (chat_config.max_len, och guild_chat_send tar dessutom det LAGSTA av
+       gillets eget tak och det talet). Man skrev klart och fick ett fel i
+       stallet for att hindras. Den vanliga chatten star redan pa 240. */
+    '<input class="gate-input" id="gd-input" maxlength="240" placeholder="Write a message\u2026">' +
     gBtn('Send', 'chatsend') + '</div></div>';
 }
 /* Rutan har en hogsta hojd; spalterna far exakt det som blir over nar
