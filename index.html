@@ -2827,6 +2827,13 @@ body.layout-edit .panel.dragging{opacity:.4}
 .zx-name{font-size:10.5px;font-weight:800}
 .zx-levy{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#ffb0b6;margin-top:3px}
 .zx-meta{font-size:11px;color:var(--text-dim);font-family:var(--font-mono)}
+/* [TILLAGT v5.338.0] Bidragsraden ar en EGEN rad under talen, inte inklamd bland
+   dem. Metaraden ar redan fem varden pa 11 px och bryter pa telefon om man
+   trycker in mer - och det ar dessutom tva olika sorters upplysning: vad
+   korningen ger, och vad DU tillfor. De ska inte se likadana ut.
+   Cyan skiljer den fran den dampade metaraden utan att ta over kortet. */
+.zx-gear{font-size:10px;color:var(--cyan);font-family:var(--font-mono);
+  margin-top:3px;opacity:.85;line-height:1.35}
 .zx-btn{
   border:1px solid var(--cyan);background:rgba(56,232,255,.1);color:var(--cyan);
   border-radius:8px;padding:5px 12px;font-size:9px;font-weight:800;cursor:pointer;
@@ -6878,7 +6885,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.337.0 — EGNA MYNTIKONER</div>
+        <div class="sn-ver">GENESIS v5.339.0 — TOMGANGENS GULD</div>
       </div>
     </div>
   </aside>
@@ -7919,7 +7926,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.337.0 — EGNA MYNTIKONER</div>
+            <div class="desc">GENESIS v5.339.0 — TOMGANGENS GULD</div>
           </div>
         </div>
       </div>
@@ -8795,6 +8802,15 @@ async function netSync(){
       if (!(firstSync && NET.awaySecs > 120)) fragFlyToPill(clock.frags | 0);
       renderFragWin();
     }
+    /* [TILLAGT v5.339.0] Guldet medan man SITTER KVAR. Franvarons guld hor till
+       franvarorutan och kastas darfor inte ut har - samma delning som fragmenten
+       och skrotet redan foljer, annars raknas samma koppar tva ganger for ogat.
+       S.gold rors inte: den sätts ur karaktarsradens absoluta varde langre ned.
+       Adderar bada sidor kan de rakna isar, och da visar pillret ett tal som
+       inte finns pa servern. */
+    if (clock && (clock.idle_gold | 0) > 0 && !(firstSync && NET.awaySecs > 120)){
+      spawnFloat({text: '+' + moneyText(clock.idle_gold | 0)});
+    }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
       Object.keys(clock.gather).forEach(pid => {
@@ -8854,6 +8870,11 @@ async function netSync(){
         showOffline({
           away: NET.awaySecs,
           capped: clock ? (+clock.away || NET.awaySecs) : NET.awaySecs,
+          /* [TILLAGT v5.339.0] Idle-guldet. Servern har redan bokfort det - raden
+             ovan laser gold_copper ur karaktarsraden - sa har visas det bara.
+             Utan den har raden vaxer guldet i vaskan utan att spelaren far veta
+             varfor, och en progression man inte ser ar ingen progression. */
+          idleGold: clock ? (+clock.idle_gold || 0) : 0,
           drops: clock ? clock.drops : null,
           gather: clock ? clock.gather : null,
           orders: clock ? clock.orders : null,
@@ -12318,6 +12339,14 @@ const AFFIXES = {
      alla andra. */
   critdmg: {name:'Crit Damage',      lo:2.58, hi:3.42, sfx:'%'},
   frag:    {name:'Fragment Find',    lo:1.90, hi:2.50, sfx:'%'},
+  /* [TILLAGT v5.338.0] GOLD FIND (Chris). Guldet var det enda av expeditionens
+     utfall som inte brydde sig om vad spelaren bar - fragmenten, gear-droppen
+     och langden gjorde det redan. Samma band som Fragment Find, for det ar
+     samma sorts egenskap: mer av en biprodukt, inte mer stridsstyrka.
+     Bandet MASTE vara samma som serverns affix_config - det ar servern som
+     rullar, och nar de tva har sagt olika har spelet visat en styrka pjaserna
+     aldrig kunde na (se Expedition Speed, v5.118.0). */
+  gold:    {name:'Gold Find',        lo:1.90, hi:2.50, sfx:'%'},
   luck:    {name:'Loot Luck',        lo:1.64, hi:2.16, sfx:'%'},
   xp:      {name:'Experience',       lo:3.46, hi:4.54, sfx:'%'},
   /* [FLYTTAT v5.118.0] OFFLINE EARNINGS hor hemma i spelarens kommande
@@ -17046,6 +17075,7 @@ function charStatRows(){
   if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '%']);
   up('Crit Chance', gearBonus('crit'));
   up('Fragment Find', gearBonus('frag') + helperBonus('frag'));
+  up('Gold Find', gearBonus('gold') + helperBonus('gold'));
   up('Loot Luck', gearBonus('luck') + boostPct('luck'));
   up('XP Bonus', gearBonus('xp'));
   /* [BORTTAGET v5.219.0] Offline Earnings stod alltid pa noll och gick inte
@@ -17770,10 +17800,35 @@ function expDurationBonus(mins){
   const m = Math.min(120, Math.max(2, mins));
   return 0.45 + 0.55 * Math.pow((m - 2) / 118, 0.6);
 }
+/* [TILLAGT v5.338.0] Gold Find pa utrustning och hjalpare. Laggs UTANPA
+   grundtalet, aldrig inuti minuterna: taket vid 120 minuter sitter i
+   grundformeln och ar Chris beslut - 240 och 480 ska betala samma guld.
+   Multipliceras resultatet star taket kvar; multipliceras minuterna rivs det.
+   Exakt samma ordning som servern gor i claim_expedition. */
+function expGoldBonus(){ return (gearBonus('gold') + helperBonus('gold')) / 100; }
+/* [TILLAGT v5.338.0] VAD DIN UTRUSTNING GOR AT DEN HAR KORNINGEN.
+   Tre av expeditionens fyra utfall har alltid lyssnat pa vad spelaren bar - men
+   ingenstans stod det. Talet pa raden var bara ett tal, sa hundra timmars
+   gearjakt kandes som ingenting. Nu skrivs bidraget ut.
+   Raden visas BARA nar den har nagot att saga. En rad som standigt sager
+   "+0 %" lar spelaren att inte lasa den, och da ar den varre an ingen rad. */
+function expGearNote(){
+  const d = [];
+  const g = gearBonus('gold') + helperBonus('gold');
+  const f = gearBonus('frag') + helperBonus('frag');
+  const l = gearBonus('luck') + boostPct('luck');
+  const s = Math.min(80, gearBonus('expspd') + boostPct('expspd') + helperBonus('expspd'));
+  if (g > 0) d.push('+' + Math.round(g) + '% gold');
+  if (f > 0) d.push('+' + Math.round(f) + '% fragments');
+  if (l > 0) d.push('+' + Math.round(l) + '% loot luck');
+  if (s > 0) d.push('\u2212' + Math.round(s) + '% time');
+  return d.length ? '<div class="zx-gear">Your gear: ' + d.join(' \u00b7 ') + '</div>' : '';
+}
 function expGoldRange(def){
   const tier = (REGIONS[def.region] ? REGIONS[def.region].tier : 0) | 0;
   const mins = Math.min(120, Math.max(2, def.mins));
-  const mid = EXP_GOLD_PER_HOUR[Math.min(4, tier)] * (mins / 60) * expDurationBonus(mins);
+  const mid = EXP_GOLD_PER_HOUR[Math.min(4, tier)] * (mins / 60) * expDurationBonus(mins)
+            * (1 + expGoldBonus());
   return [Math.round(mid * 0.88), Math.round(mid * 1.12)];
 }
 /* Fragmenten foljer LANGDEN, inte nivan - ett fragment per pabörjad femminuters,
@@ -19477,6 +19532,10 @@ function showOffline(o){
      bestallningar som gatt framat. Har man inget yrke igang star det ocksa, i
      ord, i stallet for att rutan ser tom och trasig ut. */
   const lines = [];
+  /* [TILLAGT v5.339.0] Guldet star FORST. Det ar den enda raden varje spelare
+     alltid far - fynd, bestallningar och samlarpass kraver att man satt igang
+     nagot innan man gick. Star det sist hamnar det under en tom lista. */
+  if ((o.idleGold | 0) > 0) lines.push(uiIco('gold') + ' ' + moneyText(o.idleGold | 0));
   if (o.drops) Object.keys(o.drops).forEach(k => {
     const m = MATERIALS[k];
     lines.push((m ? m.ico + ' ' + m.name : k) + ' \u00d7' + o.drops[k]);
@@ -22391,6 +22450,7 @@ function buildZoneExpeditions(regionId, zone){
       '<div class="zx-meta">' + uiIco('dur') + ' ' + expTimeText(def) + ' · Lv ' + def.lvl + ' · ' +
         MATERIALS[expScrapKey(openZoneRef.region)].ico + ' ' + fmt(expScrapReward(def)) + ' · ' +
         expCoinIco(def) + ' ' + expGoldText(def) + ' · ' + uiIco('frag') + ' ' + expFragRange(def).join('-') + '</div>' +
+      expGearNote() +
       /* [BORTTAGET v5.87.0] Skatteraden. */
       '</div>' + btn + '</div>';
   }).join('');
