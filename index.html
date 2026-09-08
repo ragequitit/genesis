@@ -645,13 +645,21 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
    som ligger inne i ramen vid fotterna. Toppen ar fri - dar hanger ingenting
    langre. Grundskalan ar nedskruvad sedan v5.150.0. */
 .char-figure{
-  position:absolute;inset:4px 4px 30px 4px;
-  width:calc(100% - 8px);height:calc(100% - 34px);
+  /* [ANDRAT v5.378.0] Figuren far HELA rutan pa hojden (Chris). Forut lamnade
+     hon 30 px at halsomataren och stod dar liten; nu star mataren over
+     stovlarna i stallet, och hon fyller ramen. */
+  position:absolute;inset:4px;
+  width:calc(100% - 8px);height:calc(100% - 8px);
   object-fit:contain;object-position:center bottom;
   pointer-events:none;user-select:none;-webkit-user-drag:none;
   filter:drop-shadow(0 6px 14px rgba(0,0,0,.55));
-  /* [ANDRAT v5.377.0] Ingen skala langre - zoomen ar riven. object-fit:contain
-     visar hela gestalten, och sa ska det vara: kladerna ska synas ga pa. */
+  /* [TILLBAKA v5.378.0] Zoomen. Grund 1 = hela gestalten; hjulet forstorar.
+     Fastpunkten sitter vid hjassan (8 % ned), sa huvudet star kvar i rutan
+     och kroppen vaxer nedat - med fotterna som fastpunkt sag man bara ben, och
+     med 22 % (det gamla) forsvann pannan vid 1,8x. */
+  transform:scale(var(--figz,1));
+  transform-origin:50% 8%;
+  transition:transform .12s ease-out;
 }
 /* [BORTTAGET v5.150.0] Zoomknapparnas stilar - knapparna finns inte langre. */
 .char-fallback{display:none}
@@ -7131,7 +7139,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.377.0 — FEM GESTALTER SOM KLAR PA SIG</div>
+        <div class="sn-ver">GENESIS v5.378.0 — ZOOMEN TILLBAKA, HELA FIGUREN SOM GRUND</div>
       </div>
     </div>
   </aside>
@@ -8172,7 +8180,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.377.0 — FEM GESTALTER SOM KLAR PA SIG</div>
+            <div class="desc">GENESIS v5.378.0 — ZOOMEN TILLBAKA, HELA FIGUREN SOM GRUND</div>
           </div>
         </div>
       </div>
@@ -26726,11 +26734,37 @@ function toggleWindow(id, open, close){
    Hjulet over figuren eller de tre knapparna. Skalan sparas lokalt: hur stor man
    vill se sin gubbe ar en installning, inte speldata, sa den bor hos webblasaren
    och inte pa servern. */
-/* [RIVET v5.377.0] ZOOMEN (Chris). Hjulet over figuren, --figz-variabeln och
-   den sparade skalan i localStorage ar borta. Figuren ar nu ritad i 32
-   varianter som alla ska ses HELA - en inzoomad gubbe visar bara brostet, och
-   da syns inte att stovlarna gick pa. Rutan visar alltid hela gestalten, i den
-   storlek rutan medger. */
+/* [TILLBAKA v5.378.0] ZOOMEN (Chris). Revs i v5.377.0 av oro for att kladerna
+   skulle glida isar vid inzoomning. Det kan de inte: varje stat ar EN platt
+   bild dar kladerna redan ar inritade, sa hela gestalten forstoras som ett
+   stycke - handskar, stovlar och allt. Darfor tillbaka, med en skillnad:
+   grundlaget ar HELA figuren (skala 1) och man kan bara zooma IN. Under 1
+   finns inget att se - bara mer luft. Hjulet over figuren gor jobbet, laget
+   sparas i webblasaren som forut. */
+const FIG_ZOOM_KEY = 'genesis.figzoom';
+const FIG_ZOOM_MIN = 1, FIG_ZOOM_MAX = 3;
+let figZoom = 1;
+function figZoomApply(){
+  const el = document.querySelector('.char-portrait');
+  if (el) el.style.setProperty('--figz', figZoom.toFixed(3));
+}
+function figZoomSet(v){
+  figZoom = Math.min(FIG_ZOOM_MAX, Math.max(FIG_ZOOM_MIN, v));
+  figZoomApply();
+  try { localStorage.setItem(FIG_ZOOM_KEY, String(figZoom)); } catch (e){}
+}
+(function figZoomInit(){
+  /* Ett sparat varde under 1 (fran tiden fore v5.378.0) lyfts till 1. */
+  try { const v = parseFloat(localStorage.getItem(FIG_ZOOM_KEY)); if (v > 0) figZoom = Math.min(FIG_ZOOM_MAX, Math.max(FIG_ZOOM_MIN, v)); } catch (e){}
+  figZoomApply();
+  const port = document.querySelector('.char-portrait');
+  if (port){
+    port.addEventListener('wheel', e => {
+      e.preventDefault();
+      figZoomSet(figZoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+    }, {passive: false});
+  }
+})();
 $('qa-pets').addEventListener('click', () => toggleWindow('pets-overlay', openPetsModal, closePetsWindow));
 /* [TILLAGT v5.76.0] Knappen i lagrutans rubrik oppnar samma forrad som
    snabbvalets Helpers - en vag, tva ingangar. */
