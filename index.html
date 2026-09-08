@@ -7195,7 +7195,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.392.0 — UPPDRAG PA PLATS, STORRE GESTALTER, TYSTA FRAGMENT</div>
+        <div class="sn-ver">GENESIS v5.394.0 — UPPDRAGENS IKONER (WEBP)</div>
       </div>
     </div>
   </aside>
@@ -8246,7 +8246,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.392.0 — UPPDRAG PA PLATS, STORRE GESTALTER, TYSTA FRAGMENT</div>
+            <div class="desc">GENESIS v5.394.0 — UPPDRAGENS IKONER (WEBP)</div>
           </div>
         </div>
       </div>
@@ -26647,6 +26647,27 @@ function showHelperReveal(p){
 /* [TILLAGT v5.209.0] Samma ruta for utrustningscachen. Pjasen ligger redan i
    vaskan nar rutan visas - raden under sager det, sa ingen letar efter en knapp
    som inte finns. */
+/* [TILLAGT v5.393.0] HOVRA PA FYNDET (Chris). Rutan visade namn och sallsynthet
+   men inget om vad pjasen faktiskt GOR - man fick stanga och leta i vaskan.
+   Pjasen ligger redan hemma nar rutan oppnas (netOpenGearCache hamtar vaskan
+   forst), sa den slas upp pa serverns id och far samma kort som vaskan visar.
+   Bade bilden i rutan och kvittoraden i fragmentfonstret har kortet. */
+function gearRevealHover(el, sid){
+  if (!el) return;
+  const it = gearBySid(sid);
+  el.onmouseenter = el.onmousemove = null; el.onmouseleave = null;
+  el.style.cursor = it ? 'help' : '';
+  if (!it) return;
+  el.onmouseenter = e => showGearTip(it, e.clientX, e.clientY);
+  el.onmousemove  = e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); };
+  el.onmouseleave = () => hideGearTip();
+  /* Pekskarm: ett tryck pa bilden visar kortet, nasta tryck doljer det. */
+  el.onclick = e => {
+    if (gearTip.classList.contains('on')) hideGearTip();
+    else { const b = el.getBoundingClientRect(); showGearTip(it, b.right, b.top + b.height / 2); }
+    e.stopPropagation();
+  };
+}
 function showGearReveal(r, o){
   if (!r) return false;
   const D = ITEMS[r.item_key];
@@ -26668,8 +26689,9 @@ function showGearReveal(r, o){
     lines:  god
       ? ((o && o.lines && o.lines.length) ? o.lines : ['A roll the world cannot drop'])
           .concat(['Waiting in your inbox'])
-      : ['Sent to your backpack']
+      : ['Sent to your backpack \u00b7 hover for details']
   });
+  gearRevealHover($('hrev-art'), r.item);
   return true;
 }
 /* [TILLAGT v5.239.0] DEN SMIDDA STENEN. Samma ruta som cachernas fynd, samma
@@ -26831,11 +26853,12 @@ function openGearCache(){
          inne i fonstret star kvar som kvitto for den som redan star dar. */
       showGearReveal(r);
       $('frag-reveal').innerHTML =
-        '<div class="rv-card" style="--rv-col:' + rarCol(r.rarity | 0) + '">' +
+        '<div class="rv-card" id="frag-reveal-card" style="--rv-col:' + rarCol(r.rarity | 0) + '">' +
         '<span class="vg-art" style="background-image:url(\'' + itemArtFor(r.item_key, r.rarity | 0) + '\')"></span>' +
         '<div><div class="rv-name">' + D.name + '</div>' +
         '<div class="rv-rar">' + R.name + ' · ' + GEAR_SLOTS[D.slot].name + '</div>' +
         '<div class="rv-eff">Sent to your backpack</div></div></div>';
+      gearRevealHover($('frag-reveal-card'), r.item);
     })
     .catch(e => say(srvErrText(e)));
   });
@@ -30288,7 +30311,7 @@ function qwinRewHTML(r){
   const mynt = qwinMynt(r.gold || 0);
   const rutor = [
     /* [ANDRAT v5.392.0] Ryktet far en egen bild (Chris); pokalen ar reserv. */
-    ['rep',  r.rep || 0,              'rep',       'assets/ui/reputation.png', '\ud83c\udfc6', 'var(--green, #37e08a)'],
+    ['rep',  r.rep || 0,              'rep',       'assets/ui/reputation.webp', '\ud83c\udfc6', 'var(--green, #37e08a)'],
     [mynt[0], mynt[1],                mynt[2],     mynt[3],                     '\ud83e\ude99', 'var(--gold)'],
     ['frag', r.frags || 0,            'fragments', 'assets/ui/fragments.png',   '\ud83d\udd37', 'var(--purple)'],
     ['xp',   r.xp || 0,               'xp',        'assets/ui/experience.png',  '\u2728',       'var(--cyan)']
@@ -30366,7 +30389,7 @@ function openQuestWin(id){
      kvar som forut. */
   const objArt = nyckel ? null
     : artUnlessMissing('assets/ui/quest/obj-' + (q.kind === 'expeditions' ? 'expedition'
-                                               : q.kind === 'pve_wins' ? 'fight' : 'travel') + '.png');
+                                               : q.kind === 'pve_wins' ? 'fight' : 'travel') + '.webp');
   const kArt = nyckel ? stackArtOf(nyckel) : objArt;
   const pct = Math.round(100 * Math.min(1, (q.progress || 0) / (q.qty || 1)));
   $('qwin-obj').innerHTML =
