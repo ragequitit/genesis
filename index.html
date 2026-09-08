@@ -7010,7 +7010,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.343.0 — UPPDRAGSLISTAN</div>
+        <div class="sn-ver">GENESIS v5.344.0 — ERBJUDANDENA TILLBAKA</div>
       </div>
     </div>
   </aside>
@@ -8051,7 +8051,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.343.0 — UPPDRAGSLISTAN</div>
+            <div class="desc">GENESIS v5.344.0 — ERBJUDANDENA TILLBAKA</div>
           </div>
         </div>
       </div>
@@ -29766,26 +29766,41 @@ function renderQuests(){
      Historiken lag forut bakom en knapp langst ned som man forst maste rulla
      till. Nu star bada lagena overst, och det syns hur manga aktiva man har utan
      att man behover leta efter raden som sager det.
-     [BORTTAGET v5.343.0] ERBJUDANDEFLIKEN. Chris beslut: den har aldrig burit
-     nagot man inte redan ser pa kartan. Erbjudanden ligger i regionens
-     platser och plockas upp genom den GULA NODEN, som oppnar kontraktsfonstret -
-     det ar dar man faktiskt sager ja. Listan visade samma sak en gang till, plus
-     rader om vilor som ingen agerade pa.
-     OBS: med fliken borta ar kartan enda vagen till ett erbjudande. Star man
-     inte i regionen ser man dem inte alls. */
+     [ATERSTALLT v5.344.0] ERBJUDANDEFLIKEN. Den revs i v5.343.0 pa ett beslut
+     som byggde pa ett missforstand: erbjudanden ar INTE nagot spelet skickar ut,
+     de ar regionens tre platser - det man hittar genom att sta i en zon. Utan
+     fliken gick det inte att se vad som vantade i en region man inte stod i, och
+     nedrakningen till nasta kontrakt fanns ingenstans. Tillbaka. */
+  const offers = st ? (st.offers || []).filter(o => o.quest_id && o.status === 'offered') : [];
+  const cds = st ? (st.offers || []).filter(o => !o.quest_id && o.cooldown_until &&
+    new Date(o.cooldown_until).getTime() > Date.now()) : [];
+  const flik = (id, txt, tal) =>
+    '<button class="q2-tab' + (QUESTS.view === id ? ' on' : '') + '" data-qtab="' + id + '">' +
+    txt + (tal !== null ? ' <b>' + tal + '</b>' : '') + '</button>';
   let h = '<div class="q2-tabs">' +
-    '<button class="q2-tab' + (QUESTS.view === 'history' ? '' : ' on') + '" data-qtab="main">' +
-      'Active <b>' + act.length + ' / ' + (st ? (st.max_active || 3) : 3) + '</b></button>' +
-    '<button class="q2-tab' + (QUESTS.view === 'history' ? ' on' : '') + '" data-qtab="history">' +
-      'Quest history</button></div>';
+    flik('main', 'Active', act.length + ' / ' + (st ? (st.max_active || 3) : 3)) +
+    flik('offers', 'Offers', offers.length) +
+    flik('history', 'Quest history', null) + '</div>';
   body.innerHTML = h + '<div id="quest-list"></div>';
   const lista = $('quest-list');
   if (QUESTS.view === 'history'){ renderQuestHistory(lista); return; }
   if (!st){ lista.innerHTML = '<div class="desc">Loading\u2026</div>'; return; }
   const full = act.length >= (st.max_active || 3);
+  if (QUESTS.view === 'offers'){
+    /* Vilorna hor hemma HAR och ingen annanstans: en plats som raknar ned ar ett
+       erbjudande som inte kommit an, inte ett aktivt uppdrag. */
+    let ho = offers.length ? offers.map(q => questRowHTML(q, 'offer', full)).join('') : '';
+    cds.forEach(o => {
+      const reg = REGIONS[o.region] ? REGIONS[o.region].name : o.region;
+      const left = Math.max(0, Math.round((new Date(o.cooldown_until).getTime() - Date.now()) / 1000));
+      ho += '<div class="q-cd">\ud83d\udccd ' + reg + ' \u2014 a new contract arrives in ' + fmtDur(left) + '</div>';
+    });
+    lista.innerHTML = ho || '<div class="q-cd">No offers yet \u2014 visit a region and check back.</div>';
+    return;
+  }
   lista.innerHTML = act.length
     ? act.map(q => questRowHTML(q, 'active', full)).join('')
-    : '<div class="q-cd">No active quests \u2014 find a yellow node on the map and take one.</div>';
+    : '<div class="q-cd">No active quests \u2014 take one from the Offers tab or a yellow node on the map.</div>';
 }
 async function refreshQuests(){
   try { QUESTS.state = await netQuestState(); } catch (e){ QUESTS.state = null; }
