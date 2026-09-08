@@ -4651,15 +4651,19 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 /* [ANDRAT v5.325.0] Dubbelt sa stort och tatt over huvudet (Chris), med en gul
    glod som andas bakom. Gloden ar ett EGET lager under tecknet - pulsar man
    sjalva texten blir bokstaven suddig i halva takten. */
+/* [ANDRAT v5.392.0] TECKNET I HORNET, INTE PA HUVUDET (Chris). Mitt over rutan
+   satt det rakt i ansiktet pa var gestalt vars huvud stod hogt - och nu star
+   alla huvuden hogt. I ovre hogra hornet krockar det aldrig, oavsett hur
+   bilden ar ritad; ingen huvudmatning behovs. Mindre ocksa: 96 -> 64. */
 #qwin-overlay .qwin-mark{
-  position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:4;
-  width:96px;height:96px;display:flex;align-items:center;justify-content:center;
-  font-size:88px;font-weight:900;line-height:1;color:var(--gold);
+  position:absolute;right:10px;top:8px;z-index:4;
+  width:64px;height:64px;display:flex;align-items:center;justify-content:center;
+  font-size:58px;font-weight:900;line-height:1;color:var(--gold);
   text-shadow:0 0 18px rgba(255,196,74,.9), 0 3px 0 rgba(0,0,0,.55);
   pointer-events:none}
 #qwin-overlay .qwin-mark::before{
-  content:'';position:absolute;left:50%;top:50%;width:104px;height:104px;
-  margin:-52px 0 0 -52px;border-radius:50%;
+  content:'';position:absolute;left:50%;top:50%;width:72px;height:72px;
+  margin:-36px 0 0 -36px;border-radius:50%;
   background:radial-gradient(circle at center, rgba(255,196,74,.55), transparent 68%);
   filter:blur(10px);animation:qmarkPuls 2.6s ease-in-out infinite}
 /* [TILLAGT v5.340.0] PAGAENDE UPPDRAG FAR OCKSA ETT MARKE (Chris). Forut fick
@@ -4678,7 +4682,15 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
   #qwin-overlay .qwin-mark::before{animation:none;opacity:.6}}
 #qwin-overlay .qwin-por{position:relative;flex:1 1 auto;min-height:190px;overflow:hidden;
   border:1px solid var(--border);border-radius:12px;background:var(--bg-inset)}
-#qwin-overlay .qwin-por .art-img{width:100%;height:100%;object-fit:contain;object-position:bottom center}
+/* [ANDRAT v5.392.0] STORRE GESTALT (Chris). object-fit:cover fran OVANKANTEN:
+   bilden skalas tills den fyller rutans bredd, och det som inte ryms - benen -
+   klipps av ramen (overflow:hidden pa rutan). Forut stod gestalten som en
+   liten figur i mitten med luft runt om. Samma regel for alla uppdragsgivare,
+   oavsett hur bilden ar ritad. */
+#qwin-overlay .qwin-por .art-img{width:100%;height:100%;object-fit:cover;object-position:top center;
+  /* och 30 % storre med hjassan som fastpunkt - bilderna har luft pa sidorna,
+     sa cover ensamt gav inte den narbild Chris ville ha */
+  transform:scale(1.3);transform-origin:top center}
 #qwin-overlay .qwin-por .art-fall{display:none}
 #qwin-overlay .qwin-por.noart .art-fall{display:flex;align-items:center;justify-content:center;
   width:100%;height:100%;font-size:64px;opacity:.5}
@@ -7183,7 +7195,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.390.0 — RADERA KONTOT SJALV</div>
+        <div class="sn-ver">GENESIS v5.392.0 — UPPDRAG PA PLATS, STORRE GESTALTER, TYSTA FRAGMENT</div>
       </div>
     </div>
   </aside>
@@ -7293,7 +7305,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
             <div class="qa-btn" data-qa="inventory" id="qa-inventory"><span class="ico"><span class="qi qi-inventory"></span></span><span class="lbl">Inventory</span></div>
             <div class="qa-btn" data-qa="vault" id="qa-vault"><span class="ico"><span class="qi qi-vault"></span></span><span class="lbl">Vault</span></div>
             <div class="qa-btn" data-qa="helpers" id="qa-pets"><span class="ico"><span class="qi qi-pets"></span></span><span class="lbl">Helpers</span></div>
-            <div class="qa-btn" data-qa="quests" id="qa-quests"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span></div>
+            <div class="qa-btn" data-qa="quests" id="qa-quests"><span class="ico"><span class="qi qi-quests"></span></span><span class="lbl">Quests</span><span class="notif" id="qa-quest-badge" style="display:none">0</span></div>
             <div class="qa-btn" data-qa="auction"><span class="ico"><span class="qi qi-auction"></span></span><span class="lbl">Auction House</span></div>
             <!-- [BORTTAGET v5.291.0] YRKESKNAPPEN (Chris beslut 2). Den ledde
                  till platsvyn, och yrkena star redan pa mainskarmen uppe till
@@ -8234,7 +8246,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.390.0 — RADERA KONTOT SJALV</div>
+            <div class="desc">GENESIS v5.392.0 — UPPDRAG PA PLATS, STORRE GESTALTER, TYSTA FRAGMENT</div>
           </div>
         </div>
       </div>
@@ -8764,6 +8776,7 @@ const SRV_ERRORS = {
      - en andra flik hann tacka nej, eller sidan stod oppen medan platsen fylldes
      om. Utan raden hade spelaren fatt se sjalva felkoden. */
   quest_not_offered:        'That contract is no longer on offer.',
+  quest_not_here:           'Travel to the quest giver first.',
   /* [TILLAGT v5.335.0] quest_abandon kastar detta nar uppdraget inte langre ar
      aktivt - det hann bli klart, eller en annan flik overgav det. Felet har
      funnits sedan uppdragen byggdes men aldrig haft nagon text, sa spelaren fick
@@ -9200,7 +9213,13 @@ async function netSync(){
          Adderar bada sidor kan de rakna isar, och da visar raden ett tal som
          inte finns pa servern. */
       if (clock.fragments != null) S.frags = +clock.fragments;
-      if (!(firstSync && NET.awaySecs > 120)) fragFlyToPill(clock.frags | 0);
+      /* [ANDRAT v5.392.0] INGEN FLYGNING (Chris). Fragmentet var den enda
+         resursen som svavade i luften och sedan drog in i vansterspaltens rad
+         med ett hopp. Nu kastas det ut ur noden som myntet och skrotet - och
+         raknas tyst. Bilden ar UI_ICO.frag, samma som raden anvander. */
+      if (!(firstSync && NET.awaySecs > 120))
+        nodeDropPop('frag', clock.frags | 0, 'var(--purple)',
+          {art: UI_ICO.frag[0], ico: UI_ICO.frag[1], title: '+' + (clock.frags | 0)});
       renderFragWin();
     }
     /* [TILLAGT v5.339.0] Guldet medan man SITTER KVAR. Franvarons guld hor till
@@ -13315,6 +13334,14 @@ let GEMSTATE = null;
 function gemPower(key){
   return !!(GEMSTATE && GEMSTATE.key && GEMSTATE.unique_key === key);
 }
+/* [TILLAGT v5.391.0] Stenens PROCENT-del (buggsvep). gemPower svarar pa den
+   unika formagan; det har ar den andra halvan - "+N % player XP" och sa vidare.
+   Samma nyckel som serverns gem_pct (player_xp, gold_find, frag_find,
+   craft_speed, quest_reward). Statspanelen visade forut inte stenens procent
+   alls, sa en Voxholm-sten pa +8 % XP syntes bara i stenens eget kort. */
+function gemPct(key){
+  return (GEMSTATE && GEMSTATE.key && GEMSTATE.pct_key === key) ? (+GEMSTATE.pct || 0) : 0;
+}
 async function netGemState(){
   if (!NET.on || !SRV.charId) return null;
   GEMSTATE = await srvRpc('gem_state', {p_character: SRV.charId});
@@ -16341,7 +16368,18 @@ function openMailNote(id){
 /* [TILLAGT v5.169.0] ROD ETTA NAR EN EXPEDITION AR KLAR ATT HAMTA. Raknar
    korningar vars sluttid passerat - samma villkor som Collect-knappen anvander.
    Star i uppdateringsslingan, sa den tands och slacks live. */
+/* [TILLAGT v5.392.0] ROD SIFFRA PA QUESTS NAR NAGOT AR KLART ATT LAMNA IN
+   (Chris) - samma marke som expeditionerna. Raknar aktiva uppdrag som servern
+   markt done; klienten raknar inget sjalv. Star i samma slinga som
+   expeditionsmarket, sa den slacks i samma stund man hamtat. */
+function renderQuestBadge(){
+  const b = $('qa-quest-badge'); if (!b) return;
+  const st = QUESTS.state;
+  const n = st ? (st.active || []).filter(q => q && q.done).length : 0;
+  b.textContent = n; b.style.display = n ? '' : 'none';
+}
 function renderExpBadge(){
+  renderQuestBadge();
   const b = $('qa-exped-badge'); if (!b) return;
   const runs = (S.exp && S.exp.runs) || [];
   /* Bara korningar med en GILTIG, passerad sluttid raknas. En rad utan endsAt
@@ -17709,12 +17747,22 @@ function charStatRows(){
   /* Bara talet, som alla andra rader. Ordet "time" sa att lagre ar battre, men
      kostade en radbrytning i varje karaktarsruta - och minustecknet sager redan
      att nagot gar ned. */
-  if (mountSpeed()) r.push(['Travel Speed', '−' + mountSpeed() + '%']);
-  up('Crit Chance', gearBonus('crit'));
-  up('Fragment Find', gearBonus('frag') + helperBonus('frag'));
-  up('Gold Find', gearBonus('gold') + helperBonus('gold'));
+  /* [ANDRAT v5.391.0] BUGGSVEP - PANELEN SKA SAGA VAD SERVERN RAKNAR MED.
+     Jamfort rad for rad mot serverfunktionerna:
+       Travel Speed    = riddjur + klass            (travel_to)
+       Crit Chance     = utrustning + klass         (pve_crit_of; Breaker +5)
+       Fragment Find   = utrustning + hjalpare + sten (apply_currency: frag_find)
+       Gold Find       = utrustning + hjalpare + sten (apply_currency: gold_find)
+       XP Bonus        = utrustning + flaska + sten (grant_xp: player_xp)
+       Expedition Speed = utrustning + flaska + hjalpare + klass (start_expedition)
+     Forut saknades klassen pa crit och resa, utrustningen och flaskan pa
+     expeditionsfarten, och stenen overallt. */
+  if (travelSpeedPct()) r.push(['Travel Speed', '−' + travelSpeedPct() + '%']);
+  up('Crit Chance', gearBonus('crit') + classVal('crit'));
+  up('Fragment Find', gearBonus('frag') + helperBonus('frag') + gemPct('frag_find'));
+  up('Gold Find', gearBonus('gold') + helperBonus('gold') + gemPct('gold_find'));
   up('Loot Luck', gearBonus('luck') + boostPct('luck'));
-  up('XP Bonus', gearBonus('xp'));
+  up('XP Bonus', gearBonus('xp') + boostPct('xp') + gemPct('player_xp'));
   /* [BORTTAGET v5.219.0] Offline Earnings stod alltid pa noll och gick inte
      att hoja nagonstans. En rad som alltid sager noll ar en rad som ljuger. */
   /* [RATTAT v5.348.0] Klassen saknades aven har - servern lagger class_bonus i
@@ -17726,12 +17774,13 @@ function charStatRows(){
      fyra, varav en ('Dust Yield') pekade pa en formaga som inte finns langre och
      en ('Machine Cost') var en hardkodad nolla efter att den egenskapen pensionerades. */
   up('Scrap Find', helperBonus('scrap'));
-  up('Expedition Speed', helperBonus('expspd') + classVal('expspd'));
+  up('Expedition Speed', expSpeedPct());
   up('Sell Value', helperBonus('sellvalue'));
   up('Fuel Regen', skillPct('refiner', 'fuel_regen'));
   up('Cache Odds', helperBonus('cacheluck'));
   up('Gear Rarity', helperBonus('gearrar'));
-  up('Token Yield', helperBonus('tokens'));
+  /* [BORTTAGET v5.391.0] 'Token Yield' pekade pa en hjalparformaga 'tokens'
+     som inte finns i helper_ability_config - raden var alltid noll och dold. */
   const rep = 2 * repRank();
   if (rep > 0) r.push(['Region Rep', '+' + rep + '% production']);
   return r;
@@ -18581,8 +18630,7 @@ function expRunSeconds(def){
      var sant nar den skrevs.
      classVal() laser class_ability_config fran servern, sa inget tal skrivs av
      har - de tva kan inte sara pa sig igen. */
-  const spd = Math.min(0.80, (gearBonus('expspd') + boostPct('expspd')
-            + helperBonus('expspd') + classVal('expspd')) / 100);
+  const spd = expSpeedPct() / 100;
   return Math.max(30, Math.round(def.mins * 60 * (1 - spd)));
 }
 function relTier(def){ const R = REGIONS[def.region]; return R ? (R.tier | 0) : 0; }
@@ -18994,7 +19042,7 @@ function openTravelNow(regionId){
     '<div class="kv"><span class="k">Destination</span><span class="v">' + R.ico + ' ' + R.name + '</span></div>' +
     '<div class="kv"><span class="k">Cost</span><span class="v" style="color:var(--cyan)">⛽ ' + price + ' fuel</span></div>' +
     '<div class="kv"><span class="k">Travel time</span><span class="v">' + uiIco('dur') + ' ' + fmtDur(travelSeconds(t.time)) +
-      (mountSpeed() ? ' <span style="color:var(--cyan);font-size:9px">−' + mountSpeed() + '%</span>' : '') + '</span></div>' +
+      (travelSpeedPct() ? ' <span style="color:var(--cyan);font-size:9px">−' + travelSpeedPct() + '%</span>' : '') + '</span></div>' +
     '</div>' +
     '<div class="shelf-empty">You arrive at the region gate — enter the zone on arrival to start the expedition.</div>' +
     '<div class="region-actions">' +
@@ -19606,49 +19654,8 @@ function nodeDropPopMany(mats, colour){
     setTimeout(() => nodeDropPop(k, mats[k], colour), n * 220);
   });
 }
-/* [TILLAGT v5.119.0] FRAGMENTETS VAG. Ett fragment ur tomgangen kastas ut ur
-   noden som allt annat, men stannar sedan i luften i tva sekunder innan det
-   drar in i fragmentraden i vansterspalten. Poangen ar att man ska HINNA se
-   att man fick nagot, och sedan se VART det tog vagen - annars okar bara en
-   siffra langst borta i kanten utan att man forstar varfor. */
-function fragFlyToPill(n){
-  if (document.visibilityState !== 'visible') return;
-  const stage = nodeDropStage(), mal = $('frag-pill');
-  if (!stage || !mal) return;
-  const antal = Math.min(6, Math.max(1, n | 0));
-  for (let i = 0; i < antal; i++){
-    setTimeout(() => {
-      const sr = stage.getBoundingClientRect();
-      const el = document.createElement('div');
-      el.className = 'frag-fly';
-      el.innerHTML = '<span class="qi qi-fragments"></span>';
-      document.body.appendChild(el);
-      const w = 26, h = 26;
-      /* Startar i karnans mitt och far en liten spridning, sa flera fragment
-         inte ligger exakt pa varandra. */
-      const x0 = sr.left + sr.width / 2 - w / 2 + (i % 2 ? 1 : -1) * (10 + (i % 3) * 14);
-      const y0 = sr.top + sr.height / 2 - h / 2 - (14 + (i % 4) * 10);
-      el.style.left = Math.round(x0) + 'px';
-      el.style.top  = Math.round(y0) + 'px';
-      requestAnimationFrame(() => el.classList.add('hover'));
-      /* Tva sekunder i luften, sedan farden till raden. */
-      setTimeout(() => {
-        const mr = mal.getBoundingClientRect();
-        el.style.transition = 'transform .62s cubic-bezier(.5,-0.2,.35,1), opacity .62s ease';
-        el.style.transform = 'translate(' +
-          Math.round(mr.left + mr.width / 2 - x0 - w / 2) + 'px,' +
-          Math.round(mr.top + mr.height / 2 - y0 - h / 2) + 'px) scale(.55)';
-        el.style.opacity = '0';
-        setTimeout(() => {
-          el.remove();
-          mal.classList.remove('got');
-          void mal.offsetWidth;      /* tvingar om animationen sa den syns varje gang */
-          mal.classList.add('got');
-        }, 620);
-      }, 2000);
-    }, i * 260);
-  }
-}
+/* [RIVET v5.392.0] fragFlyToPill - fragmentets flygning till vansterspalten.
+   Fragmentet kastas ut ur noden som allt annat nu; se netSync. */
 function spawnFloat(opts){
   /* Ett tal borjar med + eller ar en crit; allt annat ar ett meddelande. */
   const t = String(opts && opts.text || '');
@@ -21356,8 +21363,21 @@ function mountSpeed(){
   m.a.forEach(x => { if (x.k === 'travel') v += x.v; });
   return Math.min(60, v);
 }
+/* [TILLAGT v5.391.0] HELA resfarten, pa ETT stalle (buggsvep). Servern
+   (travel_to) raknar riddjurets affix PLUS klassens - Runner har 30 % - med tak
+   60. Klienten raknade bara riddjuret, sa en Runner sag en restid som var
+   30 % for lang, och statspanelen visade inte hans klassbonus alls. */
+function travelSpeedPct(){
+  return Math.min(60, mountSpeed() + classVal('travel'));
+}
+/* [TILLAGT v5.391.0] Expeditionsfarten likasa. Formeln fanns redan i
+   expeditionSecs men statspanelen hade en egen, kortare - utan utrustningens
+   affix och utan flaskan. Nu fragar bada har. Serverns: start_expedition. */
+function expSpeedPct(){
+  return Math.min(80, gearBonus('expspd') + boostPct('expspd') + helperBonus('expspd') + classVal('expspd'));
+}
 function travelSeconds(base){
-  return Math.max(1, Math.round(base * (1 - mountSpeed() / 100)));
+  return Math.max(1, Math.round(base * (1 - travelSpeedPct() / 100)));
 }
 /* Premiumgenvägen: hoppa över resten av väntan. En credit per påbörjad minut kvar. */
 function skipCost(){
@@ -30176,9 +30196,15 @@ function questRowHTML(q, mode, activeFull){
   const reg = REGIONS[q.region] ? REGIONS[q.region].name : q.region;
   const done = mode === 'active' && q.done;
   const pct = mode === 'active' ? Math.round(100 * Math.min(1, q.progress / q.qty)) : 0;
+  /* [ANDRAT v5.392.0] Listan i snabbvalet: star man inte i uppdragets zon
+     oppnar knappen sidan (dar "Travel and accept" finns) i stallet for att
+     anta direkt - servern slapper anda inte igenom det langre. */
+  const harQ = (S.world && S.world.current === q.region && (!q.zone || S.world.zone === q.zone));
   const btn = mode === 'offer'
-    ? '<button class="q2-btn main" data-qaccept="' + q.quest_id + '"' +
-      (activeFull ? ' disabled title="You already have the maximum of 3 active quests"' : '') + '>Accept</button>'
+    ? (harQ
+      ? '<button class="q2-btn main" data-qaccept="' + q.quest_id + '"' +
+        (activeFull ? ' disabled title="You already have the maximum of 3 active quests"' : '') + '>Accept</button>'
+      : '<button class="q2-btn main" data-qwinopen="' + q.quest_id + '">Travel &amp; accept</button>')
     /* [BEHALLET fran v5.331.0] CLAIM I LISTAN OPPNAR SIDAN. Att hamta ar
        ogonblicket man gjort allt for - det ska ske dar gestalten star och
        belaningen visas. Sjalva hamtningen finns bara pa ETT stalle. */
@@ -30261,7 +30287,8 @@ function qwinRewHTML(r){
   r = r || {};
   const mynt = qwinMynt(r.gold || 0);
   const rutor = [
-    ['rep',  r.rep || 0,              'rep',       null,                        '\ud83c\udfc6', 'var(--green, #37e08a)'],
+    /* [ANDRAT v5.392.0] Ryktet far en egen bild (Chris); pokalen ar reserv. */
+    ['rep',  r.rep || 0,              'rep',       'assets/ui/reputation.png', '\ud83c\udfc6', 'var(--green, #37e08a)'],
     [mynt[0], mynt[1],                mynt[2],     mynt[3],                     '\ud83e\ude99', 'var(--gold)'],
     ['frag', r.frags || 0,            'fragments', 'assets/ui/fragments.png',   '\ud83d\udd37', 'var(--purple)'],
     ['xp',   r.xp || 0,               'xp',        'assets/ui/experience.png',  '\u2728',       'var(--cyan)']
@@ -30334,7 +30361,13 @@ function openQuestWin(id){
   const ico = nyckel ? stackIcoOf(nyckel, '\ud83d\udce6')
             : (q.kind === 'expeditions' ? '\ud83e\udded'
             : q.kind === 'pve_wins' ? '\u2694\ufe0f' : '\ud83d\udccd');
-  const kArt = nyckel ? stackArtOf(nyckel) : null;
+  /* [TILLAGT v5.392.0] EGNA BILDER FOR MALEN (Chris). Tre malsorter hade
+     bara en emoji. Filerna ligger i assets/ui/quest/; saknas de star emojin
+     kvar som forut. */
+  const objArt = nyckel ? null
+    : artUnlessMissing('assets/ui/quest/obj-' + (q.kind === 'expeditions' ? 'expedition'
+                                               : q.kind === 'pve_wins' ? 'fight' : 'travel') + '.png');
+  const kArt = nyckel ? stackArtOf(nyckel) : objArt;
   const pct = Math.round(100 * Math.min(1, (q.progress || 0) / (q.qty || 1)));
   $('qwin-obj').innerHTML =
     '<span class="qo-ico' + (kArt ? ' art-wrap' : '') + '">' +
@@ -30396,9 +30429,13 @@ function openQuestWin(id){
             (fullt ? ' disabled title="You already have the maximum of 3 active contracts"' : '') +
             '>Travel and accept</button>'
         : '') +
-      '<button class="' + (fjarran ? '' : 'main') + '" data-qaccept="' + q.quest_id + '"' +
+      /* [ANDRAT v5.392.0] Star man borta finns bara "Travel and accept" (Chris).
+         Den nakna Accept-knappen bredvid lat en anta uppdrag utan att resa; nu
+         sager servern nej (quest_not_here), sa knappen hade bara gett ett fel. */
+      (fjarran ? '' :
+      '<button class="main" data-qaccept="' + q.quest_id + '"' +
         (fullt ? ' disabled title="You already have the maximum of 3 active quests"' : '') +
-        '>Accept' + (fjarran ? '' : ' quest') + '</button>' +
+        '>Accept quest</button>') +
       '<button data-qdecline="' + q.quest_id + '">Decline</button>'
     : laget === 'done'
       ? '<button class="main" data-qclaim="' + q.quest_id + '">Claim rewards</button>' +
