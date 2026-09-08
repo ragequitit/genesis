@@ -3265,8 +3265,16 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
    stället för uppifrån — samma fel som väskan hade i v0.62.6. */
 .vault-grid{display:grid;grid-auto-flow:row;gap:6px;justify-content:flex-start}
 /* Väskemblemet: den runda ikonen som kikar ut över hörnet, som i förlagan */
+/* [BORTTAGET v5.347.0] EMBLEMET (Chris). Den lilla ikonen hangde halvt ovanfor
+   varje fonster och var redan dold pa telefon sedan lange. Nu dold overallt, sa
+   datorn och telefonen ser likadana ut.
+   Reglerna star KVAR i stallet for att raderas: emblemet ar dragspak i sex
+   fonster (makeDraggable tar det som handtag) och fitFloatWin reserverar hojd
+   for det. Raderas markupen dor de dragspaken tyst. En rad doljer det; att riva
+   det pa riktigt ar ett eget jobb.
+   Fonstren har fortfarande sin titelrad som handtag, sa de gar att dra. */
 .inv-emblem{
-  /* Uppe i MITTEN, halvt utanför ramen — uppe i vänstra hörnet låg för nära WoW. */
+  display:none !important;
   position:absolute;left:50%;transform:translateX(-50%);top:-30px;
   z-index:3;width:46px;height:46px;border-radius:50%;
   cursor:grab;user-select:none;
@@ -3277,7 +3285,9 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 }
 /* Luft upptill så emblemet, som hänger halvvägs ovanför ramen, inte krockar
    med fönstertiteln. */
-.inv-modal{padding-top:26px}
+/* [ANDRAT v5.347.0] Luften upptill behovdes for emblemet som hangde over kanten.
+   Emblemet ar dolt; luften krymper till vanlig rutmarginal. */
+.inv-modal{padding-top:12px}
 .inv-titlebar{
   display:flex;align-items:center;justify-content:center;position:relative;
   margin:0 0 10px;padding:6px 0;
@@ -7023,7 +7033,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.345.0 — KRYSSEN GAR ATT TRAFFA</div>
+        <div class="sn-ver">GENESIS v5.347.0 — EMBLEMET BORTA</div>
       </div>
     </div>
   </aside>
@@ -8064,7 +8074,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.345.0 — KRYSSEN GAR ATT TRAFFA</div>
+            <div class="desc">GENESIS v5.347.0 — EMBLEMET BORTA</div>
           </div>
         </div>
       </div>
@@ -11955,14 +11965,19 @@ const RECIPE_BY = {}; RECIPES.forEach(r => RECIPE_BY[r.id] = r);
    fran att den har listan aterkommer oforandrad. */
 const FLASKS_ARE_LEGACY = true;
 const FLASKS = {
-  flask_data:      {name:'Chrono Flask',   ico:'⏱️', boost:'expspd'},
+  /* [BORTTAGET v5.346.0] CHRONO FLASK och GENESIS COMPOUND (Chris beslut).
+     Servern gav dem boosten 'idle' som ingen funktion laste - de gjorde
+     ingenting alls - medan den har raden sa 'expspd', sa knappen lovade
+     kortare expeditioner. Tva fel som doljde varandra.
+     De gick inte heller att fa tag pa: de hor till ett vilande yrke, och
+     handlaren saljer bara Chrono Draft och Fortune Vial. Rivna aven pa
+     servern (flask_config, stack_item_config, flask_boost_config). */
   flask_focus:     {name:'Focus Flask',    ico:'🔮', boost:'crit'},
   flask_impact:    {name:'Impact Flask',   ico:'💥', boost:'critdmg'},
   flask_trail:     {name:'Trail Flask',    ico:'💨', boost:'travel'},
   flask_learning:  {name:'Learning Flask', ico:'📘', boost:'xp'},
   flask_echo:      {name:'Echo Serum',     ico:'🐾', boost:'petxp'},
   flask_expedition:{name:'Expedition Catalyst',ico:'🧭', boost:'expspd'},
-  flask_genesis:   {name:'Genesis Compound',ico:'✨', boost:'expspd'},
   /* [BUG] LOOT LUCK SAKNADES BLAND FLASKORNA. Alla andra boostar hade sin flaska;
      turen hade bara handelsbodens flaska - och den var dessutom trasig i
      serverlage, for tabellen over pagaende boostar kravde att boosttypen fanns
@@ -25771,7 +25786,11 @@ function fitFloatWin(w){
   /* [ANDRAT v5.323.0] Emblemet hanger HALVVAGS OVANFOR rutan. Raknar man bara pa
      rutans egen ovankant hamnar emblemet utanfor skarmen - uppmatt trettio
      punkter ovanfor. Fonster med emblem far darfor ett hogre tak. */
-  const topp = w.querySelector('.inv-emblem') ? 40 : 8;
+  /* [ANDRAT v5.347.0] Emblemet ar dolt, sa det behovs ingen extra hojd langre.
+     Villkoret laser nu om det SYNS, inte om det finns i markupen - da racker det
+     att andra CSS-raden om det nagon gang kommer tillbaka. */
+  const emb = w.querySelector('.inv-emblem');
+  const topp = (emb && emb.offsetParent !== null) ? 40 : 8;
   let dx = 0, dy = 0;
   if (r.right  > window.innerWidth  - 8) dx = (window.innerWidth  - 8) - r.right;
   if (r.left + dx < 8)                   dx = 8 - r.left;
