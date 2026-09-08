@@ -7021,7 +7021,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
          som en ram racker till. -->
     <div class="sn-body">
       <div class="sn-cur" id="panel-currency">
-        <div class="res-pill" data-label="Money" data-color="gold"><span class="res-icon sn-hex" style="--hxc:var(--gold)"><span class="qi qi-money"></span></span><span class="res-body"><span class="res-lbl">Gold</span><span class="res-value" id="res-gold">0c</span></span></div>
+        <div class="res-pill" data-label="Gold" data-color="gold"><span class="res-icon sn-hex" style="--hxc:var(--gold)"><span class="qi qi-money"></span></span><span class="res-body"><span class="res-lbl">Gold</span><span class="res-value" id="res-gold">0c</span></span></div>
         <div class="res-pill" data-label="Fuel" data-color="fuel" id="fuel-pill"><span class="res-icon sn-hex" style="--hxc:var(--red)"><span class="qi qi-fuel"></span></span><span class="res-body"><span class="res-lbl">Fuel</span><span class="res-value" id="res-fuel">100</span></span></div>
         <div class="res-pill" data-label="Credits" data-color="blue"><span class="res-icon sn-hex" style="--hxc:var(--violet)"><span class="qi qi-credits"></span></span><span class="res-body"><span class="res-lbl">Credits</span><span class="res-value" id="res-credits">0</span></span></div>
         <div class="res-pill clickable" data-label="Fragments" data-color="purple" id="frag-pill"><span class="res-icon sn-hex" style="--hxc:var(--purple)"><span class="qi qi-fragments"></span></span><span class="res-body"><span class="res-lbl">Fragments</span><span class="res-value" id="res-fragments">0</span></span></div>
@@ -7055,7 +7055,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.354.0 — NOVICE BANTAD</div>
+        <div class="sn-ver">GENESIS v5.355.0 — PENGARUTAN VISAR MER</div>
       </div>
     </div>
   </aside>
@@ -8096,7 +8096,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.354.0 — NOVICE BANTAD</div>
+            <div class="desc">GENESIS v5.355.0 — PENGARUTAN VISAR MER</div>
           </div>
         </div>
       </div>
@@ -13898,6 +13898,28 @@ function fmtMoney(c){
    AGER ska "1s 13c" inte kunna misslasas som ett guldbelopp - "0g 1s 13c" sager
    direkt att kassan ar tom. Overallt annars (prislappar, saljvarden) star bara
    de valorer som betyder nagot. */
+/* [TILLAGT v5.355.0] PENGARUTAN VISAR SA MYCKET SOM RYMS (Chris). Rutan sa bara
+   guldet, fast det fanns plats for silver och koppar med. Men platsen ar inte
+   fast: 20g rymmer alla tre, 1 240 350g rymmer bara guldet.
+   Darfor MATS det i stallet for att gissas. Hela summan skrivs, och om den
+   spiller over rutans kant faller den minsta valoren bort - forst koppar, sedan
+   silver. Kvar star alltid minst en del, sa rutan aldrig blir tom.
+   Samma tre farger som hovringstipset: guld, silver och koppar ska se likadana
+   ut var man an moter dem.
+   Ar rutan dold ar bredden noll och da skrivs hela summan - nasta uppdatering
+   mater om nar den syns. Det ar ratt: hellre allt an inget. */
+function resGoldFit(el, koppar){
+  if (!el) return;
+  const m = splitMoney(koppar);
+  const delar = [];
+  if (m.g) delar.push('<span class="co-g">' + fmtLong(m.g) + 'g</span>');
+  if (m.s) delar.push('<span class="co-s">' + m.s + 's</span>');
+  if (m.c || !delar.length) delar.push('<span class="co-c">' + m.c + 'c</span>');
+  for (let n = delar.length; n >= 1; n--){
+    el.innerHTML = '<span class="coins">' + delar.slice(0, n).join('') + '</span>';
+    if (el.scrollWidth <= el.clientWidth) return;
+  }
+}
 function fmtMoneyFull(c){
   const m = splitMoney(c);
   return '<span class="coins">' +
@@ -19480,7 +19502,7 @@ function updateUI(force){
   try { refreshHpBar(); } catch (e){}
   el.resCredits.textContent = fmt(S.credits);
   el.resFragments.textContent = fmt(S.frags);
-  el.resGold.textContent = goldOnlyText(S.gold);
+  resGoldFit(el.resGold, S.gold);
   el.resFuel.textContent = Math.floor(S.fuel) + '/' + fuelMax();
   refreshPremiumOffline();
   renderPremiumBags(); renderPremiumVaultBags();
@@ -28308,7 +28330,9 @@ $('bag-btn').addEventListener('click', () => { openInventory(); bringToFront($('
     /* EXAKT vaskans funktion, inte en egen som liknar den. Nollor doljs dar och
        doljs darfor har - samma pengar ska se likadana ut var man an moter dem,
        och med en enda funktion KAN de inte glida isar. */
-    showBagTip(pill, '<div class="tip-name">Money</div>' + fmtMoneyFull(S.gold));
+    /* [ANDRAT v5.355.0] Rubriken sa "Money" medan rutan sjalv sager "Gold"
+       (Chris). Ett namn per sak. */
+    showBagTip(pill, '<div class="tip-name">Gold</div>' + fmtMoneyFull(S.gold));
   });
   pill.addEventListener('mouseleave', hideBagTip);
 })();
