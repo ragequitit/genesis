@@ -305,10 +305,9 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
    over hela kortet. */
 .sn-fig{position:relative;flex:0 0 80px;width:80px;align-self:stretch;overflow:hidden}
 .sn-figart{
-  /* [ANDRAT v5.377.0] Bilderna ar 1024x1536 nu (forut 899x1750) med som mest
-     2,6 % luft ovanfor hjassan. Samma rakning som forut med nya talen:
-     luften x bildens hojd (205 % x 1536/1024 av rutans bredd). */
-  position:absolute;left:50%;top:calc(-0.02 * 205% * 1536 / 1024);width:205%;height:auto;
+  /* [ANDRAT v5.382.0] Bilderna ar beskurna till kroppen (12 px marginal av
+     1536), sa hjassan ligger i bildens overkant och ingen rakning behovs. */
+  position:absolute;left:50%;top:-2px;width:205%;height:auto;
   transform:translateX(-50%);display:block;
   -webkit-user-drag:none;user-select:none;pointer-events:none;
   -webkit-mask-image:linear-gradient(90deg,#000 64%,transparent 100%);
@@ -5350,14 +5349,23 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gc-cls:hover{border-color:var(--border-glow);background:rgba(56,232,255,.05)}
 .gc-cls.on{border-color:var(--cyan);background:rgba(56,232,255,.10);
   box-shadow:0 0 18px -8px var(--cyan)}
-.gc-figwrap{position:relative;height:96px;margin-bottom:7px;display:grid;place-items:end center}
-.gc-figwrap img{max-width:100%;max-height:100%;object-fit:contain;object-position:center bottom;
+.gc-figwrap{position:relative;height:150px;margin-bottom:8px}
+/* [ANDRAT v5.382.0] Bilden stod som grid-barn med max-height:100 % - och i
+   Safari pa iPhone raknas det procenttalet mot INGENTING nar rutans hojd
+   kommer fran ett grid-spar, sa gestalten ritades i full storlek rakt over
+   namnet och ut ur kortet. Absolut lage med hojd 100 % raknas mot rutans
+   satta hojd i alla webblasare. Storre ruta ocksa (Chris): 96 -> 150. */
+.gc-figwrap img{position:absolute;left:0;right:0;bottom:0;margin:0 auto;height:100%;width:auto;max-width:100%;
+  object-fit:contain;object-position:center bottom;
   filter:drop-shadow(0 5px 11px rgba(0,0,0,.55));user-select:none;-webkit-user-drag:none}
-.gc-figwrap .gc-ph{display:none;font-size:34px;opacity:.5}
+.gc-figwrap .gc-ph{display:none;font-size:34px;opacity:.5;position:absolute;left:0;right:0;bottom:8px}
 .gc-figwrap.noart img{display:none}
 .gc-figwrap.noart .gc-ph{display:block}
-.gc-cname{font-size:12px;font-weight:900;letter-spacing:.06em;color:var(--text)}
-.gc-cls.on .gc-cname{color:var(--cyan)}
+/* [ANDRAT v5.382.0] Namnet i en egen liten neonram under gestalten (Chris). */
+.gc-cname{display:inline-block;font-size:12px;font-weight:900;letter-spacing:.06em;color:var(--text);
+  padding:4px 11px;border:1px solid rgba(56,232,255,.45);border-radius:999px;
+  background:rgba(56,232,255,.06);box-shadow:0 0 12px -5px var(--cyan)}
+.gc-cls.on .gc-cname{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 14px -3px var(--cyan)}
 .gc-ctag{font-size:9.5px;line-height:1.35;color:var(--text-faint);margin-top:3px}
 /* Beskrivningen star UNDER raden och byts nar man valjer, i stallet for att
    tryckas in i varje kort - fem langa texter samtidigt gar inte att lasa. */
@@ -5669,8 +5677,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   /* [TILLAGT v5.273.0] Fem klasskort i bredd blir under sextio punkter breda pa
      en telefon - figuren forsvinner och namnet bryts mitt i. Tre i bredd. */
   .gc-classes{grid-template-columns:repeat(3,1fr)}
-  .gc-figwrap{height:74px}
-  .gc-cname{font-size:11px}
+  /* [ANDRAT v5.382.0] 74 -> 130: gestalten ska sta over namnet, inte pa det. */
+  .gc-figwrap{height:130px}
+  .gc-cname{font-size:11px;padding:3px 9px}
   .gc-ctag{display:none}
   .gate-newrow{flex-wrap:wrap}
   .gate-newrow .gate-go.small{width:100%}
@@ -6941,6 +6950,12 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
     <div class="gate-console">
       <div class="gate-console-top"><span class="gate-dot"></span>NODE LINK-UP</div>
 
+      <!-- [TILLAGT v5.381.0] Visas i stallet for inloggningen medan en sparad
+           session provas. Inloggningsformularet lag forut synligt under tiden,
+           med ifyllda uppgifter - se gateBoot. -->
+      <div id="gate-resume" class="gate-step" style="display:none">
+        <div class="gate-msg ok" id="gate-resume-msg">Resuming your session…</div>
+      </div>
       <div id="gate-auth" class="gate-step">
         <div class="gate-tabs">
           <button class="gate-tab on" id="gt-in">Sign in</button>
@@ -7139,7 +7154,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.378.0 — ZOOMEN TILLBAKA, HELA FIGUREN SOM GRUND</div>
+        <div class="sn-ver">GENESIS v5.382.0 — STORRE GESTALTER, NYP PA TELEFON</div>
       </div>
     </div>
   </aside>
@@ -8180,7 +8195,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.378.0 — ZOOMEN TILLBAKA, HELA FIGUREN SOM GRUND</div>
+            <div class="desc">GENESIS v5.382.0 — STORRE GESTALTER, NYP PA TELEFON</div>
           </div>
         </div>
       </div>
@@ -26763,6 +26778,21 @@ function figZoomSet(v){
       e.preventDefault();
       figZoomSet(figZoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
     }, {passive: false});
+    /* [TILLAGT v5.382.0] NYP PA PEKSKARM (Chris). Hjulet finns inte pa en
+       telefon, och sidan ar last mot webblasarens egen zoom. Tva fingrar pa
+       rutan: avstandet mellan dem delat med avstandet vid nedslaget ar skalan,
+       samma tak och golv som hjulet. Ett finger ror inget - det ar en
+       vanlig skrollning. */
+    let nyp = null;
+    const avst = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    port.addEventListener('touchstart', e => {
+      if (e.touches.length === 2){ nyp = {d: avst(e.touches), z: figZoom}; e.preventDefault(); }
+    }, {passive: false});
+    port.addEventListener('touchmove', e => {
+      if (nyp && e.touches.length === 2){ e.preventDefault(); figZoomSet(nyp.z * avst(e.touches) / nyp.d); }
+    }, {passive: false});
+    port.addEventListener('touchend', () => { nyp = null; });
+    port.addEventListener('touchcancel', () => { nyp = null; });
   }
 })();
 $('qa-pets').addEventListener('click', () => toggleWindow('pets-overlay', openPetsModal, closePetsWindow));
@@ -27380,16 +27410,23 @@ function showRecipeTip(rid, x, y){
   gearTip.classList.add('on');
   moveGearTip(x, y);
 }
-function showGearTip(it, x, y, above){
+function showGearTip(it, x, y, above, side){
   gearTip.style.setProperty('--rc', gearRarCol(it));
   gearTip.innerHTML = gearTipHTML(it);
   gearTip.classList.add('on');
-  moveGearTip(x, y, above);
+  moveGearTip(x, y, above, side);
 }
-function moveGearTip(x, y, above){
+/* [TILLAGT v5.380.0] side = 'left' lagger kortet till VANSTER om x i stallet
+   for till hoger (Chris). Karaktarsbladets vanstra platskolumn hade kortet till
+   hoger som allt annat - rakt over gestalten, sa man sag pjasen men inte vem
+   som bar den. Ryms det inte helt till vanster skjuts det in mot kanten
+   (over sidoraden - ett flytande kort far tacka en meny, men inte figuren);
+   det flyttar ALDRIG tillbaka at hoger. */
+function moveGearTip(x, y, above, side){
   const w = gearTip.offsetWidth || 250, hh = gearTip.offsetHeight || 260;
   let left = x + 16, top = above ? (y - hh - 24) : (y - hh / 2);
   if (above) left = x - w / 2;
+  if (side === 'left') left = Math.max(8, x - w - 16);
   if (left + w > window.innerWidth - 8) left = above ? (window.innerWidth - w - 8) : (x - w - 16);
   if (left < 8) left = 8;
   top = Math.max(8, Math.min(top, window.innerHeight - hh - 8));
@@ -28242,11 +28279,26 @@ document.querySelectorAll('#panel-character [data-slot]').forEach(elm => {
     if (it){ hideGearTip(); openGearMenu(it.uid, e.clientX, e.clientY); }
   });
   /* Hovring på buren pjäs visar förhandskortet — samma som i väskan. */
-  elm.addEventListener('mouseenter', e => {
+  /* [ANDRAT v5.380.0] Kortet laggs pa den sida av platsen som vetter BORT
+     fran gestalten (Chris): vanstra kolumnen far det till vanster, hogra till
+     hoger, sa figuren aldrig tacks. Sidan avgors av var platsen star mot
+     portrattets mitt - inte av platsens nummer, sa en flyttad ruta foljer
+     med av sig sjalv. Kortet fasts vid platsens KANT, inte vid musen, sa det
+     inte kryper in over figuren nar man ror sig inuti rutan. */
+  const tipSpot = () => {
+    const r = elm.getBoundingClientRect();
+    const port = document.querySelector('.char-portrait');
+    const mitt = port ? (port.getBoundingClientRect().left + port.getBoundingClientRect().width / 2) : window.innerWidth / 2;
+    const vanster = (r.left + r.width / 2) < mitt;
+    return {x: vanster ? r.left : r.right, y: r.top + r.height / 2, side: vanster ? 'left' : 'right'};
+  };
+  elm.addEventListener('mouseenter', () => {
     const it = S.equip[+elm.dataset.slot];
-    if (it) showGearTip(it, e.clientX, e.clientY);
+    if (it){ const p = tipSpot(); showGearTip(it, p.x, p.y, false, p.side); }
   });
-  elm.addEventListener('mousemove', e => { if (gearTip.classList.contains('on') && S.equip[+elm.dataset.slot]) moveGearTip(e.clientX, e.clientY); });
+  elm.addEventListener('mousemove', () => {
+    if (gearTip.classList.contains('on') && S.equip[+elm.dataset.slot]){ const p = tipSpot(); moveGearTip(p.x, p.y, false, p.side); }
+  });
   elm.addEventListener('mouseleave', hideGearTip);
 });
 /* ---------- TOM RUTA: visa vad i väskan som passar ----------
@@ -30698,6 +30750,7 @@ function gateShowAuth(){
      annars hade den breda rutan hangt kvar efter en utloggning. */
   document.querySelector('.gate-hero').classList.remove('picking');
   $('gate-auth').style.display = '';
+  $('gate-resume').style.display = 'none';
   $('gate-chars').style.display = 'none';
   $('gate-handle').style.display = 'none';
   $('gate-reset').style.display = 'none';
@@ -30851,6 +30904,7 @@ function gateCreateArm(){
 }
 async function gateShowChars(){
   $('gate-auth').style.display = 'none';
+  $('gate-resume').style.display = 'none';
   $('gate-chars').style.display = '';
   gateSay('gate-msg2', 'Loading…', true);
   try {
@@ -30944,30 +30998,42 @@ function gateAskDelete(row, id, name){
     }
   });
 }
+/* [TILLAGT v5.379.0] ETT INSTEG I VARLDEN, INTE TVA (Chris hittade det).
+   Att valja karaktar i porten och att ladda om sidan med en sparad session
+   gick tva olika vagar. Portens vag hamtade klasserna och nivatalen, satte
+   figuren och ritade om allt; omladdningens vag hamtade bara karaktaren och
+   synken. Foljden: efter en omladdning stod klassen som ett streck pa
+   profilkortet, wardens extra hjalparplats var borta, prospectorns fem
+   vaskplatser likasa, och klassbonusarna syntes inte i bladet - fast servern
+   raknade med dem hela tiden. Servern hade ratt; klienten hade bara inte
+   fragat. Nu finns sekvensen pa ETT stalle och bada vagarna gar den. */
+async function netEnterWorld(){
+  await netPullAll();       /* serverns tillstand ersatter det lokala helt */
+  /* [TILLAGT v5.274.0] Klasslistan hamtas EN gang vid insteget. Faller den
+     spelar man vidare utan klassrutan i stallet for att inte komma in alls -
+     formagorna raknas anda pa servern. */
+  try { await netClasses(); } catch (e){}
+  /* [TILLAGT v5.276.0] Niva- och paragontalen hamtas samtidigt. Faller det
+     anvands reservvardena och spelet gar vidare. */
+  try { await netLevelNumbers(); } catch (e){}
+  await netSync();          /* och tiden sedan sist raknas fram */
+  /* Vad karaktaren REDAN har ar inte nya nivaer. Utan detta small
+     uppstigningen av direkt vid inloggning for var och en som har nagra. */
+  lastLevel = levelInfo().lvl; lastPara = levelInfo().para || 0;
+  $('gate').classList.add('done');
+  /* HELA skarmen ritas om, inte bara vaskan. Forut var burna handskar och
+     stovlar osynliga efter en omladdning - servern hade dem, karaktarsbladet
+     hade aldrig blivit ombett att rita dem. */
+  applyClassFigure();
+  preloadClassFigures();
+  redrawAll();
+}
 async function gateEnter(id, name){
   SRV.charId = id; SRV.charName = name;
   srvSaveSession();
   gateSay('gate-msg2', 'Loading your character…', true);
   try {
-    await netPullAll();       /* serverns tillstand ersatter det lokala helt */
-    /* [TILLAGT v5.274.0] Klasslistan hamtas EN gang vid insteget. Faller den
-       spelar man vidare utan klassrutan i stallet for att inte komma in alls -
-       formagorna raknas anda pa servern. */
-    try { await netClasses(); } catch (e){}
-    /* [TILLAGT v5.276.0] Niva- och paragontalen hamtas samtidigt. Faller det
-       anvands reservvardena och spelet gar vidare. */
-    try { await netLevelNumbers(); } catch (e){}
-    await netSync();          /* och tiden sedan sist raknas fram */
-    /* Vad karaktaren REDAN har ar inte nya nivaer. Utan detta small
-       uppstigningen av direkt vid inloggning for var och en som har nagra. */
-    lastLevel = levelInfo().lvl; lastPara = levelInfo().para || 0;
-    $('gate').classList.add('done');
-    /* HELA skarmen ritas om, inte bara vaskan. Forut var burna handskar och
-       stovlar osynliga efter en omladdning - servern hade dem, karaktarsbladet
-       hade aldrig blivit ombett att rita dem. */
-    applyClassFigure();
-    preloadClassFigures();
-    redrawAll();
+    await netEnterWorld();
   } catch (e){
     gateSay('gate-msg2', e.message);
   }
@@ -30990,6 +31056,10 @@ $('gate-submit').addEventListener('click', async () => {
   if (gateMode === 'up' && pass.length < 6){
     gateSay('gate-msg', 'Password needs at least 6 characters.'); return;
   }
+  /* [TILLAGT v5.381.0] Medan en sparad session provas (gateBoot) ar formularet
+     dolt - men en Enter i falten kan anda na hit. Da vantar vi hellre an
+     startar en andra inloggning bredvid den forsta. */
+  if (gateResuming) return;
   $('gate-submit').disabled = true;
   gateSay('gate-msg', gateMode === 'up' ? 'Creating…' : 'Signing in…', true);
   try {
@@ -31000,6 +31070,10 @@ $('gate-submit').addEventListener('click', async () => {
         $('gate-submit').disabled = false; return;
       }
     } else {
+      /* [ANDRAT v5.381.0] En inloggning med losenord landar ALLTID i
+         karaktarsvalet (Chris). Ett sparat karaktars-id fran forra besoket
+         fick forut folja med in i den nya sessionen och sparas igen. */
+      SRV.charId = SRV.charName = null;
       await srvSignIn(email, pass);
     }
     await gateAfterAuth();
@@ -31141,16 +31215,30 @@ async function gateFromLink(link){
   try { put('gf-rec',  RECIPES.length); } catch (e){}
 })();
 
+/* [TILLAGT v5.381.0] Sant medan gateBoot provar en sparad session. */
+let gateResuming = false;
 (async function gateBoot(){
   const link = gateReadLink();
   if (link && await gateFromLink(link)) return;   /* kom hit via mejlet */
   if (!srvLoadSession()) { gateShowAuth(); return; }
+  /* [TILLAGT v5.381.0] DUBBELINLOGGNINGEN VID F5 (Chris). Inloggningsformularet
+     ar sidans grundlage och lag synligt - med webblasarens ifyllda uppgifter -
+     under de en till tva sekunder det tar att prova den sparade sessionen och
+     hamta karaktaren. Sag man det och tryckte Sign in fick man TVA insteg
+     samtidigt: losenordet ledde till karaktarslistan, medan ateruppt-vagen
+     bakom den blev klar och slappte in en rakt i karaktaren - forbi listan.
+     Serverloggen visade det svart pa vitt: session_claim 15:10:41, losenords-
+     inloggning 15:10:42, mitt i hamtningen. Nu ar formularet dolt tills vi
+     vet att ateruppt inte gick; da, och forst da, visas det. */
+  gateResuming = true;
+  $('gate-auth').style.display = 'none';
+  $('gate-resume').style.display = '';
   try {
     await srvEnsureSession();
     if (SRV.charId){
-      await netPullAll(); await netSync();
-      $('gate').classList.add('done');
-      updateUI(true); renderInventory();
+      /* [ANDRAT v5.379.0] Samma insteg som porten - se netEnterWorld. */
+      await netEnterWorld();
+      $('gate-resume').style.display = 'none';
       return;
     }
     await gateAfterAuth();
@@ -31164,6 +31252,8 @@ async function gateFromLink(link){
     const auth = /not_signed_in|invalid|expired|refresh|jwt|401|403|banned/i.test(m);
     if (auth) srvClearSession();
     gateShowAuth();
+  } finally {
+    gateResuming = false;
   }
 })();
 
