@@ -7033,7 +7033,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.347.0 — EMBLEMET BORTA</div>
+        <div class="sn-ver">GENESIS v5.350.0 — VAR MAN KOPER SAKER</div>
       </div>
     </div>
   </aside>
@@ -8074,7 +8074,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.347.0 — EMBLEMET BORTA</div>
+            <div class="desc">GENESIS v5.350.0 — VAR MAN KOPER SAKER</div>
           </div>
         </div>
       </div>
@@ -13646,6 +13646,15 @@ const UI_ICO = {
   frag:   ['assets/ui/fragments.png', '\ud83d\udd37'],
   dur:    ['assets/ui/duration.png',  '\u23f1']
 };
+/* [TILLAGT v5.349.0] MYNTIKONEN EFTER BELOPPET (Chris). Ett belopp under ett
+   guld ar inte guld. Valjer bilden efter beloppets storsta valor, precis som
+   expCoinIco redan gor for expeditionerna och qwinMynt for kontrakten.
+   Ligger HAR, bredvid uiIco, sa nasta stalle som visar pengar har en fardig
+   funktion att ta i stallet for att skriva '\u2018gold\u2019' for hand. */
+function myntIco(koppar){
+  const m = splitMoney(Math.max(0, koppar | 0));
+  return uiIco(m.g ? 'gold' : (m.s ? 'silver' : 'copper'));
+}
 function uiIco(key){
   const d = UI_ICO[key];
   if (!d) return '';
@@ -17259,14 +17268,16 @@ function charStatRows(){
   up('XP Bonus', gearBonus('xp'));
   /* [BORTTAGET v5.219.0] Offline Earnings stod alltid pa noll och gick inte
      att hoja nagonstans. En rad som alltid sager noll ar en rad som ljuger. */
-  up('Pet XP', gearBonus('petxp') + helperBonus('petxp'));
+  /* [RATTAT v5.348.0] Klassen saknades aven har - servern lagger class_bonus i
+     grant_pet_xp, och Warden ger +25 % husdjurs-XP. */
+  up('Pet XP', gearBonus('petxp') + helperBonus('petxp') + classVal('petxp'));
   up('Crit Damage', gearBonus('critdmg'));
   /* Husdjurets egen formaga hor hemma i samma lista - annars maste man oppna ett
      annat fonster for att se halva sin karaktar. Alla TIO star har nu; forut stod
      fyra, varav en ('Dust Yield') pekade pa en formaga som inte finns langre och
      en ('Machine Cost') var en hardkodad nolla efter att den egenskapen pensionerades. */
   up('Scrap Find', helperBonus('scrap'));
-  up('Expedition Speed', helperBonus('expspd'));
+  up('Expedition Speed', helperBonus('expspd') + classVal('expspd'));
   up('Sell Value', helperBonus('sellvalue'));
   up('Fuel Regen', skillPct('refiner', 'fuel_regen'));
   up('Cache Odds', helperBonus('cacheluck'));
@@ -18112,7 +18123,17 @@ function expRunSeconds(def){
      Precis det "helper-farten" i lardomarna handlade om: regeln uppdaterad pa
      servern men inte har. Nu speglas serverns rad ordagrant.
      Golvet pa 30 sekunder ar samma pa bada sidor. */
-  const spd = Math.min(0.80, (gearBonus('expspd') + boostPct('expspd') + helperBonus('expspd')) / 100);
+  /* [RATTAT v5.348.0] KLASSEN SAKNADES (Chris). Servern raknar gear + boost +
+     hjalpare + KLASS och tar hogst 80 %. Den har raden hade tre av fyra, sa en
+     Breaker - vars klassformaga ger +10 % expeditionsfart - sag en LANGRE tid pa
+     kortet an den servern faktiskt gav.
+     Exakt samma fel som v5.176.0 lagade for hjalparna: servern fick en term och
+     klienten foljde inte med. Kommentaren nedan sa "speglas ordagrant" och det
+     var sant nar den skrevs.
+     classVal() laser class_ability_config fran servern, sa inget tal skrivs av
+     har - de tva kan inte sara pa sig igen. */
+  const spd = Math.min(0.80, (gearBonus('expspd') + boostPct('expspd')
+            + helperBonus('expspd') + classVal('expspd')) / 100);
   return Math.max(30, Math.round(def.mins * 60 * (1 - spd)));
 }
 function relTier(def){ const R = REGIONS[def.region]; return R ? (R.tier | 0) : 0; }
@@ -19728,7 +19749,7 @@ function showOffline(o){
   /* [TILLAGT v5.339.0] Guldet star FORST. Det ar den enda raden varje spelare
      alltid far - fynd, bestallningar och samlarpass kraver att man satt igang
      nagot innan man gick. Star det sist hamnar det under en tom lista. */
-  if ((o.idleGold | 0) > 0) lines.push(uiIco('gold') + ' ' + moneyText(o.idleGold | 0));
+  if ((o.idleGold | 0) > 0) lines.push(myntIco(o.idleGold | 0) + ' ' + moneyText(o.idleGold | 0));
   if (o.drops) Object.keys(o.drops).forEach(k => {
     const m = MATERIALS[k];
     lines.push((m ? m.ico + ' ' + m.name : k) + ' \u00d7' + o.drops[k]);
@@ -24668,7 +24689,7 @@ function ppBookRows(profId){
     const cost = Object.keys(r.cost).map(k => {
       const have = matCount(k), need = r.cost[k];
       return '<span class="rc-mat' + (have >= need ? '' : ' short') + '" data-mat="' + k +
-        '" title="Where do I get this?">' + MATERIALS[k].ico + ' ' +
+        '" title="' + esc(matSourceText(k)) + '">' + MATERIALS[k].ico + ' ' +
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
     /* [ANDRAT v5.47.0] SAMMA RITNING SOM DEN ANDRA RECEPTBOKEN. Det finns tva
@@ -25012,7 +25033,7 @@ function stationBodyHTML(p){
       const need = r.cost[k], got = matCount(k), ok = got >= need;
       /* [ANDRAT v5.43.0] Punkt 1: antalet man HAR star efter varje material,
          alltid - inte bara nar det saknas. */
-      return '<span class="pf-tag" data-mat="' + k + '" title="Where do I get this?" style="' +
+      return '<span class="pf-tag" data-mat="' + k + '" title="' + esc(matSourceText(k)) + '" style="' +
         (ok ? '' : 'color:var(--red);border-color:var(--red)') + '">' +
         MATERIALS[k].ico + ' ' + need + ' ' + MATERIALS[k].name + ' (' + got + ')</span>';
     }).join('');
@@ -25693,7 +25714,7 @@ function renderRecipeBook(){
     const cost = Object.keys(r.cost).map(k => {
       const have = matCount(k), need = r.cost[k], enough = have >= need;
       return '<span class="rc-mat' + (enough ? '' : ' short') + '" data-mat="' + k +
-        '" title="Where do I get this?">' + MATERIALS[k].ico + ' ' +
+        '" title="' + esc(matSourceText(k)) + '">' + MATERIALS[k].ico + ' ' +
         need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
     }).join('');
     /* [ANDRAT v5.47.0] Kortet kande bara TVA sorters utfall: en flaska (emoji,
@@ -29465,7 +29486,22 @@ function matSourceText(key){
   const M = (typeof MATERIALS !== 'undefined' && MATERIALS[key]) || null;
   if (!M) return '';
   const namn = M.name || key;
-  if (M.prof === 'vendor')  return namn + ' is sold by the vendor in any region.';
+  /* [ANDRAT v5.350.0] "the vendor in any region" var otydligt och delvis fel
+     (Chris). Hantverkssatsen och de andra forbrukningsvarorna star i SHOPPEN,
+     med ett fast pris - och priset ar halva svaret pa "var far jag tag pa den".
+     Priset lases ur SHOP_LIST, samma lista shoppen ritar, sa raden inte kan
+     lova ett annat pris an kassan tar. Star varan inte i shoppen faller den
+     tillbaka pa handlaren som forut. */
+  if (M.prof === 'vendor'){
+    /* SHOP_LIST ar en const langre ned i filen. Ett "typeof"-prov skyddar INTE
+       mot en const som annu inte initierats - den kastar anda. Darfor try/catch:
+       ritas raden nagon gang fore listan finns faller den tillbaka pa handlaren
+       i stallet for att slacka hela kortet. */
+    let rad = null;
+    try { rad = SHOP_LIST.find(r => r.key === key) || null; } catch (e){ rad = null; }
+    return rad ? namn + ' is sold in the Shop for ' + moneyText(rad.price) + '.'
+               : namn + ' is sold by the region vendor.';
+  }
   if (M.prof === 'any')     return namn + ' is found on expeditions and in encounters.';
   if (M.prof && typeof PROF_BY !== 'undefined' && PROF_BY[M.prof]){
     const P = PROF_BY[M.prof];
