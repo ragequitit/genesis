@@ -2482,6 +2482,14 @@ body.dragging *{cursor:grabbing !important}
 .hold-hint{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text);font-weight:900}
 /* Nedrakningen bar guld, sa man ser pa fargen om mataren fylls eller tommas. */
 .hold-meter.synced .hold-meter-fill{background:linear-gradient(90deg,var(--gold),#ffe9a8)}
+/* [TILLAGT v5.359.0] Paafyllningslistan i synkrutan. Rubriken ar en egen rad
+   med en tunn linje over, och posterna ar indragna och dampade - de sager
+   vad man KAN gora, inte vad man far just nu, och ska inte konkurrera med
+   raderna ovanfor som visar den verkliga effekten. */
+.cst-row.keeps{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.cst-row.keeps b{color:var(--cyan);letter-spacing:.1em;text-transform:uppercase;font-size:10px}
+.cst-row.sub{opacity:.72;font-size:11px}
+.cst-row.sub b{font-weight:600}
 .hold-hint.full{color:var(--gold)}
 .machine-row.cant{opacity:.55}
 .machine-row{cursor:default}
@@ -7055,7 +7063,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.356.0 — SYNKEN VISAR GULDET</div>
+        <div class="sn-ver">GENESIS v5.359.0 — SYNKEN SYNS</div>
       </div>
     </div>
   </aside>
@@ -8096,7 +8104,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.356.0 — SYNKEN VISAR GULDET</div>
+            <div class="desc">GENESIS v5.359.0 — SYNKEN SYNS</div>
           </div>
         </div>
       </div>
@@ -8199,7 +8207,15 @@ const BOON_PLAIN = {
 const BUILDINGS = [];        /* tom med FLIT: raderna nedan slutar da av sig
                                 sjalva, utan att varje anrop behover en vakt. */
 const MILESTEPS = [];
-const HOLD = {baseRate:4, duration:30, critBase:0.05, critMax:0.25, critMult:5, incomeMaxMult:2};
+/* [ANDRAT v5.357.0] HALLET 30 -> 10 SEKUNDER (Chris). Trettio sekunder var
+   mest vantan: man star och trycker och ingenting hander forran i slutet.
+   Tio racker for att det ska kannas som en HANDLING, och synken ar lika lang
+   som forut - trettio minuter. Talet star pa ETT stalle och lases av bade
+   mataren och tandningen.
+   OBS for framtiden: nar paafyllningen fran aktiviteter byggs blir hallet en
+   TANDNING, inte en tank. Da ar tio sekunder rimligare an trettio av ett
+   andra skal: man ska starta motorn, inte fylla den. */
+const HOLD = {baseRate:4, duration:10, critBase:0.05, critMax:0.25, critMult:5, incomeMaxMult:2};
 const UPGRADES = [
   /* Sedan v0.76.0 ar ett hack en andel av produktionen, sa den har uppgraderingen
      ar en PROCENT och inte ett platt tillskott. Texten visar bade procenten och
@@ -8943,8 +8959,22 @@ async function netSync(){
     /* [TILLAGT v5.48.0] Klockan ar motorn nu: den bar samlarens fynd och Core
        Syncens klocka. Fynden visas och staplarna hamtas hem direkt - inte
        forst nar minutregeln rakar slappa igenom dem. */
+    /* [ANDRAT v5.358.0] Tillbaka till stampeln. Synken rakar ned i VERKLIG tid,
+       aven medan man ar borta - har man atta timmar och ar borta i tva, ar sex
+       kvar nar man kommer tillbaka. Det ar bara BONUSEN som inte galler
+       franvaron: servern klammer den till narvarosekunder. */
+    /* [TILLAGT v5.359.0] SYNKEN VAXER NU AV DET MAN GOR, och det maste synas.
+       Servern forlanger fonstret vid hamtade expeditioner, klarade dungeons,
+       inlamnade uppdrag, vunna moten och fardiga arbetsordrar - men klienten fick
+       bara ett nytt slutdatum utan att saga nagot. En progression man inte ser ar
+       ingen progression; det ar samma fel vi lagat pa fem andra stallen.
+       Tva sekunders slack: klockan ar servertid mot lokal tid, och en halv sekunds
+       glapp ska inte lasas som en paafyllning. */
     if (clock && clock.sync_until != null){
-      S.syncUntil = clock.sync_until ? new Date(clock.sync_until).getTime() : null;
+      const nyUntil = clock.sync_until ? new Date(clock.sync_until).getTime() : null;
+      const vaxte = nyUntil && S.syncUntil && (nyUntil - S.syncUntil) > 2000;
+      if (vaxte) spawnFloat({text: '+' + fmtDur((nyUntil - S.syncUntil) / 1000) + ' sync'});
+      S.syncUntil = nyUntil;
     }
     /* [TILLAGT v5.60.0] SKROTET SYNTES ALDRIG. Tomgangen har hela tiden delat ut
        skrot - servern lagger det i vaskan varje varv - men klienten laste bara
@@ -16333,14 +16363,18 @@ function coreSyncLeft(){
 }
 function coreSyncActivate(){
   const first = coreSyncLeft() <= 0;
-  S.syncUntil = Date.now() + CORE_SYNC_SECS * 1000;  /* ny aktivering BORJAR OM, staplar aldrig */
+  /* [ANDRAT v5.359.0] TANDNINGEN LYFTER GOLVET, den nollstaller inte. Forut sa
+     raden "borjar om, staplar aldrig" - riktigt nar trettio minuter var taket.
+     Med paafyllning fran aktiviteter kan fonstret bli timmar langt, och da hade
+     ett tryck pa noden KOSTAT tid. Servern gor samma sak med greatest(). */
+  S.syncUntil = Math.max(S.syncUntil || 0, Date.now() + CORE_SYNC_SECS * 1000);
   if (NET.on){
     srvRpc('core_sync_activate', {p_character: SRV.charId})
       .then(r => { if (r && r.sync_until) S.syncUntil = new Date(r.sync_until).getTime(); })
       .catch(() => {});
   }
-  say(first ? 'CORE SYNC \u2014 all your professions run 15% faster for 30 minutes.'
-            : 'Core Sync restarted \u2014 30 minutes again.');
+  say(first ? 'CORE SYNC \u2014 all your professions run 15% faster. Finish things to keep it running.'
+            : 'Core Sync topped up \u2014 at least 30 minutes on the clock.');
   Sound.play('ding');
 }
 
@@ -19370,7 +19404,8 @@ function loopBody(now){
       while (tickAcc >= 1 && holdT <= HOLD.duration){ tickAcc -= 1; collectTick(); }
       /* [BUGG v5.64.0] CORE SYNC TANDES ALDRIG. Tandningen satt inne i ETT HACK,
          och hacken stoppas av samma villkor som stoppar mataren: while-slingan
-         kraver holdT <= 30. Nar holdT passerar 30 landar den pa 30-komma-nagot,
+         kraver holdT <= HOLD.duration. Nar holdT passerar den landar den pa
+         duration-komma-nagot,
          slingan kors inte, och det enda hack som skulle ha tant synken blir
          aldrig av. Mataren blev full, texten sa CORE SYNC ENGAGED - men
          ingenting hande, for raden som tander lag pa fel sida grinden.
@@ -22897,6 +22932,18 @@ function coreSyncTipHTML(){
   if (rows.length === 1) rows.push('<div class="cst-row off"><span>Learn a profession to feel more of this.</span></div>');
   /* [BORTTAGET v5.68.1] Fotnoten om att ett nytt hall borjar om de fem
      minuterna. Kortet ska saga vad man FAR, inte forklara mekaniken. */
+  /* [TILLAGT v5.359.0] VAD SOM HALLER FONSTRET IGANG (Chris). Hallet ar bara en
+     tandning nu - tio sekunder - och synken lever vidare pa det man faktiskt
+     gor. Star det inte i rutan vet ingen om det, och da trycker man pa noden
+     igen i onodan.
+     Talen ar serverns: 25 % av langden dar det finns en langd, platta tal dar
+     det inte gor det. Andras de pa servern maste den har listan folja med. */
+  rows.push('<div class="cst-row keeps"><b>Keeps it running</b><span></span></div>');
+  rows.push('<div class="cst-row sub"><b>Expedition claimed</b><span>+25% of its length</span></div>');
+  rows.push('<div class="cst-row sub"><b>Dungeon cleared</b><span>+25% of the run</span></div>');
+  rows.push('<div class="cst-row sub"><b>Work order done</b><span>+25% of its length</span></div>');
+  rows.push('<div class="cst-row sub"><b>Quest handed in</b><span>+5 min</span></div>');
+  rows.push('<div class="cst-row sub"><b>Encounter won</b><span>+3 min</span></div>');
   return '<div class="cst-head">CORE SYNC</div>' +
     '<div class="cst-row sum"><span>+15% profession output \u00b7 +15% XP and gold ' +
       'from idle production</span></div>' +
