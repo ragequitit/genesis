@@ -1146,6 +1146,14 @@ body.dragging *{cursor:grabbing !important}
 .ask-body{font-size:12.5px;color:var(--text-dim);line-height:1.6}
 .ask-body b{color:var(--text)}
 .ask-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:4px}
+/* [TILLAGT v5.388.0] Integritetsrutan: samma ask-box, men vansterstalld text,
+   en knapp och en lista. Visas en gang per webblasare - se privacyNotice. */
+.ask-box.privacy{width:min(520px,94vw);text-align:left;align-items:stretch;max-height:90vh}
+.ask-box.privacy .ask-h1{text-align:center}
+.ask-box.privacy .ask-body{overflow:auto;max-height:60vh;padding-right:4px}
+.ask-box.privacy .ask-body ul{margin:8px 0 0 18px;padding:0}
+.ask-box.privacy .ask-body li{margin:4px 0}
+.ask-box.privacy .ask-row{grid-template-columns:1fr}
 #say-box{
   position:fixed;left:50%;top:18px;transform:translate(-50%,-14px);
   z-index:200;pointer-events:none;max-width:min(520px,86vw);text-align:center;
@@ -7172,7 +7180,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.387.0 — TIDSGRANS PA VARJE SERVERANROP</div>
+        <div class="sn-ver">GENESIS v5.389.0 — INTEGRITETSTEXTEN JUSTERAD</div>
       </div>
     </div>
   </aside>
@@ -8213,7 +8221,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.387.0 — TIDSGRANS PA VARJE SERVERANROP</div>
+            <div class="desc">GENESIS v5.389.0 — INTEGRITETSTEXTEN JUSTERAD</div>
           </div>
         </div>
       </div>
@@ -9238,18 +9246,41 @@ async function netSync(){
        Den lases in vid varje synk och vid varje inloggning. Klockan star pa
        servern, sa den har raknat aven medan man var borta - anropet hamtar bara
        hem det som redan hant. */
-    const station = await netStationCollect();
-    await netWorkOrders();
-    /* [TILLAGT v5.19.0] YRKENAS XP HAMTADES ALDRIG I DEN VANLIGA SYNKEN.
-       Den kom bara vid inloggning eller nar man rorde ett yrke - och darfor stod
-       nivan och XP-mataren still hur lange man an tittade pa dem, aven medan ett
-       arbetspass tickade pa servern. */
-    await netPullProfessions();
+    /* [ANDRAT v5.388.0] TVA FILER I SYNKEN (Chris). Varje synk drog tio anrop
+       var 3,5:e sekund - klockan, stationen, arbetsordrarna, tre for yrkena,
+       halsan, dungeonlaget, dungeonbedomningen och karaktarsraden. Det mesta av
+       det andras i minuter, inte sekunder. Nu gar det som andras SNABBT
+       (klockan, halsan, karaktarsraden - pengar, XP, synkfonstret) varje synk,
+       och det som andras LANGSAMT (stationen, arbetsordrarna, yrkenas XP,
+       dungeonbedomningen) var fjarde synk, ungefar var fjortonde sekund. Fran
+       tio anrop per synk till tre, plus sju var fjortonde sekund - knappt
+       halva lasten.
+       Men den langsamma filen tas MED nar det finns skal att tro att nagot
+       just hant, sa spelaren aldrig ser en fordrojning: forsta synken efter
+       inloggning, en arbetsorder vars lokala nedrakning natt noll (da ligger
+       den fardig hos servern och Collect-raknaren ska upp), och ett pagaende
+       dungeonlopp (det tickar i verklig tid och avslutas pa sekunden).
+       Handlingar (starta order, samla, sla) hamtar sitt eget lage som forut -
+       de gar inte via synken alls. */
+    NET.syncN = (NET.syncN | 0) + 1;
+    const orderKlar = Object.keys(S.queue || {}).some(k => (S.queue[k] || []).some(o => o.left - (Date.now() - o.at) / 1000 <= 0));
+    const langsam = firstSync || NET.syncN % 4 === 0 || orderKlar || pveDgBusy() || NET.pullSlowNext;
+    NET.pullSlowNext = false;
+    let station = null;
+    if (langsam){
+      station = await netStationCollect();
+      await netWorkOrders();
+      /* [TILLAGT v5.19.0] YRKENAS XP HAMTADES ALDRIG I DEN VANLIGA SYNKEN.
+         Den kom bara vid inloggning eller nar man rorde ett yrke - och darfor stod
+         nivan och XP-mataren still hur lange man an tittade pa dem, aven medan ett
+         arbetspass tickade pa servern. */
+      await netPullProfessions();
+    }
     /* [TILLAGT v5.33.0] Halsan och motet foljer med varje synk - annars star
        mataren pa gissningen tills nagot annat rakar hamta den. */
     await netPvePull();
     /* [TILLAGT v5.34.0] Dungeonlaget likasa - loppet gar i verklig tid. */
-    await netPveDungeonPull();
+    if (langsam) await netPveDungeonPull();
     /* [TILLAGT v5.99.0] Kontraktslaget hamtas vid forsta synken - annars star
        kartan utan sina marken tills man rakar oppna fonstret. Anropet rullar
        ocksa platsernas cooldowns, sa erbjudanden som mognat under franvaron
@@ -12673,6 +12704,64 @@ function askConfirm(opts){
     back.querySelector('[data-yes]').addEventListener('click', () => done(true));
     back.querySelector('[data-no]').addEventListener('click', () => done(false));
     back.addEventListener('click', e => { if (e.target === back) done(false); });
+  });
+}
+/* [TILLAGT v5.388.0] INTEGRITETSRUTAN (Chris). Spelet lagrar mejladress,
+   spelarnamn och allt man gor i spelet, och chatten ar text andra laser. Det
+   ska sagas EN gang, tydligt, innan man borjar - inte gommas i en fot.
+   Visas forsta gangen man kommer in i varlden i den har webblasaren; kvittot
+   sparas i localStorage under PRIVACY_KEY. Byt PRIVACY_VERSION nar texten
+   andras i sak, sa far alla se den igen. Kan inte klickas bort utanfor rutan -
+   knappen ar kvittot. Texten star har och ingen annanstans; adressen for
+   kontofragor ar PRIVACY_CONTACT. */
+const PRIVACY_VERSION = 1;
+const PRIVACY_KEY = 'genesis.privacy';
+const PRIVACY_CONTACT = 'SET-YOUR-CONTACT-EMAIL';   /* <-- Chris: byt till en riktig adress fore uppladdning */
+function privacySeen(){
+  try { return parseInt(localStorage.getItem(PRIVACY_KEY) || '0', 10) >= PRIVACY_VERSION; } catch (e){ return true; }
+}
+function privacyNotice(force){
+  if (!force && privacySeen()) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const back = document.createElement('div');
+    back.className = 'ask-back';
+    back.innerHTML =
+      '<div class="ask-box privacy" style="--pc:var(--cyan)">' +
+        '<div class="ask-h1">BEFORE YOU PLAY</div>' +
+        '<div class="ask-body">' +
+          'Genesis is a small independent game. Here is what it stores about you, in plain words.' +
+          '<br><br><b>What we store</b>' +
+          '<ul>' +
+            '<li>Your <b>email address</b> and a hashed password, so you can sign in.</li>' +
+            '<li>Your <b>player name</b>, characters, items, gold, progress and settings.</li>' +
+            '<li><b>Chat messages</b> you send. Public and guild chat is visible to other players. Whispers are visible to the player you send them to.</li>' +
+            '<li>Reports you file about other players, and reports filed about you.</li>' +
+            '<li>Technical logs (your IP address and browser) kept for a short time to run the service safely.</li>' +
+          '</ul>' +
+          '<b>Where and how long</b>' +
+          '<ul>' +
+            '<li>Everything is stored on Supabase servers in Stockholm, Sweden (EU).</li>' +
+            '<li>We keep it as long as you have an account. Deleted characters are gone for good.</li>' +
+          '</ul>' +
+          '<b>What we do not do</b>' +
+          '<ul>' +
+            '<li>No selling or sharing your data with anyone.</li>' +
+          '</ul>' +
+          '<b>Your rights</b>' +
+          '<ul>' +
+            '<li>You can ask for a copy of your data, or for your account and everything in it to be deleted, by emailing <b>' + PRIVACY_CONTACT + '</b> from the address you signed up with.</li>' +
+          '</ul>' +
+          '<b>Play nice.</b> Chat is moderated. Harassment, slurs and scams get accounts blocked. This is a game; be a person you would want to meet in one.' +
+        '</div>' +
+        '<div class="ask-row">' +
+          '<button class="pf-btn" data-yes>I UNDERSTAND</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(back);
+    back.querySelector('[data-yes]').addEventListener('click', () => {
+      try { localStorage.setItem(PRIVACY_KEY, String(PRIVACY_VERSION)); } catch (e){}
+      back.remove(); resolve(true);
+    });
   });
 }
 async function unlearnProfession(id){
@@ -31056,6 +31145,9 @@ async function netEnterWorld(){
   applyClassFigure();
   preloadClassFigures();
   redrawAll();
+  /* [TILLAGT v5.388.0] Forsta gangen i varlden: integritetsrutan. Efter att
+     allt ritats, sa spelet syns bakom den. */
+  privacyNotice();
 }
 async function gateEnter(id, name){
   SRV.charId = id; SRV.charName = name;
