@@ -37,6 +37,12 @@
   --violet:         #7b6cff;
   --magenta:        #ff4fd8;
   --gold:           #ffc542;
+  /* [TILLAGT v5.376.0] Skenet runt ett flygande mynt ska ha myntets farg. Guld
+     fanns redan; de tva mindre valorerna saknades, sa ett kopparmynt lyste
+     gult. Namnen ar med FLIT samma som nycklarna i UI_ICO - da kan var(--<key>)
+     skrivas rakt av utan en oversattningstabell mellan sig. */
+  --silver:         #cfd8e6;
+  --copper:         #d98a4f;
   --green:          #3dff9e;
   --red:            #ff4d6d;
   --orange:         #ff9040;
@@ -299,10 +305,10 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
    over hela kortet. */
 .sn-fig{position:relative;flex:0 0 80px;width:80px;align-self:stretch;overflow:hidden}
 .sn-figart{
-  /* Bilden bar 6,7 % tom luft ovanfor huvudet. Vi drar upp den lika mycket
-     (0,067 x bildens hojd, som ar 205 % x 1750/899 av rutans bredd), sa hjassan
-     ligger i kortets ovankant utan glugg. */
-  position:absolute;left:50%;top:calc(-0.067 * 205% * 1750 / 899);width:205%;height:auto;
+  /* [ANDRAT v5.377.0] Bilderna ar 1024x1536 nu (forut 899x1750) med som mest
+     2,6 % luft ovanfor hjassan. Samma rakning som forut med nya talen:
+     luften x bildens hojd (205 % x 1536/1024 av rutans bredd). */
+  position:absolute;left:50%;top:calc(-0.02 * 205% * 1536 / 1024);width:205%;height:auto;
   transform:translateX(-50%);display:block;
   -webkit-user-drag:none;user-select:none;pointer-events:none;
   -webkit-mask-image:linear-gradient(90deg,#000 64%,transparent 100%);
@@ -644,13 +650,8 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   object-fit:contain;object-position:center bottom;
   pointer-events:none;user-select:none;-webkit-user-drag:none;
   filter:drop-shadow(0 6px 14px rgba(0,0,0,.55));
-  /* Zoomen: skalan sitter som en variabel pa rutan, sa den gar att andra
-     utifran utan att rora nagot annat. Fotterna star still. */
-  transform:scale(var(--figz,0.86));
-  /* Fastpunkten ligger hogt upp pa figuren. Med fotterna som fastpunkt vaxte
-     huvudet rakt ut ur rutan vid inzoomning och man sag bara ben. */
-  transform-origin:50% 22%;
-  transition:transform .12s ease-out;
+  /* [ANDRAT v5.377.0] Ingen skala langre - zoomen ar riven. object-fit:contain
+     visar hela gestalten, och sa ska det vara: kladerna ska synas ga pa. */
 }
 /* [BORTTAGET v5.150.0] Zoomknapparnas stilar - knapparna finns inte langre. */
 .char-fallback{display:none}
@@ -7130,7 +7131,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.375.0 — DUNGEONNODEN OPPNAR DUNGEONEN</div>
+        <div class="sn-ver">GENESIS v5.377.0 — FEM GESTALTER SOM KLAR PA SIG</div>
       </div>
     </div>
   </aside>
@@ -8171,7 +8172,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.375.0 — DUNGEONNODEN OPPNAR DUNGEONEN</div>
+            <div class="desc">GENESIS v5.377.0 — FEM GESTALTER SOM KLAR PA SIG</div>
           </div>
         </div>
       </div>
@@ -8842,26 +8843,74 @@ function classAbilHTML(){
     sorted.map(r => '<div class="pf-row cls-abil"><span>' +
       esc(CLASS_SLOT_NAME[r.slot] || r.slot) + '</span><b>' + esc(r.label) + '</b></div>').join('');
 }
-/* Figuren foljer klassen - MEN bara om filen finns.
-   Rutans bild river sig sjalv om den inte gar att ladda, och da star bara ett
-   tecken kvar. Satte man klassens adress rakt pa skulle alltsa karaktaren
-   forsvinna helt sa lange bilderna saknas. Darfor provladdas den vid sidan om,
-   och bytet sker forst nar den gatt igenom. Saknas filen star den gamla figuren
-   kvar och ingenting hander. */
-function classFigureSrc(){
-  return S.classId ? 'assets/character/' + S.classId + '.png' : null;
+/* ===== FIGUREN: KLASS + KLADER = EN BILD (v5.377.0, Chris) =====
+   Varje klass har en egen gestalt, ritad av Chris i 32 varianter: en for varje
+   satt att ha pa sig (eller inte) de fem klädplatserna huvud, brost, ben,
+   handskar och stovlar. Bilden valjs alltsa av TVA saker - vilken klass man ar
+   och vad man har pa sig - och byts sa fort en pjas gar pa eller av.
+   Gestalterna ar tecknade efter var sin region (blockgubben ur Voxholms gruva,
+   alvan ur Drakemark ...) men klassen ar INTE knuten till regionen; det ar bara
+   utseende. Vilken gestalt som hor till vilken klass star HAR och ingen
+   annanstans - vill man byta ar det en rad.
+   Filerna ligger i assets/character/<gestalt>/NN.webp dar NN ar bildens nummer
+   0-31 enligt Chris README: HEAD 16, CHEST 8, PANTS 4, GLOVES 2, BOOTS 1.
+   Numret RAKNAS fram ur platserna, sa 32 filnamn behover aldrig skrivas. WebP
+   for att de 160 bilderna annars vagde 30 MB; nu 7. */
+const CLASS_FIGURE = {
+  breaker:    'cyborg',
+  prospector: 'blockman',
+  fabricator: 'hoodie-man',
+  warden:     'elf',
+  runner:     'monkey-pirate'
+};
+/* Bitvarde per klädplats. Platsnumren ar karaktarsbladets (0 huvud, 1 brost,
+   2 ben, 3 handskar, 4 stovlar). Ordningen ar Chris - README:ns, inte platsernas. */
+const FIGURE_BITS = {0: 16, 1: 8, 2: 4, 3: 2, 4: 1};
+const FIGURE_FULL = 31;
+function figureState(){
+  let n = 0;
+  for (const sl in FIGURE_BITS) if (S.equip && S.equip[sl]) n |= FIGURE_BITS[sl];
+  return n;
 }
-let classFigureOk = null;
+/* En adress, en funktion. Porten (fullt pakladd, 31), bladet och sidoraden
+   (det man faktiskt bar) fragar alla har. */
+function figureSrcFor(classId, state){
+  const fig = CLASS_FIGURE[classId];
+  if (!fig) return null;
+  const nn = Math.max(0, Math.min(FIGURE_FULL, state | 0));
+  return 'assets/character/' + fig + '/' + (nn < 10 ? '0' : '') + nn + '.webp';
+}
+function classFigureSrc(){ return figureSrcFor(S.classId, figureState()); }
+/* Bilden byts forst nar den gatt att ladda - rutans img river sig sjalv vid
+   fel, och da hade figuren forsvunnit helt om filen saknades. Provladdas vid
+   sidan om; det som en gang gatt igenom byts direkt nasta gang. */
+const classFigureOk = new Set();
 function applyClassFigure(){
   const vill = classFigureSrc();
   if (!vill) return;
   const satt = () => document.querySelectorAll('.char-figure, .sn-figart').forEach(img => {
     if (img.getAttribute('src') !== vill) img.src = vill;
   });
-  if (classFigureOk === vill){ satt(); return; }
+  if (classFigureOk.has(vill)){ satt(); return; }
   const prov = new Image();
-  prov.onload = () => { classFigureOk = vill; satt(); };
+  prov.onload = () => {
+    classFigureOk.add(vill);
+    /* Har man hunnit byta igen medan bilden laddade ska den gamla inte vinna. */
+    if (classFigureSrc() === vill) satt();
+  };
   prov.src = vill;
+}
+/* De ovriga 31 varianterna hamtas i lugn och ro efter inloggning, sa forsta
+   handsken inte far en tom ruta i en halv sekund. Ordningen spelar ingen roll. */
+function preloadClassFigures(){
+  if (!S.classId || !CLASS_FIGURE[S.classId]) return;
+  for (let n = 0; n <= FIGURE_FULL; n++){
+    const src = figureSrcFor(S.classId, n);
+    if (classFigureOk.has(src)) continue;
+    const im = new Image();
+    im.onload = () => classFigureOk.add(src);
+    im.src = src;
+  }
 }
 /* Hamta hela karaktaren fran servern och lagg den i S. Detta ERSATTER den
    lokala sparfilen som sanningskalla nar man ar inloggad. */
@@ -9087,8 +9136,14 @@ async function netSync(){
          Guldet hade ingen bild alls - bara texten - sa det fick en, samma vag
          som samlarfynden tar. Beloppet star kvar i hovringen for den som vill
          veta, och i pengarutan for alla andra. */
-      nodeDropPop('money', 1, 'var(--gold)',
-        {art: 'assets/ui/money.png', ico: '\ud83e\ude99', title: '+' + moneyText(idleGuld)});
+      /* [RATTAT v5.376.0] MYNTET VAR ALLTID GULD (Chris). Adressen var
+         handskriven har, forbi UI_ICO, sa bilden brydde sig inte om beloppet -
+         och tomgangen ger en KOPPAR i sekunden. Nu valjs valoren av myntKey,
+         samma kalla som resten av spelet: koppar under ett silver, silver under
+         ett guld. Faller filen bort star emojin kvar som forut. */
+      const mk = myntKey(idleGuld), md = UI_ICO[mk];
+      nodeDropPop('money', 1, 'var(--' + mk + ')',
+        {art: md[0], ico: md[1], title: '+' + moneyText(idleGuld)});
     }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
@@ -13826,8 +13881,17 @@ function myntIco(koppar){
      - drygt 214 000 guld - slar den runt till ett negativt tal, och da visade
      rutan "-129 497g". splitMoney sjalv anvander Math.floor och var aldrig
      drabbad; det var mina egna omslag som slarvade. */
+  return uiIco(myntKey(koppar));
+}
+/* [TILLAGT v5.376.0] VALORVALET SOM EGEN FUNKTION (Chris). myntIco svarade med
+   fardig HTML, sa den som behovde bara BILDEN - nodens flygande mynt - hade
+   inget att fraga och skrev darfor 'assets/ui/money.png' for hand. Da fick
+   tomgangens en koppar per sekund ett GULDMYNT over noden. Nyckeln ligger nu
+   for sig; myntIco anvander den ocksa, sa de tva kan aldrig saga olika saker
+   om samma belopp. */
+function myntKey(koppar){
   const m = splitMoney(Math.max(0, Math.floor(+koppar || 0)));
-  return uiIco(m.g ? 'gold' : (m.s ? 'silver' : 'copper'));
+  return m.g ? 'gold' : (m.s ? 'silver' : 'copper');
 }
 function uiIco(key){
   const d = UI_ICO[key];
@@ -17433,6 +17497,10 @@ function renderEquip(){
       el.innerHTML = '<i class="slot-bg" style="background-image:url(\'assets/slots/slot_' + art + '.png\')"></i>';
     }
   });
+  /* [TILLAGT v5.377.0] Figuren foljer kladerna. Varje gang platserna ritas om
+     kan bilden behova bytas - hjalm pa, hjalm av - och det har ar det ENDA
+     stallet dar platserna ritas, sa bilden kan inte hamna i otakt med rutorna. */
+  applyClassFigure();
   refreshHpBar();
   renderCharStats();
 }
@@ -26658,32 +26726,11 @@ function toggleWindow(id, open, close){
    Hjulet over figuren eller de tre knapparna. Skalan sparas lokalt: hur stor man
    vill se sin gubbe ar en installning, inte speldata, sa den bor hos webblasaren
    och inte pa servern. */
-const FIG_ZOOM_KEY = 'genesis.figzoom';
-/* [ANDRAT v5.150.0] Grundskalan ar 0,86. Forut stod den pa 1 och gubben var sa
-   stor att fotterna klipptes av rutans underkant. */
-let figZoom = 0.86;
-function figZoomApply(){
-  const el = document.querySelector('.char-portrait');
-  if (el) el.style.setProperty('--figz', figZoom.toFixed(3));
-}
-function figZoomSet(v){
-  figZoom = Math.min(3, Math.max(0.5, v));
-  figZoomApply();
-  try { localStorage.setItem(FIG_ZOOM_KEY, String(figZoom)); } catch (e){}
-}
-(function figZoomInit(){
-  try { const v = parseFloat(localStorage.getItem(FIG_ZOOM_KEY)); if (v > 0) figZoom = Math.min(3, Math.max(0.5, v)); } catch (e){}
-  figZoomApply();
-  const port = document.querySelector('.char-portrait');
-  if (port){
-    port.addEventListener('wheel', e => {
-      e.preventDefault();
-      figZoomSet(figZoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
-    }, {passive: false});
-  }
-  /* [BORTTAGET v5.150.0] De tre zoomknapparna. Hjulet over figuren gor samma
-     sak, och knapparna at plats i underkanten som rutan inte hade rad med. */
-})();
+/* [RIVET v5.377.0] ZOOMEN (Chris). Hjulet over figuren, --figz-variabeln och
+   den sparade skalan i localStorage ar borta. Figuren ar nu ritad i 32
+   varianter som alla ska ses HELA - en inzoomad gubbe visar bara brostet, och
+   da syns inte att stovlarna gick pa. Rutan visar alltid hela gestalten, i den
+   storlek rutan medger. */
 $('qa-pets').addEventListener('click', () => toggleWindow('pets-overlay', openPetsModal, closePetsWindow));
 /* [TILLAGT v5.76.0] Knappen i lagrutans rubrik oppnar samma forrad som
    snabbvalets Helpers - en vag, tva ingangar. */
@@ -30724,7 +30771,9 @@ const CHAR_MAX = 10;
    och servern provar anda valet mot samma tabell. Hamtas en gang per besok. */
 let GATE_CLASSES = null;
 let gateClassPick = null;
-function gateClassArt(id){ return 'assets/character/' + id + '.png'; }
+/* [ANDRAT v5.377.0] Porten visar gestalten FULLT PAKLADD - samma fil som
+   bladet visar nar alla fem kladplatserna ar fyllda. En kalla: figureSrcFor. */
+function gateClassArt(id){ return figureSrcFor(id, FIGURE_FULL) || ''; }
 async function gateLoadClasses(){
   if (GATE_CLASSES) return GATE_CLASSES;
   GATE_CLASSES = await srvSelect('character_class_config',
@@ -30883,6 +30932,7 @@ async function gateEnter(id, name){
        stovlar osynliga efter en omladdning - servern hade dem, karaktarsbladet
        hade aldrig blivit ombett att rita dem. */
     applyClassFigure();
+    preloadClassFigures();
     redrawAll();
   } catch (e){
     gateSay('gate-msg2', e.message);
