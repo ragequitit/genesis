@@ -1677,9 +1677,17 @@ body.dragging *{cursor:grabbing !important}
   font-weight:800;font-size:16px;color:#67e8f9;
   text-shadow:0 0 12px rgba(34,211,238,.85);
   z-index:6;
-  animation:floatOut .9s cubic-bezier(.15,.7,.3,1) forwards;
+  /* [ANDRAT v5.368.0] 0,9 -> 1,9 sekunder (Chris). Texten hann forsvinna innan
+     man hunnit lasa den. Kurvan ar orord - bara tiden ar langre, sa rorelsen ser
+     likadan ut men lugnare.
+     JS-stadningen langre ned MASTE folja samma tal: tas elementet bort forst
+     klipps animationen mitt i. */
+  animation:floatOut 1.9s cubic-bezier(.15,.7,.3,1) forwards;
 }
 .float-amt{font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+/* [TILLAGT v5.368.0] Luften mellan ett belopp och dess mynt. Ett tomt element i
+   stallet for ett blanksteg - se moneyIcoText. */
+.mi-gap{display:inline-block;width:.28em}
 .float-idle{font-size:12px;font-weight:700;opacity:.72;text-shadow:0 0 8px currentColor;color:var(--theme, #22d3ee)}
 @keyframes floatOut{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
@@ -1690,7 +1698,7 @@ body.dragging *{cursor:grabbing !important}
 .float-crit{
   font-size:26px;color:var(--gold);
   text-shadow:0 0 20px rgba(251,191,36,1), 0 0 40px rgba(251,191,36,.5);
-  animation:floatOutCrit 1.15s cubic-bezier(.12,.75,.25,1) forwards;
+  animation:floatOutCrit 2.15s cubic-bezier(.12,.75,.25,1) forwards;
 }
 .crit-word{
   font-size:11px;letter-spacing:.18em;
@@ -7125,7 +7133,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.367.0 — SNABBVAG IN I EGEN REGION</div>
+        <div class="sn-ver">GENESIS v5.368.0 — LUFT OCH TID AT MYNTEN</div>
       </div>
     </div>
   </aside>
@@ -8166,7 +8174,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.367.0 — SNABBVAG IN I EGEN REGION</div>
+            <div class="desc">GENESIS v5.368.0 — LUFT OCH TID AT MYNTEN</div>
           </div>
         </div>
       </div>
@@ -13788,10 +13796,14 @@ const UI_ICO = {
 function moneyIcoText(koppar){
   const m = splitMoney(Math.max(0, koppar | 0));
   const d = [];
-  if (m.g) d.push(fmtLong(m.g) + uiIco('gold'));
-  if (m.s) d.push(m.s + uiIco('silver'));
-  if (m.c || !d.length) d.push(m.c + uiIco('copper'));
-  return d.join(' ');
+  /* [ANDRAT v5.368.0] Ett halt mellanrum mellan talet och myntet (Chris). De
+     satt ihop och lastes som ett enda tecken. Mellanrummet star i CSS i stallet
+     for som ett blanksteg i strangen: ett blanksteg kan brytas pa raden, en
+     marginal kan inte, och myntet ska aldrig hamna pa egen rad. */
+  if (m.g) d.push(fmtLong(m.g) + '<span class="mi-gap"></span>' + uiIco('gold'));
+  if (m.s) d.push(m.s + '<span class="mi-gap"></span>' + uiIco('silver'));
+  if (m.c || !d.length) d.push(m.c + '<span class="mi-gap"></span>' + uiIco('copper'));
+  return d.join('&nbsp;&nbsp;');
 }
 function myntIco(koppar){
   const m = splitMoney(Math.max(0, koppar | 0));
@@ -19392,7 +19404,7 @@ function spawnFloat(opts){
     const i = floatsLive.indexOf(n);
     if (i >= 0) floatsLive.splice(i, 1);
     n.remove();
-  }, crit ? 1150 : 900);
+  }, crit ? 2150 : 1900);   /* samma tal som floatOut / floatOutCrit i CSS */
 }
 
 /* Crit-bursten: två expanderande ringar + 14 skärvor på jämna vinklar.
