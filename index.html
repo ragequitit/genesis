@@ -1876,6 +1876,23 @@ body.dragging *{cursor:grabbing !important}
   animation:bfIn .35s ease-out, bfFloat 2.6s ease-in-out .35s infinite;
 }
 .bonus-find .bf-ico{font-size:17px}
+/* [TILLAGT v5.360.0] BONUSFYNDET SOM BILD. Ingen ruta, ingen ram - bara varan,
+   precis som nar vanligt skrot flyger ut ur noden. Skillnaden ar skimret: det
+   vanliga skrotet lyser gult (--ndc), det har lyser ROTT, for det ar sallsynt
+   och ska ropa hogre.
+   Bilden ar 42 px mot dropparnas 28 - halva storleken storre, som Chris bad om.
+   Rutans egen bakgrund och ram tas bort har i stallet for att skrivas om, sa
+   textvarianten (yrkes-XP, ordertid) behaller sin ruta orord. */
+.bonus-find.art{background:none;border:0;box-shadow:none;padding:0;gap:0}
+.bonus-find.art .bf-ico{
+  width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+  font-size:28px;
+  filter:drop-shadow(0 0 10px #ff4d4d) drop-shadow(0 0 20px rgba(255,77,77,.55))
+         drop-shadow(0 2px 4px rgba(0,0,0,.65))}
+.bonus-find.art .bf-ico .art-img{width:100%;height:100%;object-fit:contain}
+.bonus-find.art:hover .bf-ico{
+  filter:drop-shadow(0 0 14px #ff6b6b) drop-shadow(0 0 26px rgba(255,107,107,.7))
+         drop-shadow(0 2px 4px rgba(0,0,0,.65))}
 .bonus-find:hover{border-color:#fff}
 .bonus-find.going{animation:bfOut .35s ease-in forwards}
 /* Sista tva sekunderna blinkar den, sa man hinner reagera innan den ar borta. */
@@ -4686,6 +4703,10 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
   border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text)}
 .q2-btn.main{border-color:transparent;color:#fff;background:linear-gradient(135deg,#7b3ff2,#a45cff)}
 .q2-btn.ghost{color:var(--text-dim)}
+/* [TILLAGT v5.362.0] Fragan lyser gult, inte rott: att overge ar ett VAL,
+   inte ett fel. Samma sprak som dungeonrutans 'Yes - leave now'. */
+.q2-btn.ask{border-color:#ffc542;color:#061018;background:#ffc542}
+#qwin-overlay .qwin-act button.ask{border-color:#ffc542;color:#061018;background:#ffc542}
 .q2-btn:disabled{opacity:.45;cursor:default}
 /* Telefonen kan inte bara tre spalter. Portrattet blir en bred remsa overst,
    belaningarna lagger sig under texten och knappen tar hela bredden - annars
@@ -7063,7 +7084,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.359.0 — SYNKEN SYNS</div>
+        <div class="sn-ver">GENESIS v5.362.0 — ABANDON FRAGAR FORST</div>
       </div>
     </div>
   </aside>
@@ -8104,7 +8125,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.359.0 — SYNKEN SYNS</div>
+            <div class="desc">GENESIS v5.362.0 — ABANDON FRAGAR FORST</div>
           </div>
         </div>
       </div>
@@ -9009,7 +9030,7 @@ async function netSync(){
        Adderar bada sidor kan de rakna isar, och da visar pillret ett tal som
        inte finns pa servern. */
     if (clock && (clock.idle_gold | 0) > 0 && !(firstSync && NET.awaySecs > 120)){
-      spawnFloat({text: '+' + moneyText(clock.idle_gold | 0)});
+      spawnFloat({text: '+' + moneyIcoText(clock.idle_gold | 0)});
     }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
@@ -13717,6 +13738,20 @@ const UI_ICO = {
    expCoinIco redan gor for expeditionerna och qwinMynt for kontrakten.
    Ligger HAR, bredvid uiIco, sa nasta stalle som visar pengar har en fardig
    funktion att ta i stallet for att skriva '\u2018gold\u2019' for hand. */
+/* [TILLAGT v5.361.0] BELOPPET MED BILDER I STALLET FOR BOKSTAVER (Chris). Den
+   flytande texten sa "+4c". Nu star talet och sedan valorens egen bild: "+4" och
+   kopparmyntet. Varje valor far sin egen, sa ett blandat belopp behaller allt -
+   "9(silver) 15(koppar)" i stallet for att kapas till den storsta.
+   Bara for korta, flyktiga texter. Rader man LASER behaller bokstaverna: de gar
+   att markera och kopiera, och de bryter inte om en bild saknas. */
+function moneyIcoText(koppar){
+  const m = splitMoney(Math.max(0, koppar | 0));
+  const d = [];
+  if (m.g) d.push(fmtLong(m.g) + uiIco('gold'));
+  if (m.s) d.push(m.s + uiIco('silver'));
+  if (m.c || !d.length) d.push(m.c + uiIco('copper'));
+  return d.join(' ');
+}
 function myntIco(koppar){
   const m = splitMoney(Math.max(0, koppar | 0));
   return uiIco(m.g ? 'gold' : (m.s ? 'silver' : 'copper'));
@@ -25213,12 +25248,19 @@ document.addEventListener('click', e => {
    Reglerna: bara medan sidan syns, aldrig offline, atta sekunder, maste klickas. */
 const BONUS_FIND_EVERY = [70, 150];      /* sekunder mellan forsok - platshallare */
 const BONUS_FIND_LIFE  = 8000;           /* atta sekunder, spelarens regel */
+/* [ANDRAT v5.360.0] BONUSFYNDET AR EN BILD, INTE ETT ORD (Chris). Rutan sa
+   "Scrap" i text bredvid en emoji. Nu ritas varans EGNA bild - samma vag som
+   vanligt skrot tar nar det flyger ut ur noden - sa de tva ser ut att vara
+   samma sak, vilket de ar.
+   'key' pekar ut varan att hamta bilden ur. De tva sorter som inte AR en vara
+   (yrkes-XP och ordertid) har ingen nyckel och behaller sitt tecken och sitt
+   ord - en bild av ingenting sager mindre an ordet. */
 const BONUS_FIND_ICONS = {
-  material_mining: {ico:'\u26cf\ufe0f', text:'Mining find'},
-  material_synth:  {ico:'\ud83e\uddf5', text:'Synthetics find'},
-  scrap:           {ico:'\ud83d\udd29', text:'Scrap'},
-  bound_medic:     {ico:'\ud83e\ude79', text:'Medical Supplies'},
-  bound_refiner:   {ico:'\u26fd',        text:'Crude Fuel'},
+  material_mining: {ico:'\u26cf\ufe0f', text:'Mining find',      key:'copper_ore'},
+  material_synth:  {ico:'\ud83e\uddf5', text:'Synthetics find',  key:'synthetic_fiber'},
+  scrap:           {ico:'\ud83d\udd29', text:'Scrap',            key:'salvaged_scrap'},
+  bound_medic:     {ico:'\ud83e\ude79', text:'Medical Supplies', key:'medical_supplies'},
+  bound_refiner:   {ico:'\u26fd',        text:'Crude Fuel',       key:'crude_fuel'},
   prof_xp:         {ico:'\u2728',        text:'Profession XP'},
   order_speed:     {ico:'\u23e9',        text:'Order time'}
 };
@@ -25250,7 +25292,17 @@ function spawnBonusFind(){
   if (!stage) return;
   const el = document.createElement('div');
   el.className = 'bonus-find';
-  el.innerHTML = '<span class="bf-ico">' + def.ico + '</span>' + def.text;
+  /* Bilden ensam nar varan har en. Namnet finns kvar i hovringen, sa ingenting
+     gar forlorat for den som undrar vad det ar. */
+  const bfArt = def.key ? stackArtOf(def.key) : null;
+  if (bfArt){
+    el.classList.add('art');
+    el.title = def.text;
+    el.innerHTML = '<span class="bf-ico art-wrap">' +
+      artWithFallback(bfArt, def.ico) + '</span>';
+  } else {
+    el.innerHTML = '<span class="bf-ico">' + def.ico + '</span>' + def.text;
+  }
   stage.appendChild(el);
   const sr = stage.getBoundingClientRect();
   const w = el.offsetWidth || 140, hgt = el.offsetHeight || 34;
@@ -29468,7 +29520,14 @@ function openFriends(){
    Rutan har LASER bara laget och skickar knapptryck - den raknar ingenting
    sjalv, sa den kan aldrig saga emot servern. Kartnoderna kommer i ett senare
    steg; detta ar fonstret. */
-let QUESTS = {state: null, busy: false, view: 'main', hist: null};
+/* [TILLAGT v5.362.0] 'ask' bar id:t pa det uppdrag man just tryckt Abandon pa.
+   Ett uppdrag man overger ar borta - och abandon kostar dessutom 900 sekunders
+   vila pa platsen. En felklick far inte gora det.
+   Samma tvastegsform som dungeonrutan redan anvander (DGC_ASK): knappen BYTER
+   TEXT till en fraga i stallet for att en egen ruta poppar upp. En ruta till
+   maste stangas, placeras och matas pa sex bredder; en knapp som byter ord gor
+   samma jobb dar handen redan ar. */
+let QUESTS = {state: null, busy: false, view: 'main', hist: null, ask: null};
 /* Kartans lasglasogon: vad har regionen for kontrakt just nu?
    Ritningen fragar har - den raknar aldrig sjalv. */
 function questsInRegion(id){
@@ -29677,7 +29736,9 @@ function questRowHTML(q, mode, activeFull){
        belaningen visas. Sjalva hamtningen finns bara pa ETT stalle. */
     : done
       ? '<button class="q2-btn main" data-qwinopen="' + q.quest_id + '">Claim rewards</button>'
-      : '<button class="q2-btn ghost" data-qabandon="' + q.quest_id + '">Abandon</button>';
+      : (QUESTS.ask === q.quest_id
+          ? '<button class="q2-btn ask" data-qabandon="' + q.quest_id + '">Yes \u2014 abandon</button>'
+          : '<button class="q2-btn ghost" data-qabandon="' + q.quest_id + '">Abandon</button>');
   const art = questArt(q);
   /* Steget star kvar dar det BETYDER nagot - bara kedjor har flera steg. */
   const steg = q.step_total && q.step_no
@@ -29868,7 +29929,9 @@ function openQuestWin(id){
     : laget === 'done'
       ? '<button class="main" data-qclaim="' + q.quest_id + '">Claim rewards</button>' +
         '<button data-qwinclose="1">Close</button>'
-      : '<button data-qabandon="' + q.quest_id + '">Abandon</button>' +
+      : (QUESTS.ask === q.quest_id
+          ? '<button class="ask" data-qabandon="' + q.quest_id + '">Yes \u2014 abandon</button>'
+          : '<button data-qabandon="' + q.quest_id + '">Abandon</button>') +
         '<button data-qwinclose="1">Close</button>';
   w.classList.add('open');
   bringToFront(w);
@@ -30001,6 +30064,10 @@ $('quest-body').addEventListener('click', (e) => {
   /* [ANDRAT v5.343.0] Flikarna bar data-qtab; de gamla marken lases fortfarande
      sa en knapp nagon annanstans i filen inte plotsligt dor. */
   const nav = e.target.closest('[data-qtab],[data-qhist],[data-qback]');
+  /* [TILLAGT v5.362.0] Ett klick nagon annanstans i listan slapper en obesvarad
+     abandon-fraga. Utan det star knappen kvar och sager "Yes - abandon" tills
+     nagon rakar trycka pa den. */
+  if (QUESTS.ask && !e.target.closest('[data-qabandon]')){ QUESTS.ask = null; renderQuests(); }
   if (!nav) return;
   QUESTS.view = nav.dataset.qtab ? nav.dataset.qtab
               : (nav.dataset.qhist ? 'history' : 'main');
@@ -30016,6 +30083,20 @@ $('quest-body').addEventListener('click', (e) => {
 document.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-qaccept],[data-qclaim],[data-qabandon],[data-qdecline]');
   if (!t || QUESTS.busy) return;
+  /* [TILLAGT v5.362.0] ABANDON FRAGAR FORST. Forsta trycket stiller fragan,
+     andra utfor. Ett annat uppdrag som fragas bort avbryter den forra fragan, sa
+     tva knappar aldrig star och vantar samtidigt.
+     Knappen byter ord i stallet for att oppna en ruta - se kommentaren vid
+     QUESTS.ask. Klickar man nagon annanstans i uppdragslistan slapper fragan;
+     det sker langre ned, i lyssnaren pa fonstrets kropp. */
+  if (t.dataset.qabandon && QUESTS.ask !== t.dataset.qabandon){
+    QUESTS.ask = t.dataset.qabandon;
+    renderQuests();
+    if (typeof openQuestWin === 'function' && $('qwin-overlay') &&
+        $('qwin-overlay').classList.contains('open')) openQuestWin(t.dataset.qabandon);
+    return;
+  }
+  QUESTS.ask = null;
   QUESTS.busy = true;                 /* en hamtning at gangen - dubbletternas vakt */
   try {
     if (t.dataset.qaccept)  await srvRpc('quest_accept',  {p_character: SRV.charId, p_quest: t.dataset.qaccept});
