@@ -7125,7 +7125,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.365.0 — HISTORIKEN FAR ANSIKTEN</div>
+        <div class="sn-ver">GENESIS v5.366.0 — HANTVERKAREN FAR SIN MATARE</div>
       </div>
     </div>
   </aside>
@@ -8166,7 +8166,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.365.0 — HISTORIKEN FAR ANSIKTEN</div>
+            <div class="desc">GENESIS v5.366.0 — HANTVERKAREN FAR SIN MATARE</div>
           </div>
         </div>
       </div>
@@ -25543,9 +25543,13 @@ function profPanelCardHTML(p, linked){
       /* [ANDRAT v5.62.0] Ocksa SIDOYRKET far sin puls: stationen tickar fram en
          enhet i taget, precis som samlaren rullar mot nasta fynd. Hantverkarna
          har ingen egen takt och far darfor ingen rad. */
-      (p.kind === 'gathering' || p.kind === 'secondary'
-        ? '<div class="jc-cyc" data-cyc="' + p.id + '"><div class="jc-cycfill" style="width:0%"></div></div>'
-        : '') +
+      /* [ANDRAT v5.366.0] HANTVERKAREN FAR OCKSA SIN MATARE (Chris). Raden ovan
+         sa att hantverkarna "har ingen egen takt" - det stammer for yrket, men
+         inte for BESTALLNINGEN. En order har en langd, och nar den gar ar det
+         precis den sortens puls de tva andra korten visar. Nu ror sig alla tre
+         kort nar nagot hander i dem, och star still nar inget gor det.
+         Alla yrken far raden; vad som fyller den avgors i refreshProfCards. */
+      '<div class="jc-cyc" data-cyc="' + p.id + '"><div class="jc-cycfill" style="width:0%"></div></div>' +
     '</div>' +
     /* [ANDRAT v5.52.2] COLLECT-KNAPPEN AR BORTTAGEN. Fardiga bestallningar
        ramlar ner i vaskan av sig sjalva nar arbetsklockan tickar - servern
@@ -25629,6 +25633,18 @@ function refreshProfCards(){
         ph = paused ? 0
            : (left == null ? ((Date.now() / 1000) % per) / per
                            : Math.min(1, Math.max(0, (per - left) / per)));
+      } else if (p.kind === 'crafting'){
+        /* [TILLAGT v5.366.0] BESTALLNINGENS EGEN MATARE. total och left kommer
+           bada fran servern och rakas ned lokalt mellan synkarna, sa stapeln
+           ror sig mjukt i stallet for att hoppa var tionde sekund.
+           Nar en order blir klar ersatter servern raden med nasta i kon - da
+           borjar mataren om av sig sjalv, utan att nagon behover nollstalla
+           den har.
+           Ingen order alls: tom stapel, inte rosa. Rosa betyder "stopp" pa
+           stationskortet, och samma farg far inte betyda "inget att gora". */
+        const o = (S.orders && S.orders[p.id]) || null;
+        const tot = o ? (+o.total || 0) : 0;
+        ph = (o && tot > 0 && o.left > 0) ? Math.min(1, Math.max(0, (tot - o.left) / tot)) : 0;
       } else {
         const ms = gatherCycleSecs(p.id) * 1000;
         const g = (S.prof.gather && S.prof.gather[p.id]) || {};
