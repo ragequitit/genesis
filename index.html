@@ -6971,6 +6971,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
            med ifyllda uppgifter - se gateBoot. -->
       <div id="gate-resume" class="gate-step" style="display:none">
         <div class="gate-msg ok" id="gate-resume-msg">Resuming your session…</div>
+        <!-- [TILLAGT v5.386.0] Utvagen om servern aldrig svarar - se gateBoot. -->
+        <button class="gate-tab" id="gate-resume-skip" style="display:none">Sign in instead</button>
       </div>
       <div id="gate-auth" class="gate-step">
         <div class="gate-tabs">
@@ -7170,7 +7172,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.384.0 — MENYN SOM SNABBVAL PA TELEFON</div>
+        <div class="sn-ver">GENESIS v5.387.0 — TIDSGRANS PA VARJE SERVERANROP</div>
       </div>
     </div>
   </aside>
@@ -8211,7 +8213,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.384.0 — MENYN SOM SNABBVAL PA TELEFON</div>
+            <div class="desc">GENESIS v5.387.0 — TIDSGRANS PA VARJE SERVERANROP</div>
           </div>
         </div>
       </div>
@@ -8494,6 +8496,9 @@ function srvClearSession(){
 /* Ett anrop till servern. Alla fel kommer tillbaka som ett Error med serverns
    egen kod ('insufficient_gold', 'not_your_character'), sa granssnittet kan
    saga nagot begripligt i stallet for "nagot gick fel". */
+/* 20 sekunder: langt over vad ett friskt anrop tar (de ligger pa tiondelar),
+   kort nog att man inte hinner tro att spelet dott. */
+const SRV_TIMEOUT_MS = 20000;
 async function srvCall(path, opts){
   opts = opts || {};
   const headers = Object.assign({
@@ -8508,16 +8513,32 @@ async function srvCall(path, opts){
   if (SESSION_TOKEN) headers['x-genesis-session'] = SESSION_TOKEN;
   if (SRV.token && !opts.noAuth) headers['Authorization'] = 'Bearer ' + SRV.token;
 
-  let res;
+  /* [TILLAGT v5.387.0] TIDSGRANS PA VARJE ANROP (Chris). fetch vantar annars
+     hur lange som helst, och ett anrop som aldrig svarar - mobilnat som tappar
+     kontakten mitt i, en server som hanger - lat knappen sta gra, synken sta
+     pa "syncing" och porten sta pa "Resuming…" for evigt. Nu bryts anropet
+     efter SRV_TIMEOUT_MS och kastar 'timeout', som resten av spelet redan vet
+     hur det ska visa. 'timeout' matchar MED FLIT inte portens lista over
+     inloggningsfel (invalid, expired, jwt ...) - en langsam server ar inte
+     ett skal att kasta ut nagon. Enskilda anrop kan begara mer tid med
+     opts.timeout. Stoppet galler aven kroppen: en server som skickar rubriker
+     och sedan tystnar bryts ocksa. */
+  const ctl = new AbortController();
+  const tid = setTimeout(() => ctl.abort(), opts.timeout || SRV_TIMEOUT_MS);
+  let res, text;
   try {
     res = await fetch(SRV.url + path, {
       method: opts.method || 'GET',
       headers: headers,
-      body: opts.body ? JSON.stringify(opts.body) : undefined
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: ctl.signal
     });
+    text = await res.text();
   } catch (e){
     SRV.online = false;
-    throw new Error('offline');
+    throw new Error(ctl.signal.aborted ? 'timeout' : 'offline');
+  } finally {
+    clearTimeout(tid);
   }
 
   /* [TILLAGT v5.283.0] SERVERNS KLOCKA. Varje svar bar med sig serverns tid i
@@ -8536,7 +8557,6 @@ async function srvCall(path, opts){
   } catch (e){ /* rubriken saknas - da galler den egna klockan som forut */ }
 
   let data = null;
-  const text = await res.text();
   if (text){ try { data = JSON.parse(text); } catch (e){ data = text; } }
 
   if (!res.ok){
@@ -30750,6 +30770,7 @@ const GATE_ERRORS = {
   'account_banned': 'This account is suspended.',
   'not_at_vault': 'You have to be standing at the vault house to use the vault.',
   'offline': 'No connection to the server.',
+  'timeout': 'The server did not answer in time. Try again.',
   'not_signed_in': 'Please sign in again.'
 };
 function gateSay(el, msg, ok){
@@ -30761,16 +30782,20 @@ function gateSay(el, msg, ok){
 let gateMode = 'in';
 let gateKeepMsg = false;   /* halsningen fran mejllanken ska inte suddas bort */
 
+/* [TILLAGT v5.385.0] ETT STEG I TAGET, PA ETT STALLE (buggsvep). Sex steg och
+   fem funktioner som var och en dolde de andra for hand, med olika listor.
+   Handle-steget kande inte till 'gate-resume' (nytt i v5.381.0), sa efter F5
+   med en session utan karaktar och utan spelarnamn stod "Resuming…" kvar
+   OVANFOR namnrutan. Nu doljs alla .gate-step och ett visas; ett nytt steg
+   behover aldrig laggas till i nagon lista. */
+function gateStep(id){
+  document.querySelectorAll('#gate .gate-step').forEach(el => { el.style.display = (el.id === id) ? '' : 'none'; });
+}
 function gateShowAuth(){
   /* [TILLAGT v5.273.0] Bredden nollas nar man gar tillbaka till inloggningen -
      annars hade den breda rutan hangt kvar efter en utloggning. */
   document.querySelector('.gate-hero').classList.remove('picking');
-  $('gate-auth').style.display = '';
-  $('gate-resume').style.display = 'none';
-  $('gate-chars').style.display = 'none';
-  $('gate-handle').style.display = 'none';
-  $('gate-reset').style.display = 'none';
-  $('gate-newpw').style.display = 'none';
+  gateStep('gate-auth');
 }
 /* [TILLAGT v5.204.0] ATERSTALLNINGEN, tre steg.
    1) Man begar en lank. 2) Mejlet loggar in en. 3) Man valjer nytt losenord.
@@ -30778,20 +30803,12 @@ function gateShowAuth(){
    det enda som saknades var att INTE slappa in nagon rakt i spelet nar lanken
    var av sorten "recovery". */
 function gateShowReset(){
-  $('gate-auth').style.display = 'none';
-  $('gate-chars').style.display = 'none';
-  $('gate-handle').style.display = 'none';
-  $('gate-newpw').style.display = 'none';
-  $('gate-reset').style.display = '';
+  gateStep('gate-reset');
   $('gate-reset-email').value = $('gate-email').value || '';
   $('gate-reset-msg').textContent = '';
 }
 function gateShowNewPw(){
-  $('gate-auth').style.display = 'none';
-  $('gate-chars').style.display = 'none';
-  $('gate-handle').style.display = 'none';
-  $('gate-reset').style.display = 'none';
-  $('gate-newpw').style.display = '';
+  gateStep('gate-newpw');
   $('gate-newpw-msg').textContent = '';
   $('gate-newpw-input').value = '';
 }
@@ -30855,9 +30872,7 @@ async function netSetHandle(h){
 }
 /* Porten: har man inget namn far man valja ett INNAN karaktarerna visas. */
 function gateShowHandle(){
-  $('gate-auth').style.display = 'none';
-  $('gate-chars').style.display = 'none';
-  $('gate-handle').style.display = '';
+  gateStep('gate-handle');
   gateSay('gate-msg-handle', '', false);
   $('gate-handle-input').focus();
 }
@@ -30919,9 +30934,7 @@ function gateCreateArm(){
   b.disabled = !(gateClassPick && namn.length >= 3 && namn.length <= 16);
 }
 async function gateShowChars(){
-  $('gate-auth').style.display = 'none';
-  $('gate-resume').style.display = 'none';
-  $('gate-chars').style.display = '';
+  gateStep('gate-chars');
   gateSay('gate-msg2', 'Loading…', true);
   try {
     const rows = await srvSelect('characters', 'select=id,name,xp,region&order=created_at');
@@ -31247,8 +31260,17 @@ let gateResuming = false;
      inloggning 15:10:42, mitt i hamtningen. Nu ar formularet dolt tills vi
      vet att ateruppt inte gick; da, och forst da, visas det. */
   gateResuming = true;
-  $('gate-auth').style.display = 'none';
-  $('gate-resume').style.display = '';
+  gateStep('gate-resume');
+  /* [TILLAGT v5.386.0] INGEN TIDSGRANS PA ANROPEN (buggsvep). srvCall vantar hur
+     lange som helst pa fetch. Fore v5.381.0 lag inloggningen synlig under
+     tiden, sa ett hangande natverk gick att ta sig forbi for hand; nu ar den
+     dold, och da hade "Resuming…" kunnat sta for evigt. Efter atta sekunder
+     visas en utvag. Den rensar sessionen och laddar om sidan - INTE visar
+     formularet bredvid - for det pagaende ateruppt-anropet kan annars bli
+     klart bakom formularet, och det var precis den kapplopning v5.381.0 tog
+     bort. En omladdning avbryter anropet pa riktigt. */
+  const skipTimer = setTimeout(() => { if (gateResuming) $('gate-resume-skip').style.display = ''; }, 8000);
+  $('gate-resume-skip').addEventListener('click', () => { srvClearSession(); location.reload(); });
   try {
     await srvEnsureSession();
     if (SRV.charId){
@@ -31270,6 +31292,7 @@ let gateResuming = false;
     gateShowAuth();
   } finally {
     gateResuming = false;
+    clearTimeout(skipTimer);
   }
 })();
 
