@@ -4496,6 +4496,12 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 /* [TILLAGT v5.340.0] Silver och koppar far egna toner. Sag rutan GOLD i gult
    nar man fick silver var bade ordet och fargen fel. */
 #qwin-overlay .qwin-rew .qr.silver{border-color:rgba(206,214,224,.42);color:#ced6e0}
+/* [TILLAGT v5.341.0] Chansraden ligger UNDER rutnatet, med en tunn linje emellan.
+   Den ar inte en belaning bland de andra - de fyra rutorna ar sadant man SAKERT
+   far, och en chans i samma form hade lovat lika mycket som dem. */
+#qwin-overlay .qwin-gearchance{margin-top:9px;padding-top:9px;
+  border-top:1px dashed var(--border);font-size:10px;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);text-align:center}
 #qwin-overlay .qwin-rew .qr.copper{border-color:rgba(199,124,79,.45);color:#c77c4f}
 #qwin-overlay .qwin-rew .qr.frag{border-color:rgba(164,92,255,.42);color:#a45cff}
 #qwin-overlay .qwin-rew .qr.xp{border-color:var(--cyan-dim);color:var(--cyan)}
@@ -6927,7 +6933,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.340.0 — KONTRAKTSFONSTRET</div>
+        <div class="sn-ver">GENESIS v5.341.0 — EXPEDITIONERNA STADAS</div>
       </div>
     </div>
   </aside>
@@ -7968,7 +7974,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.340.0 — KONTRAKTSFONSTRET</div>
+            <div class="desc">GENESIS v5.341.0 — EXPEDITIONERNA STADAS</div>
           </div>
         </div>
       </div>
@@ -16311,6 +16317,13 @@ function expScrapKey(regionId){
 }
 const SCRAP_BY_RANK = {1:'salvaged_scrap', 2:'scrap_reinforced', 3:'scrap_charged', 4:'scrap_phase'};
 function expIsRunning(id){ return S.exp.runs.some(r => r.id === id); }
+/* [TILLAGT v5.341.0] KLAR AR INTE SAMMA SAK SOM IGANG (Chris). Knappen sa
+   "Running" sa lange en korning fanns i listan, aven nar den redan tagit slut -
+   sa en fardig expedition sag ut att fortfarande arbeta. Vakten star har, pa ETT
+   stalle, och anvands av bade zonlistan och expeditionsfonstret. */
+function expIsReady(id){
+  return S.exp.runs.some(r => r.id === id && nu() >= r.endsAt);
+}
 function expIsFound(id){ return S.exp.found.includes(id); }
 
 function discoverZoneExpeditions(regionId, zone){
@@ -17817,7 +17830,19 @@ function expGoldText(def){
      talet rundas NED och det ovre UPP, sa lofte hallet aldrig ar mindre an det
      ser ut. Under ett guld visas valorerna som forut - da sager "0-1g" inget. */
   const r = expGoldRange(def);
-  if (r[1] < COPPER_PER_GOLD) return moneyText(r[0]) + ' – ' + moneyText(r[1]);
+  /* [ANDRAT v5.341.0] SILVRET I HELA TAL (Chris). "26s 59c - 33s 85c" ar sant men
+     fyra tal och fyra bokstaver pa en rad man skummar; "26-34s" sager samma sak.
+     Samma regel som guldspannet redan foljer: det lagre rundas NED och det ovre
+     UPP, sa loftet aldrig ar mindre an det ser ut.
+     Under ett silver visas koppar som forut - da hade "0-1s" inte sagt nagot. */
+  /* [RATTAT v5.341.0] VALOREN VALJS UR DET LAGRE TALET, inte det ovre. Det ovre
+     styrde forut, och da hamnade ett spann som 9500-10500 koppar i guldfallet:
+     nedre rundat ned blev NOLL, sa raden sa "0-2g" om nastan ett helt guld. Nu
+     valjer golvet, och samma spann blir "95-105s" - lasbart och sant.
+     Buggen fanns i guldgrenen fore silvergrenen skrevs; bada ar lagade har. */
+  if (r[0] < COPPER_PER_SILVER) return moneyText(r[0]) + ' – ' + moneyText(r[1]);
+  if (r[0] < COPPER_PER_GOLD)
+    return Math.floor(r[0] / COPPER_PER_SILVER) + '–' + Math.ceil(r[1] / COPPER_PER_SILVER) + 's';
   const lo = Math.floor(r[0] / COPPER_PER_GOLD);
   const hi = Math.ceil(r[1] / COPPER_PER_GOLD);
   return (lo === hi ? lo : lo + '–' + hi) + 'g';
@@ -17947,10 +17972,14 @@ function goldAfterTax(gold){ return Math.max(0, gold - taxOn(gold)); }
 const GEAR_DROP_PER_MIN = 0.00625, GEAR_DROP_MAX = 0.75;
 function lootLuckMult(){ return 1 + (gearBonus('luck') + boostPct('luck') + flaskPct('luck')) / 100; }
 /* Expeditionens verkliga längd i sekunder: nominell tid minus Expedition Speed. */
+/* [ANDRAT v5.341.0] BLIXTEN BORTA (Chris). Ett ensamt tecken efter tiden betydde
+   "kortare an nominellt tack vare din fart" - sant, men ingen kunde lasa det, och
+   det stod utan ord bredvid en siffra som redan andrat sig. Samma upplysning
+   finns nu i klartext pa bidragsraden ("-24% time"), som ocksa sager VARFOR.
+   En signal som kraver en forklaring ar ingen signal. */
 function expTimeText(def){
   const s = expRunSeconds(def), nom = def.mins * 60;
-  if (s >= nom) return fmtMins(def.mins);
-  return fmtDur(s) + ' ⚡';
+  return s >= nom ? fmtMins(def.mins) : fmtDur(s);
 }
 function expRunSeconds(def){
   /* [RATTAT v5.176.0] SAMMA FORMEL SOM SERVERN - TVA SANNINGAR IGEN.
@@ -22476,7 +22505,10 @@ function buildZoneExpeditions(regionId, zone){
     const running = expIsRunning(def.id);
     const slotsFull = S.exp.runs.length >= expSlots();
     let btn;
-    if (running) btn = '<button class="zx-btn running" disabled>Running</button>';
+    /* [ANDRAT v5.341.0] Klar korning far sin egen text. Sjalva hamtningen sker i
+       listan over aktiva - knappen ar en UPPLYSNING om laget, inte vagen dit. */
+    if (expIsReady(def.id)) btn = '<button class="zx-btn ready" disabled>Ready to collect</button>';
+    else if (running) btn = '<button class="zx-btn running" disabled>Running</button>';
     else if (S.world.travel) btn = '<button class="zx-btn cant" disabled>In transit…</button>';
     /* STAR MAN INTE HAR SKA KNAPPEN TA EN HIT, inte saga nej. Uppdraget kravs i
        sin egen zon - men resan dit ar ett klick och ett svisch, sa knappen gor
@@ -29493,9 +29525,20 @@ function openQuestWin(id){
           (q.done ? '<div class="qo-done">Objective complete</div>' : '')) +
     '</span>';
 
-  $('qwin-rew').innerHTML = qwinRewHTML(q.reward);
-
   const st = QUESTS.state || {};
+  /* [TILLAGT v5.341.0] CHANSEN PA UTRUSTNING (Chris). Ett kontrakts belaning
+     innehaller bara rep, xp, guld och fragment - pjasen rullas forst VID
+     inlamningen, sa rutan kan omojligt visa vilken man far. Den kan daremot saga
+     att chansen finns, och hur stor den ar.
+     Talet kommer fran SERVERN (quest_state -> gear_chance, ur quest_tuning). Det
+     skrivs INTE av har: den dagen chansen andras i tabellen ska rutan folja med
+     av sig sjalv. Saknas talet - en aldre server - star raden inte alls, hellre
+     tyst an fel. */
+  const gc = +st.gear_chance;
+  $('qwin-rew').innerHTML = qwinRewHTML(q.reward) +
+    (gc > 0 ? '<div class="qwin-gearchance">' + Math.round(gc * 100) +
+              '% chance of gear on hand-in</div>' : '');
+
   const fullt = (st.active || []).length >= (st.max_active || 3);
   /* [ATERSTALLT v5.320.0] RES OCH ACCEPTERA (Chris). Nodens gamla ruta hade den
      och den foll bort nar noden slutade rita sin egen. Star man i uppdragets zon
@@ -33643,7 +33686,8 @@ function nodeExpCard(def, showWhere){
   const running = expIsRunning(def.id);
   const lvl = levelInfo().lvl;
   let btn;
-  if (running) btn = '<button class="btn-neutral" disabled>Running</button>';
+  if (expIsReady(def.id)) btn = '<button class="btn-neutral ready" disabled>Ready to collect</button>';
+  else if (running) btn = '<button class="btn-neutral" disabled>Running</button>';
   else if (S.world.travel) btn = '<button class="btn-neutral" disabled>In transit\u2026</button>';
   else if (lvl < def.lvl) btn = '<button class="btn-neutral" disabled>Requires level ' + def.lvl + '</button>';
   else if (S.exp.runs.length >= expSlots()) btn = '<button class="btn-neutral" disabled>All slots busy</button>';
@@ -33662,7 +33706,11 @@ function nodeExpCard(def, showWhere){
     '<div class="mt"><span>' + uiIco('dur') + ' <b>' + expTimeText(def) + '</b></span>' +
     '<span>Lv <b>' + def.lvl + '</b></span>' +
     '<span>' + expCoinIco(def) + ' <b>' + expGoldText(def) + '</b></span>' +
-    '<span>' + uiIco('frag') + ' <b>' + expFragRange(def).join('-') + '</b></span></div>' + btn + '</div>';
+    '<span>' + uiIco('frag') + ' <b>' + expFragRange(def).join('-') + '</b></span></div>' +
+    /* [TILLAGT v5.341.0] Bidragsraden aven har. Zonlistan fick den i v5.338.0;
+       det har kortet visar samma tal och saknade den, sa samma upplysning fanns
+       pa ett stalle av tva. Den ersatter ocksa blixten som ratts bort ur tiden. */
+    expGearNote() + btn + '</div>';
 }
 /* Dronarens lage for EN zon, i klartext. Tiden raknas ur den sparade sluttiden
    (som lever pa servern), inte ur en egen raknare - den overlever omladdning,
