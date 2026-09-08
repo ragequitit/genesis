@@ -6933,7 +6933,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.341.0 — EXPEDITIONERNA STADAS</div>
+        <div class="sn-ver">GENESIS v5.342.0 — TVA SPOKEN RIVNA</div>
       </div>
     </div>
   </aside>
@@ -7974,7 +7974,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.341.0 — EXPEDITIONERNA STADAS</div>
+            <div class="desc">GENESIS v5.342.0 — TVA SPOKEN RIVNA</div>
           </div>
         </div>
       </div>
@@ -12366,12 +12366,17 @@ const GEAR_RAR = [
   {id:'legendary', name:'Legendary', file:'legendary', aff:3, mult:3.2,  gold:[GOLD(94), GOLD(116)]},
   {id:'mythical',  name:'Mythic',    file:'mythical',  aff:3, mult:4.2,  gold:[GOLD(135), GOLD(165)]}
 ];
-/* Egenskaper som alla vanliga platser kan rulla. Ring och halsband har sin EGEN
-   pool (Crit Damage, Expedition Speed, Boost Duration) och de tre ar samtidigt
-   UTE harifran - det ar exklusiviteten som gor de platserna varda att jaga.
-   Loot Luck ar med fran start eftersom den styr just gear-droppen.
-   ALLA egenskaper ar nu byggda och kopplade till nagot verkligt (v0.73.0): Pet XP
-   och Boost Duration var de sista som vantade pa sina system. Capsule Cost struken. */
+/* Egenskaper som alla vanliga platser kan rulla.
+   [RATTAT v5.342.0] HAR STOD FEL. Texten pastod att ring och halsband har en
+   egen pool med Crit Damage, EXPEDITION SPEED och Boost Duration. Serverns
+   affix_config - som ar den som faktiskt rullar - har bara TVA med jewel=true:
+   crit och critdmg. Expedition Speed ligger i den vanliga poolen och SKA ligga
+   dar (Chris beslut): den ska ga att fa pa vilken pjas som helst.
+   Boost Duration ar struken ur spelet, se nedan.
+   Kommentaren beskrev alltsa ett beslut som aldrig natt databasen, och den har
+   filen har blivit biten av just det forr - skatten som bara fanns i klienten,
+   Expedition Speeds olika band. Nu star det som det ar.
+   Loot Luck ar med fran start eftersom den styr just gear-droppen. */
 const AFFIXES = {
   /* [BORTTAGET v5.116.0] IDLE DATA. Egenskapen gav "Data per sekund" och Data
      finns inte i spelet langre - den var alltsa helt urkopplad, en siffra som
@@ -12422,8 +12427,17 @@ const AFFIXES = {
   expspd:  {name:'Expedition Speed', lo:1.90, hi:2.50, sfx:'%'},
   /* Flyttade hit fran husdjuren nar hjalparsystemet kom: de ar rena
      stridsvarden och hor hemma pa en pjas, inte i en produktion. */
-  boostpot: {name:'Boost Strength',  lo:3.44, hi:4.56, sfx:'%'},
-  boostdur: {name:'Boost Duration',  lo:3.44, hi:4.56, sfx:'%'},
+  /* [BORTTAGET v5.342.0] BOOST STRENGTH och BOOST DURATION (Chris beslut).
+     Klienten raknade med dem pa fyra stallen - boostarnas styrka och langd,
+     flaskornas styrka och langd - men servern kunde inte skapa dem: de stod
+     aldrig i affix_config, och roll_extra_affix drar bara ur den tabellen. Noll
+     pjaser i skarpa databasen bar nagon av dem, och det kunde ingen pjas
+     nagonsin gora. Multiplikatorerna var alltsa alltid exakt ett, och
+     statspanelen visade tva rader som for evigt stod pa noll.
+     Samma familj som IDLE DATA (v5.116.0) och TAP POWER (v5.118.0): en siffra
+     som ritades men aldrig kunde bli nagot. Struken hellre an halv.
+     Behovs de igen byggs de da, med sitt system - Chris tanke ar att en
+     langdegenskap hor ihop med synkfonstret snarare an med en pjas. */
   /* TRANSPORTENS EGEN. Var forut ett fast tal per sallsynthet (6/10/15/21/28/36)
      som dessutom bara fanns i klienten - servern raknade aldrig med den, sa en
      epic transport gav uppmatt exakt noll kortare resa. Nu ar den en vanlig
@@ -13868,9 +13882,12 @@ function petSpriteVars(sp, px){
    universella plus hemmaregionens tre.
 
    FAMILJERNA KLUSTRAS EFTER AVSTAND (spelarens lasta beslut): Dust och Cache Luck
-   bor nara hemma, Machine Cost och Sell Value langst ut, och Fuel Regen, Boost
-   Strength och Boost Duration i mellanringarna. Vill man ha en viss formaga far
-   man resa efter den, och varje region far ett rykte.
+   bor nara hemma, Machine Cost och Sell Value langst ut, och Fuel Regen i
+   mellanringarna. Vill man ha en viss formaga far man resa efter den, och varje
+   region far ett rykte.
+   [RATTAT v5.342.0] Raden namnde Boost Strength och Boost Duration som familjer
+   i mellanringen. De har aldrig funnits i FAM_TEXT, sa inget husdjur har kunnat
+   rulla dem, och de ar nu strukna ur spelet helt.
 
    De fem forsta arterna behaller sina familjer fran tidigare versioner, sa att
    husdjur i befintliga sparfiler inte andrar beteende. */
@@ -13895,7 +13912,7 @@ const PETS = {
   drip:       {name: 'Drip'},
   scuba:      {name: 'Scuba'},
 
-  /* --- TIER 2 - mellanringen: Fuel Regen, Boost Strength, Boost Duration --- */
+  /* --- TIER 2 - mellanringen: Fuel Regen --- */
   stormi:     {name: 'Stormi'},   /* Voltrath */
   pulse:      {name: 'Pulse'},
   vector:     {name: 'Vector'},
@@ -13937,13 +13954,15 @@ const PETS = {
 /* De tva universella arterna - de gar att fa overallt, sa spelaren alltid har
    nagot att jaga aven i en region hen just kommit till. */
 const UNIVERSAL_PETS = Object.keys(PETS).filter(k => PETS[k].uni);
-/* De tva som annu ingen art bar - Sell Value och Boost Duration - ar byggda och
-   inkopplade anda, sa att de arter som laggs till i de andra regionerna kan
-   plockas rakt ur listan utan nytt arbete. */
+/* Sell Value bars annu av ingen art men ar byggd och inkopplad anda, sa att de
+   arter som laggs till i de andra regionerna kan plockas rakt ur listan utan
+   nytt arbete.
+   [RATTAT v5.342.0] Har stod Boost Duration bredvid Sell Value som "byggd och
+   inkopplad". Den fanns aldrig i FAM_TEXT. Struken ur spelet nu. */
 /* De gamla husdjursformågorna ar borta. Ett husdjur rullar nu EN
-   hjalparformåga ur poolen, och sallsyntheten ar BARA talet. Boost Strength och
-   Boost Duration flyttade till utrustningen; Machine Cost pensionerades helt
-   eftersom formanen Salvage Logistics redan gjorde samma sak. */
+   hjalparformåga ur poolen, och sallsyntheten ar BARA talet. Machine Cost
+   pensionerades helt eftersom formanen Salvage Logistics redan gjorde samma
+   sak. */
 const FAM_TEXT = {
   scrap:     v => '+' + v + '% scrap found',
   frag:      v => '+' + v + '% fragments',
@@ -17137,8 +17156,6 @@ function charStatRows(){
      att hoja nagonstans. En rad som alltid sager noll ar en rad som ljuger. */
   up('Pet XP', gearBonus('petxp') + helperBonus('petxp'));
   up('Crit Damage', gearBonus('critdmg'));
-  up('Boost Strength', gearBonus('boostpot'));
-  up('Boost Duration', gearBonus('boostdur'));
   /* Husdjurets egen formaga hor hemma i samma lista - annars maste man oppna ett
      annat fonster for att se halva sin karaktar. Alla TIO star har nu; forut stod
      fyra, varav en ('Dust Yield') pekade pa en formaga som inte finns langre och
@@ -19829,19 +19846,24 @@ function boostLeft(key){
 }
 function boostActive(key){ return boostLeft(key) > 0; }
 /* Boostens bidrag i procent, noll när den inte går. */
-/* Boost Potency gor flaskan STARKARE, Boost Duration gor den LANGRE. Styrkan
-   raknas nar den anvands, sa den foljer det husdjur du bar just nu; langden lases
-   nar du dricker. Det ar med flit: en langd som andrade sig mitt i vore ett lofte
-   som brots, medan en styrka som andrar sig ar en anledning att byta husdjur. */
+/* [ANDRAT v5.342.0] Boostens bidrag ar nu flaskans EGET tal, rakt av. Har lag
+   forut en multiplikator ur Boost Strength och en ur Boost Duration - bada
+   strukna, eftersom ingen pjas kunde bara dem och de darfor alltid var ett.
+   Regeln som stod har - att langden lases nar du dricker och styrkan raknas nar
+   den anvands - har ingen verkan langre nar ingetdera kan andras. Den bor
+   ateruppstå tillsammans med det system som en gang behover den. */
 function boostPct(key){
-  return boostActive(key) ? BOOSTS[key].pct * (1 + gearBonus('boostpot') / 100) : 0;
+  return boostActive(key) ? BOOSTS[key].pct : 0;
 }
-/* Hur lange en flaska FAKTISKT racker med det man bar pa sig. Rakas ut har och
-   inte pa flera stallen, sa boden, hovringen och den verkliga tiden alltid sager
-   samma sak. */
+/* Hur lange en flaska racker. Rakas ut har och inte pa flera stallen, sa boden,
+   hovringen och den verkliga tiden alltid sager samma sak.
+   [ANDRAT v5.342.0] "med det man bar pa sig" galler inte langre - Boost Duration
+   ar struken, och ingen utrustning paverkar langden. Funktionen star kvar som
+   det ENA stallet tiden raknas, sa nasta sak som ska paverka den har en plats
+   att kopplas in pa. */
 function boostMinutes(key){
   const B = BOOSTS[key];
-  return B ? Math.round(B.mins * (1 + gearBonus('boostdur') / 100) * 10) / 10 : 0;
+  return B ? B.mins : 0;
 }
 /* En craftad flaska aktiveras har. Till skillnad fran de tre koparbara boostarna
    bar flaskan sin EGEN styrka och langd (raritetsskalad ur FLASK_BOOST), sa vardet
@@ -19869,8 +19891,8 @@ function drinkFlask(idx){
   const fb = FLASK_BOOST[row.boost];
   if (!fb) return false;
   const rar = Math.min(row.rar | 0, fb.pct.length - 1);
-  const pct = fb.pct[rar] * (1 + gearBonus('boostpot') / 100);
-  const mins = fb.mins[rar] * (1 + gearBonus('boostdur') / 100);
+  const pct = fb.pct[rar];
+  const mins = fb.mins[rar];
   const now = Date.now();
   S.flaskBoost = S.flaskBoost || {};
   const cur = S.flaskBoost[row.boost];
