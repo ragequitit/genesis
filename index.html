@@ -1338,6 +1338,9 @@ body.dragging *{cursor:grabbing !important}
 .pf-btn.wide:hover{background:color-mix(in srgb, var(--pc) 18%, transparent)}
 .pf-btn.danger{border-color:var(--red);color:#ff9b9b;background:rgba(255,90,90,.08)}
 .pf-btn.danger:hover{background:rgba(255,90,90,.18)}
+/* [TILLAGT v5.390.0] Samma rod ton for inställningarnas Delete-knapp. */
+.btn-neutral.danger{border-color:var(--red);color:#ff9b9b}
+.btn-neutral.danger:hover{background:rgba(255,90,90,.18)}
 .pf-btn.view{border-color:var(--cyan-dim);color:var(--cyan);background:rgba(56,232,255,.07)}
 .pf-btn.view:hover{background:rgba(56,232,255,.15)}
 .pf-note .pf-i{width:19px;height:19px;flex:none;border-radius:50%;border:1px solid var(--cyan-dim);
@@ -7180,7 +7183,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.389.0 — INTEGRITETSTEXTEN JUSTERAD</div>
+        <div class="sn-ver">GENESIS v5.390.0 — RADERA KONTOT SJALV</div>
       </div>
     </div>
   </aside>
@@ -8137,6 +8140,16 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           </div>
           <button class="btn-neutral" id="char-signout">Sign out</button>
         </div>
+        <!-- [TILLAGT v5.390.0] RADERA KONTOT (Chris). Spelaren gor det sjalv, nar
+             som helst - det ar vad integritetsrutan lovar. Servern kraver att
+             man skriver sitt spelarnamn; se delete_account. -->
+        <div class="settings-row" data-setgrp="account">
+          <div>
+            <div>Delete Account</div>
+            <div class="desc">Removes your account, every character, all items and gold, and your chat history. This cannot be undone.</div>
+          </div>
+          <button class="btn-neutral danger" id="acct-delete">Delete</button>
+        </div>
         <!-- HANDLEN i kontot: visa, och byt om karensen tillater. -->
         <div class="settings-row" id="row-handle" data-setgrp="account">
           <div>
@@ -8221,7 +8234,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.389.0 — INTEGRITETSTEXTEN JUSTERAD</div>
+            <div class="desc">GENESIS v5.390.0 — RADERA KONTOT SJALV</div>
           </div>
         </div>
       </div>
@@ -12749,7 +12762,8 @@ function privacyNotice(force){
           '</ul>' +
           '<b>Your rights</b>' +
           '<ul>' +
-            '<li>You can ask for a copy of your data, or for your account and everything in it to be deleted, by emailing <b>' + PRIVACY_CONTACT + '</b> from the address you signed up with.</li>' +
+            '<li>You can delete your account, and everything in it, at any time under <b>Settings → Account → Delete Account</b>. It takes effect immediately.</li>' +
+            '<li>You can ask for a copy of your data by emailing <b>' + PRIVACY_CONTACT + '</b> from the address you signed up with.</li>' +
           '</ul>' +
           '<b>Play nice.</b> Chat is moderated. Harassment, slurs and scams get accounts blocked. This is a game; be a person you would want to meet in one.' +
         '</div>' +
@@ -30736,6 +30750,46 @@ $('char-signout').addEventListener('click', async () => {
   resetInProgress = true;
   try { localStorage.removeItem(SAVE_KEY); } catch (e){}
   try { await srvSignOut(); } catch (e){ srvClearSession(); }
+  location.reload();
+});
+/* [TILLAGT v5.390.0] RADERA KONTOT. Tva steg: en ruta som sager vad som
+   forsvinner och kraver spelarnamnet i ett falt, sedan servern (delete_account)
+   som kontrollerar namnet EN gang till. Lyckas det: sessionen rensas och sidan
+   laddas om - kontot finns inte, sa det finns inget att ga tillbaka till.
+   Gilleledare med medlemmar stoppas av servern med en tydlig text. */
+$('acct-delete').addEventListener('click', async () => {
+  const namn = SRV.handle || 'DELETE';
+  const ok = await new Promise(resolve => {
+    const back = document.createElement('div');
+    back.className = 'ask-back';
+    back.innerHTML =
+      '<div class="ask-box" style="--pc:var(--red)">' +
+        '<div class="ask-ico">\u26a0\ufe0f</div>' +
+        '<div class="ask-h1">DELETE YOUR ACCOUNT?</div>' +
+        '<div class="ask-body">This removes <b>everything</b>: every character, all items, gold, helpers, progress, your guild membership and your chat messages. ' +
+          'It cannot be undone, and there is no waiting period.<br><br>Type <b>' + esc(namn) + '</b> to confirm.</div>' +
+        '<input class="gate-input" id="acct-del-name" placeholder="' + esc(namn) + '" autocomplete="off" style="width:100%">' +
+        '<div class="ask-row">' +
+          '<button class="pf-btn danger" data-yes disabled>DELETE FOREVER</button>' +
+          '<button class="pf-btn" data-no>KEEP MY ACCOUNT</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(back);
+    const inp = back.querySelector('#acct-del-name'), yes = back.querySelector('[data-yes]');
+    inp.addEventListener('input', () => { yes.disabled = inp.value.trim().toLowerCase() !== namn.toLowerCase(); });
+    const done = v => { back.remove(); resolve(v); };
+    yes.addEventListener('click', () => done(inp.value.trim()));
+    back.querySelector('[data-no]').addEventListener('click', () => done(null));
+    back.addEventListener('click', e => { if (e.target === back) done(null); });
+    setTimeout(() => inp.focus(), 50);
+  });
+  if (!ok) return;
+  try {
+    await srvRpc('delete_account', {p_confirm: ok});
+  } catch (e){ say(srvErrText(e, 'Could not delete the account.')); return; }
+  resetInProgress = true;
+  try { localStorage.removeItem(SAVE_KEY); } catch (e){}
+  srvClearSession();
   location.reload();
 });
 function applySoundPrefs(){
