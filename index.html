@@ -1685,9 +1685,6 @@ body.dragging *{cursor:grabbing !important}
   animation:floatOut 1.9s cubic-bezier(.15,.7,.3,1) forwards;
 }
 .float-amt{font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
-/* [TILLAGT v5.368.0] Luften mellan ett belopp och dess mynt. Ett tomt element i
-   stallet for ett blanksteg - se moneyIcoText. */
-.mi-gap{display:inline-block;width:.28em}
 .float-idle{font-size:12px;font-weight:700;opacity:.72;text-shadow:0 0 8px currentColor;color:var(--theme, #22d3ee)}
 @keyframes floatOut{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
@@ -7133,7 +7130,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.373.0 — RLS OCH DODA UPPSLAG</div>
+        <div class="sn-ver">GENESIS v5.375.0 — DUNGEONNODEN OPPNAR DUNGEONEN</div>
       </div>
     </div>
   </aside>
@@ -8174,7 +8171,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.373.0 — RLS OCH DODA UPPSLAG</div>
+            <div class="desc">GENESIS v5.375.0 — DUNGEONNODEN OPPNAR DUNGEONEN</div>
           </div>
         </div>
       </div>
@@ -8985,7 +8982,8 @@ async function netStationCollect(){
     const r = await srvRpc('station_collect', {p_character: SRV.charId, p_prof: sec.id});
     if (r && r.units > 0){
       await netPullItems();
-      spawnFloat({text: '+' + r.units + ' ' + MATERIALS[sec.bound].name, idle: true});
+      /* [BORTTAGET v5.374.0] Texten - se gatherShowGotInner. Bilden nedan sager
+         samma sak utan ord. */
       /* [TILLAGT v5.54.0] Sjukstugan och raffinaderiet kastar ocksa ut sitt. */
       nodeDropPop(sec.bound, r.units, PROF_COLOR[sec.id] || null);
     }
@@ -9085,7 +9083,12 @@ async function netSync(){
     /* [RATTAT v5.370.0] Math.floor i stallet for "| 0" - se myntIco. */
     const idleGuld = Math.max(0, Math.floor(+clock.idle_gold || 0));
     if (clock && idleGuld > 0 && !(firstSync && NET.awaySecs > 120)){
-      spawnFloat({text: '+' + moneyIcoText(idleGuld)});
+      /* [ANDRAT v5.374.0] Myntet FLYGER nu i stallet for att skrivas (Chris).
+         Guldet hade ingen bild alls - bara texten - sa det fick en, samma vag
+         som samlarfynden tar. Beloppet star kvar i hovringen for den som vill
+         veta, och i pengarutan for alla andra. */
+      nodeDropPop('money', 1, 'var(--gold)',
+        {art: 'assets/ui/money.png', ico: '\ud83e\ude99', title: '+' + moneyText(idleGuld)});
     }
     if (clock && clock.gather && Object.keys(clock.gather).length){
       let anyFull = false, anyMats = false;
@@ -9837,14 +9840,29 @@ let DGC_SIDE = 'normal';     /* [v5.147.0] vilket kort vaxeln visar pa telefon *
    timmar ar for dyr for ett felklick. 'leave' fragar innan en pagaende korning
    avbryts. Bada nollstalls varje gang rutan oppnas. */
 let DGC_ASK = null;          /* null | 'normal' | 'heroic' | 'leave' */
+/* [TILLAGT v5.375.0] VAR dungeonen ligger, satt av kartans nod. Behovs for att
+   knappen ska kunna saga "Travel - Enter Dungeon" nar man star i en annan zon,
+   och for att resan ska veta vart. Null = vi vet inte, och da antas man vara
+   pa plats (rutan kan oppnas fran andra hall). */
+let DGC_AT = null;           /* {region, zone} eller null */
+function dgcHar(){
+  if (!DGC_AT) return true;
+  return !S.world.travel && S.world.current === DGC_AT.region && S.world.zone === DGC_AT.zone;
+}
 let DGC_BUSY = false;
 async function netDungeonChoices(){
   if (!NET.on || !SRV.charId) return null;
   DGC = await srvRpc('dungeon_choices', {p_character: SRV.charId});
   return DGC;
 }
-function openDgChoice(){
+/* [ANDRAT v5.375.0] Tar nu emot VAR dungeonen ligger. Anropas rutan utan
+   referens - fran zonsidans knapp, eller fran nodfonstret dar man redan star -
+   nollas DGC_AT, och da antar dgcHar() att man ar pa plats. Utan nollningen
+   hade ett gammalt varde fran en tidigare nod hangt kvar och satt "Travel -"
+   pa en knapp som inte behover resa nagonstans. */
+function openDgChoice(ref){
   const w = $('dgc-overlay'); if (!w) return;
+  DGC_AT = ref || null;
   DGC_BUSY = false; DGC_ASK = null;
   renderDgChoice();
   w.classList.add('open');
@@ -9987,9 +10005,13 @@ function dgcButtonsHTML(heroic, disabled, why){
         : '<div class="dgc-why">Run in progress</div>');
   }
   const fragar = (DGC_ASK === sida);
+  /* [TILLAGT v5.375.0] Star man inte i dungeonens zon sager knappen det, och
+     resan sker nar man trycker. Ordet forst, sa man vet vad som hander INNAN
+     man klickar - inte efterat. */
+  const resa = !dgcHar();
   return '<button class="dgc-pick' + (fragar ? ' asking' : '') + '" data-dgc-pick="' + sida + '"' +
       (disabled || DGC_BUSY ? ' disabled' : '') + '>' +
-      (fragar ? 'Yes \u2014 start now' : namn) + '</button>' +
+      (fragar ? 'Yes \u2014 start now' : (resa ? 'Travel \u2014 ' + namn : namn)) + '</button>' +
     (fragar
       ? '<div class="dgc-warn">' +
         (heroic
@@ -13793,24 +13815,12 @@ const UI_ICO = {
    expCoinIco redan gor for expeditionerna och qwinMynt for kontrakten.
    Ligger HAR, bredvid uiIco, sa nasta stalle som visar pengar har en fardig
    funktion att ta i stallet for att skriva '\u2018gold\u2019' for hand. */
-/* [TILLAGT v5.361.0] BELOPPET MED BILDER I STALLET FOR BOKSTAVER (Chris). Den
-   flytande texten sa "+4c". Nu star talet och sedan valorens egen bild: "+4" och
-   kopparmyntet. Varje valor far sin egen, sa ett blandat belopp behaller allt -
-   "9(silver) 15(koppar)" i stallet for att kapas till den storsta.
-   Bara for korta, flyktiga texter. Rader man LASER behaller bokstaverna: de gar
-   att markera och kopiera, och de bryter inte om en bild saknas. */
-function moneyIcoText(koppar){
-  const m = splitMoney(Math.max(0, Math.floor(+koppar || 0)));
-  const d = [];
-  /* [ANDRAT v5.368.0] Ett halt mellanrum mellan talet och myntet (Chris). De
-     satt ihop och lastes som ett enda tecken. Mellanrummet star i CSS i stallet
-     for som ett blanksteg i strangen: ett blanksteg kan brytas pa raden, en
-     marginal kan inte, och myntet ska aldrig hamna pa egen rad. */
-  if (m.g) d.push(fmtLong(m.g) + '<span class="mi-gap"></span>' + uiIco('gold'));
-  if (m.s) d.push(m.s + '<span class="mi-gap"></span>' + uiIco('silver'));
-  if (m.c || !d.length) d.push(m.c + '<span class="mi-gap"></span>' + uiIco('copper'));
-  return d.join('&nbsp;&nbsp;');
-}
+/* [RIVET v5.374.0] moneyIcoText - belopp med valorbilder i stallet for
+   bokstaver - byggdes i v5.361.0 for tomgangsguldets flytande text. Den texten
+   ar borta nu; myntet flyger i stallet. Funktionen hade darmed noll anropare.
+   Struken hellre an halv, precis som allt annat vi rensat i dag. Behovs den
+   igen ar den tio rader att skriva om, och kommentaren har sager hur den sag ut:
+   talet, ett halt mellanrum, och valorens bild - en grupp per valor. */
 function myntIco(koppar){
   /* [RATTAT v5.370.0] "| 0" ar en 32-BITARS operation. Over 2 147 483 647 koppar
      - drygt 214 000 guld - slar den runt till ett negativt tal, och da visade
@@ -19313,21 +19323,25 @@ function nodeDropStage(){
   return document.querySelector('#panel-home-server .core-stage') ||
          document.getElementById('core-stage');
 }
-function nodeDropPop(key, qty, colour){
+/* [ANDRAT v5.374.0] Kan nu ta en EGEN bild och en egen hovringstext (opts.art,
+   opts.title). Behovs for saker som inte ar varor i vaskan - pengar har ingen
+   stapel att sla upp bilden ur. Utan tillagget hade guldet behovt en egen
+   kopia av hela den har funktionen. */
+function nodeDropPop(key, qty, colour, opts){
   if (document.visibilityState !== 'visible') return;
   const stage = nodeDropStage();
   if (!stage) return;
   const m = (typeof MATERIALS !== 'undefined' && MATERIALS[key]) ||
             (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
-  const name = (m && m.name) || key || 'Find';
-  const ico = stackIcoOf(key, '\ud83d\udce6');
-  const art = stackArtOf(key);
+  const name = (opts && opts.title) || (m && m.name) || key || 'Find';
+  const ico = (opts && opts.ico) || stackIcoOf(key, '\ud83d\udce6');
+  const art = (opts && opts.art) ? artUnlessMissing(opts.art) : stackArtOf(key);
   const el = document.createElement('div');
   el.className = 'node-drop';
   if (colour) el.style.setProperty('--ndc', colour);
   /* [ANDRAT v5.55.1] Bara bilden ritas. Namnet och antalet star kvar i den
      lilla texten som redan flyger upp vid noden, sa ingenting gar forlorat. */
-  el.title = (qty > 1 ? '+' + qty + ' ' : '') + name;
+  el.title = (opts && opts.title) ? name : ((qty > 1 ? '+' + qty + ' ' : '') + name);
   el.innerHTML = '<span class="nd-art' + (art ? ' art-wrap' : '') + '">' +
       (art ? artWithFallback(art, ico) : ico) + '</span>';
   stage.appendChild(el);
@@ -21974,13 +21988,13 @@ function gmPick(o){
       gmSel = {region: region, zone: o.zone || null};
       gmSetTravel();
       /* [ANDRAT v5.149.0] Noden oppnar valet aven MEDAN ett lopp gar - dar star
-         nu lamna-knappen. Forut ledde den till zonrutan i det laget. */
-      if (region === S.world.current && o.zone === S.world.zone){
-        openDgChoice();
-      } else if (region === S.world.current){
-        const i = zi(o.zone);
-        if (i >= 0) openZone(region, i);
-      }
+         nu lamna-knappen. Forut ledde den till zonrutan i det laget.
+         [ANDRAT v5.375.0] Och den oppnar valet AVEN NAR MAN STAR I EN ANNAN ZON
+         (Chris). Forut ledde den da till zonrutan - en ruta vi inte anvander
+         langre, med information som redan star inne i zonen. Varje annan nod
+         oppnar SIN aktivitet; dungeonnoden ska gora likadant. Knappen sager
+         "Travel - Enter Dungeon" i stallet, och reser at en forst. */
+      openDgChoice({region: region, zone: o.zone || null});
       break;
     }
     case 'vendor': {
@@ -25914,7 +25928,14 @@ function gatherShowGotInner(id, mats){
   const lastKey = keys[keys.length - 1];
   S.prof.gather = S.prof.gather || {};
   S.prof.gather[id] = {last: {key: lastKey, at: Date.now()}};
-  spawnFloat({text: '+' + n + ' ' + (MATERIALS[lastKey] ? MATERIALS[lastKey].name : 'materials')});
+  /* [BORTTAGET v5.374.0] "+1 Fiber" som flytande text (Chris). Fyndet kastas
+     redan ut ur noden som varans EGEN BILD pa raden nedan - texten sa alltsa
+     samma sak en gang till, tusentals ganger per speltillfalle. Poppen finns
+     for att spelet ska se levande ut, inte for att rapportera; talet star anda
+     i vaskan.
+     Detta galler BARA det som hander varje sekund. Cachar, bragder,
+     nivahojningar och fel har kvar sin text - de hander sallan och sager nagot
+     man inte ser nagon annanstans. */
   /* [TILLAGT v5.54.0] Fyndet kastas ut ur noden. Varje nyckel for sig, sa en
      cykel som gav tva olika saker visar bada. */
   nodeDropPopMany(mats, PROF_COLOR[id] || null);
@@ -34614,7 +34635,11 @@ $('dgc-body').addEventListener('click', ev => {
     DGC_ASK = null;
     DGC_BUSY = true; renderDgChoice();
     const heroic = sida === 'heroic';
-    netPveDungeonStart(st, heroic)
+    /* [TILLAGT v5.375.0] Star man i en annan zon reser vi FORST och startar
+       sedan. goToZone sager sjalv ifran om resan inte gar (okartlagd zon, annan
+       region, redan pa vag) - da avbryts starten och rutan ritas om, sa knappen
+       inte star kvar och snurrar. */
+    const start = () => netPveDungeonStart(st, heroic)
       .then(() => netPullItems())
       .then(() => {
         DGC_BUSY = false; PVE.dgConfirm = false;
@@ -34627,6 +34652,14 @@ $('dgc-body').addEventListener('click', ev => {
            hamta laget pa nytt sa korten sager samma sak som servern. */
         netDungeonChoices().then(renderDgChoice).catch(() => renderDgChoice());
       });
+    if (dgcHar()){ start(); return; }
+    Promise.resolve(goToZone(DGC_AT.region + '|' + DGC_AT.zone))
+      .then(ok => {
+        if (!ok){ DGC_BUSY = false; renderDgChoice(); return; }
+        updateUI(true);
+        start();
+      })
+      .catch(() => { DGC_BUSY = false; renderDgChoice(); });
     return;
   }
 });
