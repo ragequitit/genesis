@@ -3496,6 +3496,13 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
   background:rgba(56,232,255,.12);border:1px solid var(--cyan-dim);
   box-shadow:0 2px 10px rgba(0,0,0,.45);
 }
+/* [TILLAGT v5.406.0] BILDEN I BRICKAN (Chris). Rutan ar 28 px; en bild som
+   fyller den rakt ut trycker mot kanten och ser instangd ut. 20 px ger luft hela
+   varvet. Faller bilden bort ar .noart kvar med sina 15 px tecken, sa brickan
+   ser likadan ut som forut. Pixelkonsten blir grotig i den har storleken -
+   spelarens beslut, taget med oppna ogon. */
+.boost-chip .bc-ico.art-wrap{padding:0}
+.boost-chip .bc-ico.art-wrap .art-img{width:20px;height:20px}
 .boost-chip .bc-time{
   font-family:var(--font-mono);font-size:11px;font-weight:800;color:var(--cyan);
   text-shadow:0 1px 3px rgba(0,0,0,.85);
@@ -7195,7 +7202,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.404.0 — SAMLARNA FICK SIN BOK</div>
+        <div class="sn-ver">GENESIS v5.406.0 — BILDEN OCKSA I BRICKAN</div>
       </div>
     </div>
   </aside>
@@ -8246,7 +8253,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.404.0 — SAMLARNA FICK SIN BOK</div>
+            <div class="desc">GENESIS v5.406.0 — BILDEN OCKSA I BRICKAN</div>
           </div>
         </div>
       </div>
@@ -21027,6 +21034,11 @@ const ITEM_DEFS = {
     sell: GOLD(10)
   },
   boost_expspd: {
+    /* [TILLAGT v5.405.0] EGEN BILD (Chris). Bada boostarna ritade sin emoji i
+       boden och i shoppen. Bilden behover bara stå HAR: handlaren och shoppen
+       gar bada genom stackArtOf, som tar ITEM_DEFS.art forst - ett stalle, tre
+       ytor. Saknas filen faller den tillbaka pa emojin som forut. */
+    art: 'assets/ui/boost/chrono_draft.webp',
     name: BOOSTS.expspd.name, ico: BOOSTS.expspd.ico, kind: 'Consumable',
     desc: 'Drink to finish expeditions ' + BOOSTS.expspd.pct + '% faster for ' +
           BOOSTS.expspd.mins + ' minutes. Runs already under way keep their own clock.',
@@ -21052,6 +21064,10 @@ const ITEM_DEFS = {
     sell: 0, noSell: true
   },
   boost_luck: {
+    /* [TILLAGT v5.405.0] Samma sak for Fortune Vial.
+       [ANDRAT v5.406.0] Filen hette "fortue_vial" - ett n fattades. Chris har
+       dopt om den, sa raden pekar nu pa namnet varan faktiskt har. */
+    art: 'assets/ui/boost/fortune_vial.webp',
     name: BOOSTS.luck.name, ico: BOOSTS.luck.ico, kind: 'Consumable',
     desc: 'Drink for ' + BOOSTS.luck.pct + '% more Loot Luck for ' + BOOSTS.luck.mins +
           ' minutes. It raises the chance of a drop, not its rarity.',
@@ -21095,6 +21111,23 @@ const MELON_CHANCE = 0.04;
    som den skulle ha gett, och tva varor med identisk verkan hos samma handlare
    ar bara forvirrande. */
 const BOOST_KEY_BY_ITEM = {boost_expspd: 'expspd', boost_luck: 'luck'};
+/* [TILLAGT v5.406.0] BAKVAGEN: fran boostens nyckel till VARAN (Chris). Brickan
+   som tickar ner kanner bara boosten ('luck'), men bilden sitter pa foremalet
+   ('boost_luck'). Vandningen raknas fram ur tabellen ovan i stallet for att
+   skrivas en gang till - da kan de tva aldrig glida isar. */
+const BOOST_ITEM_BY_KEY = {};
+Object.keys(BOOST_KEY_BY_ITEM).forEach(item => {
+  BOOST_ITEM_BY_KEY[BOOST_KEY_BY_ITEM[item]] = item;
+});
+/* Brickans ikon: varans egen bild om den finns, annars boostens tecken. Samma
+   bildvag som boden och shoppen - ett stalle, tre ytor. En FLASKAS boost har
+   ingen vara och faller darfor alltid pa tecknet. */
+function boostChipIco(key, emoji){
+  const item = BOOST_ITEM_BY_KEY[key];
+  const art  = item ? stackArtOf(item) : null;
+  return art ? '<span class="bc-ico art-wrap">' + artWithFallback(art, emoji) + '</span>'
+             : '<span class="bc-ico">' + emoji + '</span>';
+}
 /* ---------- HANDLARENS PAKET ----------
    Vid femstjärnigt rykte skickar handlaren bud: kom förbi, jag har något åt dig.
    Paketet hämtas PÅ PLATS hos handlaren, läggs i väskan, och kan sparas hur länge
@@ -23505,7 +23538,7 @@ function renderBoostBar(){
     seen[k] = true;
     const B = BOOSTS[k];
     h += '<div class="boost-chip" data-boost="' + k + '">' +
-      '<span class="bc-ico">' + B.ico + '</span>' +
+      boostChipIco(k, B.ico) +
       '<span class="bc-time">' + fmtDur(left) + '</span></div>';
   }
   /* FLASKORNA SAKNADES HAR. En drucken flaska verkade pa riktigt - servern
