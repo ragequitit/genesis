@@ -7028,12 +7028,34 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgc-bcell{position:relative}
 /* Hovringen: vad just DEN bossen kan tappa. Popupen ligger i cellen och kan
    darfor inte hamna fel nar rutnatet bryter rad. */
+/* [ANDRAT v5.448.0] POPUPEN GAR ATT GA IN I (Chris). Den var pointer-events:none
+   och lag atta punkter over kortet - sa fort musen lamnade kortet slocknade den,
+   och man kom aldrig upp pa den. Nu tar den emot pekaren, och ::after tacker
+   glappet mellan kort och popup sa hovringen inte bryts pa vagen upp. Popupen
+   ar ett barn av cellen, sa cellens :hover haller sa lange musen ar pa nagot
+   av dem. */
 .dgb-pop{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);
   min-width:190px;max-width:250px;padding:9px 11px;border-radius:11px;z-index:5;
   background:var(--bg-inset,#0d1420);border:1px solid var(--dgc-dim);
   box-shadow:0 10px 30px rgba(0,0,0,.65);opacity:0;pointer-events:none;
   transition:opacity .14s ease-out}
-.dgc-bcell:hover .dgb-pop{opacity:1}
+.dgb-pop::after{content:'';position:absolute;left:0;right:0;top:100%;height:12px}
+.dgc-bcell:hover .dgb-pop{opacity:1;pointer-events:auto}
+.dgb-r.sig{position:relative;cursor:default;border-radius:6px;padding:2px 4px;margin:0 -4px}
+.dgb-r.sig:hover{background:rgba(255,255,255,.05)}
+/* Den stora bilden: till hoger om popupen, i pjasens sallsynthetsram. */
+.dgb-big{display:none;position:absolute;left:calc(100% + 14px);top:50%;transform:translateY(-50%);
+  width:170px;height:170px;border-radius:14px;z-index:7;
+  background-color:var(--bg-inset,#0d1420);background-size:contain;background-repeat:no-repeat;
+  background-position:center;background-origin:content-box;padding:12px;
+  border:1px solid var(--dgc);box-shadow:0 12px 34px rgba(0,0,0,.7)}
+.dgb-big i{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-style:normal;
+  font-size:10px;font-weight:800;letter-spacing:.4px;color:var(--text);
+  text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.dgb-r.sig:hover .dgb-big{display:block}
+/* Sista cellens popup ligger hogerstalld - da far den stora bilden ga at VANSTER,
+   annars hamnar den utanfor fonstret. */
+.dgc-bcell:last-child .dgb-big{left:auto;right:calc(100% + 14px)}
 .dgb-h{font-size:11.5px;font-weight:800;color:var(--dgc);margin-bottom:5px}
 .dgb-r{font-size:10.5px;font-weight:700;color:var(--text-dim);line-height:1.6;
   white-space:normal}
@@ -7637,7 +7659,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.447.0 — ZONHOPPET KOSTAR FEM</div>
+        <div class="sn-ver">GENESIS v5.448.0 — STOR BILD PA SIGNATURPJASERNA</div>
       </div>
     </div>
   </aside>
@@ -8694,7 +8716,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.447.0 — ZONHOPPET KOSTAR FEM</div>
+            <div class="desc">GENESIS v5.448.0 — STOR BILD PA SIGNATURPJASERNA</div>
           </div>
         </div>
       </div>
@@ -10780,10 +10802,17 @@ function dgcBossCardHTML(bi, i, sist, heroic){
   sig.forEach(x => {
     const D = ITEMS[x.item] || {};
     const art = (typeof itemArtFor === 'function') ? itemArtFor(x.item, 3) : null;
+    /* [TILLAGT v5.448.0] STOR BILD VID HOVRING PA RADEN (Chris). Ikonen ar
+       tjugo punkter - man ser att det ar en pjas, inte vilken. Hovrar man raden
+       stiger samma bild upp i stor storlek bredvid popupen. Samma fil, ingen
+       ny hamtning. */
     rader += '<div class="dgb-r sig">' +
       '<span class="dgb-ico' + (art ? '' : ' noart') + '"' +
       (art ? ' style="background-image:url(\'' + art + '\')"' : '') + '>' +
-      (art ? '' : DGC_ICONS.boss) + '</span>' + esc(D.name || x.item) + '</div>';
+      (art ? '' : DGC_ICONS.boss) + '</span>' + esc(D.name || x.item) +
+      (art ? '<span class="dgb-big" style="background-image:url(\'' + art + '\')">' +
+             '<i>' + esc(D.name || x.item) + '</i></span>' : '') +
+      '</div>';
   });
   if (sist) rader += '<div class="dgb-r sch">\ud83d\udcdc Schematic</div>';
   return '<div class="dgc-bcell' + (sist ? ' final' : '') + '">' +
