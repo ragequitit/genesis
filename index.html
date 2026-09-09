@@ -3503,6 +3503,9 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
    spelarens beslut, taget med oppna ogon. */
 /* [TILLAGT v5.409.0] Namnen pa dem som star i zonen. Brickor, inte en lista:
    femtio namn i rad hade blivit en vagg, brickor bryter av sig sjalva. */
+.zone-town{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border-soft)}
+.zt-blurb{font-size:11px;font-weight:600;color:var(--text-dim);line-height:1.45}
 .nd-players{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 2px}
 .nd-pl{font-size:10.5px;font-weight:700;letter-spacing:.3px;padding:3px 7px;
   border-radius:999px;background:rgba(56,232,255,.10);border:1px solid var(--cyan-dim);
@@ -7247,7 +7250,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.419.0 — KARTAN INKOPPLAD</div>
+        <div class="sn-ver">GENESIS v5.421.0 — SVEP: ZONSIDAN</div>
       </div>
     </div>
   </aside>
@@ -8293,7 +8296,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.419.0 — KARTAN INKOPPLAD</div>
+            <div class="desc">GENESIS v5.421.0 — SVEP: ZONSIDAN</div>
           </div>
         </div>
       </div>
@@ -22193,6 +22196,11 @@ function zpTick(){
          Utan det stod namnen still dar medan de uppdaterades i zonrutan. */
       if (NODE && (NODE.kind === 'zone' || NODE.kind === 'town') && $('node-overlay') &&
           $('node-overlay').classList.contains('open')) renderNodeWin();
+      /* [TILLAGT v5.420.0] Zonsidan visar samma lista och maste folja med -
+         annars uppdaterades namnen i den lilla rutan men stod still i den stora. */
+      if (openZoneRef && regionOverlay && regionOverlay.classList.contains('open')){
+        try { zpRedrawZonePlayers(); } catch (e){}
+      }
     })
     .catch(() => {})
     .then(() => { zpBusy = false; });
@@ -22921,6 +22929,23 @@ function openRegion(id){
 /* Rita om den oppna zonrutan pa plats. Behovs nar ett svar kommer fran servern
    EFTER att knappen redan slappt - da finns ingen klickhandlare kvar att rita
    om i. */
+/* [TILLAGT v5.420.1] Spelarlistans INNEHALL for zonsidan, sa den kan bytas ut
+   utan att sidan byggs om. Se zpRedrawZonePlayers. */
+function zonePlayersInnerHTML(regionId, zone){
+  if (regionId === S.world.current && zone === S.world.zone)
+    return playersListHTML(true) || '<div class="shelf-empty">Only you.</div>';
+  return '<div class="shelf-empty">Travel here to see who is standing around.</div>';
+}
+/* [RATTAT v5.420.1] HELA SIDAN BYGGDES OM NAR NAGON KOM ELLER GICK (buggsvep).
+   redrawZone ritar om region-body fran borjan, sa rullningen hoppade tillbaka
+   till toppen - mitt i att man laser handlarens hyllor - var tionde sekund sa
+   fort nagon rorde sig i zonen. Nu byts BARA listans innehall, precis som
+   receptboken gor med sina rader. */
+function zpRedrawZonePlayers(){
+  const box = $('zone-players');
+  if (!box || !openZoneRef) return;
+  box.innerHTML = zonePlayersInnerHTML(openZoneRef.region, openZoneRef.zone);
+}
 function redrawZone(){
   if (openZoneRef) openZone(openZoneRef.region, openZoneRef.zi, true);
 }
@@ -22940,8 +22965,22 @@ function openZone(regionId, zi, keepNote){
       '<span class="v zon-niva ' + diffFarg(levelInfo().lvl, zonNiva(regionId, zi)) + '">Level ' +
       zonNiva(regionId, zi) + '</span></div>') +
     '</div>' +
+    /* [TILLAGT v5.420.0] VALVET SAKNADES HELT PA ZONSIDAN (buggsvep). Forut var
+       valvet en egen zon utan zonsida, sa dorren behovdes bara i husrutan. Nu
+       delar de The Landing - och sidan visade handlaren men lat som att valvet
+       inte fanns. Bada husen ritas ur samma tabell, sa ett tredje hus i zonen
+       skulle folja med av sig sjalvt. */
     (zone === TRADE_ZONE
-      ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
+      ? '<div class="section-label">Trader</div>' + buildTrader(regionId) +
+        townsIn(zone).filter(k => k !== 'vendor').map(k => {
+          const t = TOWNS[k], har = atTown(k);
+          return '<div class="section-label">' + esc(t.name) + '</div>' +
+            '<div class="zone-town">' +
+            '<div class="zt-blurb">' + esc(t.blurb) + '</div>' +
+            '<button class="btn-primary" data-zonetown="' + esc(k) + '"' +
+            (har ? '' : ' disabled') + '>' +
+            (har ? esc(t.enter) : 'Travel here first') + '</button></div>';
+        }).join('')
       : '<div class="section-label" id="zone-exp">Expeditions</div>' +
         (isZoneCharted(regionId, zone)
           ? buildZoneExpeditions(regionId, zone)
@@ -22953,12 +22992,23 @@ function openZone(regionId, zi, keepNote){
     /* [TILLAGT v5.34.0] Dungeonen, under motet. Bara i zoner som har en. */
     (zone !== TRADE_ZONE && isZoneCharted(regionId, zone)
       ? buildZoneDungeon(regionId, zone) : '') +
+    /* [RATTAT v5.420.0] RADEN SA ATT SERVERN INTE VAR IGANG (buggsvep). Texten
+       var en platshallare fran innan narvaron fanns - nu FINNS listan, och den
+       stod och pastod motsatsen pa den skarm man tittar mest pa. Samma lista och
+       samma knappar som zonrutan; playersListHTML ar den enda kroppen. */
     '<div class="section-label">Players in zone</div>' +
-    '<div class="shelf-empty">Only you — other players appear when the server goes live.</div>' +
+    '<div id="zone-players">' + zonePlayersInnerHTML(regionId, zone) + '</div>' +
     buildZoneAction(regionId, zone);
   regionOverlay.classList.add('open');
   placeRegionWin(); bringToFront(regionOverlay);
   $('zone-back').addEventListener('click', () => openRegion(regionId));
+  /* [TILLAGT v5.420.0] Husdorrarna pa zonsidan. */
+  $('region-body').querySelectorAll('[data-zonetown]').forEach(b =>
+    b.addEventListener('click', () => {
+      const k = b.dataset.zonetown;
+      if (k === 'vault' && atTown('vault')){ openVault(); return; }
+      openTownWin(k, regionId);
+    }));
   const tbuy = $('trader-buy');
   /* Rutan ritas om oavsett utfall: lyckas köpet syns kvittot, misslyckas det syns
      skälet. Ett tyst avslag är det värsta ett gränssnitt kan göra. */
@@ -34923,16 +34973,16 @@ function travelBtnText(){
    sjalv star i - servern svarar inte om nagon annan zon, sa rutan kan inte
    heller lova det. Star man nagon annanstans ritas ingenting alls, hellre an en
    tom rad som ser ut som "ingen har" nar sanningen ar "vi vet inte". */
-function nodePlayersHTML(){
-  if (!nodeHere()) return '';
+/* [OMBYGGT v5.420.0] KARNAN BRUTEN UT (buggsvep). Zonsidan hade en egen,
+   hardkodad rad - se dar - och nu ritar bada ytorna samma lista fran samma
+   funktion. En sak pa ett stalle. */
+function playersListHTML(here){
+  if (!here) return '';
   if (!zpGot) return '<div class="nd-line"><span class="k">In this zone</span>' +
                      '<span style="opacity:.6">Checking\u2026</span></div>';
   const n = ZONE_PLAYERS.length;
   if (!n) return '<div class="nd-line"><span class="k">In this zone</span>' +
                  '<span style="opacity:.6">Only you</span></div>';
-  /* [ANDRAT v5.410.0] Brickan ar en KNAPP nu (Chris): den oppnar handlingarna
-     mot den spelaren. Bade karaktarens id och kontots handle folger med i
-     raden - viskningen vill ha det forsta, det sociala det andra. */
   return '<div class="nd-line"><span class="k">In this zone</span><span>' + n +
          ' online</span></div>' +
     '<div class="nd-players">' +
@@ -34943,6 +34993,9 @@ function nodePlayersHTML(){
       (p.guild_tag ? '<i class="nd-plg">' + esc(p.guild_tag) + '</i> ' : '') +
       esc(p.name || '?') + '</button>').join('') +
     '</div>';
+}
+function nodePlayersHTML(){
+  return playersListHTML(nodeHere());
 }
 /* [TILLAGT v5.410.0] HANDLINGARNA MOT EN SPELARE (Chris). Ingen av dem ar ny -
    inspektionen, viskningen, vanforfragan och gillebjudan finns alla sedan
@@ -34971,7 +35024,14 @@ async function openInspect(handle, charId){
      zonrutan, och sedan fanns ingen vag tillbaka till listan - man fick stanga
      och klicka sig in i zonen igen for att titta pa nasta spelare. Kom man FRAN
      zonrutan minns vi det och ritar en tillbakaknapp. */
-  const fran = (NODE && NODE.kind === 'zone') ? {region: NODE.region, zone: NODE.zone}
+  /* [RATTAT v5.420.1] TILLBAKAKNAPPEN KUNDE LEDA FEL (buggsvep). Oppnar man
+     Inspect fran ZONSIDAN - som ocksa har namnbrickor sedan v5.420 - stod NODE
+     kvar pa den zon- eller husruta man senast haft uppe, kanske for lange sedan.
+     Knappen dok da upp och skickade en till en ruta man aldrig kom ifran. Nu
+     raknas den bara nar nodrutan FAKTISKT ar oppen. */
+  const nodeOppen = !!(w && w.classList.contains('open'));
+  const fran = !nodeOppen ? null
+             : (NODE && NODE.kind === 'zone') ? {region: NODE.region, zone: NODE.zone}
              : (NODE && NODE.kind === 'town') ? {town: NODE.town, region: NODE.region} : null;
   NODE = {kind: 'inspect', region: NODE.region, zone: NODE.zone, busy: false, qid: null,
           back: fran};
