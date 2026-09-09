@@ -7408,7 +7408,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.429.0 — DUNGEONFONSTRET, ANDRA VANDAN</div>
+        <div class="sn-ver">GENESIS v5.430.0 — YRKESTEXTEN OCH FYNDLISTAN</div>
       </div>
     </div>
   </aside>
@@ -8463,7 +8463,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.429.0 — DUNGEONFONSTRET, ANDRA VANDAN</div>
+            <div class="desc">GENESIS v5.430.0 — YRKESTEXTEN OCH FYNDLISTAN</div>
           </div>
         </div>
       </div>
@@ -12487,7 +12487,14 @@ const PROFESSIONS = [
    mats:['tin_ore','quartz_crystal','iron_ore','prism_crystal',
          'platinum_ore','signal_crystal','cobalt_ore','phase_crystal']},
   {id:'synthetics',  name:'Synthetics',   kind:'gathering', ico:'🧵', active:true, cap:20,
-   blurb:'Harvests fiber, mesh, weave and silk for outfitters.',
+   /* [ANDRAT v5.430.0] TEXTEN NAMNDE MATERIAL SOM INTE FINNS (Chris). "Mesh"
+      och "silk" var de gamla nycklarna polymer_mesh och static_silk, omdopta i
+      v5.398 - och en text som raknar upp varor spelaren aldrig kan hitta ar ett
+      lofte som inte gar att infria. Fyra fibrer ar vad yrket faktiskt ger, och
+      vaven ar det de blir.
+      "For outfitters" ar DAREMOT sant, mätt: 26 av outfitterns recept anvander
+      vavarens material, och inget annat yrkes gor det. */
+   blurb:'Weaves fiber into cloth and phaseweave \u2014 everything an outfitter needs.',
    mats:['fiber','woven_fiber','carbon_fiber','static_fiber']},
 
   {id:'outfitter',   name:'Outfitter',    kind:'crafting', ico:'🧥', active:true, cap:20,
@@ -25868,8 +25875,18 @@ function ppGatherRightHTML(id){
   const p = PROF_BY[id];
   let h = '<div class="section-label pp-sec">Work</div>' + gatherLoopHTML(id);
   const def_rare_keys = (GATHER_DEFS[id] && GATHER_DEFS[id].rare) || [];
+  /* [RATTAT v5.430.0] LISTAN VISADE BARA DE VANLIGA (Chris fraga om yrkestexten
+     ledde hit). Raden nedanfor ar skriven for att kunna grada ut ett RART
+     material - den fragar def_rare_keys och GATHER_RARE_LEVEL - men de rara stod
+     aldrig i p.mats, sa den grenen kordes aldrig. Foljden: Phaseweave, Memory
+     Weave, Voidsteel Ore, Genesis Crystal och de fyra adelstenarna syntes inte
+     som mojliga fynd, fast de droppar.
+     Listan byggs nu ur GATHER_DEFS - samma tabell som RULLNINGEN laser - i
+     stallet for ur en handskriven rad som maste minnas att foljas med. */
+  const alla = (typeof gatherKeysOf === 'function' && gatherKeysOf(id).length)
+    ? gatherKeysOf(id) : (p.mats || []);
   h += '<div class="section-label pp-sec">Possible finds</div><div class="pp-finds">' +
-    (p.mats || []).map(k => {
+    alla.filter(k => MATERIALS[k]).map(k => {
       const m = MATERIALS[k];
       /* [ANDRAT v5.399.0] Last av NIVAN nu, inte av regionen - och de sallsynta
          (utan rank) ar lasta till GATHER_RARE_LEVEL i stallet for alltid oppna. */
