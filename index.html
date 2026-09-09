@@ -7195,7 +7195,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.403.0 — WEBP FOR DE FORADLADE</div>
+        <div class="sn-ver">GENESIS v5.404.0 — SAMLARNA FICK SIN BOK</div>
       </div>
     </div>
   </aside>
@@ -8246,7 +8246,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.403.0 — WEBP FOR DE FORADLADE</div>
+            <div class="desc">GENESIS v5.404.0 — SAMLARNA FICK SIN BOK</div>
           </div>
         </div>
       </div>
@@ -13264,7 +13264,13 @@ const PAPER = {
   /* [ANDRAT v5.259.0] Medicinaren och raffinoren har egna bilder nu (Chris) och
      lanar inte langre ritningens. */
   medic:       {en:'Formula',   fl:'Formulas',   bok:'Book of Formulas',   bild:'formula'},
-  refiner:     {en:'Process',   fl:'Processes',  bok:'Book of Processes',  bild:'process'}
+  refiner:     {en:'Process',   fl:'Processes',  bok:'Book of Processes',  bild:'process'},
+  /* [TILLAGT v5.404.0] SAMLARNA FICK EGNA ORD (Chris). De har recept sedan
+     v5.401 men foll pa reservraden och hette bara "Recipes" - och da later de
+     som ingenting. Vavaren far monster som outfittern, men EGEN bok, sa de tva
+     aldrig blandas ihop; gruvan smalter, sa dess papper heter Smelting. */
+  synthetics:  {en:'Pattern',   fl:'Patterns',   bok:'Book of Weaves',     bild:'pattern'},
+  mining:      {en:'Method',    fl:'Methods',    bok:'Book of Smelting',   bild:'schematic'}
 };
 /* [TILLAGT v5.268.0] YRKETS TRAPPA (Chris). Recepten bar redan en rang ett till
    fem; det som saknades var ett ORD for den. Nivakraven ligger sa har: rang 1 pa
@@ -25119,14 +25125,20 @@ function profPageHTML(p){
   }
 
   if (p.kind === 'gathering'){
-    /* Samlarens ruta bor i HOGERSPALTEN. Har laggs bara tradets flikar, sa
+    /* Samlarens ruta bor i HOGERSPALTEN. Har laggs bara flikarna, sa
        gruvans trad nas precis som hantverkets (v5.49.0). */
-    if (hasTree){
-      h += '<div class="pp-tabs">' +
-        '<button class="pp-tabbtn' + (ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="book"><i class="jcb-ico"></i>WORK</button>' +
-        '<button class="pp-tabbtn' + (ppTab === 'tree' ? ' on' : '') + '" data-ppttab="tree"><i class="jcb-ico tree"></i>SKILL TREE</button>' +
-      '</div>';
-    }
+    /* [ANDRAT v5.404.0] BOKEN FICK EN FLIK (Chris). Steg C gav samlarna tre
+       recept var i v5.401, men hogerspalten valdes pa `queued` - och en samlare
+       ar varken 'crafting' eller 'secondary', sa boken ritades ALDRIG. Recepten
+       fanns i bade klient och databas utan en enda knapp som nadde dem.
+       Flikraden ritas nu aven utan skilltrad: annars hade boken suttit fast
+       bakom ett trad som kanske inte finns. WORK ligger kvar forst - passet ar
+       fortfarande det samlaren kommer hit for. */
+    h += '<div class="pp-tabs">' +
+      '<button class="pp-tabbtn' + (ppTab !== 'book' && ppTab !== 'tree' ? ' on' : '') + '" data-ppttab="work"><i class="jcb-ico"></i>WORK</button>' +
+      '<button class="pp-tabbtn' + (ppTab === 'book' ? ' on' : '') + '" data-ppttab="book"><i class="jcb-ico"></i>' + esc(paperOf(p.id).fl.toUpperCase()) + '</button>' +
+      (hasTree ? '<button class="pp-tabbtn' + (ppTab === 'tree' ? ' on' : '') + '" data-ppttab="tree"><i class="jcb-ico tree"></i>SKILL TREE</button>' : '') +
+    '</div>';
   } else {
     /* [ANDRAT v5.41.0] HANTVERKSKON efter skissen: kon till vanster,
        receptboken till hoger, allt i samma breda ruta. Fem platser; raden som
@@ -25167,9 +25179,11 @@ function profPageHTML(p){
   h += '<div class="pp-tabs"><button class="pp-tabbtn danger" data-ppforget="' + p.id +
        '">\u267b UNLEARN</button></div>';
 
-  const right = (ppTab === 'tree' && hasTree)
-    ? ppTreeHTML(p.id)
-    : (queued ? ppBookHTML(p.id) : ppGatherRightHTML(p.id));
+  /* [ANDRAT v5.404.0] Tre lagen i stallet for tva: tradet, boken, passet.
+     Hantverket och sidoyrket har ingen WORK-flik, sa de landar pa boken som
+     forut - bara samlaren kan hamna pa passet. */
+  const right = (ppTab === 'tree' && hasTree) ? ppTreeHTML(p.id)
+    : ((queued || ppTab === 'book') ? ppBookHTML(p.id) : ppGatherRightHTML(p.id));
   return '<div class="pp-wide"><div class="pp-left">' + h + '</div>' +
     '<div class="pp-right">' + right + '</div></div>';
 }
@@ -25199,6 +25213,15 @@ function ppGatherRightHTML(id){
   return h;
 }
 /* ---------- KON OCH BOKEN (v5.41.0) ---------- */
+/* [TILLAGT v5.404.0] SAMLAREN GOR SAKEN PA STALLET. Hantverket och sidoyrket
+   koar - deras material dras vid start och produkten hamtas nar tiden gatt.
+   Samlaren har ingen ko (servern skickar bara 'crafting' och 'secondary' vidare
+   till start_work_order; allt annat gar direkt genom craft_recipe). EN fraga pa
+   ETT stalle, sa boken och knappen aldrig kan svara olika. */
+function ppInstant(profId){
+  const p = PROF_BY[profId];
+  return !!p && p.kind === 'gathering';
+}
 const QB = {tab: 'ALL', q: ''};       /* bokens flik och sokord - bara visning */
 const CRAFT_SECS_BY_RANK = {1: 60, 2: 150, 3: 300, 4: 600};  /* speglar servern; visningstext */
 function recipeRank(r){ return r.lvl >= 15 ? 4 : (r.lvl >= 10 ? 3 : (r.lvl >= 5 ? 2 : 1)); }
@@ -25260,9 +25283,20 @@ function ppBookHTML(profId){
     if (D && GEAR_SLOTS[D.slot] && slots.indexOf(GEAR_SLOTS[D.slot].name) < 0)
       slots.push(GEAR_SLOTS[D.slot].name);
   });
+  /* [ANDRAT v5.404.0] "3 slots available" ar en LOGN i samlarens bok - den har
+     ingen ko att fylla. Dar star Instant i stallet, sa raden sager samma sak
+     som knappen under den. */
+  const inst = ppInstant(profId);
+  /* [TILLAGT v5.404.0] BOKENS FLIK FOLJDE MED MELLAN YRKEN. QB.tab ar global.
+     Stod den pa RING fran juveleraren och man oppnade vavarens bok, foll varje
+     rad bort - samlarens recept gor MATERIAL och har ingen plats alls - och
+     boken sa "No recipes match" fast tre recept lag dar. Star fliken pa nagot
+     yrket inte har, faller den tillbaka till ALL. */
+  if (QB.tab !== 'ALL' && slots.indexOf(QB.tab) < 0) QB.tab = 'ALL';
   const free = woCap(profId) - ppQueueLen(profId);
   let h = '<div class="section-label pp-sec" style="display:flex;justify-content:space-between;align-items:center">' +
-    esc(paperOf(profId).bok) + ' <span class="ppq-count">' + free + ' slot' + (free === 1 ? '' : 's') + ' available</span></div>' +
+    esc(paperOf(profId).bok) + ' <span class="ppq-count">' +
+    (inst ? 'Instant' : free + ' slot' + (free === 1 ? '' : 's') + ' available') + '</span></div>' +
     '<div class="ppb-bar"><input id="ppb-search" type="text" placeholder="Search ' + esc(paperOf(profId).fl.toLowerCase()) + '\u2026" value="' +
       QB.q.replace(/"/g, '&quot;') + '">' +
     '<span class="ppb-tabs">' + ['ALL'].concat(slots).map(t =>
@@ -25272,7 +25306,9 @@ function ppBookHTML(profId){
   return h;
 }
 function ppBookRows(profId){
-  const free = woCap(profId) - ppQueueLen(profId);
+  /* [ANDRAT v5.404.0] Samlaren har ingen ko - free star pa 1 sa raden aldrig
+     spärras av en kolangd som inte finns. */
+  const free = ppInstant(profId) ? 1 : woCap(profId) - ppQueueLen(profId);
   const q = QB.q.trim().toLowerCase();
   /* [ANDRAT v5.268.0] EN RUBRIK PER STEG (Chris). Forut lag alla recept i en
      enda hog, och det enda som skvallrade om var ett recept horde hemma var
@@ -25351,7 +25387,7 @@ function ppBookRows(profId){
       '</div>' +
       '<button class="pp-openbtn addq" data-addq="' + r.id + '"' +
         ((afford && free > 0) ? '' : ' disabled') + '>' +
-        (free > 0 ? 'Add to queue' : 'Queue full') + '</button>' +
+        (ppInstant(profId) ? 'Make' : (free > 0 ? 'Add to queue' : 'Queue full')) + '</button>' +
     '</div>';
   }).join('') || '<div class="shelf-empty">No recipes match.</div>';
 }
@@ -26224,7 +26260,7 @@ function renderProfessions(){
     say('Learned ' + PROF_BY[id].name + '!');
     const w = $('prof-overlay');
     if (w) w.classList.remove('open');
-    profCardOpen(id, 'book');
+    profCardOpen(id, PROF_BY[id].kind === 'gathering' ? 'work' : 'book');
   }));
   /* [BORTTAGET v5.294.0] Tre lyssnare foll med vyn. Receptbokens hade dessutom
      dubblerat sig mot den sidbreda lyssnaren om knappen nagonsin stott har. */
@@ -26584,7 +26620,9 @@ document.addEventListener('click', e => {
        huvudyrkena sin yrkessida. Det gemensamma fonstret ar kvar for valet. */
     const id = btn.dataset.openprof;
     if (!PROF_BY[id]){ openProfessions(); return; }
-    profCardOpen(id, 'book');
+    /* [ANDRAT v5.404.0] Samlarkortet sager Open och ska landa pa passet - boken
+       nas fran fliken inne pa sidan. Hantverket oppnar sin bok som forut. */
+    profCardOpen(id, PROF_BY[id].kind === 'gathering' ? 'work' : 'book');
     return;
   }
   /* [ANDRAT v5.8.0] Plustecknet oppnade bara fonstret, och man fick klicka en
