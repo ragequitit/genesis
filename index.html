@@ -3501,6 +3501,52 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
    varvet. Faller bilden bort ar .noart kvar med sina 15 px tecken, sa brickan
    ser likadan ut som forut. Pixelkonsten blir grotig i den har storleken -
    spelarens beslut, taget med oppna ogon. */
+/* [TILLAGT v5.409.0] Namnen pa dem som star i zonen. Brickor, inte en lista:
+   femtio namn i rad hade blivit en vagg, brickor bryter av sig sjalva. */
+.nd-players{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 2px}
+.nd-pl{font-size:10.5px;font-weight:700;letter-spacing:.3px;padding:3px 7px;
+  border-radius:999px;background:rgba(56,232,255,.10);border:1px solid var(--cyan-dim);
+  color:var(--cyan);font-family:inherit;cursor:pointer}
+.nd-pl:hover{background:rgba(56,232,255,.22)}
+/* Menyn ligger pa BODY, inte i rutan: rutan klipper sitt innehall, sa en meny
+   inuti hade kapats vid kanten. */
+.nd-plg{font-style:normal;opacity:.7;font-size:9.5px}
+.pl-tip{position:fixed;z-index:9999;display:flex;gap:9px;align-items:center;
+  padding:8px 11px 8px 8px;background:var(--bg-inset,#0d1420);
+  border:1px solid var(--cyan-dim);border-radius:11px;pointer-events:none;
+  box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.plt-name{font-size:12.5px;font-weight:800;color:var(--text)}
+.plt-sub{font-size:10.5px;font-weight:700;color:var(--text-dim);margin-top:2px}
+.nd-insp{display:flex;gap:11px;align-items:center;margin-bottom:10px}
+.nd-inm{font-size:14px;font-weight:800;color:var(--text)}
+.nd-ins{font-size:10.5px;font-weight:700;color:var(--text-dim);margin-top:3px}
+/* [TILLAGT v5.412.0] Inspektionens docka. Klasserna inuti ar karaktarsrutans
+   egna - bara ramen och figurens storlek behover sagas har. */
+.nd-doll{margin-top:4px}
+.nd-doll .char-layout{display:flex;gap:10px;align-items:flex-start;justify-content:center}
+.nd-doll .transport-row{display:flex;gap:8px;justify-content:center;margin-top:8px}
+.nd-doll .char-portrait{position:relative;display:flex;align-items:flex-end;justify-content:center;
+  min-width:150px;min-height:210px}
+.nd-doll .insp-figure{max-width:150px;max-height:210px;object-fit:contain}
+.nd-doll .char-portrait.nofig .char-fallback{font-size:56px;opacity:.55}
+.nd-doll .char-portrait:not(.nofig) .char-fallback{display:none}
+.nd-gear{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+.nd-gi{display:flex;gap:8px;align-items:center;padding:5px 7px;border-radius:9px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border-soft)}
+.nd-gia{width:30px;height:30px;flex:0 0 auto;border-radius:7px;border:1px solid var(--rc);
+  background-size:contain;background-repeat:no-repeat;background-position:center}
+.nd-gib{display:flex;flex-direction:column;min-width:0}
+.nd-gib b{font-size:11.5px;font-weight:800}
+.nd-gib i{font-style:normal;font-size:10px;font-weight:700;color:var(--text-dim);margin-top:1px}
+.pl-menu{position:fixed;z-index:9999;min-width:170px;padding:5px;
+  background:var(--bg-inset,#0d1420);border:1px solid var(--cyan-dim);border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.pl-menu .plm-head{font-size:10.5px;font-weight:800;letter-spacing:.4px;
+  color:var(--cyan);padding:5px 8px 7px}
+.pl-menu button{display:block;width:100%;text-align:left;font-family:inherit;
+  font-size:11.5px;font-weight:700;color:var(--text);background:none;border:0;
+  padding:7px 8px;border-radius:7px;cursor:pointer}
+.pl-menu button:hover{background:rgba(56,232,255,.14)}
 .boost-chip .bc-ico.art-wrap{padding:0}
 .boost-chip .bc-ico.art-wrap .art-img{width:20px;height:20px}
 .boost-chip .bc-time{
@@ -7202,7 +7248,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.406.0 — BILDEN OCKSA I BRICKAN</div>
+        <div class="sn-ver">GENESIS v5.414.0 — BUGGSVEP TVA</div>
       </div>
     </div>
   </aside>
@@ -8253,7 +8299,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.406.0 — BILDEN OCKSA I BRICKAN</div>
+            <div class="desc">GENESIS v5.414.0 — BUGGSVEP TVA</div>
           </div>
         </div>
       </div>
@@ -10036,7 +10082,21 @@ function dgcHar(){
 let DGC_BUSY = false;
 async function netDungeonChoices(){
   if (!NET.on || !SRV.charId) return null;
-  DGC = await srvRpc('dungeon_choices', {p_character: SRV.charId});
+  /* [RATTAT v5.407.0] RUTAN VAR TOM FRAN EN ANNAN ZON (Chris, bild). Noden
+     oppnade valet - det byggdes i v5.375.0 - men servern fragades aldrig VAR.
+     dungeon_choices slog alltid upp dungeonen dar KARAKTAREN star, sa stod man
+     nagon annanstans svarade den here=false och rutan sa "There is no dungeon
+     where you stand" fast man just pekat pa en. Halva vagen fanns: resan och
+     "Travel - Enter Dungeon" var redan byggda och vantade pa korten.
+     Nu foljer platsen med. BADA maste finnas - en region utan zon hade fatt
+     servern att fylla i den zon spelaren star i, och da hade svaret gallt en
+     helt annan plats an den man pekade pa. Utan DGC_AT fragar den som forut. */
+  const at = (DGC_AT && DGC_AT.region && DGC_AT.zone) ? DGC_AT : null;
+  DGC = await srvRpc('dungeon_choices', {
+    p_character: SRV.charId,
+    p_region: at ? at.region : null,
+    p_zone:   at ? at.zone   : null
+  });
   return DGC;
 }
 /* [ANDRAT v5.375.0] Tar nu emot VAR dungeonen ligger. Anropas rutan utan
@@ -10267,8 +10327,15 @@ function renderDgChoice(){
     return;
   }
   if (!DGC.here){
+    /* [ANDRAT v5.407.0] Fragade vi om en ANNAN plats ar "where you stand" fel
+       ord - da pekade spelaren nagon annanstans. Rutan sager vilken zon den
+       inte hittade nagot i. */
+    const at = (DGC_AT && DGC_AT.zone) ? DGC_AT.zone : null;
     box.innerHTML = '<div class="dgc-frame"><div class="dgc-head">Choose Difficulty</div>' +
-      '<div class="shelf-empty">There is no dungeon where you stand.</div></div>';
+      '<div class="shelf-empty">' +
+      (at ? 'There is no dungeon in ' + esc(at) + '.'
+          : 'There is no dungeon where you stand.') +
+      '</div></div>';
     return;
   }
   const hu = !!(DGC.heroic && DGC.heroic.unlocked);
@@ -20033,6 +20100,9 @@ function updateUI(force){
     expGate = performance.now();
     renderExpPanel(); renderCharStats(); pveDungeonTick();
     gmMarkDungeonReady();
+    /* [TILLAGT v5.413.0] Narvaron tickar HAR, fore kartan - den ska ga aven nar
+       kartramen inte svarar. */
+    try { zpTick(); } catch (e){}
     /* [TILLAGT v5.155.0] KARTAN FAR SITT LAGE VARJE SEKUND. Sandningen satt
        bara i renderMap, som kors nar nagot HANT - en vila som tar slut ar
        ingen handelse, sa noden kom tillbaka forst nasta gang spelaren rorde
@@ -22051,7 +22121,73 @@ function renderMap(){
 
    Sandningen sitter i renderMap, som redrawAll redan anropar. Darfor kan kartan
    inte hamna i otakt: allt som ritar om spelet ritar om kartan. */
-let gmReady = false, gmLastSig = '', gmShownRegion = null;
+let gmReady = false, gmLastSig = '', gmShownRegion = null, gmShownZone = null;
+/* ===== VILKA STAR I MIN ZON (v5.409.0, Chris) =====
+   Servern svarar BARA med dem som star i samma zon som en sjalv - man kan
+   alltsa inte fraga var en namngiven spelare ar, bara vilka som ar dar man
+   redan ar. Listan gar tva vagar: till kartans pips och till zonrutans lista.
+   Fragas var tionde sekund, och BARA nar man faktiskt star i en zon - en tom
+   zon kostar da ingenting. setPlayers ar stum vid oforandrad lista, sa kartan
+   ritas inte om i onodan aven om vi skickar lika ofta som vi fragar. */
+let ZONE_PLAYERS = [], zpAt = 0, zpKey = null, zpBusy = false, zpSig = '', zpChar = null;
+/* [TILLAGT v5.414.0] HAR VI FATT SVAR AN? Utan detta sa rutan "Only you" under
+   de forsta sekunderna i en ny zon - fast vi bara inte hunnit fraga. Ett dott
+   varde som ser levande ut, och just den sortens bugg vi jagar i det har
+   projektet. Nu star det "Checking..." tills forsta svaret landat. */
+let zpGot = false;
+const ZONE_PLAYERS_EVERY = 10000;
+async function netZonePlayers(){
+  if (!NET.on || !SRV.charId) return null;
+  return await srvRpc('zone_players', {p_character: SRV.charId});
+}
+function zpTick(){
+  if (!NET.on || !SRV.charId) return;
+  /* [TILLAGT v5.413.0] BYTER MAN KARAKTAR AR LISTAN NAGON ANNANS. Namnen stod
+     kvar tills nasta svar kom - upp till tio sekunder av fel folk i rutan. */
+  if (zpChar !== SRV.charId){ zpChar = SRV.charId; ZONE_PLAYERS = []; zpSig = ''; zpAt = 0; zpGot = false; }
+  const key = S.world.zone ? (S.world.current + '|' + S.world.zone) : null;
+  /* Byter man zon ar den gamla listan direkt fel - tom den innan svaret kommer,
+     annars star fel namn kvar i rutan ett andetag. */
+  if (key !== zpKey){ zpKey = key; ZONE_PLAYERS = []; zpSig = ''; zpAt = 0; zpGot = false; zpPush(); }
+  /* [TILLAGT v5.414.0] Skicka till kartan VARJE varv, inte bara nar ett nytt
+     svar kommer. Ramen laddas lat: kom den igang mellan tva fragor stod den utan
+     spelare i upp till tio sekunder. setPlayers ar stum vid oforandrad lista, sa
+     detta kostar en jamforelse i sekunden. */
+  if (zpGot) zpPush();
+  if (!key || zpBusy || Date.now() - zpAt < ZONE_PLAYERS_EVERY) return;
+  zpBusy = true; zpAt = Date.now();
+  netZonePlayers()
+    .then(list => {
+      ZONE_PLAYERS = Array.isArray(list) ? list : [];
+      const forst = !zpGot; zpGot = true;
+      zpPush();
+      /* [ANDRAT v5.413.0] RUTAN RITADES OM VAR TIONDE SEKUND, aven nar ingen
+         kommit eller gatt. Varje ombyggnad river namnknapparna - hovringens kort
+         pekade da pa en knapp som inte fanns langre, och ett finger pa vag mot
+         en knapp fick den utbytt under sig. Nu ritas den bara nar listan
+         FAKTISKT andrats. */
+      const sig = ZONE_PLAYERS.map(p => (p && p.id) || '').join(',');
+      if (sig === zpSig && !forst) return;
+      zpSig = sig;
+      plTipHide();
+      if (NODE && NODE.kind === 'zone' && $('node-overlay') &&
+          $('node-overlay').classList.contains('open')) renderNodeWin();
+    })
+    .catch(() => {})
+    .then(() => { zpBusy = false; });
+}
+/* Till kartan. Namnet ar det spelaren valt, koordinaterna lamnas at kartan -
+   den placerar deterministiskt per id, sa samma spelare hamnar pa samma plats
+   varje gang. setPlayers finns bara i den nya kartan; provet gor raden dov mot
+   den gamla i stallet for att kasta ett fel var tionde sekund. */
+function zpPush(){
+  const api = gmWin();
+  if (!api || typeof api.setPlayers !== 'function') return;
+  const zon = zpKey;
+  try {
+    api.setPlayers(ZONE_PLAYERS.map(p => ({id: p.id, name: p.name, zone: zon})));
+  } catch (e){}
+}
 function gmWin(){
   const f = $('map-frame');
   try { return (f && f.contentWindow && f.contentWindow.genesisMap) || null; }
@@ -22079,6 +22215,9 @@ function gmState(){
     current: {region: here, zone: hereZone},
     regions: regions, zones: zones, encounters: encounters,
     quests: gmQuestNodes(),
+    /* [BORTTAGET v5.409.0] players lag aldrig har, och ska inte laggas hit.
+       Kartan lyssnar bara pa setPlayers: en narvarolista i setState hade ritat
+       om hela kartan vid varje in- och utloggning. */
     /* [RATTAT v5.156.0] STOD HARDKODAT FALSE. Kartan ritade darfor valvet som
        LOCKED i all evighet, i alla fem varldarna - ett dott varde som sag levande
        ut. Valvet ar ingen zon man reser till i det har spelet: det nas overallt
@@ -22211,6 +22350,11 @@ function gmPushExpStyle(){
 }
 function gmPush(){
   const api = gmWin();
+  /* [FLYTTAT v5.413.0] zpTick LAG HAR, EFTER RADEN UNDER. Foljden: fanns ingen
+     karta - ramen laddas lat, och den kan misslyckas helt - slutade narvaron
+     tickas, och listan i zonrutan frystes pa de namn som rakade sta dar nar
+     kartan sist svarade. Zonrutans lista ar ingen kartfunktion och far inte
+     bero pa att kartan lever. Tickern kors nu fran updateUI, fore det har. */
   if (!api || typeof api.setState !== 'function') return;
   /* Knappen forst, och ALLTID. Den visar nedrakningar - dronarens tid tickar
      medan allt annat star still - sa den far inte ligga bakom sparren nedan.
@@ -22233,7 +22377,32 @@ function gmPush(){
      varje omritning slanga tillbaka den som medvetet tittar pa en annan varld. */
   if (gmShownRegion !== S.world.current && typeof api.showRegion === 'function'){
     gmShownRegion = S.world.current;
+    gmShownZone = null;      /* showRegion backar ut ur zonvyn - foljs nedan */
     try { api.showRegion(S.world.current); } catch (e){}
+  }
+  /* [TILLAGT v5.408.0] KARTAN FOLJER MED IN I ZONEN (Chris). Man reser dit for
+     att VARA dar, sa kartan ska sta dar man star - YOU ARE HERE-pipen ritas
+     numera inne i zonen ocksa.
+     Sitter HAR och inte i goToZone med FLIT: det finns flera vagar in i en zon -
+     kartans reseknapp, nodfonstret, dungeonvalets "Travel - Enter Dungeon" - och
+     alla passerar den har sandningen. Ett stalle, inte fyra.
+     Bara vid FAKTISKT byte. Backar man ut med LEAVE ZONE star gmShownZone kvar
+     pa zonen man star i, sa nasta sandning knuffar inte tillbaka en - kartan far
+     visa vad spelaren vill titta pa.
+     showZone finns bara i den nya kartan; provet gor raden dov mot den gamla i
+     stallet for att kasta ett fel varje sekund. */
+  const zonNu = S.world.zone || null;
+  if (gmShownZone !== zonNu){
+    gmShownZone = zonNu;
+    try {
+      if (zonNu && typeof api.showZone === 'function'){
+        api.showZone(S.world.current, zonNu);
+      } else if (!zonNu && typeof api.showRegion === 'function'){
+        /* Ingen zon langre - backa ut ur vy C sa kartan inte star kvar i en zon
+           spelaren lamnat. */
+        api.showRegion(S.world.current);
+      }
+    } catch (e){}
   }
 }
 /* Klick fran kartan. Kartan sager BARA vad som traffades; vad som hander
@@ -34634,7 +34803,8 @@ function gemWinOffsetClear(w){
 }
 function renderNodeWin(){
   const box = $('node-body'); if (!box) return;
-  if (NODE.kind === 'town') box.innerHTML = nodeTownHTML();
+  if (NODE.kind === 'inspect') box.innerHTML = nodeInspectHTML();
+  else if (NODE.kind === 'town') box.innerHTML = nodeTownHTML();
   else if (NODE.kind === 'encounter') box.innerHTML = nodeEncounterHTML();
   else if (NODE.kind === 'quest') box.innerHTML = nodeQuestHTML();
   else if (NODE.kind === 'expedition') box.innerHTML = nodeExpHTML();
@@ -34810,13 +34980,238 @@ function travelBtnText(){
   return 'Travel here \u2014 ' + ZONE_FUEL_COST + ' fuel';
 }
 /* ---- Zonen: vad finns har just nu ---- */
+/* [TILLAGT v5.409.0] VILKA STAR HAR (Chris). Listan visas BARA i den zon man
+   sjalv star i - servern svarar inte om nagon annan zon, sa rutan kan inte
+   heller lova det. Star man nagon annanstans ritas ingenting alls, hellre an en
+   tom rad som ser ut som "ingen har" nar sanningen ar "vi vet inte". */
+function nodePlayersHTML(){
+  if (!nodeHere()) return '';
+  if (!zpGot) return '<div class="nd-line"><span class="k">In this zone</span>' +
+                     '<span style="opacity:.6">Checking\u2026</span></div>';
+  const n = ZONE_PLAYERS.length;
+  if (!n) return '<div class="nd-line"><span class="k">In this zone</span>' +
+                 '<span style="opacity:.6">Only you</span></div>';
+  /* [ANDRAT v5.410.0] Brickan ar en KNAPP nu (Chris): den oppnar handlingarna
+     mot den spelaren. Bade karaktarens id och kontots handle folger med i
+     raden - viskningen vill ha det forsta, det sociala det andra. */
+  return '<div class="nd-line"><span class="k">In this zone</span><span>' + n +
+         ' online</span></div>' +
+    '<div class="nd-players">' +
+    ZONE_PLAYERS.map(p => '<button class="nd-pl" data-plmenu="' + esc(p.id || '') +
+      '" data-plh="' + esc(p.handle || '') + '" data-pln="' + esc(p.name || '') +
+      '" data-plav="' + esc(p.avatar || '') + '" data-plg="' + esc(p.guild_tag || '') +
+      '" data-pllv="' + esc(p.level == null ? '' : String(p.level)) + '">' +
+      (p.guild_tag ? '<i class="nd-plg">' + esc(p.guild_tag) + '</i> ' : '') +
+      esc(p.name || '?') + '</button>').join('') +
+    '</div>';
+}
+/* [TILLAGT v5.410.0] HANDLINGARNA MOT EN SPELARE (Chris). Ingen av dem ar ny -
+   inspektionen, viskningen, vanforfragan och gillebjudan finns alla sedan
+   tidigare och nas fran vannerrutan och chatten. Det som saknades var en vag
+   dit fran den man STAR BREDVID. Menyn ar darfor bara knappar som ropar pa de
+   befintliga vagarna; ingen ny regel, inget nytt serveranrop.
+   PvP-raderna kommer hit nar PvP finns - de byggs inte i forvag, en avstangd
+   knapp som lovar en duell ar ett dott varde som ser levande ut. */
+/* [TILLAGT v5.411.0] HOVRINGEN (Chris): bild, namn, gilletagg och niva. Allt
+   star redan i listan - hovringen ar bara en presentation, inget nytt anrop.
+   Kortet ligger pa BODY av samma skal som menyn: rutan klipper sitt innehall. */
+/* [TILLAGT v5.411.0] INSPEKTIONEN (Chris). Visar vad spelaren BAR just nu -
+   ingenting annat. Vaskan, valvet, guldet och materialen finns inte i svaret:
+   gransen sitter i SERVERN (inspect_player laser bara location='equipped'), sa
+   ingen framtida ruta kan rakna med att fa mer. Ar den regeln bara i klienten
+   ar den ingen regel alls. */
+let inspSeq = 0;
+async function openInspect(handle){
+  const w = $('node-overlay'); if (!w) return;
+  /* [TILLAGT v5.414.0] TVA SNABBA INSPEKTIONER. Oppnade man en spelare och genast
+     en annan kunde det LANGSAMMA svaret komma sist och skriva over det man
+     faktiskt bad om - fel person i rutan, utan ett enda felmeddelande. Varje
+     oppning tar ett nummer; bara det senaste far rita. */
+  const min = ++inspSeq;
+  /* [TILLAGT v5.413.0] VAG TILLBAKA (buggsvep). Inspektionen skrev over
+     zonrutan, och sedan fanns ingen vag tillbaka till listan - man fick stanga
+     och klicka sig in i zonen igen for att titta pa nasta spelare. Kom man FRAN
+     zonrutan minns vi det och ritar en tillbakaknapp. */
+  const fran = (NODE && NODE.kind === 'zone') ? {region: NODE.region, zone: NODE.zone} : null;
+  NODE = {kind: 'inspect', region: NODE.region, zone: NODE.zone, busy: false, qid: null,
+          back: fran};
+  $('node-title').textContent = 'Inspect';
+  $('node-body').innerHTML = '<div class="shelf-empty">Looking\u2026</div>';
+  w.classList.add('open'); bringToFront(w);
+  let svar;
+  try {
+    svar = await srvRpc('inspect_player', {p_handle: handle});
+  } catch (e){
+    if (min !== inspSeq) return;
+    INSPECT = null;
+    $('node-body').innerHTML = '<div class="shelf-empty">' + esc(srvErrText(e)) + '</div>';
+    return;
+  }
+  if (min !== inspSeq) return;
+  INSPECT = svar;
+  renderNodeWin();
+}
+let INSPECT = null;
+/* [OMBYGGT v5.412.0] SPEGLAT KARAKTARSBLAD (Chris). Forut en lista med pjaser -
+   men da maste man LASA sig till var varje sak sitter. Nu ritas samma docka som
+   ens egen ruta: huvud, hals, brost, ben, fotter till vanster, handskar, balte,
+   tva ringar och relik till hoger, vapen, transport och offhand under. Man
+   kanner igen varje plats for att det ar samma plats.
+   SAMMA KLASSER som panel-character, sa dockan foljer med av sig sjalv nar
+   utseendet andras - men INUTI .nd-doll, sa renderEquip:s egna valjare
+   (#panel-character [data-slot]) aldrig skriver over den har med ENS pjaser.
+   INGA VARDEN: Power, HP, Damage och statsraderna ar med FLIT inte har. Man ska
+   se vad nagon BAR, inte hur stark den ar. Servern skickar dem inte heller. */
+const INSP_COLS = {
+  vanster: [[0,'head','Head'], [6,'neck','Neck'], [1,'chest','Chest'],
+            [2,'legs','Legs'], [4,'feet','Feet']],
+  hoger:   [[3,'hands','Gloves'], [7,'waist','Waist'], [8,'ring','Ring I'],
+            [12,'ring','Ring II'], [13,'relic','Relic']],
+  under:   [[5,'weapon','Weapon'], [11,'transport','Transport'], [9,'offhand','Off Hand']]
+};
+function inspSlotHTML(bar, sl, art, namn){
+  const it = bar[sl];
+  if (!it){
+    return '<div class="equip-slot" title="' + esc(namn) + '">' +
+      '<i class="slot-bg" style="background-image:url(\'assets/slots/slot_' + art + '.png\')"></i></div>';
+  }
+  const D = ITEMS[it.item_key] || {};
+  const rar = it.rarity | 0;
+  const bild = (typeof itemArtFor === 'function') ? itemArtFor(it.item_key, rar) : null;
+  const rad = (D.name || it.item_key) +
+    (it.item_level != null ? ' \u00b7 ilvl ' + it.item_level : '') +
+    (it.god_roll ? ' \u00b7 God roll' : '') + (it.crafted ? ' \u00b7 Crafted' : '');
+  return '<div class="equip-slot has" style="--rc:' + rarCol(rar) + '" title="' + esc(rad) + '">' +
+    '<div class="eq-img"' + (bild ? ' style="background-image:url(\'' + bild + '\')"' : '') +
+    '></div></div>';
+}
+function nodeInspectHTML(){
+  const d = INSPECT;
+  if (!d) return '<div class="shelf-empty">Nothing to show.</div>';
+  /* Pjaserna laggs pa sin plats. slot_idx kommer fran servern - tva ringar ar
+     samma item_key men bor i olika rutor, sa nyckeln racker inte. */
+  const bar = {};
+  (Array.isArray(d.gear) ? d.gear : []).forEach(g => {
+    if (g && g.slot_idx != null) bar[g.slot_idx] = g;
+  });
+  /* Figuren klar sig efter vad den faktiskt bar, precis som ens egen. Samma
+     rakning, samma filnamn - FIGURE_BITS ar ett bordsvarde, inte ett tal skrivet
+     tva ganger. */
+  let fig = 0;
+  try { for (const sl in FIGURE_BITS) if (bar[sl]) fig |= FIGURE_BITS[sl]; } catch (e){}
+  const figSrc = (typeof figureSrcFor === 'function') ? figureSrcFor(d.class_id, fig) : null;
+  const kol = list => '<div class="equip-col">' +
+    list.map(x => inspSlotHTML(bar, x[0], x[1], x[2])).join('') + '</div>';
+
+  let h = (NODE.back ? '<div class="nd-acts" style="margin-bottom:8px">' +
+      '<button class="btn-neutral" data-inspback="1">\u2190 Back to zone</button></div>' : '') +
+    '<div class="nd-insp">' + avChip(d.avatar, d.name || d.handle, 46, !!d.online) +
+    '<div><div class="nd-inm">' + (d.guild_tag ? '&lt;' + esc(d.guild_tag) + '&gt; ' : '') +
+      esc(d.name || d.handle || '?') + '</div>' +
+    '<div class="nd-ins">' + (d.level != null ? 'Level ' + esc(String(d.level)) : '') +
+      (d.paragon ? ' \u00b7 Paragon ' + esc(String(d.paragon)) : '') +
+      (d.online ? ' \u00b7 Online' : '') + '</div></div></div>';
+  h += '<div class="nd-doll"><div class="char-layout">' +
+    kol(INSP_COLS.vanster) +
+    '<div class="char-mid"><div class="char-portrait">' +
+      (figSrc ? '<img class="insp-figure" src="' + figSrc + '" alt="" draggable="false" ' +
+                'onerror="var q=this.parentNode;this.remove();q.classList.add(\'nofig\')">' : '') +
+      '<span class="char-fallback">\ud83e\udd77</span>' +
+    '</div></div>' +
+    kol(INSP_COLS.hoger) +
+    '</div><div class="transport-row">' +
+      INSP_COLS.under.map(x => inspSlotHTML(bar, x[0], x[1], x[2])).join('') +
+    '</div></div>';
+  if (!Object.keys(bar).length) h += '<div class="shelf-empty">Wearing nothing.</div>';
+  return h;
+}
+let PLTIP = null;
+function plTipHide(){ if (PLTIP){ PLTIP.remove(); PLTIP = null; } }
+function plTipShow(btn){
+  /* [RATTAT v5.413.0] KORTET BLINKADE. Knappen har ett barn - gilletaggen - sa
+     musen gar over flera element inuti SAMMA knapp, och varje mouseover rev
+     kortet och byggde ett nytt. Star kortet redan for den har knappen far det
+     sta kvar. */
+  if (PLTIP && PLTIP._for === btn) return;
+  plTipHide();
+  const nm = btn.dataset.pln || '?', av = btn.dataset.plav || '',
+        g = btn.dataset.plg || '', lv = btn.dataset.pllv || '';
+  const el = document.createElement('div');
+  el.className = 'pl-tip';
+  el.innerHTML = avChip(av, nm, 40, false) +
+    '<div class="plt-body"><div class="plt-name">' + esc(nm) + '</div>' +
+    '<div class="plt-sub">' + (g ? '&lt;' + esc(g) + '&gt; ' : '') +
+    (lv ? 'Level ' + esc(lv) : '') + '</div></div>';
+  document.body.appendChild(el);
+  const r = btn.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, r.left)) + 'px';
+  el.style.top  = Math.max(8, r.top - el.offsetHeight - 6) + 'px';
+  el._for = btn;
+  PLTIP = el;
+}
+document.addEventListener('mouseover', e => {
+  const b = e.target.closest('[data-plmenu]');
+  if (b) plTipShow(b); else if (!e.target.closest('.pl-tip')) plTipHide();
+});
+let PLMENU = null;
+function plMenuClose(){ if (PLMENU){ PLMENU.remove(); PLMENU = null; } }
+function plMenuOpen(btn){
+  plMenuClose();
+  const cid = btn.dataset.plmenu, h = btn.dataset.plh, nm = btn.dataset.pln || '?';
+  const el = document.createElement('div');
+  el.className = 'pl-menu';
+  el.innerHTML = '<div class="plm-head">' + esc(nm) + '</div>' +
+    '<button data-plact="view">Inspect</button>' +
+    '<button data-plact="whisper">Whisper</button>' +
+    '<button data-plact="friend">Send friend request</button>' +
+    '<button data-plact="ginvite">Invite to guild</button>';
+  document.body.appendChild(el);
+  const r = btn.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, r.left)) + 'px';
+  el.style.top  = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, r.bottom + 6)) + 'px';
+  PLMENU = el;
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-plact]'); if (!b) return;
+    const act = b.dataset.plact;
+    plMenuClose();
+    /* Utan handle gar det sociala inte att gora - da sags det, i stallet for
+       att knappen tyst inte gor nagonting. */
+    if ((act === 'view' || act === 'friend' || act === 'ginvite') && !h){
+      say('That player has no account handle yet.'); return;
+    }
+    if (act === 'view')    { openInspect(h); return; }
+    if (act === 'whisper') { if (cid) chatOpenConv(cid, nm); return; }
+    if (act === 'friend')  { socialDo('friend_request', {p_handle: h}, 'Request sent.'); return; }
+    if (act === 'ginvite') { guildDo('guild_invite', {p_handle: h}, 'Invitation sent to ' + nm + '.'); return; }
+  });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-plmenu]');
+  if (b){ e.stopPropagation(); plTipHide(); plMenuOpen(b); return; }
+  if (PLMENU && !e.target.closest('.pl-menu')) plMenuClose();
+});
+/* [TILLAGT v5.411.0] HOGERKLICK OCKSA (Chris). Spelet stanger av webblasarens
+   egen meny overallt, sa hogerklicket ar ledigt att anvanda. VANSTERKLICKET
+   BEHALLS: pa telefon finns inget hogerklick, och da hade menyn varit onabar. */
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-inspback]')) return;
+  const b = NODE.back;
+  if (b) openNodeWin('zone', b.region, b.zone);
+});
+document.addEventListener('contextmenu', e => {
+  const b = e.target.closest('[data-plmenu]');
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  plTipHide(); plMenuOpen(b);
+});
 function nodeZoneHTML(){
   const R = REGIONS[NODE.region];
   const charted = isZoneCharted(NODE.region, NODE.zone);
   const here = nodeHere();
   let h = nodeWhereHTML();
   h += '<div class="nd-line"><span class="k">Region</span><span>' + esc(R ? R.name : '') + '</span></div>' +
-       '<div class="nd-line"><span class="k">Level band</span><span>' + esc(R ? R.band : '') + '</span></div>';
+       '<div class="nd-line"><span class="k">Level band</span><span>' + esc(R ? R.band : '') + '</span></div>' +
+       nodePlayersHTML();
   if (!charted){
     /* [TILLAGT v5.183.0] RUTAN STOD KVAR OCH SA INGENTING. Trycker man Send
        drone blir zonrutan liggande pa skarmen - men den ritade om sig till
