@@ -7043,6 +7043,18 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgc-pane.right .dgc-heal .lb{color:var(--text);min-width:118px}
 .dgc-pane.right .dgc-heal button{min-width:52px;padding:7px 0}
 .dgc-pane.right .dgc-heal .opts{gap:6px}
+/* [TILLAGT v5.439.0] Hovringskortet for forradsvarorna. Webblasarens egen
+   title-ruta dyker upp efter en sekund och ser ut som en webbsida; den har
+   kommer direkt och ser ut som spelet. title-attributet star kvar som reserv. */
+.dgc-pane.right .dgc-item{position:relative}
+.dgc-pane.right .dgc-item::after{
+  content:attr(title);position:absolute;left:10px;right:10px;bottom:calc(100% + 6px);
+  z-index:6;padding:8px 11px;border-radius:10px;font-size:11px;font-weight:600;
+  line-height:1.45;color:var(--text-dim);white-space:normal;text-align:left;
+  background:var(--bg-inset,#0d1420);border:1px solid var(--dgc-dim);
+  box-shadow:0 10px 30px rgba(0,0,0,.65);opacity:0;pointer-events:none;
+  transition:opacity .14s ease-out}
+.dgc-pane.right .dgc-item:hover::after{opacity:1}
 /* [RATTAT v5.436.0] "5 OWNED" LAG EN RAD FOR LANGT NED (Chris). Bilden stod i
    rutnatets FORSTA rad utan att spanna den andra, sa raden blev lika hog som
    bilden - och namnet flot upp i mitten av den medan "owned" hamnade under.
@@ -7497,7 +7509,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.438.0 — DUNGEONBILDERNA I WEBP</div>
+        <div class="sn-ver">GENESIS v5.439.0 — FORRADET SAGER VAD DET GOR</div>
       </div>
     </div>
   </aside>
@@ -8552,7 +8564,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.438.0 — DUNGEONBILDERNA I WEBP</div>
+            <div class="desc">GENESIS v5.439.0 — FORRADET SAGER VAD DET GOR</div>
           </div>
         </div>
       </div>
@@ -10546,7 +10558,14 @@ function dgcSupplyHTML(){
     const owned = pveOwned(key);
     const top = Math.min(owned, cap);
     st[k] = Math.max(0, Math.min(st[k], top));
-    return '<div><div class="dgc-item">' +
+    /* [TILLAGT v5.439.0] VAD VARAN GOR, VID HOVRING (Chris). Rutan sa namn och
+       antal men inte VERKAN - och det ar precis det man behover for att avgora
+       hur manga man ska ta med. Texten hamtas ur ITEM_DEFS, samma rad som
+       vaskan och handlaren visar; skrevs den om har hade vi fatt tva sanningar
+       om samma flaska. */
+    const D = ITEM_DEFS[key] || {};
+    const tip = esc(D.desc || '');
+    return '<div><div class="dgc-item" title="' + tip + '">' +
       '<span class="pic">' + (stackArtOf(key)
         ? artWithFallback(stackArtOf(key), stackIcoOf(key, '\ud83d\udce6'))
         : stackIcoOf(key, '\ud83d\udce6')) + '</span>' +
