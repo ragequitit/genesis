@@ -3845,7 +3845,6 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .gl-miss{color:var(--text-dim)}
 .pc-book{margin-top:8px;border:1px solid var(--cyan);background:linear-gradient(180deg,rgba(56,180,255,.16),rgba(56,180,255,.04));
   color:var(--cyan);font-weight:800;font-size:12px;padding:8px 12px;border-radius:9px;cursor:pointer}
-.recipe-list{display:flex;flex-direction:column;gap:8px;padding:2px}
 .recipe-row{display:flex;gap:11px;align-items:center;background:var(--bg-row);border:1px solid var(--border-soft);
   border-radius:10px;padding:10px 12px}
 .recipe-row.locked{opacity:.6}
@@ -7248,7 +7247,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.414.0 — BUGGSVEP TVA</div>
+        <div class="sn-ver">GENESIS v5.416.0 — DEN DODA RECEPTBOKEN RIVEN</div>
       </div>
     </div>
   </aside>
@@ -7946,19 +7945,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ================= slut dev-rutan ================= -->
 
   <div class="gear-tip" id="gear-tip"></div>
+  <!-- [BORTTAGET v5.416.0] DEN ANDRA RECEPTBOKEN (Chris). Har stod ett helt
+       eget bokfonster - recipe-overlay, recipe-list, openRecipeBook,
+       renderRecipeBook - med samma logik som yrkessidans bok. Det gick inte att
+       oppna: enda vagen in var en lyssnare pa [data-book], och det attributet
+       fanns ingenstans i filen utom inuti valjarstrangen sjalv. Boken som
+       faktiskt anvands ar ppBookHTML pa yrkessidan. Kontrollerat rad for rad
+       innan rivningen; ingen rest kvar. -->
   <!-- ================= HUSDJUREN ================= -->
-  <div class="float-win" id="recipe-overlay">
-    <div class="modal inv-modal recipe-modal">
-      <div class="inv-emblem">📖</div>
-      <div class="inv-titlebar">
-        <span class="inv-title" id="recipe-title">Recipe Book</span>
-        <button class="inv-x" id="recipe-close">✕</button>
-      </div>
-      <div class="pets-scroll">
-        <div class="recipe-list" id="recipe-list"></div>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== BUTIKEN (v4.94.0) =====
        Premiumkopen - offlinetaket och extra vaskplatser - satt i
@@ -8299,7 +8293,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.414.0 — BUGGSVEP TVA</div>
+            <div class="desc">GENESIS v5.416.0 — DEN DODA RECEPTBOKEN RIVEN</div>
           </div>
         </div>
       </div>
@@ -11361,7 +11355,7 @@ async function netCraft(recipeId){
   const r = await srvRpc('craft_recipe', {p_character: SRV.charId, p_recipe: recipeId});
   await netPullItems();
   await netPullProfessions();
-  renderRecipeBook(); renderInventory(); updateUI(true);
+  renderInventory(); updateUI(true);
   showGodRollIfAny(fore);
   return r;
 }
@@ -20043,7 +20037,6 @@ function redrawAll(){
      som landar, en vara fran auktionen - lamnade raderna kvar i sitt gamla
      skick. Kopte man hantverkssatser med boken oppen stod raden rod tills man
      stangde och oppnade den igen. */
-  call(renderRecipeBook);
   call(renderMail);
   call(renderMailBadge);
   call(renderExpBadge);
@@ -25584,7 +25577,14 @@ function ppBookRows(profId){
       '<div class="rr-art" style="' + artStyle + '">' + artInner + '</div>' +
       '<div class="rr-body">' +
         '<div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
-        '<div class="rr-time">\u23f1 ' + fmtDur(recipeSecs(r)) + (slotName ? ' \u00b7 ' + slotName : '') + '</div>' +
+        /* [RATTAT v5.415.0] RADEN LOVADE EN TID SOM INTE FINNS (buggsvep).
+           Samlarens recept gors PA STALLET - servern skickar dem inte till
+           arbetskon - men raden ritade klockan anda och sa "2,5 min". Knappen
+           sa Make, raden sa vanta: tva besked om samma sak, och det ena falskt. */
+        '<div class="rr-time">' +
+          (ppInstant(profId) ? '\u26a1 Instant'
+                             : '\u23f1 ' + fmtDur(recipeSecs(r))) +
+          (slotName ? ' \u00b7 ' + slotName : '') + '</div>' +
         '<div class="rr-cost">' + cost + '</div>' +
       '</div>' +
       '<button class="pp-openbtn addq" data-addq="' + r.id + '"' +
@@ -25717,10 +25717,6 @@ if ($('pp-close')) $('pp-close').addEventListener('click', () => {
    En lyssnare pa hela sidan i stallet: da spelar det ingen roll VAR knappen
    star, och nasta fonster som far en receptbok fungerar utan att nagon minns
    att koppla den. */
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-book]');
-  if (b) openRecipeBook(b.dataset.book);
-});
 /* [TILLAGT v5.41.0] Kons knappar - EN lyssnare pa hela sidan per knappsort. */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-addq]');
@@ -26611,119 +26607,6 @@ function localGatherTick(dtSecs){
 /* Receptboken for ETT yrke: dess kanda recept, med kostnad, om man har rad, och
    en Craft-knapp. Okanda 'drop'-recept visas som last rad sa spelaren vet att de
    finns att hitta. */
-let recipeProf = null;
-function openRecipeBook(profId){
-  /* [VAKT v5.7.0] Ett yrke som inte finns - ett vilande, eller ett gammalt marke
-     ur en sparfil - las rakt pa ingenting och kastade sidan. */
-  const bookProf = PROF_BY[profId];
-  if (!bookProf) return;
-  recipeProf = profId;
-  /* [ANDRAT v5.256.0] Boken heter olika hos olika yrken (Chris): vapensmeden
-     laser ritningar, juveleraren utkast, skraddaren monster. Titeln kommer ur
-     samma tabell som knappen och bilden. */
-  $('recipe-title').textContent = bookProf.name + ' \u2014 ' + paperOf(bookProf.id).bok;
-  const w = $('recipe-overlay');
-  w.classList.add('open');
-  bringToFront(w);                 /* over professionssidan, inte under den */
-  renderRecipeBook();
-  /* Bredvid professionssidan (till hoger om den), sa bada syns. Faller den utanfor
-     skarmen laggs den till vanster om professionssidan i stallet. */
-  const prof = $('prof-overlay');
-  const pr = prof && prof.classList.contains('open') ? prof.getBoundingClientRect() : null;
-  if (pr){
-    let x = pr.right + 12, y = Math.max(8, pr.top);
-    if (x + 360 > window.innerWidth) x = Math.max(8, pr.left - 372);
-    w.style.left = x + 'px'; w.style.top = winTop(y) + 'px';
-  } else {
-    const panel = document.getElementById('panel-character');
-    const r = panel ? panel.getBoundingClientRect() : {right: 40, top: 60};
-    w.style.left = (r.right + 12) + 'px'; w.style.top = winTop(r.top) + 'px';
-  }
-}
-function closeRecipeBook(){ $('recipe-overlay').classList.remove('open'); }
-function renderRecipeBook(){
-  const list = $('recipe-list');
-  if (!list || !recipeProf) return;
-  const mine = RECIPES.filter(r => r.prof === recipeProf);
-  list.innerHTML = mine.map(r => {
-    const known = recipeKnown(r.id);
-    const R = GEAR_RAR[r.rar];
-    const dispName = r.name || (ITEMS[r.item] ? ITEMS[r.item].name : r.item);
-    const isFl = isFlask(r.item);
-    const cost = Object.keys(r.cost).map(k => {
-      const have = matCount(k), need = r.cost[k], enough = have >= need;
-      return '<span class="rc-mat' + (enough ? '' : ' short') + '" data-mat="' + k +
-        '" title="' + esc(matSourceText(k)) + '">' + MATERIALS[k].ico + ' ' +
-        need + ' ' + MATERIALS[k].name + ' <b>(' + have + ')</b></span>';
-    }).join('');
-    /* [ANDRAT v5.47.0] Kortet kande bara TVA sorters utfall: en flaska (emoji,
-       centrerad) eller en pjas (bakgrundsbild). En FORBRUKNINGSVARA som bandage
-       star inte i utrustningslistan, sa uppslagningen gav tom strang - och
-       kortet ritade en tom svart ruta. Nu ritas varans egen bild med emojin som
-       reserv, sa raden ser ratt ut bade med och utan bildfil. */
-    const conArt = stackArtOf(r.item);
-    let artStyle, artInner;
-    if (isFl){
-      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
-      artInner = FLASKS[r.item].ico;
-    } else if (conArt){
-      artStyle = '--rc:' + rarCol(r.rar);
-      artInner = artWithFallback(conArt, stackIcoOf(r.item, ''));
-    } else if (!ITEMS[r.item]){
-      /* Varken pjas eller bild: material och ovriga varor far sitt tecken. */
-      artStyle = '--rc:' + rarCol(r.rar) + ';display:flex;align-items:center;justify-content:center;font-size:24px';
-      artInner = stackIcoOf(r.item, '');
-    } else {
-      artStyle = '--rc:' + rarCol(r.rar) + ';background-image:url(\'' + itemArtFor(r.item, r.rar) + '\')';
-      artInner = '';
-    }
-    /* ETT RECEPT MAN INTE HITTAT SYNS INTE. Forut stod alla dropprecept som
-       lasta rader i boken - man visste alltsa exakt vad som fanns att hitta
-       innan man hittat det, och boken var full av saker man inte agde. Nu dyker
-       receptet upp forst nar man anvant fyndet. */
-    if (!known) return '';
-    if (!recipeLevelOk(r.id)){
-      /* [RATTAT v5.130.0] Den lasta raden ritade en TOM ruta - man sag namnet
-         men inte vad man jobbade mot. Nu visas samma bild som pa den upplasta
-         raden; graskalan i stilmallen gor att den anda ser last ut. */
-      return '<div class="recipe-row locked">' +
-        '<div class="rr-art" style="' + artStyle + '">' + artInner + '</div>' +
-        '<div class="rr-body"><div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
-          '<div class="rr-locked">🔒 Needs ' + PROF_BY[r.prof].name + ' level ' + (r.lvl || 1) +
-          ' — you are ' + profLvl(r.prof) + '</div></div></div>';
-    }
-    const afford = canAfford(r.id);
-    return '<div class="recipe-row' + (afford ? '' : ' cant') + '">' +
-      '<div class="rr-art" style="' + artStyle + '">' + artInner + '</div>' +
-      '<div class="rr-body">' +
-        '<div class="rr-name">' + dispName + ' <span class="rr-rar" style="color:' + rarCol(r.rar) + '">' + R.name + '</span></div>' +
-        '<div class="rr-cost">' + cost + '</div>' +
-      '</div>' +
-      /* [ANDRAT v5.41.0] ETT klick, en plats i kon. All 10 ar borta pa
-         spelarens beslut: vill man ha fem trycker man fem ganger. Mataren i
-         raden ar ocksa borta - tiden bor i kons forsta rad, inte har. */
-      /* [BORTTAGET v5.241.0] KOKNAPPEN AR BORTA UR DEN HAR BOKEN (Chris punkt
-         10). Den oppnas fran den aldre yrkeslistan, dar man INTE ser kon - man
-         kunde alltsa lagga bestallningar man sedan inte kunde folja. Boken ar
-         en uppslagsbok har; kon ligger kvar pa yrkeskortet, dar den syns. */
-      '' +
-    '</div>';
-  }).join('');
-  /* Hovra en receptrad och se det nastan-vanliga foremalskortet: talen
-     "half", formagorna som antal, och saljvardet. Bara pa recept man KAN se
-     (kanda) - ett last drop-recept avslojar inget. */
-  list.querySelectorAll('.recipe-row:not(.locked)').forEach((row, i) => {
-    const r = mine.filter(rr => recipeKnown(rr.id))[i];
-    /* Radens recept-id ligger pa Craft-knappen; las det darifran sa vi slipper
-       en egen datamappning som kan glida isar. */
-    const cb = row.querySelector('[data-craft]');
-    const rid = cb ? cb.dataset.craft : null;
-    if (!rid) return;
-    row.addEventListener('mouseenter', e => showRecipeTip(rid, e.clientX, e.clientY));
-    row.addEventListener('mousemove', e => { if (gearTip.classList.contains('on')) moveGearTip(e.clientX, e.clientY); });
-    row.addEventListener('mouseleave', hideGearTip);
-  });
-}
 /* [TILLAGT v5.187.0] Rutan VAXER nar man gar in i valet - dina yrken ar en kort
    vy, alla yrken en hog. Placeringen gjordes bara vid oppning, sa den hogre
    rutan vaxte rakt ut genom skarmkanten pa en plattaskarm. Efter varje omritning
@@ -27543,11 +27426,9 @@ function openShop(){
 })();
 if ($('nav-shop')) $('nav-shop').addEventListener('click', openShop);
 if ($('shop-close')) $('shop-close').addEventListener('click', () => $('shop-overlay').classList.remove('open'));
-$('recipe-close').addEventListener('click', closeRecipeBook);
 /* Bada sidorna ska ga att flytta precis som vaskan och varlden - det saknades,
    sa de satt fast. Titelraden och emblemet ar draghandtag. */
 makeDraggable($('prof-overlay'), [$('prof-overlay').querySelector('.inv-titlebar'), $('prof-overlay').querySelector('.inv-emblem')]);
-makeDraggable($('recipe-overlay'), [$('recipe-overlay').querySelector('.inv-titlebar'), $('recipe-overlay').querySelector('.inv-emblem')]);
 /* [BORTTAGET v5.32.0] HAR LAG EN GAMMAL LYSSNARE PA HELA LAGRUTAN. Den skickade
    spelaren till maskinpanelen och sa "seat helpers beside each production" -
    maskinerna ar rivna, och den at dessutom upp klicket pa plustecknet, sa
@@ -35021,7 +34902,7 @@ function nodePlayersHTML(){
    ingen framtida ruta kan rakna med att fa mer. Ar den regeln bara i klienten
    ar den ingen regel alls. */
 let inspSeq = 0;
-async function openInspect(handle){
+async function openInspect(handle, charId){
   const w = $('node-overlay'); if (!w) return;
   /* [TILLAGT v5.414.0] TVA SNABBA INSPEKTIONER. Oppnade man en spelare och genast
      en annan kunde det LANGSAMMA svaret komma sist och skriva over det man
@@ -35040,7 +34921,7 @@ async function openInspect(handle){
   w.classList.add('open'); bringToFront(w);
   let svar;
   try {
-    svar = await srvRpc('inspect_player', {p_handle: handle});
+    svar = await srvRpc('inspect_player', {p_handle: handle, p_char: charId || null});
   } catch (e){
     if (min !== inspSeq) return;
     INSPECT = null;
@@ -35179,7 +35060,10 @@ function plMenuOpen(btn){
     if ((act === 'view' || act === 'friend' || act === 'ginvite') && !h){
       say('That player has no account handle yet.'); return;
     }
-    if (act === 'view')    { openInspect(h); return; }
+    /* [ANDRAT v5.415.0] KARAKTAREN FOLJER MED (buggsvep). Ett konto kan ha
+       flera karaktarer, och inspektionen tog kontots senast sedda - inte den
+       som star framfor en. Nu pekas den ut. */
+    if (act === 'view')    { openInspect(h, cid); return; }
     if (act === 'whisper') { if (cid) chatOpenConv(cid, nm); return; }
     if (act === 'friend')  { socialDo('friend_request', {p_handle: h}, 'Request sent.'); return; }
     if (act === 'ginvite') { guildDo('guild_invite', {p_handle: h}, 'Invitation sent to ' + nm + '.'); return; }
