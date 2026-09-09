@@ -5524,6 +5524,12 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gc-ctag{font-size:9.5px;line-height:1.35;color:var(--text-faint);margin-top:3px}
 /* Beskrivningen star UNDER raden och byts nar man valjer, i stallet for att
    tryckas in i varje kort - fem langa texter samtidigt gar inte att lasa. */
+/* [TILLAGT v5.441.0] Formanerna pa klasskortet. En rad per forman, med kortets
+   egen bredd - de ska ga att jamfora sida vid sida, inte lasas en i taget. */
+.gc-perks{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);
+  display:flex;flex-direction:column;gap:4px;text-align:left}
+.gc-perk{font-size:10px;line-height:1.4;font-weight:700;color:var(--text-dim)}
+.gc-cls.on .gc-perk{color:var(--text)}
 .gc-cblurb{min-height:32px;font-size:11.5px;line-height:1.55;color:var(--text-dim);
   margin-bottom:9px}
 .gc-perm{margin:0 0 10px;color:var(--gold)}
@@ -6932,6 +6938,16 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   white-space:normal}
 .dgb-r.sig{color:var(--text)}
 .dgb-r.sch{color:var(--gold)}
+/* Sorten forst i popupen, och gront nar klassen ar stark mot den. */
+.dgb-r.typ{font-size:11px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;
+  color:var(--text);padding-bottom:4px;margin-bottom:4px;
+  border-bottom:1px solid var(--border-soft)}
+.dgb-r.typ em{font-style:normal;margin-left:8px;font-size:10px;letter-spacing:.4px;
+  text-transform:none;color:var(--green,#4cd97b)}
+/* Sorten under namnet pa kortet - liten, sa namnet fortfarande ar det man laser. */
+.dgc-btype{display:block;margin-top:2px;font-size:8.5px;font-weight:800;
+  letter-spacing:1.1px;text-transform:uppercase;color:var(--text-faint)}
+.dgc-btype.good{color:var(--green,#4cd97b)}
 .dgb-r i{font-style:normal;opacity:.6;margin-left:5px;font-size:9px;
   letter-spacing:.8px;text-transform:uppercase}
 .dgc-plan{display:flex;gap:10px;align-items:center;margin-top:10px;padding:10px;
@@ -7509,7 +7525,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.439.0 — FORRADET SAGER VAD DET GOR</div>
+        <div class="sn-ver">GENESIS v5.441.0 — KLASSVALET SAGER VAD DET GER</div>
       </div>
     </div>
   </aside>
@@ -8564,7 +8580,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.439.0 — FORRADET SAGER VAD DET GOR</div>
+            <div class="desc">GENESIS v5.441.0 — KLASSVALET SAGER VAD DET GER</div>
           </div>
         </div>
       </div>
@@ -10630,6 +10646,20 @@ function dgcBossCardHTML(bi, i, sist, heroic){
   let rader = '<div class="dgb-r">' + DGC_ICONS.gem + ' Gear \u00b7 ' +
     rarSpan(rlo) + '\u2014' + rarSpan(rhi) + '</div>' +
     '<div class="dgb-r">' + DGC_ICONS.live + ' Scrap &amp; XP</div>';
+  /* [TILLAGT v5.440.0] BOSSENS SORT, OCH OM DIN KLASS AR STARK MOT DEN (Chris).
+     Sorten har LEGAT i tabellen hela tiden och raknas redan i striden -
+     pve_dungeon_start lagger pa vs_<sort> pa varje slag - men den syntes
+     ingenstans. En bonus man inte kan se ar en bonus man inte kan planera med.
+     Talet lases ur klassens EGEN tabell fran servern, inte ur ett tal skrivet
+     har, sa raden inte kan lova nagot annat an striden ger. */
+  const SORT = {humanoid:'Humanoid', creature:'Creature', machine:'Machine',
+                elemental:'Elemental', spirit:'Spirit'};
+  if (bi && bi.ptype){
+    const bonus = (typeof classVal === 'function') ? classVal('vs_' + bi.ptype) : 0;
+    rader = '<div class="dgb-r typ">' + esc(SORT[bi.ptype] || bi.ptype) +
+      (bonus > 0 ? '<em>+' + bonus + '% dmg \u00b7 your class</em>' : '') +
+      '</div>' + rader;
+  }
   /* [ANDRAT v5.429.0] Pjasens EGEN bild och namn (Chris). Ordet "signature"
      efter varje rad sa ingenting - raderna star anda under bossen som tappar
      dem - och tvingade fram radbrytningar i namnen. */
@@ -10648,6 +10678,12 @@ function dgcBossCardHTML(bi, i, sist, heroic){
       ' onerror="this.closest(\'.dgc-boss\').classList.add(\'noart\')">' +
       '<span class="ph">' + DGC_ICONS.boss + '</span></div>' +
     '<span class="dgc-bname">' + esc(nm) + '</span>' +
+    (bi && bi.ptype
+      ? '<span class="dgc-btype' +
+        (((typeof classVal === 'function') ? classVal('vs_' + bi.ptype) : 0) > 0 ? ' good' : '') +
+        '">' + esc(({humanoid:'Humanoid', creature:'Creature', machine:'Machine',
+                     elemental:'Elemental', spirit:'Spirit'})[bi.ptype] || bi.ptype) +
+        '</span>' : '') +
     '<div class="dgb-pop"><div class="dgb-h">' + esc(nm) + '</div>' + rader + '</div>' +
   '</div>';
 }
@@ -31981,11 +32017,34 @@ let gateClassPick = null;
 /* [ANDRAT v5.377.0] Porten visar gestalten FULLT PAKLADD - samma fil som
    bladet visar nar alla fem kladplatserna ar fyllda. En kalla: figureSrcFor. */
 function gateClassArt(id){ return figureSrcFor(id, FIGURE_FULL) || ''; }
+/* [TILLAGT v5.441.0] FORMANERNA HAMTAS OCKSA (Chris). Valet var permanent och
+   sa ingenting om vad klassen GER - bara en stamningsrad. Formanerna fanns i
+   class_ability_config men laddades forst EFTER inloggning, alltsa efter att
+   valet redan var gjort. Nu hamtas de i samma andetag som klasserna, fran samma
+   tabell profilkortet laser, sa de tva alltid sager samma sak. */
+let GATE_ABIL = null;
 async function gateLoadClasses(){
   if (GATE_CLASSES) return GATE_CLASSES;
-  GATE_CLASSES = await srvSelect('character_class_config',
-    'select=id,name,tagline,blurb&active=eq.true&order=sort');
+  const [d, a] = await Promise.all([
+    srvSelect('character_class_config', 'select=id,name,tagline,blurb&active=eq.true&order=sort'),
+    srvSelect('class_ability_config',   'select=class_id,slot,effect,value,label')
+  ]);
+  GATE_CLASSES = d || [];
+  GATE_ABIL = {};
+  (a || []).forEach(r => { (GATE_ABIL[r.class_id] = GATE_ABIL[r.class_id] || []).push(r); });
   return GATE_CLASSES;
+}
+/* Formanerna for EN klass, i samma ordning som profilkortet: strid, tomgang,
+   signatur, forman. Ordningen far inte hoppa mellan korten - da laser man dem
+   inte som jamforbara. */
+function gateAbilHTML(id){
+  const rows = (GATE_ABIL && GATE_ABIL[id]) || [];
+  if (!rows.length) return '';
+  const sorted = rows.slice().sort(
+    (a, b) => CLASS_SLOT_ORDER.indexOf(a.slot) - CLASS_SLOT_ORDER.indexOf(b.slot));
+  return '<div class="gc-perks">' +
+    sorted.map(r => '<div class="gc-perk">' + esc(r.label) + '</div>').join('') +
+    '</div>';
 }
 function gateRenderClasses(){
   const box = $('gate-classes'); if (!box) return;
@@ -32002,6 +32061,7 @@ function gateRenderClasses(){
         '<span class="gc-ph">\u25ef</span></div>' +
       '<div class="gc-cname">' + esc(c.name) + '</div>' +
       '<div class="gc-ctag">' + esc(c.tagline) + '</div>' +
+      gateAbilHTML(c.id) +
     '</div>').join('');
   const pick = rows.find(c => c.id === gateClassPick);
   const blurb = $('gate-classblurb');
