@@ -7247,7 +7247,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.416.0 — DEN DODA RECEPTBOKEN RIVEN</div>
+        <div class="sn-ver">GENESIS v5.418.0 — THE LANDING: ETT RESMAL</div>
       </div>
     </div>
   </aside>
@@ -8293,7 +8293,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.416.0 — DEN DODA RECEPTBOKEN RIVEN</div>
+            <div class="desc">GENESIS v5.418.0 — THE LANDING: ETT RESMAL</div>
           </div>
         </div>
       </div>
@@ -15259,13 +15259,19 @@ function load(){
            [TILLAGT v5.104.0] Karantänens sista zon hette samma sak som sin dungeon.
            Zonen heter nu sjukhuset; dungeonen inne i den heter fortfarande det den
            gjorde. Samma skyddsnät, andra namnet. */
+        /* [TILLAGT v5.418.0] Samma skyddsnat for ihopslagningen: en sparfil dar
+           man star i Vault eller Vendor pekar pa tva zoner som inte finns langre.
+           Bada leder till The Landing, dar bada husen nu star. */
         const renameZone = z => (z === 'Trading Station' ? TRADE_ZONE
+                               : z === 'Vault' || z === 'Vendor' ? LANDING_ZONE
                                : z === 'Patient Zero'   ? 'The Hospital' : z);
         if (typeof d.world.zone === 'string') S.world.zone = renameZone(d.world.zone);
         if (Array.isArray(d.world.known)) S.world.known = d.world.known.filter(x => typeof x === 'string');
         if (Array.isArray(d.world.visited)) S.world.visited = d.world.visited.filter(x => typeof x === 'string');
         if (Array.isArray(d.world.zonesSeen)) S.world.zonesSeen = d.world.zonesSeen.filter(x => typeof x === 'string')
-          .map(x => x.replace('|Trading Station', '|' + TRADE_ZONE))
+          .map(x => x.replace('|Trading Station', '|' + LANDING_ZONE))
+          .map(x => x.replace('|Vault', '|' + LANDING_ZONE))
+          .map(x => x.replace('|Vendor', '|' + LANDING_ZONE))
           .map(x => x.replace('quarantine|Patient Zero', 'quarantine|The Hospital'));
         if (d.world.travel && typeof d.world.travel.to === 'string' && isFinite(+d.world.travel.eta)){
           S.world.travel = {to: d.world.travel.to, eta: +d.world.travel.eta,
@@ -20512,11 +20518,20 @@ const REGIONS = {
    En handelsstation i varje region — samma zonnamn överallt, så den alltid går
    att hitta. Cellpriset är samma i hela världen; det som skiljer är DITT rykte
    i regionen: 3 % rabatt per stjärna. Rykte blir därmed pengar. */
-const TRADE_ZONE = 'Vendor';
+/* [ANDRAT v5.418.0] EN O, EN ZON, TVA HUS (Chris). Valvet och handlaren lag som
+   var sin zon - alltsa var sin resa och dubbel branslekostnad for att forst
+   salja och sedan lagga undan. Nu delar de zonen "The Landing".
+   BADA NAMNEN STAR KVAR och pekar pa samma strang: varje befintlig rad som
+   fragar efter TRADE_ZONE eller VAULT_ZONE fortsatter lasa ratt utan att roras,
+   och de sager fortfarande VILKET hus raden menar. Servern ar bytt i samma
+   omgang (assert_at_vault) - annars hade valvet oppnats och sedan vagrat varje
+   flytt utan att saga varfor. */
+const LANDING_ZONE = 'The Landing';
+const TRADE_ZONE = LANDING_ZONE;
 /* [TILLAGT v5.231.0] VALVET ar en plats man star vid (Chris punkt 7). Kartan har
    hela tiden beskrivit den sa: "readable from anywhere, open only while you
    stand at it" - men spelet lat den oppnas var som helst. Nu galler texten. */
-const VAULT_ZONE = 'Vault';
+const VAULT_ZONE = LANDING_ZONE;
 function atVault(){
   return !!(S.world && S.world.current && S.world.zone === VAULT_ZONE);
 }
@@ -20536,9 +20551,20 @@ const TOWNS = {
            blurb: 'The regional trader. Buys anything, asks nothing, remembers everything.',
            enter: 'Enter Vendor'}
 };
+/* [ANDRAT v5.418.0] TVA HUS I SAMMA ZON. townOf letade igenom tabellen och gav
+   FORSTA traffen - med bada husen pa The Landing hade den alltid svarat 'vault'
+   och handlaren blivit oatkomlig fran zonytan. Den svarar nu bara nar zonen har
+   EXAKT ett hus; ar de flera far den som fragar valja sjalv, och zonrutan
+   erbjuder bada. isZoneCharted lutar sig pa townsIn, sa The Landing kraver
+   fortfarande ingen dronare. */
+function townsIn(zone){
+  const ut = [];
+  for (const k in TOWNS) if (TOWNS[k].zone === zone) ut.push(k);
+  return ut;
+}
 function townOf(zone){
-  for (const k in TOWNS) if (TOWNS[k].zone === zone) return k;
-  return null;
+  const t = townsIn(zone);
+  return t.length === 1 ? t[0] : null;
 }
 function atTown(k){
   const t = TOWNS[k];
@@ -21632,7 +21658,7 @@ const ZONE_SCAN_TIME = 30;
 function isZoneCharted(regionId, zone){
   /* [ANDRAT v5.240.0] Valvet star nu bredvid handlaren (Chris punkt 8). Bada ar
      hus som alltid finns, sa ingen av dem kraver en dronare. */
-  return !!townOf(zone) || isZoneSeen(regionId, zone);
+  return townsIn(zone).length > 0 || isZoneSeen(regionId, zone);
 }
 function zoneScanHere(regionId, zone){
   const sc = S.zoneScan;
@@ -22163,7 +22189,9 @@ function zpTick(){
       if (sig === zpSig && !forst) return;
       zpSig = sig;
       plTipHide();
-      if (NODE && NODE.kind === 'zone' && $('node-overlay') &&
+      /* [ANDRAT v5.417.0] Aven husrutan - valvet och handlaren visar listan nu.
+         Utan det stod namnen still dar medan de uppdaterades i zonrutan. */
+      if (NODE && (NODE.kind === 'zone' || NODE.kind === 'town') && $('node-overlay') &&
           $('node-overlay').classList.contains('open')) renderNodeWin();
     })
     .catch(() => {})
@@ -22532,6 +22560,9 @@ function gmPick(o){
          genom den vanliga zonresan. Den kraver att zonen star i regionens
          zonlista, vilket valvet inte gor, sa knappen svarade nej utan att saga
          nagot. Bada vagarna gar till husrutan nu; da faller alla tre bort. */
+      /* [ANDRAT v5.418.0] Har ZONEN tva hus gar ytan till zonrutan, som listar
+         bada - och som numera ocksa visar vilka spelare som star dar. Ett ensamt
+         hus oppnar sin egen ruta som forut. */
       if (o.zone && townOf(o.zone)){ openTownWin(townOf(o.zone), region); break; }
       if (o.zone) openNodeWin('zone', region, o.zone);
       break;
@@ -34709,6 +34740,11 @@ function nodeTownHTML(){
   h += '<div class="town-stage"><span class="town-art art-wrap">' +
        artWithFallback(t.art, t.ico) + '</span></div>';
   h += '<div class="town-blurb">' + esc(t.blurb) + '</div>';
+  /* [TILLAGT v5.417.0] SPELARNA STAR HAR OCKSA (Chris). Valvet och handlaren ar
+     riktiga zoner - atTown jamfor mot samma S.world.zone som allt annat - och
+     troligen de folktataste av alla. Samma rad, samma knappar, samma meny som i
+     zonrutan; funktionen fragar sjalv om man star pa plats. */
+  h += nodePlayersHTML();
   if (here){
     h += '<div class="nd-acts"><button class="btn-primary" data-nd="townenter">' +
       esc(t.enter) + '</button>' +
@@ -34913,7 +34949,8 @@ async function openInspect(handle, charId){
      zonrutan, och sedan fanns ingen vag tillbaka till listan - man fick stanga
      och klicka sig in i zonen igen for att titta pa nasta spelare. Kom man FRAN
      zonrutan minns vi det och ritar en tillbakaknapp. */
-  const fran = (NODE && NODE.kind === 'zone') ? {region: NODE.region, zone: NODE.zone} : null;
+  const fran = (NODE && NODE.kind === 'zone') ? {region: NODE.region, zone: NODE.zone}
+             : (NODE && NODE.kind === 'town') ? {town: NODE.town, region: NODE.region} : null;
   NODE = {kind: 'inspect', region: NODE.region, zone: NODE.zone, busy: false, qid: null,
           back: fran};
   $('node-title').textContent = 'Inspect';
@@ -35080,7 +35117,9 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('[data-inspback]')) return;
   const b = NODE.back;
-  if (b) openNodeWin('zone', b.region, b.zone);
+  if (!b) return;
+  if (b.town) openTownWin(b.town, b.region);
+  else openNodeWin('zone', b.region, b.zone);
 });
 document.addEventListener('contextmenu', e => {
   const b = e.target.closest('[data-plmenu]');
@@ -35167,9 +35206,16 @@ function nodeZoneHTML(){
     what += '<div class="nd-what" data-ndgo="dg"><span class="ic">\uD83D\uDD79\uFE0F</span>' +
       '<span class="tx">' + esc(DUNGEON_TEASER[NODE.region + '|' + NODE.zone]) +
       '<i>Dungeon</i></span></div>';
-  if (NODE.zone === TRADE_ZONE) what += '<div class="nd-what" data-ndgo="town">' +
-    '<span class="ic">\uD83D\uDED2</span>' +
-    '<span class="tx">Trader<i>Buys and sells</i></span></div>';
+  /* [ANDRAT v5.418.0] EN RAD PER HUS. Raden var hardkodad till handlaren, sa
+     valvet - som nu bor i samma zon - hade ingen genvag alls. Husets nyckel
+     foljer med i raden, annars vet klicket inte vilket av dem som menas. */
+  townsIn(NODE.zone).forEach(k => {
+    const t = TOWNS[k];
+    what += '<div class="nd-what" data-ndgo="town" data-town="' + esc(k) + '">' +
+      '<span class="ic">' + t.ico + '</span>' +
+      '<span class="tx">' + esc(t.name) + '<i>' +
+      (k === 'vendor' ? 'Buys and sells' : 'Store what you keep') + '</i></span></div>';
+  });
   h += '<div class="section-label" style="margin-top:10px">Right now</div>' +
     (what || '<div class="shelf-empty">Quiet \u2014 nothing waiting here.</div>');
   /* [ANDRAT v5.245.0] EN KNAPP, INTE TRE (Chris punkt 1 och 2). "Details" och
@@ -35386,8 +35432,11 @@ function wireNodeWin(){
       if (vart === 'exp'){ openNodeWin('expedition', reg, zon); return; }
       if (vart === 'quest'){ openNodeWin('quest', reg, zon, false, rad.dataset.q || null); return; }
       if (vart === 'town'){
-        const t = (typeof townOf === 'function') ? townOf(zon) : null;
-        if (t){ openTownWin(t, reg); return; }
+        /* [ANDRAT v5.418.0] Raden sager VILKET hus den galler. Forut fragade den
+           townOf(zon), och den svarar inte langre nar zonen har tva hus - da
+           hade bada raderna fallit igenom till zonsidan i stallet. */
+        const t = rad.dataset.town || ((typeof townOf === 'function') ? townOf(zon) : null);
+        if (t && TOWNS[t]){ openTownWin(t, reg); return; }
       }
       if (vart === 'dg' && reg === S.world.current && zon === S.world.zone){ openDgChoice(); return; }
       /* Faller nagot igenom - en dungeon man inte star vid - oppnas zonsidan
