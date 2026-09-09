@@ -7195,7 +7195,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.401.0 — STEG C: FORADLING I SAMLARYRKENA</div>
+        <div class="sn-ver">GENESIS v5.403.0 — WEBP FOR DE FORADLADE</div>
       </div>
     </div>
   </aside>
@@ -8246,7 +8246,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.401.0 — STEG C: FORADLING I SAMLARYRKENA</div>
+            <div class="desc">GENESIS v5.403.0 — WEBP FOR DE FORADLADE</div>
           </div>
         </div>
       </div>
@@ -11662,6 +11662,22 @@ const COPPER_PER_GOLD = COPPER_PER_SILVER * SILVER_PER_GOLD;
    bop (Bind on Pickup - kan ej handlas med andra spelare; handlaren koper dem
    anda). En gathering-profession ager sina
    material via 'prof'. Detta ar KATALOGEN; sjalva gatheringen byggs i nasta lager. */
+/* [ANDRAT v5.402.0] NYCKELN HETER SOM VARAN, HELA VAGEN UT (Chris 2026-09-09).
+   Elva nycklar slapade efter sina namn. Tre var gamla TOMMA rader som
+   ateranvandes i v5.401 och fick nya namn men beholl sina gamla nycklar
+   (filament_spool -> fiber_spool, signal_cord -> woven_cord,
+   refined_voidsteel -> voidsteel_ingot). Resten hade aldrig stadats nar
+   namnen byttes i v5.397/5.398: crystal_quartz -> quartz_crystal,
+   prism_shard -> prism_crystal, diamond_shard -> diamond,
+   synthetic_fiber -> fiber, salvaged_scrap -> scrap, och skrotets tre steg
+   vandes till reinforced_scrap / charged_scrap / phase_scrap sa de laser at
+   samma hall som de heter.
+   VARFOR NU: bytet gors medan bara tre karaktarer (testkonton) finns. Senare
+   hade det blivit en flytt av allas lager, precis det vi undvek i v5.397.
+   SERVERN AR BYTT I SAMMA ANDETAG - migrationen heter
+   rename_material_keys_to_match_names och roll bade katalogerna, spelarnas
+   staplar och fem funktioner som hade nycklarna inskrivna i sin egen text.
+   OBS: bildfilen heter efter nyckeln, sa assets/materials/ maste dopas om med. */
 const MATERIALS = {
   /* --- Extractor: metaller, mineral, adelstenar --- */
   /* [ANDRAT v5.397.0] NYCKELN HETER SOM VARAN (Chris). Nyckeln var 'copper_ore'
@@ -11678,8 +11694,8 @@ const MATERIALS = {
   tin_ore:    {name:'Tin Ore',    ico:'🪵', tier:0, bop:false, prof:'mining', rank:1, sub:'metal'},
   iron_ore:      {name:'Iron Ore',      ico:'⛏️', tier:0, bop:false, prof:'mining', rank:2, sub:'metal'},
   platinum_ore:      {name:'Platinum Ore',      ico:'🟡', tier:0, bop:false, prof:'mining', rank:3, sub:'metal'},
-  crystal_quartz:{name:'Quartz Crystal',ico:'💎', tier:0, bop:false, prof:'mining', rank:1, sub:'crystal'},
-  diamond_shard: {name:'Diamond', ico:'💠', tier:0, bop:false, prof:'mining', gem:true},
+  quartz_crystal:{name:'Quartz Crystal',ico:'💎', tier:0, bop:false, prof:'mining', rank:1, sub:'crystal'},
+  diamond: {name:'Diamond', ico:'💠', tier:0, bop:false, prof:'mining', gem:true},
   ruby:          {name:'Ruby',          ico:'🟥', tier:0, bop:false, prof:'mining', gem:true},
   sapphire:      {name:'Sapphire',      ico:'🔷', tier:0, bop:false, prof:'mining', gem:true},
   amethyst:      {name:'Amethyst',      ico:'🟪', tier:0, bop:false, prof:'mining', gem:true},
@@ -11690,7 +11706,7 @@ const MATERIALS = {
      att Tin Ore fran niva 1 fortfarande ar vard nagot pa niva 20. */
   tin_ingot:     {name:'Tin Ingot',      ico:'🧱', tier:0, bop:false, prof:'mining', refined:true},
   platinum_ingot:{name:'Platinum Ingot', ico:'🧱', tier:0, bop:false, prof:'mining', refined:true},
-  refined_voidsteel:{name:'Voidsteel Ingot',ico:'🔳', tier:1, bop:false, prof:'mining', refined:true},
+  voidsteel_ingot:{name:'Voidsteel Ingot',ico:'🔳', tier:1, bop:false, prof:'mining', refined:true},
   cobalt_ore:    {name:'Cobalt Ore',        ico:'🔵', tier:0, bop:false, prof:'mining', rank:4, sub:'metal'},
   /* --- Mechanic: delar man plockar isar och bygger om (v4.49.0) ---
      Fjarde samlaryrket. Dess material ar TILLVERKADE saker man hittar - i en
@@ -11706,7 +11722,7 @@ const MATERIALS = {
   data_chip:     {name:'Data Chip',     ico:'💾', tier:1, bop:true,  prof:'mechanic'},
   tech_parts:    {name:'Tech Parts',    ico:'🛠️', tier:1, bop:false, prof:'mechanic', refined:true},
   /* --- Fabricator: fibrer, polymer, vav --- */
-  synthetic_fiber:{name:'Fiber',ico:'🧵', tier:0, bop:false, prof:'synthetics', rank:1},
+  fiber:{name:'Fiber',ico:'🧵', tier:0, bop:false, prof:'synthetics', rank:1},
   woven_fiber:  {name:'Woven Fiber',  ico:'🕸️', tier:0, bop:false, prof:'synthetics', rank:2},
   carbon_fiber:  {name:'Carbon Fiber',  ico:'🧿', tier:0, bop:false, prof:'synthetics', rank:3},
   static_fiber:   {name:'Static Fiber',   ico:'🪢', tier:0, bop:false, prof:'synthetics', rank:4},
@@ -11726,12 +11742,12 @@ const MATERIALS = {
   /* [ANDRAT v5.401.0] Samma tre steg for Synthetics. Bada nycklarna fanns i
      tabellen men inget recept gjorde dem och inget recept ville ha dem - de var
      tomma rader. Nu ar de kedjan Fiber -> Spool -> Cord -> Refined Phaseweave. */
-  signal_cord:   {name:'Woven Cord',  ico:'🪢', tier:0, bop:false, prof:'synthetics', refined:true},
-  filament_spool:{name:'Fiber Spool', ico:'🧶', tier:0, bop:false, prof:'synthetics', refined:true},
+  woven_cord:   {name:'Woven Cord',  ico:'🪢', tier:0, bop:false, prof:'synthetics', refined:true},
+  fiber_spool:{name:'Fiber Spool', ico:'🧶', tier:0, bop:false, prof:'synthetics', refined:true},
   /* --- Skrot: det ENDA alla kan hitta, oavsett yrke (spelarens beslut).
          Kommer fran expeditioner och cacher, saljs till handlare eller pa
          auktionen, och forads av vilket samlaryrke som helst. --- */
-  salvaged_scrap:{name:'Scrap',ico:'🔩', tier:0, bop:false, prof:'any', rank:1},
+  scrap:{name:'Scrap',ico:'🔩', tier:0, bop:false, prof:'any', rank:1},
 
   /* ===== NYA MATERIAL v4.86.0 - grunden for det nya yrkessystemet =====
      RANK ar det nya faltet: I till IV. Det ar INTE samma sak som tier, som
@@ -11740,7 +11756,7 @@ const MATERIALS = {
      GRUVAN saknade bara tre stenar. Tin, Iron, Platinum, Cobalt och Quartz
      fanns redan under aldre nycklar och ligger redan i spelares vaskor - de
      rors INTE, bara de tre som fattades laggs till. */
-  prism_shard:   {name:'Prism Crystal',    ico:'🔶', tier:0, bop:false, prof:'mining', rank:2, sub:'crystal'},
+  prism_crystal:   {name:'Prism Crystal',    ico:'🔶', tier:0, bop:false, prof:'mining', rank:2, sub:'crystal'},
   signal_crystal:{name:'Signal Crystal', ico:'🔹', tier:0, bop:false, prof:'mining', rank:3, sub:'crystal'},
   phase_crystal: {name:'Phase Crystal',  ico:'🟣', tier:0, bop:false, prof:'mining', rank:4, sub:'crystal'},
 
@@ -11748,9 +11764,9 @@ const MATERIALS = {
      Varje steg ar darfor exakt fem ganger sa mycket vart som steget under -
      att forvandla uppat far aldrig vara ett satt att tjana eller tappa pengar,
      bara ett satt att slippa resa. */
-  scrap_reinforced:{name:'Reinforced Scrap', ico:'🔩', tier:0, bop:false, prof:'any', rank:2},
-  scrap_charged:   {name:'Charged Scrap',    ico:'⚙️', tier:0, bop:false, prof:'any', rank:3},
-  scrap_phase:     {name:'Phase Scrap',      ico:'🌀', tier:0, bop:false, prof:'any', rank:4},
+  reinforced_scrap:{name:'Reinforced Scrap', ico:'🔩', tier:0, bop:false, prof:'any', rank:2},
+  charged_scrap:   {name:'Charged Scrap',    ico:'⚙️', tier:0, bop:false, prof:'any', rank:3},
+  phase_scrap:     {name:'Phase Scrap',      ico:'🌀', tier:0, bop:false, prof:'any', rank:4},
 
   /* ===== STATIONSRESURSER (v4.90.0) - sidoyrkenas bundna ravara =====
      De gors av TID, inte av material: stationen tickar fram dem sa lange yrket
@@ -11830,12 +11846,12 @@ function takeMaterial(key, qty){
    nar servrar blir data racker det att fylla den, inget annat behover andras. */
 const GATHER_DEFS = {
   mining:       {verb:'Mining',    ico:'⛏️', cycle:5.0, nothing:0.65,
-                 core:['tin_ore','crystal_quartz','iron_ore','prism_shard',
+                 core:['tin_ore','quartz_crystal','iron_ore','prism_crystal',
                        'platinum_ore','signal_crystal','cobalt_ore','phase_crystal'],
                  rare:['voidsteel_ore','genesis_crystal'],
-                 gems:['diamond_shard','ruby','sapphire','amethyst']},
+                 gems:['diamond','ruby','sapphire','amethyst']},
   synthetics:   {verb:'Weaving',   ico:'🧵', cycle:5.0, nothing:0.65,
-                 core:['synthetic_fiber','woven_fiber','carbon_fiber','static_fiber'],
+                 core:['fiber','woven_fiber','carbon_fiber','static_fiber'],
                  rare:['phaseweave','memory_weave']},
   bioharvester: {verb:'Harvesting',ico:'🌿', cycle:5.0, nothing:0.65,
                  core:['neon_bloom','circuit_root','static_cap','glass_moss','prism_sap'],
@@ -12039,19 +12055,19 @@ function materialTradeable(key){ const d = MATERIALS[key]; return !!d && !d.bop;
    varandra aven i salvage. */
 const SALVAGE_MAP = {
   /* slotIdx: {mats:[core-material det bryts ner till], prof:'ratt yrke', comp:'yrkets BoP-komponent'} */
-  0:  {mats:['synthetic_fiber','carbon_fiber'], prof:'outfitter',   comp:'masterweave_thread'}, // head
-  1:  {mats:['synthetic_fiber','woven_fiber'], prof:'outfitter',   comp:'masterweave_thread'}, // chest
-  2:  {mats:['synthetic_fiber','static_fiber'],  prof:'outfitter',   comp:'masterweave_thread'}, // legs
-  3:  {mats:['synthetic_fiber','carbon_fiber'], prof:'outfitter',   comp:'masterweave_thread'}, // hands
+  0:  {mats:['fiber','carbon_fiber'], prof:'outfitter',   comp:'masterweave_thread'}, // head
+  1:  {mats:['fiber','woven_fiber'], prof:'outfitter',   comp:'masterweave_thread'}, // chest
+  2:  {mats:['fiber','static_fiber'],  prof:'outfitter',   comp:'masterweave_thread'}, // legs
+  3:  {mats:['fiber','carbon_fiber'], prof:'outfitter',   comp:'masterweave_thread'}, // hands
   4:  {mats:['woven_fiber','carbon_fiber'],    prof:'outfitter',   comp:'masterweave_thread'}, // feet
   5:  {mats:['iron_ore','carbon_fiber'],        prof:'weaponsmith', comp:'forge_core'},          // weapon
-  6:  {mats:['platinum_ore','crystal_quartz'],      prof:'jewelcrafter',comp:'resonance_dust'},      // neck
-  7:  {mats:['synthetic_fiber','iron_ore'],     prof:'outfitter',   comp:'masterweave_thread'}, // waist
-  8:  {mats:['tin_ore','crystal_quartz'],    prof:'jewelcrafter',comp:'resonance_dust'},      // ring I
+  6:  {mats:['platinum_ore','quartz_crystal'],      prof:'jewelcrafter',comp:'resonance_dust'},      // neck
+  7:  {mats:['fiber','iron_ore'],     prof:'outfitter',   comp:'masterweave_thread'}, // waist
+  8:  {mats:['tin_ore','quartz_crystal'],    prof:'jewelcrafter',comp:'resonance_dust'},      // ring I
   9:  {mats:['iron_ore','woven_fiber'],        prof:'weaponsmith', comp:'forge_core'},          // offhand
   11: {mats:['iron_ore','carbon_fiber'],        prof:'weaponsmith', comp:'forge_core'},          // transport
-  12: {mats:['tin_ore','crystal_quartz'],    prof:'jewelcrafter',comp:'resonance_dust'},      // ring II
-  13: {mats:['platinum_ore','crystal_quartz'],      prof:'jewelcrafter',comp:'resonance_dust'}       // relic
+  12: {mats:['tin_ore','quartz_crystal'],    prof:'jewelcrafter',comp:'resonance_dust'},      // ring II
+  13: {mats:['platinum_ore','quartz_crystal'],      prof:'jewelcrafter',comp:'resonance_dust'}       // relic
 };
 /* Basutbyte per raritet: hur manga material en isarplockning ger totalt. Stiger
    med rariteten - en episk pjas ar mer material an en common. */
@@ -12071,7 +12087,7 @@ function salvageProfFor(it){ const m = SALVAGE_MAP[it.s]; return m ? m.prof : nu
    tradens Recycling-procent. Samlarens material ror den aldrig. Talen ar
    samma som serverns salvage_item - tva stallen, EN sanning. */
 function canSalvage(it){ return !!it; }
-function recycleScrapKey(r){ return r <= 1 ? 'salvaged_scrap' : r <= 3 ? 'scrap_reinforced' : r === 4 ? 'scrap_charged' : 'scrap_phase'; }
+function recycleScrapKey(r){ return r <= 1 ? 'scrap' : r <= 3 ? 'reinforced_scrap' : r === 4 ? 'charged_scrap' : 'phase_scrap'; }
 function recycleProfFor(it){
   return [6,8,12,13].indexOf(it.s) >= 0 ? 'jewelcrafter'
        : [5,9,11].indexOf(it.s)   >= 0 ? 'weaponsmith' : 'outfitter';
@@ -12124,11 +12140,11 @@ const PROFESSIONS = [
      ska inte forsvinna bara for att yrket vilar. */
   {id:'mining',      name:'Mining',       kind:'gathering', ico:'⛏️', active:true, cap:20,
    blurb:'Mines metal and crystal — everything a weaponsmith or jewelcrafter needs.',
-   mats:['tin_ore','crystal_quartz','iron_ore','prism_shard',
+   mats:['tin_ore','quartz_crystal','iron_ore','prism_crystal',
          'platinum_ore','signal_crystal','cobalt_ore','phase_crystal']},
   {id:'synthetics',  name:'Synthetics',   kind:'gathering', ico:'🧵', active:true, cap:20,
    blurb:'Harvests fiber, mesh, weave and silk for outfitters.',
-   mats:['synthetic_fiber','woven_fiber','carbon_fiber','static_fiber']},
+   mats:['fiber','woven_fiber','carbon_fiber','static_fiber']},
 
   {id:'outfitter',   name:'Outfitter',    kind:'crafting', ico:'🧥', active:true, cap:20,
    blurb:'Crafts armour: head, chest, hands, waist, legs and boots.',
@@ -12228,9 +12244,9 @@ const RECIPES = [
      gruvan, bara skrot, sa vem som helst med Mining kan gora dem. Skrot ar
      allas material och priset ar vardeneutralt: fem gangers vardet per steg,
      sa forvandlingen ar ett satt att slippa resa, inte ett satt att tjana. */
-  {id:'cr_scrap_2', prof:'mining', name:'Reinforce Scrap', item:'scrap_reinforced', rank:1, rar:0, lvl:1,  source:'known', cost:{salvaged_scrap:5}},
-  {id:'cr_scrap_3', prof:'mining', name:'Charge Scrap',    item:'scrap_charged',    rank:2, rar:0, lvl:5,  source:'known', cost:{scrap_reinforced:5}},
-  {id:'cr_scrap_4', prof:'mining', name:'Phase Scrap',     item:'scrap_phase',      rank:3, rar:0, lvl:10, source:'known', cost:{scrap_charged:5}},
+  {id:'cr_scrap_2', prof:'mining', name:'Reinforce Scrap', item:'reinforced_scrap', rank:1, rar:0, lvl:1,  source:'known', cost:{scrap:5}},
+  {id:'cr_scrap_3', prof:'mining', name:'Charge Scrap',    item:'charged_scrap',    rank:2, rar:0, lvl:5,  source:'known', cost:{reinforced_scrap:5}},
+  {id:'cr_scrap_4', prof:'mining', name:'Phase Scrap',     item:'phase_scrap',      rank:3, rar:0, lvl:10, source:'known', cost:{charged_scrap:5}},
 
   /* [TILLAGT v5.401.0] SAMLARYRKENAS FORADLING (Chris, steg C). Tre steg per
      yrke, alla kunda fran borjan - inget schema att hitta. De gar den DIREKTA
@@ -12239,48 +12255,48 @@ const RECIPES = [
      Fiber fran niva 1 behovs annu i Genesis Shroud pa niva 20. */
   {id:'cr_mi_tin_ingot',       prof:'mining', name:'Tin Ingot',       item:'tin_ingot',       rank:2, rar:0, lvl:5,  source:'known', cost:{tin_ore:20, crafting_kit:1}},
   {id:'cr_mi_platinum_ingot',  prof:'mining', name:'Platinum Ingot',  item:'platinum_ingot',  rank:3, rar:0, lvl:10, source:'known', cost:{platinum_ore:20, tin_ingot:2}},
-  {id:'cr_mi_voidsteel_ingot', prof:'mining', name:'Voidsteel Ingot', item:'refined_voidsteel',rank:4, rar:0, lvl:16, source:'known', cost:{voidsteel_ore:5, platinum_ingot:2, crafting_kit:1}},
-  {id:'cr_sy_fiber_spool',       prof:'synthetics', name:'Fiber Spool',        item:'filament_spool',    rank:2, rar:0, lvl:5,  source:'known', cost:{synthetic_fiber:20, crafting_kit:1}},
-  {id:'cr_sy_woven_cord',        prof:'synthetics', name:'Woven Cord',         item:'signal_cord',       rank:3, rar:0, lvl:10, source:'known', cost:{woven_fiber:10, filament_spool:1}},
-  {id:'cr_sy_refined_phaseweave',prof:'synthetics', name:'Refined Phaseweave', item:'refined_phaseweave',rank:4, rar:0, lvl:16, source:'known', cost:{phaseweave:3, signal_cord:2, crafting_kit:1}},
+  {id:'cr_mi_voidsteel_ingot', prof:'mining', name:'Voidsteel Ingot', item:'voidsteel_ingot',rank:4, rar:0, lvl:16, source:'known', cost:{voidsteel_ore:5, platinum_ingot:2, crafting_kit:1}},
+  {id:'cr_sy_fiber_spool',       prof:'synthetics', name:'Fiber Spool',        item:'fiber_spool',    rank:2, rar:0, lvl:5,  source:'known', cost:{fiber:20, crafting_kit:1}},
+  {id:'cr_sy_woven_cord',        prof:'synthetics', name:'Woven Cord',         item:'woven_cord',       rank:3, rar:0, lvl:10, source:'known', cost:{woven_fiber:10, fiber_spool:1}},
+  {id:'cr_sy_refined_phaseweave',prof:'synthetics', name:'Refined Phaseweave', item:'refined_phaseweave',rank:4, rar:0, lvl:16, source:'known', cost:{phaseweave:3, woven_cord:2, crafting_kit:1}},
 
   /* ---- SIDOYRKENAS FYRA RECEPT. Bunden ravara + handelsbart skrot. Ingen
      hantverkssats: stationen ar verktyget. ---- */
-  {id:'cr_md_bandage',   prof:'medic',   name:'Field Dressing',      item:'bandage',             rank:1, rar:0, lvl:1, source:'known', cost:{medical_supplies:8,  salvaged_scrap:6}},
-  {id:'cr_md_firstaid',  prof:'medic',   name:'First Aid Assembly',  item:'first_aid_kit',       rank:2, rar:0, lvl:5, source:'known', cost:{medical_supplies:18, scrap_reinforced:10}},
-  {id:'cr_md_revive',    prof:'medic',   name:'Revive Protocol',     item:'revive_kit',          rank:3, rar:0, lvl:10, source:'known', cost:{medical_supplies:40, scrap_charged:14}},
-  {id:'cr_rf_warpcell',  prof:'refiner', name:'Warp Cell Casing',    item:'fuelcell',            rank:1, rar:0, lvl:1, source:'known', cost:{crude_fuel:10,       salvaged_scrap:5}},
-  {id:'cr_rf_reincell',  prof:'refiner', name:'Reinforced Casing',   item:'fuelcell_reinforced', rank:2, rar:0, lvl:5, source:'known', cost:{crude_fuel:24,       scrap_reinforced:10}},
+  {id:'cr_md_bandage',   prof:'medic',   name:'Field Dressing',      item:'bandage',             rank:1, rar:0, lvl:1, source:'known', cost:{medical_supplies:8,  scrap:6}},
+  {id:'cr_md_firstaid',  prof:'medic',   name:'First Aid Assembly',  item:'first_aid_kit',       rank:2, rar:0, lvl:5, source:'known', cost:{medical_supplies:18, reinforced_scrap:10}},
+  {id:'cr_md_revive',    prof:'medic',   name:'Revive Protocol',     item:'revive_kit',          rank:3, rar:0, lvl:10, source:'known', cost:{medical_supplies:40, charged_scrap:14}},
+  {id:'cr_rf_warpcell',  prof:'refiner', name:'Warp Cell Casing',    item:'fuelcell',            rank:1, rar:0, lvl:1, source:'known', cost:{crude_fuel:10,       scrap:5}},
+  {id:'cr_rf_reincell',  prof:'refiner', name:'Reinforced Casing',   item:'fuelcell_reinforced', rank:2, rar:0, lvl:5, source:'known', cost:{crude_fuel:24,       reinforced_scrap:10}},
 
   /* ---- DE DROPPADE RITNINGARNAS RECEPT. De lars inte av niva - papperet
      maste hittas i varlden och lasas. ---- */
-  {id:'cr_ou_settlers_cloak',  prof:'outfitter',   name:"Settler's Cloak Pattern", item:'craft_settlers_cloak', rank:2, rar:0, lvl:4, source:'drop', cost:{synthetic_fiber:30, salvaged_scrap:14, crafting_kit:1}},
-  {id:'cr_ws_field_knife',     prof:'weaponsmith', name:'Field Knife Schematic',   item:'craft_ws_field_knife', rank:2, rar:0, lvl:4, source:'drop', cost:{tin_ore:32, salvaged_scrap:15, crafting_kit:1}},
-  {id:'cr_jc_copper_loop',     prof:'jewelcrafter',name:'Copper Loop Design',      item:'craft_jc_copper_loop', rank:2, rar:0, lvl:4, source:'drop', cost:{tin_ore:26, crystal_quartz:10, crafting_kit:1}},
-  {id:'cr_ou_deepshaft_wraps', prof:'outfitter',   name:'Deepshaft Wraps Pattern',  item:'craft_deepshaft_wraps', rank:3, rar:0, lvl:8,  source:'drop', cost:{woven_fiber:40, scrap_reinforced:18, crafting_kit:2}},
-  {id:'cr_ws_shaft_pick',      prof:'weaponsmith', name:'Shaft Pick Schematic',     item:'craft_ws_shaft_pick',   rank:3, rar:0, lvl:8,  source:'drop', cost:{iron_ore:45, scrap_reinforced:20, crafting_kit:2}},
-  {id:'cr_jc_miners_charm',    prof:'jewelcrafter',name:"Miner's Charm Design",     item:'craft_jc_miners_charm', rank:3, rar:0, lvl:8,  source:'drop', cost:{iron_ore:35, prism_shard:12, crafting_kit:2}},
-  {id:'cr_ou_dragonhide_vest', prof:'outfitter',   name:'Dragonhide Vest Pattern',  item:'craft_dragonhide_vest', rank:4, rar:1, lvl:12, source:'drop', cost:{carbon_fiber:60, scrap_charged:26, crafting_kit:3}},
-  {id:'cr_ws_dragonbone_axe',  prof:'weaponsmith', name:'Dragonbone Axe Schematic', item:'craft_ws_dragonbone_axe',rank:4, rar:1, lvl:12, source:'drop', cost:{platinum_ore:65, scrap_charged:28, crafting_kit:3}},
+  {id:'cr_ou_settlers_cloak',  prof:'outfitter',   name:"Settler's Cloak Pattern", item:'craft_settlers_cloak', rank:2, rar:0, lvl:4, source:'drop', cost:{fiber:30, scrap:14, crafting_kit:1}},
+  {id:'cr_ws_field_knife',     prof:'weaponsmith', name:'Field Knife Schematic',   item:'craft_ws_field_knife', rank:2, rar:0, lvl:4, source:'drop', cost:{tin_ore:32, scrap:15, crafting_kit:1}},
+  {id:'cr_jc_copper_loop',     prof:'jewelcrafter',name:'Copper Loop Design',      item:'craft_jc_copper_loop', rank:2, rar:0, lvl:4, source:'drop', cost:{tin_ore:26, quartz_crystal:10, crafting_kit:1}},
+  {id:'cr_ou_deepshaft_wraps', prof:'outfitter',   name:'Deepshaft Wraps Pattern',  item:'craft_deepshaft_wraps', rank:3, rar:0, lvl:8,  source:'drop', cost:{woven_fiber:40, reinforced_scrap:18, crafting_kit:2}},
+  {id:'cr_ws_shaft_pick',      prof:'weaponsmith', name:'Shaft Pick Schematic',     item:'craft_ws_shaft_pick',   rank:3, rar:0, lvl:8,  source:'drop', cost:{iron_ore:45, reinforced_scrap:20, crafting_kit:2}},
+  {id:'cr_jc_miners_charm',    prof:'jewelcrafter',name:"Miner's Charm Design",     item:'craft_jc_miners_charm', rank:3, rar:0, lvl:8,  source:'drop', cost:{iron_ore:35, prism_crystal:12, crafting_kit:2}},
+  {id:'cr_ou_dragonhide_vest', prof:'outfitter',   name:'Dragonhide Vest Pattern',  item:'craft_dragonhide_vest', rank:4, rar:1, lvl:12, source:'drop', cost:{carbon_fiber:60, charged_scrap:26, crafting_kit:3}},
+  {id:'cr_ws_dragonbone_axe',  prof:'weaponsmith', name:'Dragonbone Axe Schematic', item:'craft_ws_dragonbone_axe',rank:4, rar:1, lvl:12, source:'drop', cost:{platinum_ore:65, charged_scrap:28, crafting_kit:3}},
   {id:'cr_jc_scale_band',      prof:'jewelcrafter',name:'Scale Band Design',        item:'craft_jc_scale_band',   rank:4, rar:1, lvl:12, source:'drop', cost:{platinum_ore:50, signal_crystal:18, sapphire:3, crafting_kit:3}},
-  {id:'cr_ou_hunters_grips',  prof:'outfitter',   name:"Hunter's Grips Pattern", item:'craft_hunters_grips',  rank:5, rar:1, lvl:16, source:'drop', cost:{refined_phaseweave:1, static_fiber:70, scrap_phase:28, phaseweave:3, crafting_kit:5}},
-  {id:'cr_ou_stalker_boots',  prof:'outfitter',   name:'Stalker Boots Pattern',  item:'craft_stalker_boots',  rank:5, rar:1, lvl:16, source:'drop', cost:{refined_phaseweave:1, static_fiber:75, scrap_phase:30, memory_weave:3, crafting_kit:5}},
-  {id:'cr_jc_trophy_ring',    prof:'jewelcrafter',name:'Trophy Ring Design',     item:'craft_jc_trophy_ring', rank:5, rar:1, lvl:16, source:'drop', cost:{refined_voidsteel:1, cobalt_ore:65, phase_crystal:22, ruby:4, crafting_kit:5}},
-  {id:'cr_ou_ashsilk_hood',   prof:'outfitter',   name:'Ashsilk Hood Pattern',    item:'craft_ashsilk_hood',     rank:5, rar:1, lvl:16, source:'drop', cost:{refined_phaseweave:1, static_fiber:80, scrap_phase:30, phaseweave:4, crafting_kit:5}},
-  {id:'cr_ws_static_lance',   prof:'weaponsmith', name:'Static Lance Schematic',  item:'craft_ws_static_lance',  rank:5, rar:1, lvl:16, source:'drop', cost:{refined_voidsteel:1, cobalt_ore:85, scrap_phase:32, voidsteel_ore:5, crafting_kit:5}},
-  {id:'cr_jc_static_band',    prof:'jewelcrafter',name:'Static Band Design',      item:'craft_jc_static_band',   rank:5, rar:1, lvl:16, source:'drop', cost:{refined_voidsteel:1, cobalt_ore:60, phase_crystal:20, amethyst:4, crafting_kit:5}},
-  {id:'cr_ou_voidweave_mantle',prof:'outfitter',  name:'Voidweave Mantle Pattern',item:'craft_voidweave_mantle', rank:5, rar:2, lvl:18, source:'drop', cost:{refined_phaseweave:3, static_fiber:140, scrap_phase:60, memory_weave:12, phaseweave:8, crafting_kit:6}},
-  {id:'cr_ws_voidsteel_edge', prof:'weaponsmith', name:'Voidsteel Edge Schematic',item:'craft_ws_voidsteel_edge',rank:5, rar:2, lvl:18, source:'drop', cost:{refined_voidsteel:3, cobalt_ore:120, scrap_phase:55, voidsteel_ore:14, diamond_shard:6, crafting_kit:6}},
-  {id:'cr_jc_genesis_pendant',prof:'jewelcrafter',name:'Genesis Pendant Design',  item:'craft_jc_genesis_pendant',rank:5, rar:2, lvl:18, source:'drop', cost:{refined_voidsteel:3, cobalt_ore:90, phase_crystal:30, genesis_crystal:10, ruby:5, sapphire:5, amethyst:5, crafting_kit:6}},
-  {id:'cr_ou_genesis_shroud', prof:'outfitter',   name:'Genesis Shroud Pattern',  item:'craft_genesis_shroud',   rank:5, rar:3, lvl:20, source:'drop', cost:{refined_phaseweave:6, static_fiber:220, scrap_phase:95, memory_weave:26, phaseweave:20, genesis_crystal:8, crafting_kit:10}},
-  {id:'cr_ws_genesis_maul',   prof:'weaponsmith', name:'Genesis Maul Schematic',  item:'craft_ws_genesis_maul',  rank:5, rar:3, lvl:20, source:'drop', cost:{refined_voidsteel:6, cobalt_ore:210, scrap_phase:90, voidsteel_ore:30, genesis_crystal:10, diamond_shard:12, crafting_kit:10}},
-  {id:'cr_jc_void_seal',      prof:'jewelcrafter',name:'Void Seal Design',        item:'craft_jc_void_seal',     rank:5, rar:3, lvl:20, source:'drop', cost:{refined_voidsteel:6, cobalt_ore:150, phase_crystal:55, genesis_crystal:16, voidsteel_ore:12, ruby:10, sapphire:10, diamond_shard:10, crafting_kit:10}},
+  {id:'cr_ou_hunters_grips',  prof:'outfitter',   name:"Hunter's Grips Pattern", item:'craft_hunters_grips',  rank:5, rar:1, lvl:16, source:'drop', cost:{refined_phaseweave:1, static_fiber:70, phase_scrap:28, phaseweave:3, crafting_kit:5}},
+  {id:'cr_ou_stalker_boots',  prof:'outfitter',   name:'Stalker Boots Pattern',  item:'craft_stalker_boots',  rank:5, rar:1, lvl:16, source:'drop', cost:{refined_phaseweave:1, static_fiber:75, phase_scrap:30, memory_weave:3, crafting_kit:5}},
+  {id:'cr_jc_trophy_ring',    prof:'jewelcrafter',name:'Trophy Ring Design',     item:'craft_jc_trophy_ring', rank:5, rar:1, lvl:16, source:'drop', cost:{voidsteel_ingot:1, cobalt_ore:65, phase_crystal:22, ruby:4, crafting_kit:5}},
+  {id:'cr_ou_ashsilk_hood',   prof:'outfitter',   name:'Ashsilk Hood Pattern',    item:'craft_ashsilk_hood',     rank:5, rar:1, lvl:16, source:'drop', cost:{refined_phaseweave:1, static_fiber:80, phase_scrap:30, phaseweave:4, crafting_kit:5}},
+  {id:'cr_ws_static_lance',   prof:'weaponsmith', name:'Static Lance Schematic',  item:'craft_ws_static_lance',  rank:5, rar:1, lvl:16, source:'drop', cost:{voidsteel_ingot:1, cobalt_ore:85, phase_scrap:32, voidsteel_ore:5, crafting_kit:5}},
+  {id:'cr_jc_static_band',    prof:'jewelcrafter',name:'Static Band Design',      item:'craft_jc_static_band',   rank:5, rar:1, lvl:16, source:'drop', cost:{voidsteel_ingot:1, cobalt_ore:60, phase_crystal:20, amethyst:4, crafting_kit:5}},
+  {id:'cr_ou_voidweave_mantle',prof:'outfitter',  name:'Voidweave Mantle Pattern',item:'craft_voidweave_mantle', rank:5, rar:2, lvl:18, source:'drop', cost:{refined_phaseweave:3, static_fiber:140, phase_scrap:60, memory_weave:12, phaseweave:8, crafting_kit:6}},
+  {id:'cr_ws_voidsteel_edge', prof:'weaponsmith', name:'Voidsteel Edge Schematic',item:'craft_ws_voidsteel_edge',rank:5, rar:2, lvl:18, source:'drop', cost:{voidsteel_ingot:3, cobalt_ore:120, phase_scrap:55, voidsteel_ore:14, diamond:6, crafting_kit:6}},
+  {id:'cr_jc_genesis_pendant',prof:'jewelcrafter',name:'Genesis Pendant Design',  item:'craft_jc_genesis_pendant',rank:5, rar:2, lvl:18, source:'drop', cost:{voidsteel_ingot:3, cobalt_ore:90, phase_crystal:30, genesis_crystal:10, ruby:5, sapphire:5, amethyst:5, crafting_kit:6}},
+  {id:'cr_ou_genesis_shroud', prof:'outfitter',   name:'Genesis Shroud Pattern',  item:'craft_genesis_shroud',   rank:5, rar:3, lvl:20, source:'drop', cost:{refined_phaseweave:6, static_fiber:220, phase_scrap:95, memory_weave:26, phaseweave:20, genesis_crystal:8, crafting_kit:10}},
+  {id:'cr_ws_genesis_maul',   prof:'weaponsmith', name:'Genesis Maul Schematic',  item:'craft_ws_genesis_maul',  rank:5, rar:3, lvl:20, source:'drop', cost:{voidsteel_ingot:6, cobalt_ore:210, phase_scrap:90, voidsteel_ore:30, genesis_crystal:10, diamond:12, crafting_kit:10}},
+  {id:'cr_jc_void_seal',      prof:'jewelcrafter',name:'Void Seal Design',        item:'craft_jc_void_seal',     rank:5, rar:3, lvl:20, source:'drop', cost:{voidsteel_ingot:6, cobalt_ore:150, phase_crystal:55, genesis_crystal:16, voidsteel_ore:12, ruby:10, sapphire:10, diamond:10, crafting_kit:10}},
 
-  {id:'cr_ou_scavenger_hood', prof:'outfitter', name:'Salvaged Headwear Pattern', item:'craft_scavenger_hood', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:18, salvaged_scrap:8}},
-  {id:'cr_ou_scavenger_vest', prof:'outfitter', name:'Salvaged Torso Pattern', item:'craft_scavenger_vest', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:30, salvaged_scrap:14}},
-  {id:'cr_ou_scavenger_gloves', prof:'outfitter', name:'Handwrap Pattern', item:'craft_scavenger_gloves', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:14, salvaged_scrap:6}},
-  {id:'cr_ou_scavenger_trousers', prof:'outfitter', name:'Salvaged Legwear Pattern', item:'craft_scavenger_trousers', rank:1, rar:0, lvl:1, source:'known', cost:{synthetic_fiber:26, salvaged_scrap:12}},
-  {id:'cr_ou_gridwalker_cap', prof:'outfitter', name:'Polymer Headguard Pattern', item:'craft_gridwalker_cap', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:30, scrap_reinforced:14}},
+  {id:'cr_ou_scavenger_hood', prof:'outfitter', name:'Salvaged Headwear Pattern', item:'craft_scavenger_hood', rank:1, rar:0, lvl:1, source:'known', cost:{fiber:18, scrap:8}},
+  {id:'cr_ou_scavenger_vest', prof:'outfitter', name:'Salvaged Torso Pattern', item:'craft_scavenger_vest', rank:1, rar:0, lvl:1, source:'known', cost:{fiber:30, scrap:14}},
+  {id:'cr_ou_scavenger_gloves', prof:'outfitter', name:'Handwrap Pattern', item:'craft_scavenger_gloves', rank:1, rar:0, lvl:1, source:'known', cost:{fiber:14, scrap:6}},
+  {id:'cr_ou_scavenger_trousers', prof:'outfitter', name:'Salvaged Legwear Pattern', item:'craft_scavenger_trousers', rank:1, rar:0, lvl:1, source:'known', cost:{fiber:26, scrap:12}},
+  {id:'cr_ou_gridwalker_cap', prof:'outfitter', name:'Polymer Headguard Pattern', item:'craft_gridwalker_cap', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:30, reinforced_scrap:14}},
   /* [BORTTAGET v5.351.0] OUTFITTER GOR INTE ALLT PA VARJE RANK (Chris beslut).
      Sex recept bort har och pa rank 4: hander, midja och fotter finns nu bara pa
      rank 1, 3 och 5, medan huvud, brost och ben finns pa varje.
@@ -12295,46 +12311,46 @@ const RECIPES = [
   /* [ATERSTALLT v5.354.0] Polymer Boot Pattern ar tillbaka har (Chris). Rank 1
      tappade sina stovlar, sa fotterna maste komma in nagonstans - annars satt
      man med sitt forsta par hela vagen till rank 3. */
-  {id:'cr_ou_gridwalker_boots', prof:'outfitter', name:'Polymer Boot Pattern', item:'craft_gridwalker_boots', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:30, scrap_reinforced:14}},
-  {id:'cr_ou_gridwalker_jacket', prof:'outfitter', name:'Polymer Jacket Pattern', item:'craft_gridwalker_jacket', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:50, scrap_reinforced:24}},
-  {id:'cr_ou_gridwalker_legguards', prof:'outfitter', name:'Polymer Legguard Pattern', item:'craft_gridwalker_legguards', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:44, scrap_reinforced:20}},
-  {id:'cr_ou_arcweave_visor', prof:'outfitter', name:'Carbon Visor Pattern', item:'craft_arcweave_visor', rank:3, rar:0, lvl:10, source:'known', cost:{filament_spool:2, carbon_fiber:48, scrap_charged:22}},
-  {id:'cr_ou_arcweave_vest', prof:'outfitter', name:'Carbon Vest Pattern', item:'craft_arcweave_vest', rank:3, rar:0, lvl:10, source:'known', cost:{filament_spool:2, carbon_fiber:80, scrap_charged:36}},
-  {id:'cr_ou_arcweave_gloves', prof:'outfitter', name:'Carbon Glove Pattern', item:'craft_arcweave_gloves', rank:3, rar:0, lvl:10, source:'known', cost:{filament_spool:2, carbon_fiber:38, scrap_charged:17}},
-  {id:'cr_ou_arcweave_harness', prof:'outfitter', name:'Carbon Harness Pattern', item:'craft_arcweave_harness', rank:3, rar:0, lvl:10, source:'known', cost:{filament_spool:2, carbon_fiber:34, scrap_charged:16}},
-  {id:'cr_ou_arcweave_trousers', prof:'outfitter', name:'Carbon Legwear Pattern', item:'craft_arcweave_trousers', rank:3, rar:0, lvl:10, source:'known', cost:{filament_spool:2, carbon_fiber:70, scrap_charged:32}},
-  {id:'cr_ou_arcweave_boots', prof:'outfitter', name:'Carbon Boot Pattern', item:'craft_arcweave_boots', rank:3, rar:0, lvl:10, source:'known', cost:{filament_spool:2, carbon_fiber:48, scrap_charged:22}},
-  {id:'cr_ou_phaseweave_hood', prof:'outfitter', name:'Phase Hood Pattern', item:'craft_phaseweave_hood', rank:4, rar:1, lvl:15, source:'known', cost:{signal_cord:2, static_fiber:70, scrap_phase:32}},
+  {id:'cr_ou_gridwalker_boots', prof:'outfitter', name:'Polymer Boot Pattern', item:'craft_gridwalker_boots', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:30, reinforced_scrap:14}},
+  {id:'cr_ou_gridwalker_jacket', prof:'outfitter', name:'Polymer Jacket Pattern', item:'craft_gridwalker_jacket', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:50, reinforced_scrap:24}},
+  {id:'cr_ou_gridwalker_legguards', prof:'outfitter', name:'Polymer Legguard Pattern', item:'craft_gridwalker_legguards', rank:2, rar:0, lvl:5, source:'known', cost:{woven_fiber:44, reinforced_scrap:20}},
+  {id:'cr_ou_arcweave_visor', prof:'outfitter', name:'Carbon Visor Pattern', item:'craft_arcweave_visor', rank:3, rar:0, lvl:10, source:'known', cost:{fiber_spool:2, carbon_fiber:48, charged_scrap:22}},
+  {id:'cr_ou_arcweave_vest', prof:'outfitter', name:'Carbon Vest Pattern', item:'craft_arcweave_vest', rank:3, rar:0, lvl:10, source:'known', cost:{fiber_spool:2, carbon_fiber:80, charged_scrap:36}},
+  {id:'cr_ou_arcweave_gloves', prof:'outfitter', name:'Carbon Glove Pattern', item:'craft_arcweave_gloves', rank:3, rar:0, lvl:10, source:'known', cost:{fiber_spool:2, carbon_fiber:38, charged_scrap:17}},
+  {id:'cr_ou_arcweave_harness', prof:'outfitter', name:'Carbon Harness Pattern', item:'craft_arcweave_harness', rank:3, rar:0, lvl:10, source:'known', cost:{fiber_spool:2, carbon_fiber:34, charged_scrap:16}},
+  {id:'cr_ou_arcweave_trousers', prof:'outfitter', name:'Carbon Legwear Pattern', item:'craft_arcweave_trousers', rank:3, rar:0, lvl:10, source:'known', cost:{fiber_spool:2, carbon_fiber:70, charged_scrap:32}},
+  {id:'cr_ou_arcweave_boots', prof:'outfitter', name:'Carbon Boot Pattern', item:'craft_arcweave_boots', rank:3, rar:0, lvl:10, source:'known', cost:{fiber_spool:2, carbon_fiber:48, charged_scrap:22}},
+  {id:'cr_ou_phaseweave_hood', prof:'outfitter', name:'Phase Hood Pattern', item:'craft_phaseweave_hood', rank:4, rar:1, lvl:15, source:'known', cost:{woven_cord:2, static_fiber:70, phase_scrap:32}},
   /* [ATERSTALLT v5.354.0] Phase Utility Pattern ar tillbaka (Chris). Midjan
      lamnade rank 1 och fanns da bara pa rank 3 - en enda ranks balte hela
      vagen upp. Nu tva. */
-  {id:'cr_ou_phaseweave_belt', prof:'outfitter', name:'Phase Utility Pattern', item:'craft_phaseweave_belt', rank:4, rar:1, lvl:15, source:'known', cost:{signal_cord:2, static_fiber:50, scrap_phase:23}},
-  {id:'cr_ou_phaseweave_coat', prof:'outfitter', name:'Phase Coat Pattern', item:'craft_phaseweave_coat', rank:4, rar:1, lvl:15, source:'known', cost:{signal_cord:2, static_fiber:115, scrap_phase:52}},
-  {id:'cr_ou_phaseweave_legguards', prof:'outfitter', name:'Phase Legguard Pattern', item:'craft_phaseweave_legguards', rank:4, rar:1, lvl:15, source:'known', cost:{signal_cord:2, static_fiber:100, scrap_phase:45}},
-  {id:'cr_ws_salvage_cutter', prof:'weaponsmith', name:'Improvised Blade Schematic', item:'craft_ws_salvage_cutter', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:24, salvaged_scrap:10}},
-  {id:'cr_ws_pipe_carbine', prof:'weaponsmith', name:'Pipe Weapon Schematic', item:'craft_ws_pipe_carbine', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:38, salvaged_scrap:16}},
-  {id:'cr_ws_scrap_guard', prof:'weaponsmith', name:'Field Guard Schematic', item:'craft_ws_scrap_guard', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:20, salvaged_scrap:10}},
-  {id:'cr_ws_iron_cleaver', prof:'weaponsmith', name:'Refined Cutter Schematic', item:'craft_ws_iron_cleaver', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:40, scrap_reinforced:18}},
-  {id:'cr_ws_iron_longarm', prof:'weaponsmith', name:'Longarm Frame Schematic', item:'craft_ws_iron_longarm', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:65, scrap_reinforced:28}},
-  {id:'cr_ws_iron_guard', prof:'weaponsmith', name:'Reinforced Guard Schematic', item:'craft_ws_iron_guard', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:34, scrap_reinforced:16}},
-  {id:'cr_ws_arc_blade', prof:'weaponsmith', name:'Charged Edge Schematic', item:'craft_ws_arc_blade', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:65, scrap_charged:30}},
-  {id:'cr_ws_arc_rifle', prof:'weaponsmith', name:'Charged Rifle Schematic', item:'craft_ws_arc_rifle', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:105, scrap_charged:45}},
-  {id:'cr_ws_arc_shield', prof:'weaponsmith', name:'Arc Guard Schematic', item:'craft_ws_arc_shield', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:55, scrap_charged:26}},
-  {id:'cr_ws_phase_edge', prof:'weaponsmith', name:'Phase Edge Schematic', item:'craft_ws_phase_edge', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:95, scrap_phase:44}},
-  {id:'cr_ws_phase_cannon', prof:'weaponsmith', name:'Phase Cannon Schematic', item:'craft_ws_phase_cannon', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:155, scrap_phase:68}},
-  {id:'cr_ws_phase_bulwark', prof:'weaponsmith', name:'Phase Bulwark Schematic', item:'craft_ws_phase_bulwark', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:80, scrap_phase:38}},
-  {id:'cr_jc_tin_circuit_ring', prof:'jewelcrafter', name:'Basic Circuit Design', item:'craft_jc_tin_circuit_ring', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:10, crystal_quartz:4, salvaged_scrap:5}},
-  {id:'cr_jc_quartz_signal_charm', prof:'jewelcrafter', name:'Quartz Charm Design', item:'craft_jc_quartz_signal_charm', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:14, crystal_quartz:6, salvaged_scrap:7}},
-  {id:'cr_jc_pocket_relay', prof:'jewelcrafter', name:'Pocket Relay Design', item:'craft_jc_pocket_relay', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:18, crystal_quartz:8, salvaged_scrap:9}},
-  {id:'cr_jc_iron_signal_ring', prof:'jewelcrafter', name:'Signal Ring Design', item:'craft_jc_iron_signal_ring', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:16, prism_shard:7, scrap_reinforced:9}},
-  {id:'cr_jc_prism_pendant', prof:'jewelcrafter', name:'Prism Pendant Design', item:'craft_jc_prism_pendant', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:22, prism_shard:10, scrap_reinforced:12}},
-  {id:'cr_jc_signal_relay', prof:'jewelcrafter', name:'Signal Relic Design', item:'craft_jc_signal_relay', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:28, prism_shard:13, scrap_reinforced:15}},
-  {id:'cr_jc_platinum_circuit', prof:'jewelcrafter', name:'Platinum Circuit Design', item:'craft_jc_platinum_circuit', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:26, signal_crystal:11, scrap_charged:14}},
-  {id:'cr_jc_signal_necklace', prof:'jewelcrafter', name:'Crystal Necklace Design', item:'craft_jc_signal_necklace', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:36, signal_crystal:15, scrap_charged:19}},
-  {id:'cr_jc_charged_relay', prof:'jewelcrafter', name:'Charged Relic Design', item:'craft_jc_charged_relay', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:46, signal_crystal:20, scrap_charged:24}},
-  {id:'cr_jc_cobalt_phase_ring', prof:'jewelcrafter', name:'Phase Ring Design', item:'craft_jc_cobalt_phase_ring', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:40, phase_crystal:16, scrap_phase:22}},
-  {id:'cr_jc_phase_pendant', prof:'jewelcrafter', name:'Phase Pendant Design', item:'craft_jc_phase_pendant', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:55, phase_crystal:22, scrap_phase:29}},
-  {id:'cr_jc_phase_relay', prof:'jewelcrafter', name:'Phase Relic Design', item:'craft_jc_phase_relay', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:70, phase_crystal:28, scrap_phase:36}}
+  {id:'cr_ou_phaseweave_belt', prof:'outfitter', name:'Phase Utility Pattern', item:'craft_phaseweave_belt', rank:4, rar:1, lvl:15, source:'known', cost:{woven_cord:2, static_fiber:50, phase_scrap:23}},
+  {id:'cr_ou_phaseweave_coat', prof:'outfitter', name:'Phase Coat Pattern', item:'craft_phaseweave_coat', rank:4, rar:1, lvl:15, source:'known', cost:{woven_cord:2, static_fiber:115, phase_scrap:52}},
+  {id:'cr_ou_phaseweave_legguards', prof:'outfitter', name:'Phase Legguard Pattern', item:'craft_phaseweave_legguards', rank:4, rar:1, lvl:15, source:'known', cost:{woven_cord:2, static_fiber:100, phase_scrap:45}},
+  {id:'cr_ws_salvage_cutter', prof:'weaponsmith', name:'Improvised Blade Schematic', item:'craft_ws_salvage_cutter', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:24, scrap:10}},
+  {id:'cr_ws_pipe_carbine', prof:'weaponsmith', name:'Pipe Weapon Schematic', item:'craft_ws_pipe_carbine', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:38, scrap:16}},
+  {id:'cr_ws_scrap_guard', prof:'weaponsmith', name:'Field Guard Schematic', item:'craft_ws_scrap_guard', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:20, scrap:10}},
+  {id:'cr_ws_iron_cleaver', prof:'weaponsmith', name:'Refined Cutter Schematic', item:'craft_ws_iron_cleaver', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:40, reinforced_scrap:18}},
+  {id:'cr_ws_iron_longarm', prof:'weaponsmith', name:'Longarm Frame Schematic', item:'craft_ws_iron_longarm', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:65, reinforced_scrap:28}},
+  {id:'cr_ws_iron_guard', prof:'weaponsmith', name:'Reinforced Guard Schematic', item:'craft_ws_iron_guard', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:34, reinforced_scrap:16}},
+  {id:'cr_ws_arc_blade', prof:'weaponsmith', name:'Charged Edge Schematic', item:'craft_ws_arc_blade', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:65, charged_scrap:30}},
+  {id:'cr_ws_arc_rifle', prof:'weaponsmith', name:'Charged Rifle Schematic', item:'craft_ws_arc_rifle', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:105, charged_scrap:45}},
+  {id:'cr_ws_arc_shield', prof:'weaponsmith', name:'Arc Guard Schematic', item:'craft_ws_arc_shield', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:55, charged_scrap:26}},
+  {id:'cr_ws_phase_edge', prof:'weaponsmith', name:'Phase Edge Schematic', item:'craft_ws_phase_edge', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:95, phase_scrap:44}},
+  {id:'cr_ws_phase_cannon', prof:'weaponsmith', name:'Phase Cannon Schematic', item:'craft_ws_phase_cannon', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:155, phase_scrap:68}},
+  {id:'cr_ws_phase_bulwark', prof:'weaponsmith', name:'Phase Bulwark Schematic', item:'craft_ws_phase_bulwark', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:80, phase_scrap:38}},
+  {id:'cr_jc_tin_circuit_ring', prof:'jewelcrafter', name:'Basic Circuit Design', item:'craft_jc_tin_circuit_ring', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:10, quartz_crystal:4, scrap:5}},
+  {id:'cr_jc_quartz_signal_charm', prof:'jewelcrafter', name:'Quartz Charm Design', item:'craft_jc_quartz_signal_charm', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:14, quartz_crystal:6, scrap:7}},
+  {id:'cr_jc_pocket_relay', prof:'jewelcrafter', name:'Pocket Relay Design', item:'craft_jc_pocket_relay', rank:1, rar:0, lvl:1, source:'known', cost:{tin_ore:18, quartz_crystal:8, scrap:9}},
+  {id:'cr_jc_iron_signal_ring', prof:'jewelcrafter', name:'Signal Ring Design', item:'craft_jc_iron_signal_ring', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:16, prism_crystal:7, reinforced_scrap:9}},
+  {id:'cr_jc_prism_pendant', prof:'jewelcrafter', name:'Prism Pendant Design', item:'craft_jc_prism_pendant', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:22, prism_crystal:10, reinforced_scrap:12}},
+  {id:'cr_jc_signal_relay', prof:'jewelcrafter', name:'Signal Relic Design', item:'craft_jc_signal_relay', rank:2, rar:0, lvl:5, source:'known', cost:{iron_ore:28, prism_crystal:13, reinforced_scrap:15}},
+  {id:'cr_jc_platinum_circuit', prof:'jewelcrafter', name:'Platinum Circuit Design', item:'craft_jc_platinum_circuit', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:26, signal_crystal:11, charged_scrap:14}},
+  {id:'cr_jc_signal_necklace', prof:'jewelcrafter', name:'Crystal Necklace Design', item:'craft_jc_signal_necklace', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:36, signal_crystal:15, charged_scrap:19}},
+  {id:'cr_jc_charged_relay', prof:'jewelcrafter', name:'Charged Relic Design', item:'craft_jc_charged_relay', rank:3, rar:0, lvl:10, source:'known', cost:{tin_ingot:2, platinum_ore:46, signal_crystal:20, charged_scrap:24}},
+  {id:'cr_jc_cobalt_phase_ring', prof:'jewelcrafter', name:'Phase Ring Design', item:'craft_jc_cobalt_phase_ring', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:40, phase_crystal:16, phase_scrap:22}},
+  {id:'cr_jc_phase_pendant', prof:'jewelcrafter', name:'Phase Pendant Design', item:'craft_jc_phase_pendant', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:55, phase_crystal:22, phase_scrap:29}},
+  {id:'cr_jc_phase_relay', prof:'jewelcrafter', name:'Phase Relic Design', item:'craft_jc_phase_relay', rank:4, rar:1, lvl:15, source:'known', cost:{platinum_ingot:2, cobalt_ore:70, phase_crystal:28, phase_scrap:36}}
 ];
 /* ---------- SATSERNA LAGGS PA RECEPTEN (v4.48.0) ----------
    Regeln ar en enda och behover ingen undantagslista: ger receptet ett
@@ -14076,9 +14092,18 @@ function pickItemKey(rarIdx){
    filen inte gar att ladda, sa spelet ser hyfsat ut aven innan bilderna finns.
    Anvands overallt en stapelvara ritas: vaskan, receptkortet, spoket i handen. */
 const MAT_WEBP = new Set([
-  /* Synthetics, 2026-09-09 */
-  'synthetic_fiber', 'woven_fiber', 'carbon_fiber', 'static_fiber',
-  'phaseweave', 'memory_weave'
+  /* Synthetics droppar, 2026-09-09 */
+  'fiber', 'woven_fiber', 'carbon_fiber', 'static_fiber',
+  'phaseweave', 'memory_weave',
+  /* [TILLAGT v5.403.0] De sex foradlade som annu saknar bild (Chris). De star
+     har INNAN filerna finns - det ar med flit. Nyckeln ar nu last mot namnet
+     (v5.402.0), sa sokvagen kan bestammas fardigt och bilderna ritas mot den.
+     Tills filen finns visar spelet emojin, precis som forut.
+     Synthetics ar darmed HELT i WebP - fyra droppar, tva rara och tre
+     foradlade. Gruvan har bara sina tre tackor har; resten av dess bilder ar
+     PNG tills hela assets/-mappen byts, sa varje sokvag kan kontrolleras. */
+  'fiber_spool', 'woven_cord', 'refined_phaseweave',
+  'tin_ingot', 'platinum_ingot', 'voidsteel_ingot'
 ]);
 function stackArtOf(key){
   const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
@@ -17011,7 +17036,7 @@ function expScrapKey(regionId){
   table.forEach(r => { if (r[1] > best[1]) best = r; });
   return SCRAP_BY_RANK[best[0]];
 }
-const SCRAP_BY_RANK = {1:'salvaged_scrap', 2:'scrap_reinforced', 3:'scrap_charged', 4:'scrap_phase'};
+const SCRAP_BY_RANK = {1:'scrap', 2:'reinforced_scrap', 3:'charged_scrap', 4:'phase_scrap'};
 function expIsRunning(id){ return S.exp.runs.some(r => r.id === id); }
 /* [TILLAGT v5.341.0] KLAR AR INTE SAMMA SAK SOM IGANG (Chris). Knappen sa
    "Running" sa lange en korning fanns i listan, aven nar den redan tagit slut -
@@ -18810,7 +18835,7 @@ function claimExpedition(id){
              "loot" - darfor stod det alltid +0 fast servern delade ut det.
              Servern skickar bade antalet och vilken sort det ar. */
           scrap:    +r.scrap || 0,
-          scrapKey: r.scrap_key || (r.loot && r.loot.scrap_key) || 'salvaged_scrap',
+          scrapKey: r.scrap_key || (r.loot && r.loot.scrap_key) || 'scrap',
           /* [NYTT v5.135.0] Utrustning, celler och meloner kraver en ledig
              vaskplats. Forut foll de bort helt nar vaskan var full - utan ett
              ord. Nu POSTAS de i stallet och ligger kvar tills det finns plats;
@@ -18921,7 +18946,7 @@ function showRewards(run, alreadyPaid){
      bild samma vag som vaskan gor; de tre ovriga tar sin ur granssnittsmappen.
      Saknas en fil visas emojin och missen bokfors, sa rutan inte fragar efter
      samma saknade fil vid varje omritning. */
-  const scrapKey = run.scrapKey || 'salvaged_scrap';
+  const scrapKey = run.scrapKey || 'scrap';
   const scrapMat = MATERIALS[scrapKey];
   $('reward-cards').innerHTML =
     '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">' +
@@ -19031,7 +19056,7 @@ function confirmClaim(){
   S.stats.expDone = (S.stats.expDone || 0) + 1;
   /* [ANDRAT v4.98.0] Har lades Data till. Offlinelaget betalar nu skrot, samma
      sort och mangd som servern skulle ha gett. */
-  giveMaterial(run.scrapKey || 'salvaged_scrap', run.scrap || 0);
+  giveMaterial(run.scrapKey || 'scrap', run.scrap || 0);
   if (run.loot && run.loot.junk) Object.keys(run.loot.junk).forEach(k => giveMaterial(k, 1));
   grantXP(run.xp);
   S.gold += goldAfterTax(run.loot.gold);
@@ -19103,7 +19128,7 @@ function confirmClaim(){
       spawnFloat({ text: 'Backpack full — sent to Inbox' });
     }
   }
-  spawnFloat({ text: '+' + fmt(run.scrap || 0) + ' ' + MATERIALS[run.scrapKey || 'salvaged_scrap'].name });
+  spawnFloat({ text: '+' + fmt(run.scrap || 0) + ' ' + MATERIALS[run.scrapKey || 'scrap'].name });
   renderExpPanel();
   save();
 }
@@ -20762,11 +20787,11 @@ const MAT_SELL = {
 };
 
 function matSellValue(key){
-  if (key === 'salvaged_scrap')   return MAT_SELL.scrap;
+  if (key === 'scrap')   return MAT_SELL.scrap;
   /* Skrotstegen: fem gangers vardet per steg, precis som forvandlingen. */
-  if (key === 'scrap_reinforced') return MAT_SELL.scrap * 5;
-  if (key === 'scrap_charged')    return MAT_SELL.scrap * 25;
-  if (key === 'scrap_phase')      return MAT_SELL.scrap * 125;
+  if (key === 'reinforced_scrap') return MAT_SELL.scrap * 5;
+  if (key === 'charged_scrap')    return MAT_SELL.scrap * 25;
+  if (key === 'phase_scrap')      return MAT_SELL.scrap * 125;
   const m = MATERIALS[key];
   if (!m) return 0;
   /* [BUGG v5.9.0] BUNDNA STATIONSRAVAROR FICK ETT PRIS HAR. De kan inte saljas -
@@ -21216,9 +21241,9 @@ function itemDef(row){
      klienten: kortet hade varken saljvarde eller text ("No details known"),
      eftersom det varken star i JUNK eller i ITEM_DEFS. Priset ar samma tal som
      servern har - 2000 koppar, alltsa 20 silver. */
-  if (row && row.key === 'salvaged_scrap'){
-    return {key: 'salvaged_scrap', name: MATERIALS.salvaged_scrap.name,
-            ico: MATERIALS.salvaged_scrap.ico, sell: SCRAP_SELL, kind: 'Material',
+  if (row && row.key === 'scrap'){
+    return {key: 'scrap', name: MATERIALS.scrap.name,
+            ico: MATERIALS.scrap.ico, sell: SCRAP_SELL, kind: 'Material',
             desc: 'Salvage worth working. Every gathering trade turns three of these into its own basic material — ore, fibre or moss — and nearly everything built in this world starts there.'};
   }
   /* MATERIAL: samma prislista som servern har. Utan den sa klienten "this
@@ -25723,8 +25748,8 @@ const BONUS_FIND_LIFE  = 8000;           /* atta sekunder, spelarens regel */
    ord - en bild av ingenting sager mindre an ordet. */
 const BONUS_FIND_ICONS = {
   material_mining: {ico:'\u26cf\ufe0f', text:'Mining find',      key:'tin_ore'},
-  material_synth:  {ico:'\ud83e\uddf5', text:'Synthetics find',  key:'synthetic_fiber'},
-  scrap:           {ico:'\ud83d\udd29', text:'Scrap',            key:'salvaged_scrap'},
+  material_synth:  {ico:'\ud83e\uddf5', text:'Synthetics find',  key:'fiber'},
+  scrap:           {ico:'\ud83d\udd29', text:'Scrap',            key:'scrap'},
   bound_medic:     {ico:'\ud83e\ude79', text:'Medical Supplies', key:'medical_supplies'},
   bound_refiner:   {ico:'\u26fd',        text:'Crude Fuel',       key:'crude_fuel'},
   /* [TILLAGT v5.363.0] MYNT. Enda sorten som pekar pa en bild direkt i stallet
@@ -25828,7 +25853,7 @@ function claimBonusFind(kind){
     const c = Math.round((300 + Math.random() * 600) * Math.pow(1.8, regionTier()));
     S.gold = (S.gold || 0) + c; say('+' + moneyText(c));
   }
-  else if (kind === 'scrap'){ giveMaterial('salvaged_scrap', n); say('+' + n + ' Scrap'); }
+  else if (kind === 'scrap'){ giveMaterial('scrap', n); say('+' + n + ' Scrap'); }
   /* [ANDRAT v5.399.0] Bonusfyndet foljer samma grind som skorden: nivan i DET
      yrket. Servern gor likadant i bonus_find_claim. */
   else if (kind === 'material_mining'){ const k = pickCoreMat('mining', profLevelInfo(profXpOf('mining')).lvl); giveMaterial(k, n); say('+' + n + ' ' + MATERIALS[k].name); }
@@ -34944,7 +34969,7 @@ function nodeExpHTML(){
       const total = Math.max(1, r.total || (def.mins ? def.mins * 60 : 60));
       const pct = Math.min(100, Math.max(0, ((total - left) / total) * 100));
       const klar = left <= 0;
-      const sk = MATERIALS[r.scrapKey || 'salvaged_scrap'];
+      const sk = MATERIALS[r.scrapKey || 'scrap'];
       kropp += '<div class="nd-exp' + (klar ? ' done' : '') + '">' +
         '<div class="nm">' + esc(def.name) + '</div>' +
         '<div class="wh">' +
