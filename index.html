@@ -7637,7 +7637,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.445.1 — MANEN I ATERKOMSTRUTAN</div>
+        <div class="sn-ver">GENESIS v5.446.0 — LANDA I REGIONEN</div>
       </div>
     </div>
   </aside>
@@ -8694,7 +8694,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.445.1 — MANEN I ATERKOMSTRUTAN</div>
+            <div class="desc">GENESIS v5.446.0 — LANDA I REGIONEN</div>
           </div>
         </div>
       </div>
@@ -22724,6 +22724,9 @@ function renderMap(){
    Sandningen sitter i renderMap, som redrawAll redan anropar. Darfor kan kartan
    inte hamna i otakt: allt som ritar om spelet ritar om kartan. */
 let gmReady = false, gmLastSig = '', gmShownRegion = null, gmShownZone = null;
+/* [TILLAGT v5.446.0] Forsta sandningen for en karaktar ska INTE ga in i zonen.
+   Se gmPush. */
+let gmFirstFor = null;
 /* ===== VILKA STAR I MIN ZON (v5.409.0, Chris) =====
    Servern svarar BARA med dem som star i samma zon som en sjalv - man kan
    alltsa inte fraga var en namngiven spelare ar, bara vilka som ar dar man
@@ -23006,7 +23009,17 @@ function gmPush(){
      showZone finns bara i den nya kartan; provet gor raden dov mot den gamla i
      stallet for att kasta ett fel varje sekund. */
   const zonNu = S.world.zone || null;
-  if (gmShownZone !== zonNu){
+  /* [RATTAT v5.446.0] MAN LANDADE INNE I ZONEN VID INLOGGNING (Chris). Regeln
+     "folj med in i zonen nar den andras" sag ingen skillnad pa en RESA och pa
+     att zonen blev kand for forsta gangen - vid inloggning gick den fran ingen
+     zon till en, och kartan gick rakt in i vy C. Man vill se regionen forst,
+     alla zoner och var man star, och ga in sjalv. Forsta sandningen for en
+     karaktar antecknar darfor bara zonen; foljsamheten borjar fran nasta byte.
+     Nollstalls per karaktar, sa ett byte av karaktar ocksa landar i regionen. */
+  if (gmFirstFor !== SRV.charId){
+    gmFirstFor = SRV.charId;
+    gmShownZone = zonNu;
+  } else if (gmShownZone !== zonNu){
     gmShownZone = zonNu;
     try {
       if (zonNu && typeof api.showZone === 'function'){
