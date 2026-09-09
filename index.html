@@ -7497,7 +7497,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.437.0 — DUNGEONRADEN OPPNAR RATT RUTA</div>
+        <div class="sn-ver">GENESIS v5.438.0 — DUNGEONBILDERNA I WEBP</div>
       </div>
     </div>
   </aside>
@@ -8552,7 +8552,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.437.0 — DUNGEONRADEN OPPNAR RATT RUTA</div>
+            <div class="desc">GENESIS v5.438.0 — DUNGEONBILDERNA I WEBP</div>
           </div>
         </div>
       </div>
@@ -10317,10 +10317,12 @@ const DGC_ICONS = {
 /* Bilderna finns inte an. Vagarna star HAR, en per rad, sa dagen konsten ar
    klar racker det att lagga filerna pa plats - ingen kod behover roras.
    Saknas en fil visas den ritade ramen i stallet for ett trasigt bildkryss. */
+/* [ANDRAT v5.438.0] WEBP (Chris). Inga dungeonbilder har nagonsin funnits, sa
+   det finns ingenting att dopa om - filandelsen byts rakt av. */
 function dgcArtSrc(id, heroic){
-  return 'assets/dungeons/' + id + (heroic ? '_heroic' : '') + '.png';
+  return 'assets/dungeons/' + id + (heroic ? '_heroic' : '') + '.webp';
 }
-function dgcBossSrc(id, n){ return 'assets/dungeons/bosses/' + id + '_' + n + '.png'; }
+function dgcBossSrc(id, n){ return 'assets/dungeons/bosses/' + id + '_' + n + '.webp'; }
 
 let DGC = null;              /* serverns svar, eller null */
 let DGC_SIDE = 'normal';     /* [v5.147.0] vilket kort vaxeln visar pa telefon */
@@ -10684,9 +10686,18 @@ function renderDgChoice(){
          tre tal. Nu ligger de over bilden dar det anda ar morkt.
          [BORTTAGET v5.429.0] "The run continues while you are away." Den sa
          samma sak som varningen i botten sager battre. */
+      /* [TILLAGT v5.438.0] HEROISKT LANAR DEN VANLIGA BILDEN (Chris: samma
+         bossar, samma plats). Filen <id>_heroic.webp provas forst - vill du ge
+         heroiskt ett eget utseende senare racker det att lagga dit den - och
+         faller den bort byts kallan till <id>.webp. Forst nar BADA saknas star
+         "Art pending". Bytet sker en gang: raden nollar sin egen onerror, sa en
+         saknad reservbild inte kan loopa. */
       '<div class="dgc-art">' +
         '<img src="' + dgcArtSrc(DGC.dungeon, heroic) + '" alt="" draggable="false"' +
-        ' onerror="this.closest(\'.dgc-art\').classList.add(\'noart\')">' +
+        (heroic
+          ? ' onerror="this.onerror=null;this.src=\'' + dgcArtSrc(DGC.dungeon, false) +
+            '\';this.addEventListener(\'error\',function(){this.closest(\'.dgc-art\').classList.add(\'noart\')})"'
+          : ' onerror="this.closest(\'.dgc-art\').classList.add(\'noart\')"') + '>' +
         '<span class="ph">Art pending</span>' +
       '<div class="dgc-pills">' +
         '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.clock + '</i>' + (+d.minutes) + ' min</span>' +
