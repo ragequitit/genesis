@@ -7468,7 +7468,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.434.0 — DUNGEONFONSTRET, FJARDE VANDAN</div>
+        <div class="sn-ver">GENESIS v5.435.0 — PJASKORTET HANGER INTE KVAR</div>
       </div>
     </div>
   </aside>
@@ -8523,7 +8523,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.434.0 — DUNGEONFONSTRET, FJARDE VANDAN</div>
+            <div class="desc">GENESIS v5.435.0 — PJASKORTET HANGER INTE KVAR</div>
           </div>
         </div>
       </div>
@@ -28394,10 +28394,31 @@ function showRecipeTip(rid, x, y){
   gearTip.classList.add('on');
   moveGearTip(x, y);
 }
+/* [TILLAGT v5.435.0] SKYDDSNAT MOT KORT SOM HANGER KVAR (Chris: oppnade en gear
+   cache, hovrade pjasen, oppnade en helper cache - och hjalparen fick pjasens
+   kort).
+   ORSAKEN: varje yta slacker kortet med sin EGEN mouseleave. Rivs rutan medan
+   pekaren star pa den kommer det aldrig nagot mouseleave - elementet finns inte
+   langre - och kortet blir kvar tant. Nasta sak man hovrar har ingen egen
+   slackare och kortet stannar over den.
+   NATET: vi minns VILKET element kortet visades for. Sa fort pekaren rors over
+   nagot som varken ar det elementet, dess innehall eller kortet sjalvt - eller
+   sa fort det elementet inte langre sitter i sidan - slacks kortet. EN regel i
+   stallet for en per yta, och den kan inte glommas bort nasta gang en ruta
+   byggs. */
+let gearTipOwner = null, gearTipHover = null;
+document.addEventListener('mouseover', e => { gearTipHover = e.target; }, true);
+document.addEventListener('mouseover', e => {
+  if (!gearTip.classList.contains('on') || !gearTipOwner) return;
+  const t = e.target;
+  if (!gearTipOwner.isConnected ||
+      (!gearTipOwner.contains(t) && !gearTip.contains(t))) hideGearTip();
+});
 function showGearTip(it, x, y, above, side){
   gearTip.style.setProperty('--rc', gearRarCol(it));
   gearTip.innerHTML = gearTipHTML(it);
   gearTip.classList.add('on');
+  gearTipOwner = (gearTipHover && gearTipHover.isConnected) ? gearTipHover : null;
   moveGearTip(x, y, above, side);
 }
 /* [TILLAGT v5.380.0] side = 'left' lagger kortet till VANSTER om x i stallet
@@ -28417,7 +28438,7 @@ function moveGearTip(x, y, above, side){
   gearTip.style.left = left + 'px';
   gearTip.style.top = top + 'px';
 }
-function hideGearTip(){ gearTip.classList.remove('on'); }
+function hideGearTip(){ gearTip.classList.remove('on'); gearTipOwner = null; }
 
 /* ---------- FÖREMÅLSKORTEN: flera samtidiga fönster för jämförelse ----------
    Klick öppnar ett EGET fönster per pjäs. Fönstren stängs bara med krysset, kan
