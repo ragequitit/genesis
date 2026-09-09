@@ -7247,7 +7247,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.418.0 — THE LANDING: ETT RESMAL</div>
+        <div class="sn-ver">GENESIS v5.419.0 — KARTAN INKOPPLAD</div>
       </div>
     </div>
   </aside>
@@ -8293,7 +8293,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.418.0 — THE LANDING: ETT RESMAL</div>
+            <div class="desc">GENESIS v5.419.0 — KARTAN INKOPPLAD</div>
           </div>
         </div>
       </div>
@@ -22339,20 +22339,22 @@ function dgZoneForName(nm){
   for (const k in DUNGEON_TEASER) if (DUNGEON_TEASER[k] === nm) return k;
   return null;
 }
+/* [OMBYGGT v5.419.0] MARKERINGEN SATTES PA DOM:EN OCH BLASTE BORT. Vi skrev
+   data-dgready direkt pa kartans nod - men kartan bygger om sina noder vid varje
+   omritning, och en narvaro-tick racker for att utlosa en. Markeringen forsvann
+   da tyst: pulsen slocknade utan att nagot gick sonder, vilket ar det svaraste
+   slaget av fel att hitta.
+   Kartan har en egen vag nu (setNodeFlags). Den ritar flaggan i BADA vyerna vid
+   varje omritning, sa den kan inte tappas bort. Nyckeln ar "region|zon|poi". */
 function gmMarkDungeonReady(){
+  const api = gmWin();
+  if (!api || typeof api.setNodeFlags !== 'function') return;
   let want = null;
   if (pveDgDone() && PVE.dg && PVE.dg.run) want = dgZoneForName(PVE.dg.run.name);
   if (want === gmDgReadyKey) return;
   gmDgReadyKey = want;
-  try {
-    const doc = $('map-frame').contentDocument; if (!doc) return;
-    doc.querySelectorAll('g[data-poi="dungeon"][data-dgready="true"]')
-       .forEach(g => g.removeAttribute('data-dgready'));
-    if (want){
-      doc.querySelectorAll('g[data-poi="dungeon"][data-zone="' + want + '"]')
-         .forEach(g => g.setAttribute('data-dgready', 'true'));
-    }
-  } catch (e){}
+  try { api.setNodeFlags(want ? {[want + '|dungeon']: {dgready: true}} : {}); }
+  catch (e){}
 }
 function gmPushExpStyle(){
   const css = gmExpStyle();
@@ -22384,7 +22386,10 @@ function gmPush(){
   /* Nodernas lage star i en egen stilregel och far darfor inte ligga bakom
      signaturspärren nedan - den jamfor bara kartans egna varden. */
   gmPushExpStyle();
-  gmDgReadyKey = null;   /* [v5.170.0] noderna ritas om vid sandning - marker igen */
+  /* [BORTTAGET v5.419.0] Har nollstalldes gmDgReadyKey vid varje sandning, for
+     att markeringen forsvann nar kartan ritade om sina noder. Kartan haller
+     flaggan sjalv nu (setNodeFlags), sa nollstallningen fyller ingen funktion -
+     den skulle bara tvinga fram en onodig runda varje sekund. */
   const st = gmState();
   /* Skickas bara nar nagot faktiskt andrats. Kartan ritar om sig vid varje
      sandning, och spelet ritar om ofta - utan detta skulle kartan blinka. */
@@ -22549,6 +22554,23 @@ function gmPick(o){
          var sin nod, men rutan fragade bara efter region och zon - och tog det
          FORSTA den hittade. Tryckte man pa det andra oppnades det forsta. */
       if (o.zone) openNodeWin('quest', region, o.zone, false, o.id);
+      break;
+    }
+    /* [TILLAGT v5.419.0] IN I ZONVYN. Kartan har ett tredje lager nu; det har
+       ar beskedet att spelaren gatt in i en zon. Ingen ruta oppnas - man tittar
+       redan pa zonen - men reseknappen ska galla den man star och tittar pa. */
+    case 'zoneenter': {
+      gmSel = {region: region, zone: o.zone || null};
+      gmShownZone = S.world.zone || null;   /* hall gmPush lugn, se dar */
+      gmSetTravel();
+      break;
+    }
+    /* Ut ur zonvyn. Utan detta stod reseknappen kvar och pekade pa en zon
+       spelaren inte tittar pa langre. */
+    case 'zoneleave': {
+      gmSel = null;
+      gmShownZone = S.world.zone || null;
+      gmSetTravel();
       break;
     }
     case 'zone': {
