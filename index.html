@@ -6933,6 +6933,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gd-mem .nm{font-size:12.5px;font-weight:800}
 .gd-mem .rl{font-size:9px;color:var(--text-dim);letter-spacing:.05em;margin-top:1px}
 .gd-mem .rl.leader{color:var(--gold)}.gd-mem .rl.officer{color:#c9b6ff}
+/* [TILLAGT v5.453.0] Hovringen syns: raden glider tre pixlar at hoger, far en
+   svag cyan ton och pekare. Bara pa andra medlemmar (.hov). */
+.gd-mem.hov{cursor:pointer;border-radius:8px;transition:transform .12s ease,background .12s ease}
+.gd-mem.hov:hover{transform:translateX(3px);background:rgba(0,229,255,.07)}
+/* Det forstorade portrattet nar man hovrar over brickan. */
+.av-big{position:fixed;z-index:9999;pointer-events:none;padding:4px;border-radius:14px;
+  background:var(--bg-inset,#0d1420);border:1px solid var(--cyan-dim);box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.av-big .av-chip{border-radius:11px}
 .gd-mem .dot{width:9px;height:9px;border-radius:50%;background:#5b6472;flex:0 0 auto}
 .gd-mem .dot.on{background:#2ecc71;box-shadow:0 0 7px rgba(46,204,113,.8)}
 .gd-role{font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
@@ -7695,7 +7703,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.451.0 — LOOKEN PA KONTOKORTET</div>
+        <div class="sn-ver">GENESIS v5.453.0 — GILLETS MEDLEMSRAD: HOVRING, STORT PORTRATT, MENY</div>
       </div>
     </div>
   </aside>
@@ -8782,7 +8790,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.451.0 — LOOKEN PA KONTOKORTET</div>
+            <div class="desc">GENESIS v5.453.0 — GILLETS MEDLEMSRAD: HOVRING, STORT PORTRATT, MENY</div>
           </div>
         </div>
       </div>
@@ -13197,7 +13205,9 @@ function giveRecipeItem(rid){
    ANDA VID SLUTET. Avbryter man hander ingenting alls - inget forbrukas.
    Tiderna sitter samlade har. */
 /* [ANDRAT v5.264.0] Att lasa en ritning tar fem sekunder, inte atta (Chris). */
-const CAST_SECS = {schematic: 5, flask: 5, fuel: 3, heal: 3, cache: 5, melon: 5};
+/* [TILLAGT v5.452.0] boost: 4 - Chrono Draft och Fortune Vial ur shoppen gick
+   forut pa klicket, utan matare (Chris). */
+const CAST_SECS = {schematic: 5, flask: 5, fuel: 3, heal: 3, cache: 5, melon: 5, boost: 4};
 /* Lakevarorna tar olika lang tid: ett bandage sitter snabbt, en forbandslada
    tar langre. Saknas en post faller den tillbaka pa CAST_SECS.heal. */
 const CAST_HEAL_SECS = {bandage: 3, first_aid_kit: 5, revive_kit: 8};
@@ -18761,17 +18771,24 @@ function useInvItem(idx){
       say('All your boost slots are in use (' + boostsRunning() + ' of ' + boostSlots() + ').');
       return false;
     }
-    if (NET.on){
-      netUseStackItem(row.key)
-        .then(() => spawnFloat({text: BOOSTS[bk].name + ' active'}))
-        .catch(e => say(srvErrText(e, 'Could not use that.')));
-      return true;
-    }
-    drinkBoost(bk);
-    row.qty--;
-    if (row.qty <= 0) S.inv[idx] = null;
-    renderInventory(); updateUI(true); renderBoostBar(); save();
-    spawnFloat({text: BOOSTS[bk].name + ' active'});
+    /* [ANDRAT v5.452.0] SAMMA MATARE SOM CACHER OCH FLASKOR (Chris). Drycken
+       gick forut direkt pa klicket. Nu fyra sekunder man kan avbryta, och forst
+       darefter drar servern varan. Ratten i vaskan laser vi om efter svaret sa
+       antalet stammer. */
+    const bname = BOOSTS[bk].name;
+    castThen('Drinking ' + bname, CAST_SECS.boost, () => {
+      if (NET.on){
+        netUseStackItem(row.key)
+          .then(() => spawnFloat({text: bname + ' active'}))
+          .catch(e => say(srvErrText(e, 'Could not use that.')));
+        return;
+      }
+      drinkBoost(bk);
+      row.qty--;
+      if (row.qty <= 0) S.inv[idx] = null;
+      renderInventory(); updateUI(true); renderBoostBar(); save();
+      spawnFloat({text: bname + ' active'});
+    });
     return true;
   }
   /* [TILLAGT v5.33.0] Lakevarorna. Servern ager halsan, sa utan uppkoppling
@@ -24542,8 +24559,13 @@ function renderBoostBar(){
     if (left <= 0) continue;
     const B = FLASK_BOOST[k] || BOOSTS[k];
     if (!B) continue;
+    /* [RATTAT v5.452.0] EMOJI I STALLET FOR BILD (Chris). Uppkopplad hamnar
+       ALLA boostar har - aven de kopta - och den har raden ritade alltid emojin.
+       Nu gar den genom boostChipIco som hittar varans bild (fortune_vial,
+       chrono_draft). Samma bild aven om boosten kom ur en flaska: de delar
+       nyckel, och flaskorna vilar. */
     h += '<div class="boost-chip" data-fboost="' + k + '">' +
-      '<span class="bc-ico">' + B.ico + '</span>' +
+      boostChipIco(k, B.ico) +
       '<span class="bc-time">' + fmtDur(left) + '</span></div>';
   }
   bar.innerHTML = h;
@@ -33910,8 +33932,13 @@ function guildMainHTML(st){
   let right = '<div><div class="gd-panel gd-memcol">' +
     '<div class="gd-plabel">Members<span>' + g.members + ' / ' + g.capacity +
       ' \u00b7 online ' + online + '</span></div><div class="gd-mems">' +
+    /* [TILLAGT v5.453.0] RADEN AR EN KNAPP (Chris). Andra medlemmar bar handtag
+       och portratt pa raden: hovring lyfter raden och forstorar portrattet,
+       hoger- eller vansterklick oppnar Inspect / Send friend request. Den egna
+       raden ar bara text. Chatt ar inte med - listan saknar karaktars-id. */
     (st.members || []).map(m =>
-      '<div class="gd-mem">' + avChip(m.avatar, m.handle, 34, m.online) +
+      '<div class="gd-mem' + (m.handle !== SRV.handle ? ' hov" data-gmh="' + esc(m.handle) +
+        '" data-gmav="' + esc(m.avatar || '') : '') + '">' + avChip(m.avatar, m.handle, 34, m.online) +
       '<div style="flex:1;min-width:0"><div class="nm">' + esc(m.handle) +
         (m.handle === SRV.handle ? ' <span class="desc">(you)</span>' : '') + '</div>' +
       '<div class="rl ' + m.role + '">' + m.role.toUpperCase() +
@@ -36123,16 +36150,19 @@ function plMenuOpen(btn){
   plMenuOpenFor({id: btn.dataset.plmenu, handle: btn.dataset.plh,
                  name: btn.dataset.pln || '?'}, btn.getBoundingClientRect());
 }
-function plMenuOpenFor(sp, r){
+/* [ANDRAT v5.453.0] opts.guild: menyn oppnad fran gillets medlemslista. Da
+   finns varken karaktars-id (ingen chatt) eller skal att bjuda in - bara
+   Inspect och vanforfragan visas. Samma kropp, samma handlingar. */
+function plMenuOpenFor(sp, r, opts){
   plMenuClose();
-  const cid = sp.id, h = sp.handle, nm = sp.name || '?';
+  const cid = sp.id, h = sp.handle, nm = sp.name || '?', gm = !!(opts && opts.guild);
   const el = document.createElement('div');
   el.className = 'pl-menu';
   el.innerHTML = '<div class="plm-head">' + esc(nm) + '</div>' +
     '<button data-plact="view">Inspect</button>' +
-    '<button data-plact="whisper">Whisper</button>' +
+    (gm ? '' : '<button data-plact="whisper">Whisper</button>') +
     '<button data-plact="friend">Send friend request</button>' +
-    '<button data-plact="ginvite">Invite to guild</button>';
+    (gm ? '' : '<button data-plact="ginvite">Invite to guild</button>');
   document.body.appendChild(el);
   el.style.left = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, r.left)) + 'px';
   el.style.top  = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, r.bottom + 6)) + 'px';
@@ -36175,7 +36205,40 @@ function plPickOpenFor(lista, r){
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-plmenu]');
   if (b){ e.stopPropagation(); plTipHide(); plMenuOpen(b); return; }
+  /* [TILLAGT v5.453.0] Gillets medlemsrad: vansterklick ocksa, for telefonen. */
+  const gm = e.target.closest('.gd-mem[data-gmh]');
+  if (gm){ e.stopPropagation(); avBigHide(); gmMenu(gm); return; }
   if (PLMENU && !e.target.closest('.pl-menu')) plMenuClose();
+});
+/* [TILLAGT v5.453.0] GILLETS MEDLEMSRAD (Chris): hogerklick ger menyn, hovring
+   over brickan ger ett stort portratt. */
+function gmMenu(row){
+  plMenuOpenFor({id: null, handle: row.dataset.gmh, name: row.dataset.gmh},
+                row.getBoundingClientRect(), {guild: true});
+}
+document.addEventListener('contextmenu', e => {
+  const gm = e.target.closest('.gd-mem[data-gmh]'); if (!gm) return;
+  e.preventDefault(); avBigHide(); gmMenu(gm);
+});
+let AVBIG = null;
+function avBigHide(){ if (AVBIG){ AVBIG.remove(); AVBIG = null; } }
+function avBigShow(row, chip){
+  avBigHide();
+  const el = document.createElement('div');
+  el.className = 'av-big';
+  el.innerHTML = avChip(row.dataset.gmav || null, row.dataset.gmh, 128, false);
+  document.body.appendChild(el);
+  const r = chip.getBoundingClientRect();
+  /* Till hoger om brickan; far den inte plats, till vanster. */
+  let x = r.right + 10; if (x + el.offsetWidth > window.innerWidth - 8) x = r.left - el.offsetWidth - 10;
+  el.style.left = Math.max(8, x) + 'px';
+  el.style.top  = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, r.top - 40)) + 'px';
+  AVBIG = el;
+}
+document.addEventListener('mouseover', e => {
+  const chip = e.target.closest('.gd-mem[data-gmh] .av-chip');
+  if (chip){ avBigShow(chip.closest('.gd-mem'), chip); return; }
+  if (AVBIG && !e.target.closest('.gd-mem[data-gmh] .av-chip')) avBigHide();
 });
 /* [TILLAGT v5.411.0] HOGERKLICK OCKSA (Chris). Spelet stanger av webblasarens
    egen meny overallt, sa hogerklicket ar ledigt att anvanda. VANSTERKLICKET
