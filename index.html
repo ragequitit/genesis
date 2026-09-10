@@ -3239,9 +3239,16 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   width:34px;height:34px;margin-right:10px;font-style:normal;font-size:18px;
   border:1px solid var(--cyan-dim);border-radius:9px;
   background:rgba(56,232,255,.10);vertical-align:middle}
+/* [OMBYGGT v5.449.0] Rubriken i tva rader: WELCOME BACK overst, OFFLINE REPORT
+   tatt under. line-height 1 pa bada sa det inte blir luft mellan raderna. */
+.off-head{display:flex;flex-direction:column;line-height:1}
+.off-main{line-height:1}
 .off-eyebrow{display:block;font-size:9px;font-weight:800;letter-spacing:1.6px;
-  color:var(--cyan);text-transform:uppercase;margin-bottom:1px}
+  color:var(--cyan);text-transform:uppercase;margin-top:0;line-height:1}
 .modal-title:has(.off-badge){display:flex;align-items:center}
+/* Ikonen fyller rutan; ligger bilden kvar doljs reservemojin bakom den. */
+.off-badge{position:relative;overflow:hidden}
+.off-badge img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
 .off-body{padding:4px 2px 2px}
 .off-stats{display:flex;gap:8px;flex-wrap:wrap}
 .off-stat{flex:1 1 130px;display:flex;gap:9px;align-items:center;padding:9px 11px;
@@ -6734,6 +6741,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .av-chip{position:relative;flex:0 0 auto;border-radius:10px;overflow:hidden;
   background:var(--bg-inset);border:1px solid var(--border-glow);
   display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--cyan);text-transform:uppercase}
+/* [OMBYGGT v5.450.0] Brickan ar sex bilder ovanpa varandra, alla 512x512 med
+   samma huvudposition, sa de kan ligga i samma ruta utan egen placering.
+   Bokstaven under syns bara om ingen look ar vald. */
 .av-chip img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0}
 .av-chip.on{border-color:rgba(46,204,113,.6)}
 .oct{position:relative;display:grid;place-items:center;flex:0 0 auto;--oc:var(--cyan);
@@ -6815,9 +6825,21 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   border:1px solid var(--cyan-dim);border-radius:12px;background:var(--bg-inset)}
 .fr-me .nm{font-size:14px;font-weight:900}
 .fr-me .sub{font-size:11px;color:var(--text-dim)}
-.av-pick{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
-.av-pick .av-chip{width:100%;aspect-ratio:1;cursor:pointer;font-size:18px}
-.av-pick .av-chip.sel{outline:2px solid var(--cyan)}
+/* [OMBYGGT v5.450.0] Lookfonstret: forhandsvisning overst, sex rader med tio
+   val under. Varje val ar bara sitt eget lager pa ansiktet, sa man ser vad
+   som byts. Den valda rutan far cyanram. */
+.modal.look-modal{max-width:600px;max-height:96vh;overflow:auto}
+.look-body{padding:0 4px}
+.look-prev{display:flex;justify-content:center;margin:4px 0 12px}
+.look-prev .av-chip{width:132px;height:132px;border-radius:16px}
+.look-row{margin-bottom:10px}
+.look-row .lr-t{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px}
+.look-grid{display:grid;grid-template-columns:repeat(11,1fr);gap:5px}
+.look-grid .av-chip{width:100%;aspect-ratio:1;cursor:pointer;font-size:11px;border-radius:8px}
+.look-grid .av-chip.sel{outline:2px solid var(--cyan);outline-offset:1px}
+.look-grid .av-chip.none{color:var(--text-dim);font-size:14px}
+.look-row.off{display:none}
+@media (max-width:480px){ .look-grid{grid-template-columns:repeat(6,1fr)} .look-prev .av-chip{width:104px;height:104px} }
 
 /* ---- GILLETS INSTRUMENTVY ---- */
 /* [ANDRAT v5.129.0] Spalterna ar lika hoga och fyller rutan. Identiteten gar
@@ -7659,7 +7681,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.448.0 — STOR BILD PA SIGNATURPJASERNA</div>
+        <div class="sn-ver">GENESIS v5.450.0 — LOOKEN: SEX LAGER PA PROFILKORTET</div>
       </div>
     </div>
   </aside>
@@ -7674,7 +7696,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
       <!-- CHARACTER -->
       <section class="panel" id="panel-character">
-        <div class="panel-title">Character</div>
+        <!-- [FLYTTAT v5.450.0] "Change look" bodde i vanfliken. Den fliken ar
+             for vannerna, inte for en sjalv - looken hor hemma pa profilkortet. -->
+        <div class="panel-title">Character<span class="link" id="char-look-btn">Change look</span></div>
         <div class="char-split">
         <div class="char-layout">
           <div class="equip-col">
@@ -8182,7 +8206,6 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       </div>
       <div class="profile-body">
         <div class="fr-me" id="fr-me"></div>
-        <div class="av-pick" id="av-pick" style="display:none"></div>
         <div class="seg c3" id="fr-seg">
           <div class="seg-btn active" data-frtab="friends">Friends <span class="n" id="frt-nf"></span></div>
           <div class="seg-btn purple" data-frtab="requests">Requests <span class="n" id="frt-nr"></span></div>
@@ -8486,6 +8509,28 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   <!-- ===== SATTA PA EN STEN (v5.240.0) =====
        Karensen ar ett dygn, och den upptacktes forut forst nar man ville byta.
        Rutan ar samma sparr for alla fyra vagar in i stenplatsen. -->
+  <!-- ================= LOOKEN (v5.450.0) =================
+       Ansiktet man visar for andra. Sex lager staplade i en ruta: bakgrund,
+       ansikte, har, mask, glasogon, hatt. Varje rad ar tio val; 00 = inget.
+       Robotar och djur (f07-f10) far inte har - raden doljs, och servern
+       sager nej aven om nagon skickar det anda. -->
+  <div class="modal-overlay" id="look-overlay">
+    <div class="modal look-modal">
+      <div class="modal-head">
+        <span class="modal-title">Change look</span>
+        <button class="modal-close" id="look-close">&#x2715;</button>
+      </div>
+      <div class="look-body">
+        <div class="look-prev" id="look-prev"></div>
+        <div class="look-rows" id="look-rows"></div>
+      </div>
+      <div class="petrec-btns">
+        <button class="ia-equip" id="look-save">Save look</button>
+        <button class="ia-cancel" id="look-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="gemask-overlay">
     <div class="modal petrec-modal">
       <div class="petrec-head">Set this gem?</div>
@@ -8542,8 +8587,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
       <div class="modal-head">
         <!-- [RATTAT v5.445.1] Samma fel som i porten: manen stod som \uXXXX, som
              bara JS forstar. I HTML skrivs den som &#x...; -->
-        <span class="modal-title"><i class="off-badge">&#x1F319;</i>
-          <span class="off-eyebrow">Offline report</span>Welcome Back</span>
+        <!-- [OMBYGGT v5.449.0] TVA RADER, RATT ORDNING (Chris). Titeln ar en
+             flex-rad sedan v5.423, sa eyebrowens display:block bet inte - de tva
+             texterna hamnade bredvid varandra. Nu ligger de i en egen spalt:
+             WELCOME BACK overst, OFFLINE REPORT direkt under, utan mellanrum.
+             Manen ar en reserv: finns assets/ui/offline_report.webp visas den,
+             annars faller img bort och emojin star kvar. -->
+        <span class="modal-title"><i class="off-badge"><img src="assets/ui/offline_report.webp" alt=""
+            draggable="false" onerror="this.remove()"><span class="off-badge-fb">&#x1F319;</span></i>
+          <span class="off-head"><span class="off-main">Welcome Back</span><span class="off-eyebrow">Offline report</span></span></span>
         <button class="modal-close" id="offline-close">✕</button>
       </div>
       <!-- [OMBYGGT v5.423.0] ATERKOMSTRUTAN EFTER CHRIS SKISS. Forut en rad text
@@ -8716,7 +8768,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.448.0 — STOR BILD PA SIGNATURPJASERNA</div>
+            <div class="desc">GENESIS v5.450.0 — LOOKEN: SEX LAGER PA PROFILKORTET</div>
           </div>
         </div>
       </div>
@@ -33517,13 +33569,37 @@ function renderHelperSlots(){}              /* ingen stol att rita */
    sa knapparna inte trangs in bland allt annat.
    Servern ager alltihop; rutan visar laget och skickar knapptryck. */
 let FRTAB = 'friends';
-const AV_IDS = ['av01','av02','av03','av04','av05','av06',
-                'av07','av08','av09','av10','av11','av12'];
+/* [OMBYGGT v5.450.0] LOOKEN ar sex lager i EN text: f03-hr05-h00-g02-m00-b01.
+   Ordningen i LOOK_LAYERS ar ritordningen, bakifran och fram. Bilderna heter
+   som nyckeln: assets/avatars/<del>.webp. Formatet och harregeln star ocksa i
+   set_avatar pa servern - andras det ena maste det andra folja med. */
+const LOOK_LAYERS = [
+  {k:'b',  name:'Background', none:false},
+  {k:'f',  name:'Face',       none:false},
+  {k:'hr', name:'Hair',       none:true},
+  {k:'m',  name:'Face mask',  none:true},
+  {k:'g',  name:'Glasses',    none:true},
+  {k:'h',  name:'Hat',        none:true}];
+const LOOK_DEFAULT = 'f01-hr00-h00-g00-m00-b01';
+const LOOK_NOHAIR = new Set(['f07','f08','f09','f10']);   // robotar och djur
+const LOOK_RE = /^f(0[1-9]|10)-hr(0[0-9]|10)-h(0[0-9]|10)-g(0[0-9]|10)-m(0[0-9]|10)-b(0[1-9]|10)$/;
+function lookParse(av){
+  if (!av || !LOOK_RE.test(av)) return null;
+  const o = {}; av.split('-').forEach(p => { o[p.replace(/\d+$/, '')] = p; });
+  return o;
+}
+function lookJoin(o){ return [o.f, o.hr, o.h, o.g, o.m, o.b].join('-'); }
+function lookImgs(o){
+  return LOOK_LAYERS.map(L => {
+    const v = o[L.k]; if (!v || /00$/.test(v)) return '';
+    return '<img src="assets/avatars/' + v + '.webp" onerror="this.remove()" alt="" draggable="false">';
+  }).join('');
+}
 function avChip(av, handle, px, on){
   const letter = esc(((handle || '?').charAt(0) || '?').toUpperCase());
+  const o = lookParse(av);
   return '<span class="av-chip' + (on ? ' on' : '') + '" style="width:' + px + 'px;height:' + px +
-    'px;font-size:' + Math.round(px * .42) + 'px">' + letter +
-    (av ? '<img src="assets/avatars/' + esc(av) + '.png" onerror="this.remove()" alt="">' : '') + '</span>';
+    'px;font-size:' + Math.round(px * .42) + 'px">' + letter + (o ? lookImgs(o) : '') + '</span>';
 }
 /* Emblemet ar ATTKANTIGT - samma form som sidoradens ikoner. Saknas bilden
    star gillets tagg i formen i stallet. */
@@ -33553,25 +33629,62 @@ function renderFrMe(){
     '<div style="flex:1;min-width:0"><div class="nm">' + esc(SRV.handle) + '</div>' +
     (SRV.guild
       ? '<div class="sub"><b style="color:#c9b6ff">[' + esc(SRV.guild.tag) + ']</b> ' + esc(SRV.guild.name) + '</div>'
-      : '<div class="sub">No guild yet</div>') + '</div>' +
-    '<button class="btn-neutral tiny" id="fr-avatar-btn">Change look</button>';
-  const btn = $('fr-avatar-btn');
-  if (btn) btn.addEventListener('click', () => {
-    const g = $('av-pick'); if (!g) return;
-    if (g.style.display !== 'none'){ g.style.display = 'none'; return; }
-    g.innerHTML = AV_IDS.map(id =>
-      '<span data-av="' + id + '">' + avChip(id, SRV.handle, 44, id === SRV.avatar) + '</span>').join('');
-    g.style.display = '';
-    g.querySelectorAll('[data-av]').forEach(el => el.addEventListener('click', async () => {
-      try {
-        await srvRpc('set_avatar', {p_avatar: el.dataset.av});
-        SRV.avatar = el.dataset.av;
-        g.style.display = 'none';
-        renderSocial(); say('New look saved.');
-      } catch (e){ say(srvErrText(e, 'Could not change the portrait.')); }
-    }));
-  });
+      : '<div class="sub">No guild yet</div>') + '</div>';
 }
+/* [NYTT v5.450.0] LOOKFONSTRET. Oppnas fran profilkortet. Man plockar ett lager
+   i taget, ser resultatet overst, och sparar med en knapp - inte vid varje
+   klick som forr, sa man kan prova utan att spamma servern. */
+let LOOK_EDIT = null;
+function openLook(){
+  if (!NET.on || !SRV.handle){ say('Sign in to change your look.'); return; }
+  LOOK_EDIT = lookParse(SRV.avatar) || lookParse(LOOK_DEFAULT);
+  renderLook();
+  $('look-overlay').classList.add('open');
+}
+function closeLook(){ $('look-overlay').classList.remove('open'); LOOK_EDIT = null; }
+function renderLook(){
+  const o = LOOK_EDIT; if (!o) return;
+  if (LOOK_NOHAIR.has(o.f)) o.hr = 'hr00';           // samma regel som servern
+  $('look-prev').innerHTML = avChip(lookJoin(o), SRV.handle, 132, false);
+  $('look-rows').innerHTML = LOOK_LAYERS.map(L => {
+    const cells = [];
+    if (L.none) cells.push(cell(L.k + '00', '\u2014', true));
+    for (let i = 1; i <= 10; i++) cells.push(cell(L.k + String(i).padStart(2, '0'), '', false));
+    const off = (L.k === 'hr' && LOOK_NOHAIR.has(o.f)) ? ' off' : '';
+    return '<div class="look-row' + off + '"><div class="lr-t">' + L.name + '</div>' +
+      '<div class="look-grid">' + cells.join('') + '</div></div>';
+    function cell(v, txt, none){
+      /* Varje ruta visar bara SITT lager ovanpa det valda ansiktet - da ser man
+         vad just den rutan tillfor. Bakgrund och ansikte visas ensamma. */
+      const prev = {f:o.f, hr:'hr00', h:'h00', g:'g00', m:'m00', b:'b00'};
+      if (L.k === 'b') prev.f = 'f00';
+      prev[L.k] = v;
+      const sel = o[L.k] === v;
+      return '<span class="av-chip' + (sel ? ' sel' : '') + (none ? ' none' : '') + '" data-lk="' + L.k +
+        '" data-lv="' + v + '">' + txt + (none ? '' : lookImgs(prev)) + '</span>';
+    }
+  }).join('');
+  $('look-rows').querySelectorAll('[data-lk]').forEach(el => el.addEventListener('click', () => {
+    LOOK_EDIT[el.dataset.lk] = el.dataset.lv; renderLook();
+  }));
+}
+(function(){
+  const b = $('char-look-btn'); if (b) b.addEventListener('click', openLook);
+  const x = $('look-close'), c = $('look-cancel'), sv = $('look-save');
+  if (x) x.addEventListener('click', closeLook);
+  if (c) c.addEventListener('click', closeLook);
+  if (sv) sv.addEventListener('click', async () => {
+    if (!LOOK_EDIT) return;
+    const av = lookJoin(LOOK_EDIT);
+    try {
+      await srvRpc('set_avatar', {p_avatar: av});
+      SRV.avatar = av; closeLook();
+      renderSocial(); say('New look saved.');
+    } catch (e){ say(srvErrText(e, 'Could not save the look.')); }
+  });
+  const ov = $('look-overlay');
+  if (ov) ov.addEventListener('click', e => { if (e.target === ov) closeLook(); });
+})();
 (function(){
   const t = $('fr-seg'); if (!t) return;
   t.addEventListener('click', e => {
