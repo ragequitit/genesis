@@ -7712,7 +7712,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.457.0 — MANEN: STORRE, UTAN RAM, SVAG GLOD</div>
+        <div class="sn-ver">GENESIS v5.458.0 — KARTAN STARTAR I REGIONEN, INTE I ZONEN</div>
       </div>
     </div>
   </aside>
@@ -8796,7 +8796,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.457.0 — MANEN: STORRE, UTAN RAM, SVAG GLOD</div>
+            <div class="desc">GENESIS v5.458.0 — KARTAN STARTAR I REGIONEN, INTE I ZONEN</div>
           </div>
         </div>
       </div>
@@ -9071,6 +9071,7 @@ function sessionReplaced(annanKaraktar){
 }
 function srvClearSession(){
   SRV.token = SRV.refresh = SRV.user = SRV.charId = SRV.charName = null;
+  NET.worldSynced = false;
   try { chatSockClose(); if (CHAT.poll){ clearInterval(CHAT.poll); CHAT.poll = null; } chatSet(false); } catch (e){}
   SRV.expires = 0; SRV.online = false;
   try { localStorage.removeItem(SRV_STORE); } catch (e){}
@@ -9418,6 +9419,9 @@ async function srvSelect(table, query){
    verkligen finns. */
 const NET = {
   on: false,            // ar vi i serverlage?
+  /* [TILLAGT v5.458.0] Sant forst nar servern sagt var karaktaren star. Kartans
+     "folj med in i zonen" far inte lita pa lokalfilen innan dess. */
+  worldSynced: false,
   syncing: false,
   lastSync: 0,
   /* [ANDRAT v5.153.0] TJUGO SEKUNDER VAR FOR LANGT. Serverns arbetsklocka
@@ -9596,6 +9600,7 @@ async function netPull(){
   if (c.zone && REGIONS[S.world.current] && REGIONS[S.world.current].zones.indexOf(c.zone) >= 0){
     S.world.zone = c.zone;
   }
+  NET.worldSynced = true;   /* [v5.458.0] nu vet vi var man star - se gmPush */
   /* Och en PAGAENDE RESA: serverns klocka avgor nar man ar framme. Utan detta
      stod man kvar pa avresestallet tills nasta gang nagot rakade fraga. */
   if (c.travel_ends && new Date(c.travel_ends).getTime() > Date.now() && c.travel_to){
@@ -23106,9 +23111,14 @@ function gmPush(){
   /* Skickas bara nar nagot faktiskt andrats. Kartan ritar om sig vid varje
      sandning, och spelet ritar om ofta - utan detta skulle kartan blinka. */
   const sig = JSON.stringify(st);
-  if (sig === gmLastSig) return;
-  gmLastSig = sig;
-  try { api.setState(st); } catch (e){}
+  /* [ANDRAT v5.458.0] Sparren galler bara setState. Region- och zonfoljningen
+     nedan har egna "bara vid byte"-prov och maste fa kora aven nar laget ar
+     oforandrat - annars ankrades zonen forst vid nasta slumpmassiga andring,
+     som kunde vara sjalva resan, och den resan foljdes da inte. */
+  if (sig !== gmLastSig){
+    gmLastSig = sig;
+    try { api.setState(st); } catch (e){}
+  }
   /* Byter man varld ska kartan folja med dit. Utan detta star den kvar i sin
      egen standardregion medan spelaren ar nagon helt annanstans - laget ar
      ratt men bilden visar fel varld. Bara vid FAKTISKT byte, annars skulle
@@ -23137,7 +23147,15 @@ function gmPush(){
      alla zoner och var man star, och ga in sjalv. Forsta sandningen for en
      karaktar antecknar darfor bara zonen; foljsamheten borjar fran nasta byte.
      Nollstalls per karaktar, sa ett byte av karaktar ocksa landar i regionen. */
-  if (gmFirstFor !== SRV.charId){
+  /* [RATTAT v5.458.0] LANDADE FORTFARANDE I ZONEN (Chris). Rattningen ovan
+     ankrade pa forsta sandningen for karaktaren - men den sandningen kunde ga
+     INNAN servern svarat, med lokalfilens zon (annan eller ingen). Nar serverns
+     zon sedan kom raknades det som ett byte, och kartan gick in. Uppkopplad
+     ankrar vi darfor forst nar NET.worldSynced ar sant; dessforinnan antecknas
+     bara zonen. Offline ar lokalfilen sanningen, sa dar ankras direkt. */
+  if (NET.on && !NET.worldSynced){
+    gmShownZone = zonNu;
+  } else if (gmFirstFor !== SRV.charId){
     gmFirstFor = SRV.charId;
     gmShownZone = zonNu;
   } else if (gmShownZone !== zonNu){
@@ -32517,6 +32535,7 @@ async function netEnterWorld(){
 }
 async function gateEnter(id, name){
   SRV.charId = id; SRV.charName = name;
+  NET.worldSynced = false;   /* [v5.458.0] ny karaktar - vanta pa serverns zon igen */
   srvSaveSession();
   gateSay('gate-msg2', 'Loading your character…', true);
   try {
