@@ -317,6 +317,16 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   -webkit-mask-image:linear-gradient(90deg,#000 64%,transparent 100%);
   mask-image:linear-gradient(90deg,#000 64%,transparent 100%);
 }
+/* [NYTT v5.451.0] Looken ar kvadratisk (512x512) i en hog smal ruta. Den
+   laggs med bredden = rutans bredd och toppen i kortets ovankant, sa huvudet
+   syns och axlarna forsvinner under underkanten - samma kanslighet som figuren.
+   Samma hogerkantsmask, sa den glider in i fonden pa samma satt. */
+.sn-look{display:none;position:absolute;inset:0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,#000 64%,transparent 100%);
+  mask-image:linear-gradient(90deg,#000 64%,transparent 100%)}
+.sn-look img{position:absolute;left:0;top:0;width:100%;height:auto;display:block;pointer-events:none;-webkit-user-drag:none}
+.sn-fig.haslook .sn-look{display:block}
+.sn-fig.haslook .sn-figart,.sn-fig.haslook .sn-figfall{display:none}
 .sn-figfall{display:none;font-size:32px;line-height:78px;text-align:center;width:100%}
 .sn-fig.nofig .sn-figfall{display:block}
 .sn-pinfo{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;
@@ -7628,6 +7638,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <img class="sn-figart" src="assets/character/runner.png" alt="" draggable="false"
              onerror="var q=this.parentNode;this.remove();q.classList.add('nofig')">
         <span class="sn-figfall">🥷</span>
+        <!-- [NYTT v5.451.0] LOOKEN PA KONTOKORTET (Chris). Har man valt en look
+             ligger den har, over klassfiguren, som da doljs. Ingen look = figuren
+             som forr. Fylls av renderSnLook(). -->
+        <span class="sn-look" id="sn-look"></span>
         <!-- [BORTTAGET v5.81.1] Nivabrickan lag mitt pa figurens brost. Nivan
              star redan i klartext till hoger ("LV 37"), sa den sa inget nytt -
              den skymde bara. Elementet ar KVAR men gomt, for koden skriver i
@@ -7681,7 +7695,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.450.0 — LOOKEN: SEX LAGER PA PROFILKORTET</div>
+        <div class="sn-ver">GENESIS v5.451.0 — LOOKEN PA KONTOKORTET</div>
       </div>
     </div>
   </aside>
@@ -8768,7 +8782,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.450.0 — LOOKEN: SEX LAGER PA PROFILKORTET</div>
+            <div class="desc">GENESIS v5.451.0 — LOOKEN PA KONTOKORTET</div>
           </div>
         </div>
       </div>
@@ -32198,6 +32212,7 @@ async function netMyProfile(){
   /* [NYTT v5.121.0] Utseendet och gillet foljer med i samma svar. */
   SRV.avatar = (r && r.avatar) || null;
   SRV.guild  = (r && r.guild)  || null;
+  renderSnLook();
   return r;
 }
 async function netSetHandle(h){
@@ -33595,6 +33610,14 @@ function lookImgs(o){
     return '<img src="assets/avatars/' + v + '.webp" onerror="this.remove()" alt="" draggable="false">';
   }).join('');
 }
+/* [NYTT v5.451.0] Kontokortet uppe till vanster visar looken i stallet for
+   klassfiguren, sa fort en look finns. Saknas look star figuren kvar. */
+function renderSnLook(){
+  const box = $('sn-look'), fig = box && box.parentNode; if (!box) return;
+  const o = lookParse(SRV.avatar);
+  box.innerHTML = o ? lookImgs(o) : '';
+  fig.classList.toggle('haslook', !!o);
+}
 function avChip(av, handle, px, on){
   const letter = esc(((handle || '?').charAt(0) || '?').toUpperCase());
   const o = lookParse(av);
@@ -33679,7 +33702,7 @@ function renderLook(){
     try {
       await srvRpc('set_avatar', {p_avatar: av});
       SRV.avatar = av; closeLook();
-      renderSocial(); say('New look saved.');
+      renderSnLook(); renderSocial(); say('New look saved.');
     } catch (e){ say(srvErrText(e, 'Could not save the look.')); }
   });
   const ov = $('look-overlay');
