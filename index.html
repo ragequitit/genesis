@@ -6011,6 +6011,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .pvb-swords::before,.pvb-swords::after{width:32px}
 }
 @media (prefers-reduced-motion:reduce){ .pvb-f .pvb-body,.pvb-pop{animation:none!important} }
+/* Hovringskortet maste ligga OVER stridsvyn (12500), annars hamnar det bakom
+   den morka rutan - vilket ar precis vad som hande forst. */
+#pve-overlay ~ .gear-tip, body:has(#pve-overlay) .gear-tip{z-index:12600}
+/* Pjasen i segerrutan: en bildruta med namn under. Ramen bar raritetens farg. */
+.pvb-drops{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:4px 0 2px}
+.pvb-drop{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
+  padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
+.pvb-drop:hover{background:rgba(56,232,255,.07)}
+.pvb-drop-art{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;font-size:32px;
+  border:1px solid var(--rc,var(--border));background:rgba(0,0,0,.35);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4) inset,0 0 18px color-mix(in srgb,var(--rc,#000) 35%,transparent)}
+.pvb-drop-art .art-img{width:54px;height:54px;object-fit:contain}
+.pvb-drop b{font-size:13px;font-weight:800;letter-spacing:.02em}
+.pvb-drop i{font-style:normal;font-size:10.5px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase}
 /* Dungeonens slutruta anvander fortfarande resultatstilen. */
 .pve-result{display:flex;flex-direction:column;gap:4px;min-height:20px}
 .pve-result b{font-size:15px;letter-spacing:.14em}
@@ -7922,7 +7936,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.466.0 — STRIDEN GAR LANGSAMMARE</div>
+        <div class="sn-ver">GENESIS v5.467.0 — PJASEN I SEGERRUTAN SOM KORT</div>
       </div>
     </div>
   </aside>
@@ -9008,7 +9022,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.466.0 — STRIDEN GAR LANGSAMMARE</div>
+            <div class="desc">GENESIS v5.467.0 — PJASEN I SEGERRUTAN SOM KORT</div>
           </div>
         </div>
       </div>
@@ -10690,7 +10704,7 @@ function showFightPlayback(enc, r){
   const finish = () => {
     const v = q('pvb-verdict');
     q(r.win ? 'pvb-foe' : 'pvb-you').classList.add('down');
-    let body;
+    let body, fillDrops = null;
     if (r.win){
       const rw = r.rewards || {};
       const scrap = rw.scrap_qty
@@ -10699,15 +10713,47 @@ function showFightPlayback(enc, r){
       const cch = rw.helper_cache ? ' \u00b7 Helper Cache' : '';
       const sch = rw.schematic
         ? ' \u00b7 ' + ((SCHEMATICS[rw.schematic] || {}).name || 'Schematic') : '';
-      const sgt = [starterGearText(rw.starter_gear), starterGearText(rw.gear)].filter(Boolean).join(' \u00b7 ');
+      /* [ANDRAT v5.467.0] PJASEN SOM KORT, INTE TEXT (Chris). Servern skickar
+         pjasens id; efter en hamtning finns den i vaskan och kan ritas med samma
+         bild och samma hovringskort som overallt annars. Hinner hamtningen inte
+         fram, eller skippades pjasen (full vaska), star texten kvar som forut. */
+      const drops = [rw.starter_gear, rw.gear].filter(Boolean);
+      const sgt = drops.map(starterGearText).filter(Boolean).join(' \u00b7 ');
       body = '<b>VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + scrap + frg + cch + sch + '</span>' +
-        (sgt ? '<span class="pve-starter">' + esc(sgt) + '</span>' : '');
+        '<div class="pvb-drops" id="pvb-drops">' +
+          (sgt ? '<span class="pve-starter">' + esc(sgt) + '</span>' : '') + '</div>';
+      /* Hamtningen startar nu, men kortet ritas forst nar segerrutan finns
+         (den kommer 700 ms senare) - annars hittas inte platsen. */
+      if (drops.some(d => d.id)) fillDrops = () => netPullItems().then(() => {
+          const host = q('pvb-drops'); if (!host || !host.isConnected) return;
+          const cards = drops.map(d => {
+            const it = d.id ? gearBySid(d.id) : null;
+            if (!it) return '';
+            const lbl = d.bag ? 'Starter bag' : (d === rw.gear ? 'Gear drop' : 'Starter gear');
+            return '<div class="pvb-drop" data-sid="' + esc(String(d.id)) + '">' +
+              '<span class="pvb-drop-art" style="--rc:' + gearRarCol(it) + '">' +
+                artWithFallback(gearArt(it), '\ud83d\udce6') + '</span>' +
+              '<b style="color:' + gearRarCol(it) + '">' + esc(gearName(it)) + '</b>' +
+              '<i>' + lbl + ' \u00b7 ' + esc((GEAR_RAR[it.r] || {}).name || '') + '</i></div>';
+          }).join('');
+          if (!cards) return;
+          host.innerHTML = cards;
+          host.querySelectorAll('.pvb-drop').forEach(el => {
+            const it = gearBySid(el.dataset.sid); if (!it) return;
+            const show = ev => { const b = el.getBoundingClientRect();
+              showGearTip(it, b.left + b.width / 2, b.top - 8, true); };
+            el.addEventListener('mouseenter', show);
+            el.addEventListener('mouseleave', () => hideGearTip());
+            el.addEventListener('click', ev => { ev.stopPropagation(); show(ev); });
+          });
+        }).catch(() => {});
     } else {
       body = '<b>DEFEAT</b><span>You barely made it out \u2014 1 HP. Patch up before the next one.</span>';
     }
     setTimeout(() => {
       v.innerHTML = body + '<button class="pve-close">Close</button>';
       v.className = 'pvb-verdict on ' + (r.win ? 'win' : 'lose');
+      if (fillDrops) fillDrops();
     }, 700);
   };
   setTimeout(step, 500);
