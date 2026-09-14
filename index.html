@@ -6842,7 +6842,19 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .pve-grid > .pve-stage{position:relative;width:100%;min-width:0;
   border:2px solid var(--border-glow);border-radius:12px;overflow:hidden;
   background:var(--bg-inset);min-height:260px;display:flex;align-items:center;justify-content:center}
-.pve-stage .art-img{position:absolute;inset:0;width:100%;height:100%;
+/* [RATTAT v5.501.0] LOOTBILDEN TOG HELA STRIDSRUTAN (Chris). Samma familj som
+   rattelsen ovan, samma tva namn - bara at andra hallet.
+   Den har regeln ar skriven for RUMSBILDEN: fienden som fyller rutan i
+   spaningsrutnatet. Men stridsvyns yttersta ruta heter ocksa .pve-stage, sa nar
+   segerrutan ritade den droppade pjasen som ett kort tog regeln aven den
+   bilden - absolut placerad, inset noll, hundra procent bred och hog. Kortets
+   egen regel (.pvb-drop-art .art-img, 54x54) har EXAKT samma tyngd, tva klasser
+   mot tva, och da vinner den som star sist i mallen. Den har star sist.
+   Uppmatt: pjasen ritades over hela arenan i stallet for 54 pixlar.
+   Losningen ar inte att flytta kortets regel langre ner - da kan nasta regel
+   med samma tyngd valta den igen. Den har bindas i stallet till det rutnat den
+   ar skriven for, precis som raden ovanfor. */
+.pve-grid > .pve-stage .art-img{position:absolute;inset:0;width:100%;height:100%;
   object-fit:cover;object-position:top center}
 .pve-ico{font-size:54px;opacity:.5}
 .pve-info{display:flex;flex-direction:column;gap:8px;min-width:0;
@@ -7917,7 +7929,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.500.0 — KNAPPEN HETER CRAFT</div>
+        <div class="sn-ver">GENESIS v5.502.0 — UR VALVET RAKT PA KROPPEN</div>
       </div>
     </div>
   </aside>
@@ -9013,7 +9025,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.500.0 — KNAPPEN HETER CRAFT</div>
+            <div class="desc">GENESIS v5.502.0 — UR VALVET RAKT PA KROPPEN</div>
           </div>
         </div>
       </div>
@@ -17276,6 +17288,36 @@ function fromVault(vaultIdx, at){
   S.vault.inv[vaultIdx] = null;
   vaultOrderSave(); invOrderSave();
   renderInventory(); renderVault(); save();
+  return true;
+}
+/* [TILLAGT v5.502.0] UR VALVET RAKT PA KROPPEN (Chris bugg). VARFOR: slappet
+   pa en utrustningsruta fanns bara for pjaser som lag i VASKAN. Kom pjasen ur
+   valvet foll slappet igenom alla fall och ingenting hande - inte ens ett
+   besked. Man fick ta ut den i vaskan forst och dra en gang till, utan att
+   nagot nagonsin sagt det.
+   Vi bygger INTE en andra vag att utrusta pa. Pjasen tas ur valvet pa den vag
+   som redan finns, och sedan anropas samma equipGear som vaskan anvander - sa
+   nivakrav, tvahandsregeln och serverns svar behandlas pa ETT stalle.
+   Pjasen letas upp pa sitt SERVER-id: klientens egna uid delas ut pa nytt vid
+   varje hamtning, sa det hade inte overlevt flytten. */
+async function equipFromVault(vaultIdx, want){
+  const row = S.vault.inv[vaultIdx];
+  if (!row || !row.gear) return false;
+  const sid = row.gear.sid, uid = row.gear.uid;
+  const hitta = () => S.inv.findIndex(r => r && r.gear &&
+    (sid ? r.gear.sid === sid : r.gear.uid === uid));
+  if (NET.on){
+    try {
+      await netMoveVault(row.gear, false);
+      const at = hitta();
+      if (at >= 0) equipGear(at, want);
+      else say('No room in the backpack for that.');
+    } catch (e){ say(srvErrText(e)); }
+    return true;
+  }
+  if (!fromVault(vaultIdx)){ say('No room in the backpack for that.'); return false; }
+  const at = hitta();
+  if (at >= 0) equipGear(at, want);
   return true;
 }
 function moveInVault(from, to){
@@ -30789,7 +30831,15 @@ function dragTargetsFor(d){
   }
   if (d.from === 'vault'){
     /* Ur valvet: valvets egna rutor och hela vaskan. */
-    return Array.from(document.querySelectorAll('#vault-grid [data-vault], .vaultbagwin [data-vault]')).concat(invCells());
+    /* [TILLAGT v5.502.0] OCH KROPPSPLATSERNA (Chris bugg). Listan hade inga
+       utrustningsrutor, sa ingenting lyste nar man drog en pjas ur valvet mot
+       dockan - och ett drag utan mal kanns dott aven nar slappet i sig hade
+       fungerat. Samma villkor som vaskans rad ovan: bara de platser pjasen
+       faktiskt passar. */
+    const t = Array.from(document.querySelectorAll('#vault-grid [data-vault], .vaultbagwin [data-vault]')).concat(invCells());
+    if (d.gear) slotsForGear(d.gear).forEach(sl =>
+      document.querySelectorAll('#panel-character [data-slot="' + sl + '"]').forEach(s => t.push(s)));
+    return t;
   }
   /* [BUGG v5.42.0] Punkt 6. Har pekades det ut en MASKINPLATS (.m-helper) - de
      revs med maskinerna, sa listan blev alltid tom och ingen ruta lyste nar man
@@ -31000,6 +31050,13 @@ function endDrag(d, x, y){
   const vcell = dropTargetAt(under, x, y, '[data-vault]');
   const inVault = inVaultArea(under) || (vcell ? inVaultArea(vcell) : false);
   if (d.from === 'vault'){
+    /* [TILLAGT v5.502.0] Utrustningsrutan tar emot ur valvet ocksa. Samma villkor
+       som vaskans vag staller: bara en plats pjasen faktiskt passar. */
+    const vslot = under.closest('#panel-character [data-slot]');
+    if (vslot && d.gear && slotsForGear(d.gear).indexOf(+vslot.dataset.slot) >= 0){
+      equipFromVault(d.idx, +vslot.dataset.slot);
+      return;
+    }
     /* En väska ur valvet får sättas direkt i ett av valvets fack. */
     const vsock2 = under.closest('[data-vaultbag]');
     if (vsock2 && d.gear && ITEMS[d.gear.t] && ITEMS[d.gear.t].bag){
