@@ -7908,7 +7908,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.494.0 — BODEN FICK ETT EGET FONSTER</div>
+        <div class="sn-ver">GENESIS v5.494.2 — VALVRUMMET FICK SIN BREDD</div>
       </div>
     </div>
   </aside>
@@ -9004,7 +9004,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.494.0 — BODEN FICK ETT EGET FONSTER</div>
+            <div class="desc">GENESIS v5.494.2 — VALVRUMMET FICK SIN BREDD</div>
           </div>
         </div>
       </div>
@@ -36319,7 +36319,14 @@ function openNodeWin(kind, region, zone, keep, id){
   w.querySelector('.node-modal').classList.toggle('wide',
     kind === 'expedition' || kind === 'encounter' || kind === 'town' || kind === 'shop');
   /* [TILLAGT v5.493.1] Bara motet - se .node-modal.wider. */
-  w.querySelector('.node-modal').classList.toggle('wider', kind === 'encounter');
+  /* [ANDRAT v5.494.2] HUSRUTAN FICK OCKSA DET BREDARE FONSTRET (Chris).
+     Den lag pa 520, och med faktabladets 300 fasta pixlar blev rummet 140 brett
+     och 291 hogt - en lodrat remsa ur en bild som ar 1200x508. Bilden sag ut att
+     vara trasig fast den var hel; det var spalten som var fel.
+     Matt fore: 140x291. Efter: cirka 420x290, alltsa ungefar bildens egna
+     proportioner. Jag skickade det har utan att mata bredden - felet var mitt. */
+  w.querySelector('.node-modal').classList.toggle('wider',
+    kind === 'encounter' || kind === 'town');
   /* [TILLAGT v5.494.0] Boden ar bredast: lagret har namn, sallsynthet och ett
      pris med tre valorer pa samma rad. */
   w.querySelector('.node-modal').classList.toggle('widest', kind === 'shop');
@@ -36509,17 +36516,22 @@ function nodeShopHTML(){
       '<div class="shop-info">' + buildTrader(reg) + '</div>' +
     '</div>';
 }
-/* En rad ur handlarens mun. Samma region ger alltid samma rad - hon ska kannas
-   som en person, inte som en slumpgenerator. */
-const VENDOR_LINES = [
-  'Take your time. The good pieces usually find their owner.',
-  'Everything here was somebody elses first.',
-  'I do not haggle, but I do remember faces.',
-  'Buy it now, or hear about it later.'
-];
+/* [ANDRAT v5.494.1] EN REPLIK PER REGION (Chris). Forut plockades en av fyra
+   ur en lista med regionens namn som frö - samma rad varje gang, men inte
+   NAGONS rad. Nu har varje handlare sin egen, skriven mot sin egen bild: den
+   klossige hantverkaren i Voxholm, kartritaren i Drakemark, pelikanen i hamnen,
+   kvartersmastaren i flottan och medicinhandlaren bakom karantanen.
+   Reserven star kvar for en sjatte region utan egen replik - da sager hon nagot
+   neutralt i stallet for ingenting alls. */
+const VENDOR_LINES = {
+  voxholm:     'Nothing fancy here. It all works, and it all fits.',
+  drakemark:   'Take your time. The good pieces usually find their owner.',
+  cutlassbay:  'Everything here washed up somewhere. Nobody asks where.',
+  novacommand: 'Fleet issue, most of it. Best not to ask which fleet.',
+  quarantine:  'I sell what still works. That list gets shorter every year.'
+};
 function vendorLine(reg){
-  let n = 0; for (let i = 0; i < reg.length; i++) n = (n * 31 + reg.charCodeAt(i)) >>> 0;
-  return VENDOR_LINES[n % VENDOR_LINES.length];
+  return VENDOR_LINES[reg] || 'Look around. I will be here.';
 }
 function nodeEncounterHTML(){
   const here = nodeHere();
