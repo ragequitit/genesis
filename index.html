@@ -5913,6 +5913,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   background:rgba(255,255,255,.10);transition:background .2s}
 .xpd.on{background:var(--pp-col,var(--cyan))}
 .xpd.half{background:color-mix(in srgb, var(--pp-col,var(--cyan)) 45%, rgba(255,255,255,.10))}
+/* [TILLAGT v5.503.0] KNAPPGRUPPEN PA RECEPTRADEN (Chris). Tre knappar i en
+   kolumn i stallet for en bred. De ar mindre an den enda knappen var - annars
+   ate de upp raden pa telefon, dar den smalaste skarmen ar 360 pixlar och
+   namnet och materiallistan ocksa ska fa plats. Kolumn, inte rad: tre knappar
+   bredvid varandra far inte plats pa 360 utan att texten bryts. */
+.rr-crafts{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
+.rr-crafts .pp-openbtn{padding:7px 11px;font-size:9.5px;letter-spacing:.1em;
+  text-align:center;min-width:76px}
 .pp-openbtn{
   flex:0 0 auto;padding:11px 20px;border-radius:9px;cursor:pointer;
   font-size:10.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
@@ -7929,7 +7937,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.502.0 — UR VALVET RAKT PA KROPPEN</div>
+        <div class="sn-ver">GENESIS v5.503.0 — CRAFT 1, 5 OCH 10</div>
       </div>
     </div>
   </aside>
@@ -9025,7 +9033,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.502.0 — UR VALVET RAKT PA KROPPEN</div>
+            <div class="desc">GENESIS v5.503.0 — CRAFT 1, 5 OCH 10</div>
           </div>
         </div>
       </div>
@@ -13756,10 +13764,15 @@ function learnRecipe(rid){
   return true;
 }
 /* Har spelaren allt material ett recept kraver? */
-function canAfford(rid){
+function canAfford(rid, times){
   const r = RECIPE_BY[rid];
   if (!r) return false;
-  return Object.keys(r.cost).every(k => matCount(k) >= r.cost[k]);
+  /* [ANDRAT v5.503.0] RACKER DET TILL FLERA? (Chris). Craft 5 och Craft 10 stallde
+     samma fraga som Craft 1, bara med ett annat tal - och tva funktioner som
+     raknar samma sak glider isar. Den gamla frageformen (utan tal) svarar
+     precis som forut. */
+  const n = Math.max(1, times | 0) || 1;
+  return Object.keys(r.cost).every(k => matCount(k) >= r.cost[k] * n);
 }
 /* Craftar: kraver lart yrke, kant recept, tillrackligt material och en ledig
    vaskruta. Drar materialet, rullar pjasen med taket, lagger den i vaskan. */
@@ -27038,12 +27051,22 @@ function ppBookRows(profId){
           (slotName ? ' \u00b7 ' + slotName : '') + '</div>' +
         '<div class="rr-cost">' + cost + '</div>' +
       '</div>' +
-      '<button class="pp-openbtn addq" data-addq="' + r.id + '"' +
-        ((afford && free > 0) ? '' : ' disabled') + '>' +
-      /* [ANDRAT v5.500.0] MAKE HETER CRAFT (Chris). Spelet sager "craft" overallt
-         annars - yrkena, receptboken, felmeddelandena - och ett eget ord pa just
-         den har knappen gjorde den till nagot annat an den ar. */
-        (ppInstant(profId) ? 'Craft' : (free > 0 ? 'Add to queue' : 'Queue full')) + '</button>' +
+      /* [ANDRAT v5.503.0] TRE KNAPPAR I STALLET FOR EN (Chris). VARFOR: recepten
+         som gors pa stallet gors sallan en i taget - man star och trycker tjugo
+         ganger for tjugo spolar. Knapparna ar 1, 5 och 10; varje knapp ar SLACKT
+         om materialet inte racker hela vagen, sa den aldrig lovar mer an den kan.
+         Kon-yrkena har kvar sin enda knapp: dar ar taket koplatserna, inte
+         materialet, och fem bestallningar i en ko pa tva platser ar ingen hjalp. */
+      (ppInstant(profId)
+        ? '<div class="rr-crafts">' +
+            [1, 5, 10].map(n =>
+              '<button class="pp-openbtn addq" data-addq="' + r.id + '" data-qty="' + n + '"' +
+              (canAfford(r.id, n) ? '' : ' disabled') + '>' +
+              (n === 1 ? 'Craft' : 'Craft ' + n) + '</button>').join('') +
+          '</div>'
+        : '<button class="pp-openbtn addq" data-addq="' + r.id + '" data-qty="1"' +
+            ((afford && free > 0) ? '' : ' disabled') + '>' +
+            (free > 0 ? 'Add to queue' : 'Queue full') + '</button>') +
     '</div>';
   }).join('') || '<div class="shelf-empty">No recipes match.</div>';
 }
@@ -27172,19 +27195,42 @@ if ($('pp-close')) $('pp-close').addEventListener('click', () => {
    star, och nasta fonster som far en receptbok fungerar utan att nagon minns
    att koppla den. */
 /* [TILLAGT v5.41.0] Kons knappar - EN lyssnare pa hela sidan per knappsort. */
+/* [TILLAGT v5.503.0] FLERA CRAFT PA EN KNAPP. Sakerna gors en i taget genom
+   netCraft - samma vag som ett ensamt craft - sa servern ar fortfarande den som
+   drar material, rullar utfallet och betalar XP. Gar nagot fel avbryts resten
+   och antalet som hann bli av sags ut. */
+async function craftManyNet(rid, n, btn){
+  let gjorda = 0, fel = null;
+  for (let i = 0; i < n; i++){
+    try { await netCraft(rid); gjorda++; }
+    catch (e){ fel = e; break; }
+  }
+  if (fel && !gjorda) say(craftErrText(fel));
+  else if (fel) say('Crafted ' + gjorda + ' of ' + n + ' \u2014 ' + craftErrText(fel));
+  else if (n > 1) say('Crafted ' + gjorda + '.');
+  try { await Promise.all([netWorkOrders(), netPullItems()]); } catch (e){}
+  renderProfPage(); ppRedrawBook(); redrawAll();
+  if (btn) btn.disabled = false;
+}
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-addq]');
   if (!b || b.disabled) return;
   const rid = b.dataset.addq;
+  /* [ANDRAT v5.503.0] KNAPPEN BAR SITT ANTAL (Chris). Forut gjorde varje klick
+     exakt en sak. Nu sager data-qty hur manga, och de gors EN I TAGET pa den vag
+     som redan finns - ingen andra craft-vag byggs vid sidan om.
+     Stannar det halvvags (materialet tog slut, vaskan blev full) sags det rakt ut
+     hur manga som blev av. Ett tyst avbrott mitt i tio ar varre an ett fel. */
+  const n = Math.max(1, +b.dataset.qty || 1);
   b.disabled = true;
   if (NET.on){
-    netCraft(rid)
-      .then(() => Promise.all([netWorkOrders(), netPullItems()]))
-      .then(() => { renderProfPage(); ppRedrawBook(); redrawAll(); })
-      .catch(err => { say(craftErrText(err)); b.disabled = false; });
+    craftManyNet(rid, n, b);
   } else {
-    /* Utan server finns ingen ko - klicket gor saken direkt, som forut. */
-    craftRecipe(rid); redrawAll(); renderProfPage(); ppRedrawBook();
+    /* Utan server finns ingen ko - klicket gor sakerna direkt, som forut. */
+    let gjorda = 0;
+    for (let i = 0; i < n; i++){ if (!craftRecipe(rid)) break; gjorda++; }
+    if (n > 1) say(gjorda ? ('Crafted ' + gjorda + ' of ' + n + '.') : 'Not enough for that.');
+    redrawAll(); renderProfPage(); ppRedrawBook();
   }
 });
 document.addEventListener('click', async e => {
