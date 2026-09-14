@@ -4693,9 +4693,11 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
    liten figur i mitten med luft runt om. Samma regel for alla uppdragsgivare,
    oavsett hur bilden ar ritad. */
 #qwin-overlay .qwin-por .art-img{width:100%;height:100%;object-fit:cover;object-position:top center;
-  /* och 30 % storre med hjassan som fastpunkt - bilderna har luft pa sidorna,
-     sa cover ensamt gav inte den narbild Chris ville ha */
-  transform:scale(1.3);transform-origin:top center}
+  /* [ANDRAT v5.486.0] 1.3 -> 1.0, alltsa 25 % mindre (Chris). Narbilden fran
+     v5.392.0 blev for tight nar gestalterna ritades om - huvudet tog halva rutan.
+     object-fit:cover fyller redan bredden, sa 1.0 ar inte "liten figur med luft
+     runt om" som fore v5.392 - det ar cover utan extra inzoomning. */
+  transform:scale(1);transform-origin:top center}
 #qwin-overlay .qwin-por .art-fall{display:none}
 #qwin-overlay .qwin-por.noart .art-fall{display:flex;align-items:center;justify-content:center;
   width:100%;height:100%;font-size:64px;opacity:.5}
@@ -7785,7 +7787,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.482.0 — CUTLASS BAY HAR 25 UPPDRAG</div>
+        <div class="sn-ver">GENESIS v5.488.0 — RYKTET RABATTERAR ALLT</div>
       </div>
     </div>
   </aside>
@@ -8881,7 +8883,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.482.0 — CUTLASS BAY HAR 25 UPPDRAG</div>
+            <div class="desc">GENESIS v5.488.0 — RYKTET RABATTERAR ALLT</div>
           </div>
         </div>
       </div>
@@ -9139,7 +9141,7 @@ function sessionReplaced(annanKaraktar){
      sa "ladda om for att ta over". Det gick inte: efter omladdningen mottes man
      av losenordsfaltet. Nu behalls inloggningen och bara den levande
      uppkopplingen stangs - da betyder texten det den sager. */
-  try { chatSockClose(); if (CHAT.poll){ clearInterval(CHAT.poll); CHAT.poll = null; } chatSet(false); } catch (e){}
+  try { chatSockStop(); if (CHAT.poll){ clearTimeout(CHAT.poll); CHAT.poll = null; } chatSet(false); } catch (e){}
   try { say(annanKaraktar
     ? 'Signed out \u2014 another character on this account is playing.'
     : 'Signed out \u2014 this account was opened somewhere else.'); } catch (e){}
@@ -9157,7 +9159,7 @@ function sessionReplaced(annanKaraktar){
 function srvClearSession(){
   SRV.token = SRV.refresh = SRV.user = SRV.charId = SRV.charName = null;
   NET.worldSynced = false;
-  try { chatSockClose(); if (CHAT.poll){ clearInterval(CHAT.poll); CHAT.poll = null; } chatSet(false); } catch (e){}
+  try { chatSockStop(); if (CHAT.poll){ clearTimeout(CHAT.poll); CHAT.poll = null; } chatSet(false); } catch (e){}
   SRV.expires = 0; SRV.online = false;
   try { localStorage.removeItem(SRV_STORE); } catch (e){}
 }
@@ -10054,7 +10056,20 @@ async function netSync(){
     }
     /* Prestationerna provas har: det ar den enda plats dar allt annat redan
        hunnit handa, och servern avgor sjalv om nagot faktiskt last upp. */
-    netCheckAchievements().catch(() => {});
+    /* [ANDRAT v5.484.0] EN GANG I MINUTEN, INTE VARJE SYNK (Chris).
+       check_achievements gar igenom 146 prestationer mot 162 raknare OCH SKRIVER.
+       Den gick var fjortonde sekund per spelare - matt: 125 anrop pa en halvtimme,
+       exakt lika manga som klockan sjalv. Det ar den tyngsta upprepningen i hela
+       spelet, och prestationer andras inte pa sekunder.
+       Samma grepp som lagerhamtningen fem rader ovanfor - ett tal, en jamforelse,
+       ingen ny klocka. De tillfallen som FAKTISKT kan lasa upp nagot (hamtad
+       expedition, avslutat mote) anropar netCheckAchievements direkt och gar inte
+       via synken, sa ett troféfynd kommer fortfarande i samma andetag som det
+       hande. Det har ar bara skyddsnatet. */
+    if (Date.now() - (NET.lastAchCheck || 0) > 60000){
+      NET.lastAchCheck = Date.now();
+      netCheckAchievements().catch(() => {});
+    }
   } catch (e){
     /* Tappad uppkoppling far inte krascha spelet. Vi visar det och fortsatter
        forutsaga - nasta lyckade synk rattar allt anda. */
@@ -23881,22 +23896,15 @@ function openZone(regionId, zi, keepNote){
       '<span class="v zon-niva ' + diffFarg(levelInfo().lvl, zonNiva(regionId, zi)) + '">Level ' +
       zonNiva(regionId, zi) + '</span></div>') +
     '</div>' +
-    /* [TILLAGT v5.420.0] VALVET SAKNADES HELT PA ZONSIDAN (buggsvep). Forut var
-       valvet en egen zon utan zonsida, sa dorren behovdes bara i husrutan. Nu
-       delar de The Landing - och sidan visade handlaren men lat som att valvet
-       inte fanns. Bada husen ritas ur samma tabell, sa ett tredje hus i zonen
-       skulle folja med av sig sjalvt. */
+    /* [BORTTAGET v5.486.0] VALVDORREN LAG I HANDLARENS RUTA (Chris). v5.420.0
+       satte den dar for att valvet delar zon med handlaren och saknades pa
+       zonsidan - men den losningen blandade ihop tva hus. Oppnar man handlaren
+       ska man se handlaren; vill man till valvet trycker man pa valvets egen nod
+       pa kartan, som redan finns och gor precis det.
+       townsIn/atTown/TOWNS ror jag inte - husrutan och kartans noder anvander
+       dem, och det ar dar de hor hemma. */
     (zone === TRADE_ZONE
-      ? '<div class="section-label">Trader</div>' + buildTrader(regionId) +
-        townsIn(zone).filter(k => k !== 'vendor').map(k => {
-          const t = TOWNS[k], har = atTown(k);
-          return '<div class="section-label">' + esc(t.name) + '</div>' +
-            '<div class="zone-town">' +
-            '<div class="zt-blurb">' + esc(t.blurb) + '</div>' +
-            '<button class="btn-primary" data-zonetown="' + esc(k) + '"' +
-            (har ? '' : ' disabled') + '>' +
-            (har ? esc(t.enter) : 'Travel here first') + '</button></div>';
-        }).join('')
+      ? '<div class="section-label">Trader</div>' + buildTrader(regionId)
       : '<div class="section-label" id="zone-exp">Expeditions</div>' +
         (isZoneCharted(regionId, zone)
           ? buildZoneExpeditions(regionId, zone)
@@ -23918,13 +23926,9 @@ function openZone(regionId, zi, keepNote){
   regionOverlay.classList.add('open');
   placeRegionWin(); bringToFront(regionOverlay);
   $('zone-back').addEventListener('click', () => openRegion(regionId));
-  /* [TILLAGT v5.420.0] Husdorrarna pa zonsidan. */
-  $('region-body').querySelectorAll('[data-zonetown]').forEach(b =>
-    b.addEventListener('click', () => {
-      const k = b.dataset.zonetown;
-      if (k === 'vault' && atTown('vault')){ openVault(); return; }
-      openTownWin(k, regionId);
-    }));
+  /* [BORTTAGET v5.486.0] Lyssnaren pa husdorrarna. Dorrarna ritas inte langre
+     (se valvet ovan), sa querySelectorAll gav noll element och raden var en tom
+     gest. Husen nas fran kartans noder. */
   const tbuy = $('trader-buy');
   /* Rutan ritas om oavsett utfall: lyckas köpet syns kvittot, misslyckas det syns
      skälet. Ett tyst avslag är det värsta ett gränssnitt kan göra. */
@@ -24102,6 +24106,10 @@ function openZone(regionId, zi, keepNote){
    31,47 · 44,12 guld. Valda värden ligger strax över, så det finns luft kvar om
    banden justeras: marginalen blir 2,6 guld på common och 9,3 på mythic. */
 const VENDOR_MARKUP = [GOLD(8), GOLD(12), GOLD(20), GOLD(32), GOLD(40), GOLD(55)];
+/* [TILLAGT v5.487.0] Samma tal som vendor_bag_price() pa servern. Star det pa
+   tva stallen ska de bytas i samma leverans - det ar den vanligaste buggen i
+   projektet, och den har raden finns bara for offlinelaget. */
+const VENDOR_BAG_PRICE = GOLD(25);
 /* GOLVET är hela knepet. Säljvärdet rullas per pjäs, så priset måste alltid ligga
    över det HÖGSTA värde en pjäs i det steget kan säljas för — annars kan man köpa
    av vendorn och sälja tillbaka med vinst. Därför:
@@ -24126,8 +24134,28 @@ function vendorGearPrice(rarIdx, regionId, entry){
      säkerhetsspärr, eftersom band och påslag justeras om under balansarbetet och
      ett räknefel där aldrig ska kunna öppna en pengamaskin. */
   const base = Math.max(Math.round(((b[0] + b[1]) / 2 + VENDOR_MARKUP[rarIdx]) * gearLevelMult(lv)), floor);
-  const stars = regionId ? repRank(regionId) : 0;
-  return Math.max(floor, Math.round(base * (1 - 0.03 * stars)));
+  /* [TILLAGT v5.487.0] VASKAN HAR ETT FAST PRIS (Chris). Servern gor sedan i dag
+     samma sak i vendor_price_for: en vaska kostar 25 guld rakt av, och den
+     vanliga prissattningen tar over forst om den nagon gang skulle ligga hogre
+     (runt niva 38 for uncommon) - annars kunde man kopa billigt och salja
+     tillbaka med vinst.
+     VARFOR det ar viktigt att det star har ocksa: offlinelaget raknade sitt eget
+     pris och kande inte till vaskorna alls, sa skarmen har VISAT ett annat tal
+     an servern skulle ta anda sedan paslaget infordes. Ingen kunde kopa pa det -
+     kopet gar alltid via servern - men det ar en glidning, och de blir buggar
+     till slut. Ryktesrabatten galler inte vaskan, precis som pa servern. */
+  /* [ANDRAT v5.488.0] RYKTET GER RABATT PA ALLT (Chris). Forut gallde de tre
+     procenten per stjarna bara forbrukningsvaror pa servern - pjaser fick
+     ingenting, trots att den har raden alltid raknat med dem. Nu haller servern
+     samma regel, och vaskan foljer med.
+     Golvet ar villkoret: man far aldrig kunna kopa billigare an man kan salja,
+     inte ens med fem stjarnor. Matt pa serversidan over sex sallsyntheter gange
+     femtio nivaer - i noll av 300 fall behovde golvet ta over. Det star kvar
+     anda, for banden justeras om under balansarbetet. */
+  const rabatt = 1 - 0.03 * (regionId ? repRank(regionId) : 0);
+  const pris = (entry && entry.k && ITEMS[entry.k] && ITEMS[entry.k].bag)
+             ? Math.max(VENDOR_BAG_PRICE, base) : base;
+  return Math.max(floor, Math.round(pris * rabatt));
 }
 /* ---------- SORTIMENTET FYLLS PÅ ----------
    Handlaren har inte en hylla utan ett LAGER som byts ut varje timme. Vad som
@@ -34992,6 +35020,13 @@ const CHAT_MAX = 240, CHAT_TRADE_LEVEL = 5, CHAT_HISTORY = 50, CHAT_KEEP = 200;
 const CHAT = {mode: 'compact', tab: 'general', conv: null, convName: null,
   msgs: {general: [], trade: [], guild: [], whisper: []}, sys: [],
   unread: {general: 0, trade: 0, guild: 0, whisper: 0}, whispers: [], pin: null,
+  /* [TILLAGT v5.483.0] Falten for socketens halsa (Chris).
+     sockLive  - ar telefonen uppkopplad just nu
+     sockWanted- vill vi vara uppkopplade? Falskt nar vi stanger med flit, sa
+                 onclose inte ringer upp igen mitt i en avsiktlig nedstangning.
+     sockTry   - hur manga misslyckade forsok i rad; styr vantetiden
+     sockT     - handtaget till den vantande ateranslutningen */
+  sockLive: false, sockWanted: false, sockTry: 0, sockT: null,
   oldest: {}, lastGuild: 0, lastSeen: {}, sock: null, hb: null, poll: null, armed: false, armT: null,
   links: [], atBottom: true, idleT: null, busy: false, ready: false, menuEl: null};
 const CHAT_DEF = {opacity: 0.92, size: 'm', stamps: true, sys: true, profanity: false, autoscroll: true,
@@ -35319,7 +35354,10 @@ function chatBeep(vilket){
   const c = chatCtx(); if (!c) return;
   try { so.play(c, c.currentTime + 0.01); } catch (e){}
 }
-async function chatSync(){
+/* [ANDRAT v5.483.0] Orsaken avgor om gillet hamtas. 'socket' betyder att
+   servern just sa att nagot kommit in - da ar det vart att titta. 'puls' ar bara
+   skyddsnatet och behover inte hamta en flik ingen tittar pa. */
+async function chatSync(orsak){
   if (!NET.on || !SRV.charId || CHAT.busy) return;
   /* [RATTAT v5.180.3] Gick man med i (eller lamnade) ett gille lyssnade
      realtidskanalen fortfarande pa det gamla laget. Prenumerera om vid byte. */
@@ -35340,12 +35378,20 @@ async function chatSync(){
       /* [ANDRAT v5.181.0] Det blandade flodet ar borta, sa vi hamtar inte langre
          andra kanaler for att visa dem. Gillet hamtas anda: dess olasta raknas
          inte av unread-anropet utan mot senast sedda rad. */
-      if (CHAT.tab !== 'guild' && SRV.guild && SRV.guild.id) await chatFetchTab('guild');
+      /* [ANDRAT v5.483.0] Forut hamtades gillet var femte sekund aven nar man
+         last en helt annan flik - 346 anrop pa en halvtimme, mott. Nu bara nar
+         socketen sagt till att nagot kommit, eller nar man faktiskt tittar pa
+         fliken. Notiserna lever kvar: socketen prenumererar pa guild_chat och
+         utloser den har synken sjalv. */
+      if (CHAT.tab !== 'guild' && SRV.guild && SRV.guild.id
+          && (orsak === 'socket' || !CHAT.sockLive)) await chatFetchTab('guild');
       if (CHAT.tab === 'whisper' && !CHAT.conv) CHAT.whispers = (await srvRpc('chat_whispers', {p_character: SRV.charId})) || [];
       if (CHAT.tab === 'guild' && SRV.guild && SRV.guild.id) CHAT.unread.guild = 0;
     } else {
       /* minimerad: gillets olasta raknas mot senast sedda id */
-      if (SRV.guild && SRV.guild.id){ const rows = await srvRpc('guild_chat_fetch', {p_character: SRV.charId, p_after: CHAT.lastGuild});
+      /* [ANDRAT v5.483.0] Samma regel i minimerat lage. */
+      if (SRV.guild && SRV.guild.id && (orsak === 'socket' || !CHAT.sockLive)){
+        const rows = await srvRpc('guild_chat_fetch', {p_character: SRV.charId, p_after: CHAT.lastGuild});
         /* [ANDRAT v5.296.0] Raderna hamtas fortfarande hem sa loggen och
            aviseringarna lever - men de RAKNAS inte langre har. Servern ager
            siffran. */
@@ -35368,10 +35414,26 @@ async function chatSync(){
    BARA MARKENA ritas om nar inget andrats. Ett oppet fonster ritas om forst
    nar antalet faktiskt bytt varde, annars hade listan blinkat var femte
    sekund - precis den bugg vi nyss tog bort ur chatten. */
-let SOCIAL_PULSE = {tick: 0, mail: -1, friends: -1, guild: -1, pets: '', busy: false};
+let SOCIAL_PULSE = {tick: 0, mail: -1, friends: -1, guild: -1, pets: '', busy: false, at: 0};
+/* [TILLAGT v5.484.0] EGEN TAKT, INTE CHATTENS (Chris).
+   socialPulse anropas ur chatSync:s finally - posten, vannerna, husdjuren och
+   arterna akte alltsa med chattpulsen. Uppmatt pa mobilen: 42-45 anrop pa tio
+   minuter, exakt chattens takt. Det var den grupp jag inte kunde forklara.
+
+   v5.483.0 sankte chattpulsen fran 5 till 30 sekunder och sankte darmed de har
+   pa kopet - MEN den lat ocksa socketen utlosa chatSync vid VARJE inkommet
+   meddelande. Utan den har sparren skulle en pratig gilleskanal dra hem post,
+   vanlista och husdjur en gang per meddelande. Det vore samre an fore lagningen.
+
+   Trettio sekunder ar golvet oavsett vem som knackar. Badgar far alltsa slappa
+   efter med upp till en halv minut, vilket ingen mark ker - de raknar post och
+   vanforfragningar, inte nagot man star och vantar pa. */
+const SOCIAL_PULSE_MIN = 30000;
 async function socialPulse(){
   if (!NET.on || !SRV.charId || SOCIAL_PULSE.busy) return;
   if (typeof document !== 'undefined' && document.hidden) return;
+  if (Date.now() - SOCIAL_PULSE.at < SOCIAL_PULSE_MIN) return;
+  SOCIAL_PULSE.at = Date.now();
   SOCIAL_PULSE.busy = true;
   const n = ++SOCIAL_PULSE.tick;
   try {
@@ -35446,8 +35508,16 @@ async function chatMarkRead(){
   CHAT.unread[t] = 0;
   try { await srvRpc('chat_mark_read', {p_character: SRV.charId, p_channel: t, p_conv_char: t === 'whisper' ? (CHAT.conv || null) : null}); } catch (e){}
 }
+/* [TILLAGT v5.483.0] Vantetid fore nasta forsok: 1, 2, 4, 8, 16, 30, 30, 30 ...
+   VARFOR stigande: ar servern nere svarar den inte snabbare for att vi fragar
+   tusen ganger. VARFOR ett tak pa 30 s: annars hamnar en flik som legat och
+   sovit hela natten pa flera minuters vantan innan den kommer tillbaka. */
+function chatSockDelay(){
+  return Math.min(30000, 1000 * Math.pow(2, Math.max(0, CHAT.sockTry - 1)));
+}
 function chatSockOpen(){
   chatSockClose();
+  CHAT.sockWanted = true;
   CHAT.sockGuild = SRV.guild && SRV.guild.id ? SRV.guild.id : null;
   if (!NET.on || !SRV.url || !SRV.token) return;
   try {
@@ -35460,19 +35530,77 @@ function chatSockOpen(){
       ws.send(JSON.stringify({topic: 'realtime:chat', event: 'access_token', ref: '2', payload: {access_token: SRV.token}}));
       CHAT.hb = setInterval(() => { try { ws.send(JSON.stringify({topic: 'phoenix', event: 'heartbeat', ref: String(Date.now()), payload: {}})); } catch (e){} }, 25000);
     };
-    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e){ return; } if (m.event === 'postgres_changes') chatSync(); };
-    ws.onclose = () => { CHAT.sock = null; };
-  } catch (e){ CHAT.sock = null; }
+    /* [ANDRAT v5.483.0] Lyckad uppkoppling nollstaller backoffen, och vi gor en
+       full synk direkt - under tiden kopplingen lag nere kan meddelanden ha
+       kommit som ingen sa. Darfor 'socket' som orsak: den hamtar aven gillet. */
+    ws.addEventListener('open', () => {
+      CHAT.sockLive = true; CHAT.sockTry = 0;
+      chatArmPoll();
+      chatSync('socket');
+    });
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e){ return; } if (m.event === 'postgres_changes') chatSync('socket'); };
+    /* [ANDRAT v5.483.0] TELEFONEN RINGER UPP IGEN (Chris). Forut satte onclose
+       bara CHAT.sock = null och gjorde ingenting mer - tappades kopplingen var
+       chatten dod tills sidan laddades om, och femsekunderspulsen var det enda
+       som holl den vid liv. Det var ocksa skalet att pulsen MASTE vara sa tat.
+       Nu ringer vi upp igen, och da racker det med trettio sekunder. */
+    ws.onclose = () => {
+      CHAT.sock = null; CHAT.sockLive = false;
+      chatArmPoll();
+      if (!CHAT.sockWanted || !NET.on || !SRV.charId) return;
+      CHAT.sockTry++;
+      if (CHAT.sockT) clearTimeout(CHAT.sockT);
+      CHAT.sockT = setTimeout(() => { if (CHAT.sockWanted) chatSockOpen(); }, chatSockDelay());
+    };
+    ws.onerror = () => { try { ws.close(); } catch (e){} };
+  } catch (e){
+    CHAT.sock = null; CHAT.sockLive = false;
+    if (CHAT.sockWanted && NET.on && SRV.charId){
+      CHAT.sockTry++;
+      if (CHAT.sockT) clearTimeout(CHAT.sockT);
+      CHAT.sockT = setTimeout(() => { if (CHAT.sockWanted) chatSockOpen(); }, chatSockDelay());
+    }
+  }
 }
-function chatSockClose(){ if (CHAT.hb){ clearInterval(CHAT.hb); CHAT.hb = null; } if (CHAT.sock){ try { CHAT.sock.close(); } catch (e){} CHAT.sock = null; } }
+function chatSockClose(){
+  /* [ANDRAT v5.483.0] sockWanted nollas INTE har: chatSockOpen borjar med att
+     anropa den har for att stada bort en gammal koppling, och da ar det just
+     meningen att vi ska koppla upp igen. Den som verkligen vill sluta anropar
+     chatSockStop(). */
+  if (CHAT.hb){ clearInterval(CHAT.hb); CHAT.hb = null; }
+  if (CHAT.sock){ try { CHAT.sock.close(); } catch (e){} CHAT.sock = null; }
+  CHAT.sockLive = false;
+}
+/* Sluta pa riktigt - vid utloggning och karaktarsbyte. */
+function chatSockStop(){
+  CHAT.sockWanted = false;
+  if (CHAT.sockT){ clearTimeout(CHAT.sockT); CHAT.sockT = null; }
+  CHAT.sockTry = 0;
+  chatSockClose();
+}
 async function chatStart(){
   chatCfgLoad(); chatApplyCfg(); chatSet(NET.on && !!SRV.charId); CHAT.ready = true;
   if (!NET.on || !SRV.charId) return;
   await chatSync(); chatSockOpen();
-  if (CHAT.poll) clearInterval(CHAT.poll);
-  CHAT.poll = setInterval(chatSync, 5000);
+  chatArmPoll();
   chatRender();
 }
+/* [TILLAGT v5.483.0] PULSEN ANPASSAR SIG EFTER SOCKETEN (Chris).
+   Lever telefonen ringer servern sjalv nar nagot hander, och pulsen behovs bara
+   som skyddsnat - trettio sekunder racker. Ar den dod ar pulsen det ENDA som
+   hamtar meddelanden, och da maste den vara tat igen.
+   setTimeout i stallet for setInterval: takten ska kunna bytas mitt i, och ett
+   interval gar inte att raka om utan att stanga och starta det. */
+const CHAT_PULS_LIVE = 30000, CHAT_PULS_DOD = 5000;
+function chatArmPoll(){
+  if (CHAT.poll){ clearTimeout(CHAT.poll); CHAT.poll = null; }
+  if (!NET.on || !SRV.charId || !CHAT.ready) return;
+  CHAT.poll = setTimeout(function puls(){
+    chatSync('puls');
+    CHAT.poll = setTimeout(puls, CHAT.sockLive ? CHAT_PULS_LIVE : CHAT_PULS_DOD);
+  }, CHAT.sockLive ? CHAT_PULS_LIVE : CHAT_PULS_DOD);
+}
+
 /* --- skicka --- */
 function chatDraftLinksRender(){
   const box = $('chat-draftlinks'); if (!box) return;
@@ -36829,7 +36957,14 @@ function wireNodeWin(){
       closeNodeWin();
       if (qid && typeof openQuestWin === 'function'){ openQuestWin(qid); return; }
     }
-    if (isNarrowScreen()){
+    /* [ANDRAT v5.486.0] DE EGNA RUTORNA PA ALLA BREDDER (Chris). Spärren var
+       isNarrowScreen(): pa telefon oppnade raden sin egen ruta, pa dator foll
+       ALLT igenom till den gamla zonsidan. Trycker man pa "Encounter" ska man fa
+       motet, inte en sida dar motet ar ett avsnitt langst ner.
+       Det ar samma slutsats som v5.324.0 redan drog for kontrakten: har raden en
+       egen ruta ar zonsidan fel ruta. Nu galler det for alla rader.
+       Zonsidan finns kvar som fallskarm langst ner om inget matchar. */
+    {
       closeNodeWin();
       if (vart === 'enc'){ openNodeWin('encounter', reg, zon); return; }
       if (vart === 'exp'){ openNodeWin('expedition', reg, zon); return; }
