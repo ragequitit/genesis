@@ -883,7 +883,9 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 }
 .vg-note.warn{color:var(--orange);border-color:rgba(255,160,60,.45);background:rgba(255,160,60,.07)}
 .vg-clock{
-  float:right;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;
+  /* [ANDRAT v5.496.1] EN PIXEL STORRE (Chris). 9px var i underkant mot raden
+     bredvid; klockan ar en siffra man ska kunna lasa i forbifarten. */
+  float:right;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;
   color:var(--cyan);text-transform:none;
 }
 .trader-row.sold{opacity:.55}
@@ -7915,7 +7917,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.495.2 — INGEN REGELRAD PA EMOJI</div>
+        <div class="sn-ver">GENESIS v5.497.0 — TVA XP PER FYND</div>
       </div>
     </div>
   </aside>
@@ -9011,7 +9013,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.495.2 — INGEN REGELRAD PA EMOJI</div>
+            <div class="desc">GENESIS v5.497.0 — TVA XP PER FYND</div>
           </div>
         </div>
       </div>
@@ -24395,6 +24397,32 @@ function rollVendorStock(regionId){
    ingen klocka var för sig i loopen, och tiden räknas ändå på absoluta
    tidsstämplar — precis som expeditionerna — så en stängd flik gör ingen skillnad.
    Har du varit borta i fem timmar får du ETT nytt lager, inte fem. */
+<<<<<<< HEAD
+/* [TILLAGT v5.496.0] EN VAG FOR OMRITNINGEN AV BODEN (Chris bugg).
+   VARFOR: hyllan hamtas fran servern och rutan ska ritas om NAR svaret kommer.
+   Den omritningen pekade rakt pa openZone - alltsa pa zonsidan, den enda plats
+   boden fanns nar raden skrevs. Sedan v5.494.0 har handlaren ett EGET fonster,
+   och dit nadde omritningen aldrig: fonstret oppnades, hyllan var tom, och forst
+   nar man tryckte pa en flik ritades den om - da hade svaret hunnit fram.
+   Symtomet var "boden ar tom tills man klickar Supplies och Gear igen", plus en
+   klocka som stod still pa 0m 1s (platshallarens egen tid, en sekund).
+   Har svarar vi i stallet pa fragan VILKA rutor visar boden just nu, och ritar
+   om dem. Nasta ruta som visar en bod behover bara laggas till har. */
+function vendorViewsRedraw(regionId){
+  /* Zonsidan: bara om regionrutan ar oppen pa just den har regionen. */
+  if (openZoneRef && openZoneRef.region === regionId &&
+      regionOverlay && regionOverlay.classList.contains('open')){
+    openZone(regionId, openZoneRef.zi, true);
+  }
+  /* Bodens eget fonster: bara om det ar oppet och visar samma region. */
+  const w = document.getElementById('node-overlay');
+  if (w && w.classList.contains('open') && NODE && NODE.kind === 'shop' &&
+      NODE.region === regionId){
+    try { renderNodeWin(); } catch (e){}
+  }
+}
+=======
+>>>>>>> 81fe1855331b249517065ec7937d647b6823c416
 function vendorState(regionId){
   if (!S.vend) S.vend = {};
   let v = S.vend[regionId];
@@ -24404,7 +24432,11 @@ function vendorState(regionId){
        hamtas det - och boden ritas om NAR svaret kommit, aldrig innan. */
     if (!v || !v.server || !(v.next > now)){
       netVendorLookInto(regionId).then(got => {
+<<<<<<< HEAD
+        if (got) vendorViewsRedraw(regionId);
+=======
         if (got && openZoneRef && openZoneRef.region === regionId) openZone(regionId, openZoneRef.zi, true);
+>>>>>>> 81fe1855331b249517065ec7937d647b6823c416
       });
       return v && Array.isArray(v.stock) ? v : {stock: [], next: now + 1000, server: true};
     }
@@ -25046,10 +25078,29 @@ function tickZoneScanClock(){
   if (borde !== !!kl){ try { renderNodeWin(); } catch (e){} }
 }
 function tickVendorClock(){
+<<<<<<< HEAD
+  /* [ANDRAT v5.496.0] KLOCKAN GALLDE BARA ZONSIDAN (Chris bugg).
+     VARFOR: samma grund som vendorViewsRedraw ovan - raden skrevs nar boden bara
+     fanns pa zonsidan. I handlarens egna fonster stod klockan still och en ny
+     hylla hamtades aldrig hem, for funktionen gick ur redan pa forsta raden.
+     Nu letar vi upp VILKEN ruta som visar boden och raknar pa den regionen. */
+  let id = null;
+  if (openZoneRef && regionOverlay && regionOverlay.classList.contains('open') &&
+      openZoneRef.zone === TRADE_ZONE){
+    id = openZoneRef.region;
+  } else {
+    const w = document.getElementById('node-overlay');
+    if (w && w.classList.contains('open') && NODE && NODE.kind === 'shop') id = NODE.region;
+  }
+  if (id === null || id === undefined) return;
+  const v = S.vend && S.vend[id];
+  if (v && Date.now() >= v.next){ vendorViewsRedraw(id); return; }
+=======
   if (!openZoneRef || !regionOverlay.classList.contains('open')) return;
   if (openZoneRef.zone !== TRADE_ZONE) return;
   const id = openZoneRef.region, v = S.vend && S.vend[id];
   if (v && Date.now() >= v.next){ openZone(id, openZoneRef.zi); return; }
+>>>>>>> 81fe1855331b249517065ec7937d647b6823c416
   /* Klockan finns bara på gear-fliken; står man på supplies är elementet borta
      och då är det inget att uppdatera. */
   const el = $('vendor-clock');
@@ -27928,7 +27979,17 @@ function localGatherTick(dtSecs){
     while (localGatherBank[id] >= cyc){
       localGatherBank[id] -= cyc;
       const key = gatherRoll(id);
+<<<<<<< HEAD
+      /* [ANDRAT v5.497.0] FYRA XP PER FYND BLEV TVA (Chris). VARFOR: vavaren
+         nadde yrkestak 20 pa 31 timmar, sjukstugan pa 260 - atta ganger sa fort
+         for ett huvudyrke mot ett sidoyrke. Bara XP-takten ar halverad; cykeln,
+         misschansen och materialet ar ororda, sa outfittern far lika mycket
+         fiber som forut.
+         SAMMA TAL STAR I SERVERNS gather_tick och ar bytt i samma leverans. */
+      if (key){ giveMaterial(key, 1); grantProfXP(id, 2); n++; lastKey = key;
+=======
       if (key){ giveMaterial(key, 1); grantProfXP(id, 4); n++; lastKey = key;
+>>>>>>> 81fe1855331b249517065ec7937d647b6823c416
                 got[key] = (got[key] || 0) + 1; }
     }
     if (n){
