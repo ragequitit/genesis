@@ -7917,7 +7917,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.497.0 — TVA XP PER FYND</div>
+        <div class="sn-ver">GENESIS v5.498.0 — SAMLARVASKAN SPILLER OVER</div>
       </div>
     </div>
   </aside>
@@ -9013,7 +9013,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.497.0 — TVA XP PER FYND</div>
+            <div class="desc">GENESIS v5.498.0 — SAMLARVASKAN SPILLER OVER</div>
           </div>
         </div>
       </div>
@@ -11854,12 +11854,20 @@ async function netPullItemsRun(){
      Skarvorna gick forut till samlarvaskan har men raknades bort pa servern -
      nu gar de dit de hor, och de smidda stenarna med dem. */
   const pouchStacks = (stackRows || []).filter(st => isShardKey(st.stack_key));
-  const gathRows = (stackRows || []).filter(st => isGatherKey(st.stack_key) && !gbagIsOut(st.stack_key));
-  const mainRows = (stackRows || []).filter(st => !isGatherKey(st.stack_key) && !isShardKey(st.stack_key));
+  /* [ANDRAT v5.498.0] SAMLARHYLLAN RYMMER TIO SORTER, RESTEN LIGGER I RYGGSACKEN
+     (Chris). Forut vaxte hyllan till allt som kom hem, medan servern raknade
+     overskottet mot ryggsacken - vaskan sag rymligare ut an den var. Nu delas
+     raderna har pa samma satt som servern raknar: de tio forsta samlade
+     sorterna till hyllan, resten in bland ryggsackens saker. */
+  const allaGath = (stackRows || []).filter(st => isGatherKey(st.stack_key) && !gbagIsOut(st.stack_key));
+  const gathRows = allaGath.slice(0, GATHER_BAG_SLOTS);
+  const gathOver = allaGath.slice(GATHER_BAG_SLOTS);
+  const mainRows = (stackRows || []).filter(st => !isGatherKey(st.stack_key) && !isShardKey(st.stack_key))
+                                    .concat(gathOver);
   const gemRows = (bagRows || []).filter(r => r && r.gear && gemByKey(r.gear.t));
   const needMain = (bagRows.length - gemRows.length) + mainRows.length;
   const gStart = Math.max(gbagStart(), needMain);
-  const gLen = Math.max(GATHER_BAG_SLOTS, gathRows.length);
+  const gLen = GATHER_BAG_SLOTS;
   const pLen = Math.max(4, pouchStacks.length + gemRows.length + 2);
   S.inv = new Array(gStart + gLen + pLen).fill(null);
   /* ORDNINGEN ar spelarens, inte serverns. Varje sak forsoker forst tillbaka till
@@ -18556,18 +18564,36 @@ function gbagStart(){ return invBaseSlots() + bagSlotsFrom(); }
    ett drag dit blev nekat med samlarvaskans ord.
    Nu raknas RADENS SORT, inte var den rakar ligga. Da kan granserna inte
    paverka rakningen och rakningen inte paverka granserna. */
-function gbagUsed(){
-  let n = 0;
-  for (let i = 0; i < S.inv.length; i++){
+/* [TILLAGT v5.498.0] VILKA SORTER LIGGER I HYLLAN, VILKA HAR SPILLT OVER (Chris).
+   Samlarvaskan ar en GRATIS hylla for tio sorter samlat material. Forut stannade
+   hela yrket tyst nar den elfte sorten skulle in. Nu spiller overskottet over i
+   ryggsacken och kostar en vanlig ruta dar - precis som serverns bag_used
+   raknar det. Yrket pausar forst nar BADA ar fulla.
+   EN funktion svarar pa fragan, sa hyllan, ryggsacken, dragandet och
+   omhyllningen aldrig kan svara olika. Ordningen ar spelarens egen: de tio
+   forsta samlade raderna i vaskan ar hyllans, resten ligger i ryggsacken. */
+function gbagShelfKeys(){
+  const set = new Set();
+  for (let i = 0; i < S.inv.length && set.size < GATHER_BAG_SLOTS; i++){
     const r = S.inv[i];
-    if (r && isGatherRow(r) && !gbagIsOut(r.key)) n++;
+    if (r && isGatherRow(r) && !gbagIsOut(r.key)) set.add(r.key);
   }
-  return n;
+  return set;
+}
+/* Ryms den har raden i hyllan? Ligger den redan dar, eller finns det plats. */
+function gbagFits(row, keys){
+  if (!row || !isGatherRow(row) || gbagIsOut(row.key)) return false;
+  const k = keys || gbagShelfKeys();
+  return k.has(row.key) || k.size < GATHER_BAG_SLOTS;
+}
+function gbagUsed(){
+  return gbagShelfKeys().size;
 }
 function gbagSlots(){
-  /* Har man redan fler sorter an tio ritas de anda ut - servern hindrar bara
-     NYA sorter, den kastar aldrig nagot. Rutan visar sanningen. */
-  return Math.max(GATHER_BAG_SLOTS, gbagUsed());
+  /* [ANDRAT v5.498.0] Hyllan VAXER INTE langre. Forut blev den sa stor som det
+     man rakade bara, och da kunde klienten visa tolv gratisrutor medan servern
+     raknade tva av dem mot ryggsacken - tva sanningar om samma vaska. */
+  return GATHER_BAG_SLOTS;
 }
 /* ---------- ADELSTENSPASEN (v5.221.0) ----------
    Tredje hyllan, efter samlarvaskan. INGET TAK: bara skarvor och karaktars-
@@ -18591,7 +18617,10 @@ function invRangeFor(row){
   const st = gbagStart(), po = pouchStart();
   if (row && row.key === '__main__') return {from: 0, to: st};
   if (isPouchRow(row)) return {from: po, to: invSlots()};
-  return (isGatherRow(row) && !gbagIsOut(row.key)) ? {from: st, to: po} : {from: 0, to: st};
+  /* [ANDRAT v5.498.0] Samlat material hor hemma i hyllan SA LANGE DEN RACKER.
+     Ar de tio sorterna uppe hor nasta sort hemma i ryggsacken i stallet - forut
+     nekades den helt och yrket stannade. */
+  return gbagFits(row) ? {from: st, to: po} : {from: 0, to: st};
 }
 /* Att ta ur en väska krymper ryggsäcken. Saker som skulle hamna utanför flyttas
    ned i lediga rutor först — och finns det inte plats nekas hela bytet, hellre än
@@ -18729,15 +18758,19 @@ function invFirstFree(row){
    det man sjalv stallt upp star kvar i den man vill. */
 function invReshelve(){
   const ryggsack = [], samlat = [], pasen = [];
+  /* [ANDRAT v5.498.0] Hyllan tar de TIO forsta samlade sorterna; resten laggs i
+     ryggsacken i stallet for att tryckas ut. Nyckelmangden raknas EN gang, ur
+     listan som den ser ut nu, sa ordningen ar spelarens egen. */
+  const hylla = gbagShelfKeys();
   for (let i = 0; i < S.inv.length; i++){
     const r = S.inv[i];
     if (!r) continue;
     if (isPouchRow(r)) pasen.push(r);
-    else if (isGatherRow(r) && !gbagIsOut(r.key)) samlat.push(r);
+    else if (isGatherRow(r) && !gbagIsOut(r.key) && hylla.has(r.key)) samlat.push(r);
     else ryggsack.push(r);
   }
   const gStart = Math.max(gbagStart(), ryggsack.length);
-  const gLen   = Math.max(GATHER_BAG_SLOTS, samlat.length);
+  const gLen   = GATHER_BAG_SLOTS;
   const pStart = gStart + gLen;
   const pLen   = Math.max(4, pasen.length + 2);
   const ny = new Array(pStart + pLen).fill(null);
@@ -18918,7 +18951,9 @@ function vaultSort(){
    vaktade sitt innehall med hennes regler. */
 function inGatherBag(i){ return i >= gbagStart() && i < pouchStart(); }
 function inGemPouch(i){ return i >= pouchStart(); }
-function gbagAccepts(row){ return !row || isGatherRow(row); }
+/* [ANDRAT v5.498.0] Hyllan tar samlat material SA LANGE DEN RACKER. Drar man dit
+   en elfte sort nekas det - den hor hemma i ryggsacken nu. */
+function gbagAccepts(row){ return !row || gbagFits(row); }
 function pouchRefuse(){
   say('The gem pouch only takes expedition shards and character gems.');
   renderInventory();
