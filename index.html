@@ -7917,7 +7917,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.498.0 — SAMLARVASKAN SPILLER OVER</div>
+        <div class="sn-ver">GENESIS v5.500.0 — KNAPPEN HETER CRAFT</div>
       </div>
     </div>
   </aside>
@@ -9013,7 +9013,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.498.0 — SAMLARVASKAN SPILLER OVER</div>
+            <div class="desc">GENESIS v5.500.0 — KNAPPEN HETER CRAFT</div>
           </div>
         </div>
       </div>
@@ -26998,7 +26998,10 @@ function ppBookRows(profId){
       '</div>' +
       '<button class="pp-openbtn addq" data-addq="' + r.id + '"' +
         ((afford && free > 0) ? '' : ' disabled') + '>' +
-        (ppInstant(profId) ? 'Make' : (free > 0 ? 'Add to queue' : 'Queue full')) + '</button>' +
+      /* [ANDRAT v5.500.0] MAKE HETER CRAFT (Chris). Spelet sager "craft" overallt
+         annars - yrkena, receptboken, felmeddelandena - och ett eget ord pa just
+         den har knappen gjorde den till nagot annat an den ar. */
+        (ppInstant(profId) ? 'Craft' : (free > 0 ? 'Add to queue' : 'Queue full')) + '</button>' +
     '</div>';
   }).join('') || '<div class="shelf-empty">No recipes match.</div>';
 }
@@ -27655,10 +27658,18 @@ function profPanelCardHTML(p, linked){
        gor: samlaryrken har inga recept, sa dar star Open; hantverket och
        sidoyrket oppnar sin receptbok. Den undre gar RAKT till skilltradet, sa
        man slipper vagen via yrkessidans flik. */
+    /* [ANDRAT v5.499.0] SAMLARNA FAR OCKSA SIN BOK PA KNAPPEN (Chris). VARFOR:
+       raden nedan var skriven nar samlaryrken inte hade nagra recept. Det har de
+       sedan v5.401 - vavaren gor spolar, gruvan smalter skrot - och sedan dess
+       ljog knappen. Man gar inte in i vavaren for att TITTA pa att hon arbetar;
+       man gar in for att gora nagot. Nu heter knappen samma sak for alla yrken:
+       yrkets eget ord for sitt papper. Specialfallet ar borta, sa det finns inte
+       langre tva regler som kan saga olika.
+       Arbetsvyn ar inte borta - den nas fran fliken inne pa yrkessidan. */
     '<div class="jc-btns">' +
       '<div class="jc-btn" data-openprof="' + p.id + '">' +
         '<i class="jcb-ico"></i><span class="jcb-t">' +
-        (p.kind === 'gathering' ? 'Open' : paperOf(p.id).fl) + '</span><i class="jcb-arrow"></i></div>' +
+        paperOf(p.id).fl + '</span><i class="jcb-arrow"></i></div>' +
       '<div class="jc-btn jc-btn2" data-opentree="' + p.id + '">' +
         '<i class="jcb-ico tree"></i><span class="jcb-t">Skill Tree</span>' +
         '<i class="jcb-arrow"></i></div>' +
@@ -27867,7 +27878,12 @@ function renderProfessions(){
     say('Learned ' + PROF_BY[id].name + '!');
     const w = $('prof-overlay');
     if (w) w.classList.remove('open');
-    profCardOpen(id, PROF_BY[id].kind === 'gathering' ? 'work' : 'book');
+    /* [ANDRAT v5.499.0] SAMMA REGEL SOM PA KORTETS KNAPP (Chris). Den har raden
+       var en NAMNE till den i kortets klick - samma fraga, tva kroppar. Bytte
+       man den ena stod den andra kvar och sa nagot annat. Nu oppnas yrket i sin
+       bok overallt, ocksa direkt efter att man lart sig det: boken sager vad man
+       KAN gora, arbetsvyn bara att nagot pagar. */
+    profCardOpen(id, 'book');
   }));
   /* [BORTTAGET v5.294.0] Tre lyssnare foll med vyn. Receptbokens hade dessutom
      dubblerat sig mot den sidbreda lyssnaren om knappen nagonsin stott har. */
@@ -28120,9 +28136,11 @@ document.addEventListener('click', e => {
        huvudyrkena sin yrkessida. Det gemensamma fonstret ar kvar for valet. */
     const id = btn.dataset.openprof;
     if (!PROF_BY[id]){ openProfessions(); return; }
-    /* [ANDRAT v5.404.0] Samlarkortet sager Open och ska landa pa passet - boken
-       nas fran fliken inne pa sidan. Hantverket oppnar sin bok som forut. */
-    profCardOpen(id, PROF_BY[id].kind === 'gathering' ? 'work' : 'book');
+    /* [ANDRAT v5.499.0] KNAPPEN LANDAR DAR DEN LOVAR (Chris). Forut sa
+       samlarkortet Open och landade pa passet; nu star yrkets papper pa knappen
+       och da ska den oppna boken, precis som hantverket. Arbetsvyn nas fran
+       fliken inne pa sidan. Samma rad for alla yrken - inget specialfall kvar. */
+    profCardOpen(id, 'book');
     return;
   }
   /* [ANDRAT v5.8.0] Plustecknet oppnade bara fonstret, och man fick klicka en
