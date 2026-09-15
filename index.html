@@ -952,7 +952,28 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 .cs-rows::-webkit-scrollbar-track{background:transparent}
 .cs-rows::-webkit-scrollbar-thumb{background:var(--cyan-dim);border-radius:99px}
 .cs-rows::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
+/* [TILLAGT v5.530.0] GRUPPERNA I STATSRUTAN. Rubriken bar gruppens farg som en
+   list till vanster - samma sprak som Chris bild - och ar en KNAPP som faller
+   ihop gruppen. */
+.cs-top{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:0 2px 5px;font-size:10px;font-weight:900;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--cyan)}
+.cs-top span{color:var(--text-dim);letter-spacing:.08em;font-size:8.5px}
+.cs-grp{--gc:var(--cyan);margin-bottom:5px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--border-soft);border-left:3px solid var(--gc)}
+.cs-gh{display:flex;align-items:center;gap:7px;width:100%;padding:5px 7px;cursor:pointer;
+  background:color-mix(in srgb,var(--gc) 11%,transparent);border:none;
+  color:var(--gc);font-size:9px;font-weight:900;letter-spacing:.12em;
+  text-transform:uppercase;text-align:left}
+.cs-gh:hover{background:color-mix(in srgb,var(--gc) 18%,transparent)}
+.cs-gi{flex:0 0 auto;font-size:11px;line-height:1}
+.cs-gn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-gc{flex:0 0 auto;font-family:var(--font-mono);font-size:10px;color:var(--text)}
+.cs-gv{flex:0 0 auto;font-size:12px;line-height:1;transform:rotate(-90deg);opacity:.75}
+.cs-grp.shut .cs-gb{display:none}
+.cs-gb{padding:1px 7px 3px}
 .cs-row{display:flex;justify-content:space-between;align-items:center;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}
+.cs-gb .cs-row:last-child{border-bottom:none}
 .cs-row:last-child{border-bottom:none}
 .cs-row .k{color:var(--text);font-weight:600;min-width:0}
 /* [BUGG] TRAVEL SPEED LAG I FEL KANT. Dess varde ar det enda som har ett ord
@@ -8158,7 +8179,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.529.0 — PARAGON UTAN RULLNING</div>
+        <div class="sn-ver">GENESIS v5.530.0 — STATS I FEM GRUPPER</div>
       </div>
     </div>
   </aside>
@@ -9294,7 +9315,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.529.0 — PARAGON UTAN RULLNING</div>
+            <div class="desc">GENESIS v5.530.0 — STATS I FEM GRUPPER</div>
           </div>
         </div>
       </div>
@@ -19811,21 +19832,37 @@ function refreshHpBar(){
 /* Bara det du FAKTISKT har visas. En lista full av nollor är brus — den tvingar
    dig att hålla reda på saker som inte finns. HP är undantaget: den är alltid
    sann och alltid relevant. */
+/* [OMBYGGT v5.530.0] STATSRUTAN AR GRUPPERAD (Chris). VARFOR: tjugotva rader i
+   en enda kolumn ar en vagg, inte en lista - "det ar en suddighet", och han har
+   ratt. Varje rad bar nu en GRUPP, och rutan ritar dem under var sin rubrik med
+   antalet i.
+   Grupperna ar Chris egna fem, och de fem som saknades i hans bild ar inlagda
+   dar de hor hemma: Crit Damage i strid, Scrap Find, Sell Value och Gear Drop
+   Chance i loot, Offline Cap i utveckling. Ingen rad ar borttagen och ingen rads
+   RAKNING ar rord - bara var den star. */
+const CS_GROUPS = [
+  ['combat',  'Combat',                '\u2694', '#ff6b6b'],
+  ['travel',  'Travel & expeditions',  '\u00bb', '#38e8ff'],
+  ['loot',    'Loot & economy',        '\u25ce', '#f5c542'],
+  ['prog',    'Progression',           '\u2191', '#c084fc'],
+  ['world',   'World',                 '\u2739', '#4ade80']
+];
 function charStatRows(){
   const r = [];
   const round = v => Math.round(v * 100) / 100;
-  const up = (k, v) => { v = round(v); if (v > 0) r.push([k, '+' + v + '%']); };
+  const rad = (g, k, v) => r.push([k, v, g]);
+  const up = (g, k, v) => { v = round(v); if (v > 0) r.push([k, '+' + v + '%', g]); };
   /* Ordningen ar spelarens: Power, HP, Damage. Hit ar med i koden men gomd -
      Damage ganger Power delat med hundra - och tas fram den dag den anvands. */
-  r.push(['Power', fmt(totalPower())]);
-  r.push(['HP', fmt(totalHP())]);
-  if (totalDamage() > 0) r.push(['Damage', fmt(totalDamage())]);
+  rad('combat', 'Power', fmt(totalPower()));
+  rad('combat', 'HP', fmt(totalHP()));
+  if (totalDamage() > 0) rad('combat', 'Damage', fmt(totalDamage()));
   /* [TILLAGT v5.201.0] Anfallet i strid. Bar man ingenting star Power pa noll,
      och da sag det ut som att man inte kunde slass alls - men handerna raknas.
      Raden visas bara nar grundtalet ar det som galler, sa den inte skrapar
      skarmen for den som redan har utrustning. */
   if (PVE.attack && PVE.attack > totalPower() + totalDamage())
-    r.push(['Attack', fmt(PVE.attack) + ' (unarmed)']);
+    rad('combat', 'Attack', fmt(PVE.attack) + ' (unarmed)');
   /* r.push(['Hit', fmt(totalHit())]);  <- vantar pa PvE */
   /* Bara talet, som alla andra rader. Ordet "time" sa att lagre ar battre, men
      kostade en radbrytning i varje karaktarsruta - och minustecknet sager redan
@@ -19840,64 +19877,93 @@ function charStatRows(){
        Expedition Speed = utrustning + flaska + hjalpare + klass (start_expedition)
      Forut saknades klassen pa crit och resa, utrustningen och flaskan pa
      expeditionsfarten, och stenen overallt. */
-  if (travelSpeedPct()) r.push(['Travel Speed', '−' + travelSpeedPct() + '%']);
-  up('Crit Chance', gearBonus('crit') + classVal('crit'));
-  up('Fragment Find', gearBonus('frag') + helperBonus('frag') + gemPct('frag_find'));
-  up('Gold Find', gearBonus('gold') + helperBonus('gold') + gemPct('gold_find'));
-  up('Loot Luck', gearBonus('luck') + boostPct('luck'));
+  if (travelSpeedPct()) rad('travel', 'Travel Speed', '−' + travelSpeedPct() + '%');
+  up('combat', 'Crit Chance', gearBonus('crit') + classVal('crit'));
+  up('loot', 'Fragment Find', gearBonus('frag') + helperBonus('frag') + gemPct('frag_find'));
+  up('loot', 'Gold Find', gearBonus('gold') + helperBonus('gold') + gemPct('gold_find'));
+  up('loot', 'Loot Luck', gearBonus('luck') + boostPct('luck'));
   /* [ANDRAT v5.519.0] Field Training och paragonens Insight rakas i grant_xp pa
      servern - da maste de sta har ocksa, annars ljuger raden. */
-  up('XP Bonus', gearBonus('xp') + boostPct('xp') + gemPct('player_xp') +
+  up('prog', 'XP Bonus', gearBonus('xp') + boostPct('xp') + gemPct('player_xp') +
                  skillPct('player', 'p_xp') + paragonPct('pg_xp'));
   /* [BORTTAGET v5.219.0] Offline Earnings stod alltid pa noll och gick inte
      att hoja nagonstans. En rad som alltid sager noll ar en rad som ljuger. */
   /* [RATTAT v5.348.0] Klassen saknades aven har - servern lagger class_bonus i
      grant_pet_xp, och Warden ger +25 % husdjurs-XP. */
-  up('Pet XP', gearBonus('petxp') + helperBonus('petxp') + classVal('petxp'));
-  up('Crit Damage', gearBonus('critdmg'));
+  up('prog', 'Pet XP', gearBonus('petxp') + helperBonus('petxp') + classVal('petxp'));
+  up('combat', 'Crit Damage', gearBonus('critdmg'));
   /* Husdjurets egen formaga hor hemma i samma lista - annars maste man oppna ett
      annat fonster for att se halva sin karaktar. Alla TIO star har nu; forut stod
      fyra, varav en ('Dust Yield') pekade pa en formaga som inte finns langre och
      en ('Machine Cost') var en hardkodad nolla efter att den egenskapen pensionerades. */
-  up('Scrap Find', helperBonus('scrap'));
-  up('Expedition Speed', expSpeedPct());
-  up('Sell Value', helperBonus('sellvalue'));
-  up('Fuel Regen', skillPct('refiner', 'fuel_regen') + skillPct('player', 'p_fuel_regen'));
+  up('loot', 'Scrap Find', helperBonus('scrap'));
+  up('travel', 'Expedition Speed', expSpeedPct());
+  up('loot', 'Sell Value', helperBonus('sellvalue'));
+  up('travel', 'Fuel Regen', skillPct('refiner', 'fuel_regen') + skillPct('player', 'p_fuel_regen'));
   /* [TILLAGT v5.519.0] SPELARTRADETS EGNA RADER (Chris). De fyra som gar genom
      gearBonus - guld, fragment, tur och expeditionsfart - star redan i raderna
      ovanfor och behovde ingenting. De har atta har ingen egen rad i dag, och en
      nod man kopt ska synas nagonstans. Noll doljs av up(), sa listan vaxer bara
      for den som faktiskt lagt poang. */
-  up('Profession XP', skillPct('player', 'p_prof_xp'));
-  up('Offline Earnings', skillPct('player', 'p_offline'));
-  up('God Roll Chance', skillPct('player', 'p_godroll'));
-  up('Quest Rewards', skillPct('player', 'p_quest'));
-  up('Reputation Gain', skillPct('player', 'p_rep'));
-  up('Class Power', skillPct('player', 'p_class'));
-  up('Gear Drop Chance', skillPct('player', 'p_geardrop'));
+  up('prog', 'Profession XP', skillPct('player', 'p_prof_xp'));
+  up('prog', 'Offline Earnings', skillPct('player', 'p_offline'));
+  up('loot', 'God Roll Chance', skillPct('player', 'p_godroll'));
+  up('world', 'Quest Rewards', skillPct('player', 'p_quest'));
+  up('world', 'Reputation Gain', skillPct('player', 'p_rep'));
+  up('combat', 'Class Power', skillPct('player', 'p_class'));
+  up('loot', 'Gear Drop Chance', skillPct('player', 'p_geardrop'));
   {
     /* Tva som inte ar procent utan minuter och timmar - egna rader med enhet. */
     const cs = skillPct('player', 'p_core_min');
-    if (cs > 0) r.push(['Core Sync', '+' + cs + ' min']);
+    if (cs > 0) rad('prog', 'Core Sync', '+' + cs + ' min');
     const oc = skillPct('player', 'p_offcap');
-    if (oc > 0) r.push(['Offline Cap', '+' + oc + ' h']);
+    if (oc > 0) rad('prog', 'Offline Cap', '+' + oc + ' h');
   }
-  up('Cache Odds', helperBonus('cacheluck'));
-  up('Gear Rarity', helperBonus('gearrar'));
+  up('loot', 'Cache Odds', helperBonus('cacheluck'));
+  up('loot', 'Gear Rarity', helperBonus('gearrar'));
   /* [BORTTAGET v5.391.0] 'Token Yield' pekade pa en hjalparformaga 'tokens'
      som inte finns i helper_ability_config - raden var alltid noll och dold. */
   const rep = 2 * repRank();
-  if (rep > 0) r.push(['Region Rep', '+' + rep + '% production']);
+  if (rep > 0) rad('world', 'Region Rep', '+' + rep + '% production');
   return r;
 }
+/* Vilka grupper som ar hopfallda. Lever i minnet sa lange fliken ar oppen -
+   ett val som ska overleva en omladdning hor hemma i sparfilen, och det har ar
+   inget sadant val. */
+const CS_SHUT = {};
 function renderCharStats(){
   const el2 = $('cs-rows');
   if (!el2) return;
   const rows = charStatRows();
-  el2.innerHTML = rows.length
-    ? rows.map(r => '<div class="cs-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>').join('')
-    : '<div class="cs-none">No bonuses yet — equip gear or activate a pet.</div>';
+  if (!rows.length){
+    el2.innerHTML = '<div class="cs-none">No bonuses yet \u2014 equip gear or activate a pet.</div>';
+    return;
+  }
+  /* En rad utan grupp hamnar i strid i stallet for att forsvinna. Nasta rad
+     nagon lagger till syns alltsa, aven om gruppen glommdes. */
+  let h = '<div class="cs-top">Stats<span>' + rows.length + ' bonuses</span></div>';
+  CS_GROUPS.forEach(g => {
+    const mina = rows.filter(x => (x[2] || 'combat') === g[0]);
+    if (!mina.length) return;
+    const stangd = !!CS_SHUT[g[0]];
+    h += '<div class="cs-grp' + (stangd ? ' shut' : '') + '" style="--gc:' + g[3] + '">' +
+      '<button class="cs-gh" data-csgrp="' + g[0] + '">' +
+        '<span class="cs-gi">' + g[2] + '</span>' +
+        '<span class="cs-gn">' + esc(g[1]) + '</span>' +
+        '<span class="cs-gc">' + mina.length + '</span>' +
+        '<span class="cs-gv">' + (stangd ? '\u203a' : '\u2039') + '</span></button>' +
+      '<div class="cs-gb">' + mina.map(x =>
+        '<div class="cs-row"><span class="k">' + esc(x[0]) + '</span>' +
+        '<span class="v">' + x[1] + '</span></div>').join('') + '</div></div>';
+  });
+  el2.innerHTML = h;
 }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-csgrp]');
+  if (!b) return;
+  CS_SHUT[b.dataset.csgrp] = !CS_SHUT[b.dataset.csgrp];
+  renderCharStats();
+});
 function affLine(x){
   /* En OKAND egenskap far aldrig falla hela kortet. Sa hande det med Expedition
      Speed: servern rullade den, klienten kande den inte, och pjasen gick varken
