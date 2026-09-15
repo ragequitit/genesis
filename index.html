@@ -7989,7 +7989,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.513.0 — SPELARENS TRAD OCH PARAGON</div>
+        <div class="sn-ver">GENESIS v5.515.0 — UTLOGGAD SAGS RAKT UT</div>
       </div>
     </div>
   </aside>
@@ -9109,7 +9109,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.513.0 — SPELARENS TRAD OCH PARAGON</div>
+            <div class="desc">GENESIS v5.515.0 — UTLOGGAD SAGS RAKT UT</div>
           </div>
         </div>
       </div>
@@ -9525,6 +9525,17 @@ async function srvRpc(fn, args){
     if (m.indexOf('session_replaced') >= 0 || m.indexOf('session_other_character') >= 0){
       sessionReplaced(m.indexOf('session_other_character') >= 0);
     }
+    /* [TILLAGT v5.515.0] INGEN SESSION ALLS (Chris bugg). VARFOR: saknas nyckeln
+       kastar srvEnsureSession 'not_signed_in' INNAN nagot anrop gors - servern
+       ser alltsa ingenting, och felet stod inte i ordlistan, sa knappen sa bara
+       "The server said no". Det hande t ex efter utloggningen som inte syntes
+       (rattad i v5.514.0): man var utloggad, spelet stod kvar, och varje knapp
+       gav samma obegripliga rad. Nu sags det rakt ut OCH porten oppnas, sa man
+       kommer tillbaka in i stallet for att sitta fast i ett dott spel. */
+    if (m.indexOf('not_signed_in') >= 0){
+      say('You are signed out \u2014 sign in again.');
+      try { $('gate').classList.remove('done'); gateShowAuth(); } catch (er){}
+    }
     throw e;
   }
 }
@@ -9586,6 +9597,8 @@ const SRV_ERRORS = {
   not_at_this_vendor:       'You have to be standing at this vendor to trade.',
   still_travelling:         'You are still travelling.',
   zone_not_charted:         'Send a drone to chart that zone before you travel there.',
+  /* [TILLAGT v5.515.0] Fanns inte i listan - darfor "The server said no". */
+  not_signed_in:            'You are signed out \u2014 sign in again.',
   session_replaced:         'This account was opened somewhere else \u2014 reload to take over.',
   session_other_character:  'Another character on this account is playing \u2014 reload to switch.',
   /* [TILLAGT v5.42.0] Resefelen sa "The server said no" for att de saknade
@@ -33718,23 +33731,31 @@ $('gate-handle-go').addEventListener('click', async () => {
 $('gate-handle-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') $('gate-handle-go').click();
 });
+/* [TILLAGT v5.514.0] EN UTLOGGNING, INTE TRE (Chris bugg). VARFOR: tre knappar
+   loggade ut och skrev var sin variant av samma fyra rader. Den i sidoraden
+   glomde EN av dem - att ta bort 'done' fran porten - och porten ar gomd med
+   display:none sa lange den klassen sitter. Sessionen rensades alltsa, porten
+   stallde om sig till inloggningen, och ALLT DET hande bakom en osynlig ruta:
+   man blev utloggad utan att se det, och spelet stod kvar pa skarmen.
+   De tva andra knapparna satt inne i porten, dar den redan var synlig, sa felet
+   fanns bara pa ett av tre stallen - den vanligaste familjen i det har
+   projektet. Nu gor alla tre samma sak, harifran. */
+function signOutToGate(){
+  srvSignOut().catch(() => {});
+  srvClearSession();
+  SRV.handle = null;
+  const cl = $('gate-charlist'); if (cl) cl.innerHTML = '';
+  $('gate').classList.remove('done');   /* porten stangs igen bakom en */
+  gateShowAuth();
+}
 $('nav-signout').addEventListener('click', async () => {
   const ja = await askConfirm({title: 'Log out?',
     body: 'You can sign back in with the same account.', yes: 'LOG OUT'});
   if (!ja) return;
-  srvSignOut().catch(() => {});
-  srvClearSession(); SRV.handle = null; gateShowAuth();
+  signOutToGate();
 });
-$('gate-handle-signout').addEventListener('click', () => {
-  srvSignOut().catch(() => {});
-  srvClearSession(); SRV.handle = null; gateShowAuth();
-});
-$('gate-signout').addEventListener('click', async () => {
-  await srvSignOut();
-  $('gate-charlist').innerHTML = '';
-  $('gate').classList.remove('done');   /* porten stangs igen bakom en */
-  gateShowAuth();
-});
+$('gate-handle-signout').addEventListener('click', signOutToGate);
+$('gate-signout').addEventListener('click', signOutToGate);
 
 /* ---------- MOTTAGANDET AV BEKRAFTELSELANKEN ----------
    Klickar man lanken i mejlet kommer man tillbaka hit med en fardig session
