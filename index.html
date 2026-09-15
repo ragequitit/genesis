@@ -801,6 +801,21 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 .pg-btns button:disabled{opacity:.35;cursor:default}
 /* [OMBYGGT v5.517.0] Loadouten ar en LISTA, inte kort med bildrutor. En rad per
    uppsattning: namnet till vanster, antal pjaser, och knappen till hoger. */
+/* [TILLAGT v5.520.0] LUCKAN. Ligger absolut inne i karaktarsrutan, hangande
+   under flikraden och i linje med Loadout-fliken till hoger. Karaktaren star
+   kvar under och syns runt omkring - det var hela poangen med att inte gora
+   det till en egen sida. */
+#panel-character{position:relative}
+.lo-drop{position:absolute;right:10px;left:auto;z-index:40;
+  width:min(260px, calc(100% - 20px));
+  border:1px solid var(--cyan);border-radius:11px;padding:9px;
+  background:rgba(7,13,28,.97);
+  box-shadow:0 14px 34px -10px rgba(0,0,0,.85), 0 0 0 1px rgba(56,232,255,.12)}
+@media (max-width:820px){
+  /* Pa telefon far luckan hela bredden - 260 px bredvid en 360 px skarm blir
+     en remsa som inte gar att lasa. */
+  .lo-drop{left:8px;right:8px;width:auto}
+}
 .lo-wrap{display:flex;flex-direction:column;gap:5px}
 .lo-top{display:flex;align-items:center;justify-content:space-between;
   font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);
@@ -826,6 +841,8 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   border:1px dashed var(--border);background:transparent;color:var(--text-dim)}
 .lo-new:hover{border-color:var(--cyan);color:var(--cyan)}
 .lo-full{margin-top:3px;text-align:center;font-size:9.5px;color:var(--text-dim);padding:6px}
+.lo-foot{margin-top:2px;text-align:center;font-size:9px;color:var(--text-dim);padding:3px}
+.lo-foot.ok{color:var(--green,#37e08a)}
 .ask-input{width:100%;margin:10px 0 2px;padding:9px 11px;border-radius:8px;
   border:1px solid var(--border);background:var(--bg-inset);color:var(--text);
   font-size:13px;outline:none}
@@ -8000,7 +8017,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.519.0 — FEMTON NODER SOM GOR NAGOT</div>
+        <div class="sn-ver">GENESIS v5.520.0 — LOADOUT FALLS NED</div>
       </div>
     </div>
   </aside>
@@ -8096,7 +8113,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="ct-pane" data-ctpane="paragon" hidden>
           <div class="ct-scroll" id="pg-box"></div>
         </div>
-        <div class="ct-pane" data-ctpane="load" hidden>
+        <!-- [OMBYGGT v5.520.0] Loadouten ar en NEDFALLD ruta, inte en egen sida
+             (Chris). Den lagger sig under flikraden och over karaktaren, sa man
+             ser dockan och utrustningen samtidigt - det var hela poangen. -->
+        <div class="lo-drop" id="lo-drop" hidden>
           <div class="lo-wrap" id="lo-wrap"></div>
         </div>
       </section>
@@ -9120,7 +9140,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.519.0 — FEMTON NODER SOM GOR NAGOT</div>
+            <div class="desc">GENESIS v5.520.0 — LOADOUT FALLS NED</div>
           </div>
         </div>
       </div>
@@ -12192,19 +12212,31 @@ function renderLoadouts(){
       '<span class="lo-n">' + n + '</span>' +
       (pa ? '<span class="lo-now">Equipped now</span>'
           : '<button class="lo-act" data-loact="' + r.idx + '">Activate</button>') +
+      /* [TILLAGT v5.520.0] Spara om DEN HAR uppsattningen till det man bar just
+         nu. Forut fanns bara "ny" - att andra en befintlig krävde att man tog
+         bort den och gjorde om. */
+      '<button class="lo-ic" data-losave="' + r.idx + '" title="Save current gear here">\u2913</button>' +
       '<button class="lo-ic" data-loren="' + r.idx + '" title="Rename">\u270e</button>' +
       '<button class="lo-ic" data-lodel="' + r.idx + '" title="Delete">\u2715</button>' +
       '</div>';
   }).join('');
   h += rader.length < LO_MAX
-    ? '<button class="lo-new" data-lonew="1">+ New loadout from current gear</button>'
-    : '<div class="lo-full">All ' + LO_MAX + ' loadouts are in use \u2014 delete one to make room.</div>';
+    ? '<button class="lo-new" data-lonew="1">+ New loadout</button>'
+    : '<div class="lo-full">All ' + LO_MAX + ' are in use \u2014 delete one to make room.</div>';
+  /* Fotraden svarar pa den enda fraga man staller nar man tittar: ar det jag bar
+     sparat nagonstans? */
+  if (rader.length){
+    const sparad = rader.some(loIsWorn);
+    h += '<div class="lo-foot' + (sparad ? ' ok' : '') + '">' +
+      (sparad ? '\u2713 Current gear is saved' : 'Current gear is not saved') + '</div>';
+  }
   box.innerHTML = h;
 }
 document.addEventListener('click', async e => {
   const ny = e.target.closest('[data-lonew]'), ak = e.target.closest('[data-loact]'),
-        rn = e.target.closest('[data-loren]'), dl = e.target.closest('[data-lodel]');
-  if (!ny && !ak && !rn && !dl) return;
+        rn = e.target.closest('[data-loren]'), dl = e.target.closest('[data-lodel]'),
+        sv = e.target.closest('[data-losave]');
+  if (!ny && !ak && !rn && !dl && !sv) return;
   if (LO.busy) return;
   LO.busy = true;
   try {
@@ -12217,6 +12249,13 @@ document.addEventListener('click', async e => {
         say(n ? ('Saved ' + n + ' piece' + (n === 1 ? '' : 's') + '.') : 'Nothing equipped to save.');
         await netLoadoutState();
       }
+    } else if (sv){
+      const i = +sv.dataset.losave;
+      const namn = (LO.rows.find(r => +r.idx === i) || {}).name || null;
+      const r = await srvRpc('loadout_save', {p_character: SRV.charId, p_idx: i, p_name: namn});
+      const n = r && r.items ? Object.keys(r.items).length : 0;
+      say(n ? ('Saved ' + n + ' piece' + (n === 1 ? '' : 's') + '.') : 'Nothing equipped to save.');
+      await netLoadoutState();
     } else if (rn){
       const i = +rn.dataset.loren;
       const gammalt = (LO.rows.find(r => +r.idx === i) || {}).name || '';
@@ -12317,16 +12356,40 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-cttab]');
   if (!t) return;
   const vald = t.dataset.cttab;
+  const drop = $('lo-drop');
+  /* [ANDRAT v5.520.0] Loadout ar inte en sida utan en LUCKA. Den byter darfor
+     inte ruta: karaktaren star kvar under och luckan fals ned over den. Ett
+     andra tryck fäller upp den igen. */
+  if (vald === 'load'){
+    const oppen = drop && !drop.hidden;
+    if (drop) drop.hidden = oppen;
+    t.classList.toggle('on', !oppen);
+    if (!oppen){
+      /* [TILLAGT v5.520.0] Luckans overkant MATS ur flikradens underkant i
+         stallet for att staa som ett fast tal. Pa 360 px bryter flikraden till
+         tva rader, och ett fast tal lade luckan ovanpa flikarna. */
+      const tb = $('ct-tabs'), pb = $('panel-character');
+      if (drop && tb && pb){
+        const r = tb.getBoundingClientRect(), p = pb.getBoundingClientRect();
+        drop.style.top = Math.round(r.bottom - p.top + 4) + 'px';
+      }
+      /* Karaktaren ska synas bakom luckan - annars ser man den inte. */
+      document.querySelectorAll('#ct-tabs .ct-tab').forEach(b => {
+        if (b !== t) b.classList.toggle('on', b.dataset.cttab === 'char');
+      });
+      document.querySelectorAll('#panel-character .ct-pane').forEach(p => {
+        p.hidden = (p.dataset.ctpane !== 'char');
+      });
+      renderLoadouts();
+      if (NET.on && !LO.rows.length) netLoadoutState().then(renderLoadouts).catch(() => {});
+    }
+    return;
+  }
+  if (drop) drop.hidden = true;
   document.querySelectorAll('#ct-tabs .ct-tab').forEach(b => b.classList.toggle('on', b === t));
   document.querySelectorAll('#panel-character .ct-pane').forEach(p => {
     p.hidden = (p.dataset.ctpane !== vald);
   });
-  /* Rutorna hamtar sitt forst nar man oppnar dem - ingen trafik for nagot ingen
-     tittar pa. */
-  if (vald === 'load'){
-    renderLoadouts();
-    if (NET.on && !LO.rows.length) netLoadoutState().then(renderLoadouts).catch(() => {});
-  }
   if (vald === 'skills') renderPlayerTree();
   if (vald === 'paragon'){
     renderParagon();
