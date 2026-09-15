@@ -5143,7 +5143,16 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .pf-por img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;
   -webkit-user-drag:none}
 .pf-por.figure img{object-fit:contain;object-position:bottom;padding:8px 0 0}
-.pf-name{font-size:22px;font-weight:900;letter-spacing:.08em;line-height:1.05;margin-top:2px}
+/* [TILLAGT v5.543.0] LUFT MELLAN RADERNA I VANSTERSPALTEN (Chris). VARFOR:
+   .pf-id hade ingen egen regel alls pa skarm - bara inuti telefonlaget - sa
+   namnet, handlen, klassmarket, nivan, matarens tal och knappen staplades utan
+   ett enda mellanrum. De satt ihop. Sju pixlar mellan varje, och samma tal i
+   telefonlaget sa spalten ser likadan ut pa alla bredder.
+   XP-TALET ar undantaget: det hor till sin matare och dras tillbaka tre pixlar,
+   annars ser siffran ut att hora till knappen under i stallet. */
+.pf-id{display:flex;flex-direction:column;gap:7px}
+.pf-xp{margin-top:-3px}
+.pf-name{font-size:22px;font-weight:900;letter-spacing:.08em;line-height:1.05}
 .pf-handle{font-size:12.5px;color:var(--text-dim);display:flex;align-items:center;gap:7px;font-weight:700}
 .pf-handle i{width:8px;height:8px;border-radius:50%;background:#2ecc71;box-shadow:0 0 7px rgba(46,204,113,.8)}
 .pf-cls{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:5px 14px 5px 8px;
@@ -5182,7 +5191,13 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .pf-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pf-stat{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px 12px;
   border-radius:11px;border:1px solid var(--border-soft);background:rgba(255,255,255,.025)}
+/* [TILLAGT v5.542.0] Bilden i statsrutan. Rutan ar fast 28 px sa raden inte
+   hoppar medan bilden laddar; faller bilden bort krymper den till tecknets egen
+   storlek, precis som ui-ico och statsrubrikerna gor. */
 .pf-stat .ic{font-size:24px;line-height:1;color:var(--cyan);margin-bottom:2px}
+.pf-stat .ic.art-wrap{width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+.pf-stat .ic .art-img{width:100%;height:100%;object-fit:contain;display:block}
+.pf-stat .ic.noart{width:auto;height:auto}
 .pf-stat .k{font-size:11px;color:var(--text-dim)}
 .pf-stat .v{font-family:var(--font-mono);font-size:16px;font-weight:800}
 .pf-acts{display:flex;gap:8px;margin-top:auto}
@@ -5192,7 +5207,7 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 .pf-acts button:hover{background:rgba(56,232,255,.14)}
 @media (max-width:820px){
   .pf{grid-template-columns:1fr 1fr} .pf-col.left{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:flex-start}
-  .pf-por{flex:0 0 120px;width:120px} .pf-col.left > .pf-id{flex:1 1 160px;display:flex;flex-direction:column;gap:6px}
+  .pf-por{flex:0 0 120px;width:120px} .pf-col.left > .pf-id{flex:1 1 160px;display:flex;flex-direction:column;gap:7px}
 }
 @media (max-width:560px){
   .pf{grid-template-columns:1fr} .pf-abil{grid-template-columns:1fr}
@@ -8302,7 +8317,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.541.0 — UNDERTOW-SETET</div>
+        <div class="sn-ver">GENESIS v5.543.0 — LUFT I PROFILSPALTEN</div>
       </div>
     </div>
   </aside>
@@ -9444,7 +9459,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.541.0 — UNDERTOW-SETET</div>
+            <div class="desc">GENESIS v5.543.0 — LUFT I PROFILSPALTEN</div>
           </div>
         </div>
       </div>
@@ -32794,9 +32809,16 @@ function renderProfile(){
   const stars = '\u2605'.repeat(repRank()) + '\u2606'.repeat(5 - repRank());
   const abil = (CLASS_ABIL && S.classId) ? (CLASS_ABIL[S.classId] || []).slice()
     .sort((a, b) => CLASS_SLOT_ORDER.indexOf(a.slot) - CLASS_SLOT_ORDER.indexOf(b.slot)) : [];
-  const row2 = (ic, k, v, vcls) => '<div class="pf-row2"><span class="ic">' + ic + '</span>' +
+  /* [TILLAGT v5.542.0] RITADE IKONER I PROFILEN (Chris). Vagen foljer NYCKELN,
+     som overallt annars: assets/ui/profile/<nyckel>.webp. Tecknet som stod dar
+     forut ar kvar som reserv, sa rutan ser likadan ut tills bilderna finns.
+     Guldraden har ingen egen nyckel - den lanar MYNTET ur UI_ICO, samma bild som
+     belonings- och expeditionsrutorna visar. Tva bilder pa samma mynt kunde
+     hunnit bli olika. */
+  const pfIco = (key, tecken) => icoBox('ic', key ? 'assets/ui/profile/' + key + '.webp' : '', tecken);
+  const row2 = (ic, k, v, vcls) => '<div class="pf-row2">' + ic +
     '<span><div class="k">' + k + '</div><div class="v' + (vcls ? ' ' + vcls : '') + '">' + v + '</div></span></div>';
-  const stat = (ic, k, v) => '<div class="pf-stat"><span class="ic">' + ic + '</span>' +
+  const stat = (ic, k, v) => '<div class="pf-stat">' + ic +
     '<span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
   const pct = li.need ? Math.min(100, 100 * li.into / li.need) : 0;
 
@@ -32817,9 +32839,11 @@ function renderProfile(){
     /* ---- mitten: karaktaren och formagorna ---- */
     '<div class="pf-col">' +
       '<div class="pf-h">Character</div>' +
-      row2(cls ? gateEmblemHTML(S.classId) : '\u25ef', 'Class', cls ? esc(cls.name) : '\u2014') +
-      row2('\ud83d\udccd', 'Region', REGIONS[S.world.current] ? esc(REGIONS[S.world.current].name) : '\u2014') +
-      row2('\u2605', 'Reputation', stars, 'stars') +
+      row2('<span class="ic">' + (cls ? gateEmblemHTML(S.classId) : '\u25ef') + '</span>',
+           'Class', cls ? esc(cls.name) : '\u2014') +
+      row2(pfIco('region', '\ud83d\udccd'), 'Region',
+           REGIONS[S.world.current] ? esc(REGIONS[S.world.current].name) : '\u2014') +
+      row2(pfIco('reputation', '\u2605'), 'Reputation', stars, 'stars') +
       (abil.length ? '<div class="pf-h">' + (cls ? esc(cls.name) : 'Class') + ' abilities</div>' +
         '<div class="pf-abil">' + abil.map(r =>
           '<div class="pf-row2"><span class="ic">' + gatePerkIcoHTML(r.effect) + '</span>' +
@@ -32831,14 +32855,15 @@ function renderProfile(){
     '<div class="pf-col">' +
       '<div class="pf-h">Career stats</div>' +
       '<div class="pf-stats">' +
-      stat('\ud83e\udded', 'Expeditions', fmt(st.expDone || 0)) +
-      stat('\u2694\ufe0f', 'Encounters won', fmt(st.pveWins || 0)) +
-      stat('\ud83d\udcdc', 'Quests done', fmt(st.questsDone || 0)) +
-      stat('\ud83d\udce6', 'Caches opened', fmt(st.caches || 0)) +
-      stat('\ud83e\ude99', 'Gear sold', fmt(st.sold || 0)) +
-      stat('\ud83d\udc3e', 'Helpers', fmt(petsOwned().length)) +
+      stat(pfIco('expeditions', '\ud83e\udded'), 'Expeditions', fmt(st.expDone || 0)) +
+      stat(pfIco('encounters', '\u2694\ufe0f'), 'Encounters won', fmt(st.pveWins || 0)) +
+      stat(pfIco('quests', '\ud83d\udcdc'), 'Quests done', fmt(st.questsDone || 0)) +
+      stat(pfIco('caches', '\ud83d\udce6'), 'Caches opened', fmt(st.caches || 0)) +
+      stat(pfIco('sold', '\ud83e\ude99'), 'Gear sold', fmt(st.sold || 0)) +
+      stat(pfIco('helpers', '\ud83d\udc3e'), 'Helpers', fmt(petsOwned().length)) +
       '</div>' +
-      '<div class="pf-row2" style="margin-top:2px"><span class="ic">\ud83e\ude99</span>' +
+      '<div class="pf-row2" style="margin-top:2px">' +
+        icoBox('ic', UI_ICO.gold[0], UI_ICO.gold[1]) +
         '<span><div class="k">Gold</div><div class="v">' + fmtMoneyFull(S.gold) + '</div></span></div>' +
       '<div class="pf-acts">' +
         '<button id="pf-settings">\u270f\ufe0f Edit profile</button>' +
