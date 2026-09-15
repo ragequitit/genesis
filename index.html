@@ -715,7 +715,7 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 /* Utrustningskolumnerna nudgas 5 px inåt — rent visuellt, rutnätet står still */
 .char-split > .char-layout{transform:translateX(4px)}
 .char-split > .transport-row{transform:translateX(4px)}
-#panel-character > .panel-title{padding-left:5px}
+/* [BORTTAGET v5.512.0] Regeln for rubrikraden - raden finns inte langre. */
 .transport-row{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:8px;
   flex:0 0 auto;position:relative}
 .transport-slot{
@@ -767,14 +767,38 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
    yrkessidans flikar: en rad knappar, den aktiva i cyan med en linje under.
    Rutorna ar syskon och doljs med hidden - ingen av dem ritas nar den ar gomd,
    sa en gomd loadout inte kostar nagot. */
-.ct-tabs{display:flex;gap:4px;margin:0 0 8px;flex-wrap:wrap}
-.ct-tab{flex:1 1 auto;min-width:74px;padding:7px 8px;border-radius:8px;cursor:pointer;
+/* [ANDRAT v5.512.0] Marginalen 8 -> 5 px. Uppmatt: utan rubrikraden var
+   innehallet 395 px i en ruta pa 390, alltsa fem over - och Chris ska inte
+   behova rulla i karaktarsrutan. De fem pixlarna star har. */
+.ct-tabs{display:flex;gap:4px;margin:0 0 4px;flex-wrap:wrap}
+.ct-tab{flex:1 1 auto;min-width:74px;padding:5px 8px;border-radius:8px;cursor:pointer;
   background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text-dim);
   font-size:9.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
 .ct-tab:hover{border-color:var(--cyan-dim);color:var(--text)}
 .ct-tab.on{background:rgba(56,232,255,.12);border-color:var(--cyan);color:var(--cyan)}
 .ct-soon{padding:26px 16px;text-align:center;font-size:11px;line-height:1.7;
   color:var(--text-dim)}
+/* [TILLAGT v5.513.0] Tradet och paragon ar hogre an rutan. De far rulla INNE i
+   sin flik - karaktarsrutan sjalv ska aldrig rullas, det var hela poangen med
+   att riva rubrikraden. */
+.ct-scroll{max-height:343px;overflow-y:auto;overflow-x:hidden;padding-right:3px}
+@media (max-width:820px){ .ct-scroll{max-height:none;overflow:visible} }
+/* Paragon: rutor bredvid varandra, inte ett trad. */
+.pg-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-bottom:8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-dim)}
+.pg-head b{color:var(--cyan);font-size:12px;letter-spacing:0}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:6px}
+.pg-cell{border:1px solid var(--border);border-radius:10px;padding:9px 8px;
+  background:var(--bg-row);text-align:center}
+.pg-cell b{display:block;font-size:10.5px;font-weight:800;margin-bottom:3px}
+.pg-val{font-family:var(--font-mono);font-size:13px;color:var(--cyan);font-weight:800}
+.pg-sub{font-size:8.5px;color:var(--text-dim);margin:2px 0 7px;line-height:1.4}
+.pg-btns{display:flex;gap:3px}
+.pg-btns button{flex:1;padding:5px 0;border-radius:6px;cursor:pointer;font-size:9px;
+  font-weight:900;background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text)}
+.pg-btns button:disabled{opacity:.35;cursor:default}
 /* Loadout: tre kort under varandra, var och en med sina platser och tva knappar. */
 .lo-wrap{display:flex;flex-direction:column;gap:8px}
 .lo-card{border:1px solid var(--border);border-radius:10px;padding:10px 11px;
@@ -7965,7 +7989,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.511.0 — FYRA FLIKAR OCH LOADOUT</div>
+        <div class="sn-ver">GENESIS v5.513.0 — SPELARENS TRAD OCH PARAGON</div>
       </div>
     </div>
   </aside>
@@ -7980,9 +8004,12 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 
       <!-- CHARACTER -->
       <section class="panel" id="panel-character">
-        <!-- [FLYTTAT v5.450.0] "Change look" bodde i vanfliken. Den fliken ar
-             for vannerna, inte for en sjalv - looken hor hemma pa profilkortet. -->
-        <div class="panel-title">Character<span class="link" id="char-look-btn">Change look</span></div>
+        <!-- [BORTTAGET v5.512.0] RUBRIKRADEN (Chris). VARFOR: "Character" stod
+             tva ganger - en gang som rubrik och en gang som flik direkt under -
+             och "Change look" fanns redan pa profilkortet, dit den flyttades i
+             v5.450.0. Raden kostade hojd i en ruta som inte ska behova rullas.
+             Lyssnaren pa knappen ar riven med; profilkortets egen knapp oppnar
+             samma ruta och ar oberord. -->
         <!-- [TILLAGT v5.511.0] FYRA FLIKAR I KARAKTARSRUTAN (Chris). Character ar
              oforandrad - den ligger bara i en flik nu. Loadout ar byggd. Skill
              Tree och Paragon vantar pa sina noder och sager det rakt ut i stallet
@@ -8053,13 +8080,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         </div>
         </div>
         <div class="ct-pane" data-ctpane="skills" hidden>
-          <div class="ct-soon">The character skill tree is not built yet.<br>
-            Every skill node in the game belongs to a profession — this one needs
-            its own nodes before it can open.</div>
+          <div class="ct-scroll" id="pt-player"></div>
         </div>
         <div class="ct-pane" data-ctpane="paragon" hidden>
-          <div class="ct-soon">Paragon is counted but spends nothing yet.<br>
-            The levels are already ticking up; they need something to buy.</div>
+          <div class="ct-scroll" id="pg-box"></div>
         </div>
         <div class="ct-pane" data-ctpane="load" hidden>
           <div class="lo-wrap" id="lo-wrap"></div>
@@ -9085,7 +9109,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.511.0 — FYRA FLIKAR OCH LOADOUT</div>
+            <div class="desc">GENESIS v5.513.0 — SPELARENS TRAD OCH PARAGON</div>
           </div>
         </div>
       </div>
@@ -12184,6 +12208,68 @@ document.addEventListener('click', async e => {
   } catch (err){ say(srvErrText(err)); }
   finally { LO.busy = false; }
 });
+/* ===== SPELARENS TRAD OCH PARAGON I KARAKTARSRUTAN (v5.513.0) =====
+   Tradet ritas av ppTreeHTML - SAMMA funktion som yrkessidan anvander, bara med
+   'player' i stallet for ett yrkesnamn. Ingen andra ritare byggs vid sidan om;
+   den var redan generisk sa nar som pa nivakravet, som nu ar en rad.
+   Paragon ar INTE ett trad: fem rutor bredvid varandra, sa den far en egen
+   liten ritare. */
+function renderPlayerTree(){
+  const box = $('pt-player');
+  if (!box) return;
+  box.innerHTML = ppTreeHTML('player');
+}
+let PG = {state: null, busy: false};
+async function netParagonState(){
+  if (!NET.on) return null;
+  PG.state = await srvRpc('paragon_state', {p_character: SRV.charId});
+  return PG.state;
+}
+function renderParagon(){
+  const box = $('pg-box');
+  if (!box) return;
+  if (!NET.on){
+    box.innerHTML = '<div class="ct-soon">Paragon lives on the server.<br>Sign in to spend it.</div>';
+    return;
+  }
+  const st = PG.state;
+  if (!st){ box.innerHTML = '<div class="ct-soon">Reading your paragon\u2026</div>'; return; }
+  const p = st.points || {};
+  const kvar = +p.left || 0;
+  box.innerHTML =
+    '<div class="pg-head"><span>Paragon \u00b7 ' + fmt(+p.total || 0) + ' levels</span>' +
+      '<span><b>' + fmt(kvar) + '</b> to spend</span></div>' +
+    '<div class="pg-grid">' + (st.nodes || []).map(n => {
+      const pts = +n.points || 0, max = +n.max_points || 0;
+      const varde = (pts * (+n.per_point || 0));
+      const full = pts >= max;
+      return '<div class="pg-cell"><b>' + esc(n.name) + '</b>' +
+        '<span class="pg-val">+' + varde.toFixed(2).replace(/\.00$/, '') + '%</span>' +
+        '<div class="pg-sub">' + pts + ' / ' + max + '<br>+' +
+          (+n.per_point) + '% each</div>' +
+        '<div class="pg-btns">' +
+          '<button data-pgbuy="' + esc(n.node) + '" data-pgn="1"' +
+            ((kvar < 1 || full) ? ' disabled' : '') + '>+1</button>' +
+          '<button data-pgbuy="' + esc(n.node) + '" data-pgn="10"' +
+            ((kvar < 1 || full) ? ' disabled' : '') + '>+10</button>' +
+          '<button data-pgbuy="' + esc(n.node) + '" data-pgn="9999"' +
+            ((kvar < 1 || full) ? ' disabled' : '') + '>ALL</button>' +
+        '</div></div>';
+    }).join('') + '</div>';
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-pgbuy]');
+  if (!b || b.disabled || PG.busy) return;
+  PG.busy = true;
+  try {
+    const r = await srvRpc('paragon_buy', {p_character: SRV.charId,
+      p_node: b.dataset.pgbuy, p_n: +b.dataset.pgn || 1});
+    if (r && r.added) say('+' + r.added + ' point' + (r.added === 1 ? '' : 's') + '.');
+    await netParagonState();
+    renderParagon();
+  } catch (err){ say(srvErrText(err)); }
+  finally { PG.busy = false; }
+});
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-cttab]');
   if (!t) return;
@@ -12197,6 +12283,11 @@ document.addEventListener('click', e => {
   if (vald === 'load'){
     renderLoadouts();
     if (NET.on && !LO.rows.length) netLoadoutState().then(renderLoadouts).catch(() => {});
+  }
+  if (vald === 'skills') renderPlayerTree();
+  if (vald === 'paragon'){
+    renderParagon();
+    if (NET.on && !PG.state) netParagonState().then(renderParagon).catch(() => {});
   }
 });
 async function netEquip(gear, slot){
@@ -26175,11 +26266,46 @@ function mySecondaryProf(){
    tradet helt. Katalogen har ar en SPEGEL som skrivs over med serverns rader
    vid inloggning - star nagot olika ar det servern som galler. */
 const SKILL_ICO = {speed:'\u2699\ufe0f', preserve:'\u267b\ufe0f', xp:'\ud83d\udcd8', slots:'\ud83d\udccb', kits:'\ud83e\uddf0', recycle:'\ud83d\udd29', slot_focus:'\ud83d\udd31', ranked_speed:'\ud83c\udfaf', reclaim:'\u267b\ufe0f', core_boost:'\u26a1', capstone_speed:'\ud83d\udc51', capstone_preserve:'\ud83d\udc8e', pattern:'\ud83c\udf00', station_speed:'\ud83c\udfed', store_cap:'\ud83d\udee2\ufe0f', offline:'\ud83c\udf19', potency:'\ud83e\uddea', hp_regen:'\u2764\ufe0f', gather_speed:'\u23f1\ufe0f', gather_bag:'\ud83c\udf92', gather_double:'\u2728', focus_ore:'\u26cf\ufe0f', focus_crystal:'\ud83d\udc8e', scrap_sense:'\ud83d\udd29', gem_luck:'\ud83c\udf40', rank_focus:'\ud83d\udcc8', rare_luck:'\u2728'};
-function skN(pos, node, name, eff, per, max){
-  return {pos: pos, id: node, name: name, eff: eff, per: per, max: max};
+function skN(pos, node, name, eff, per, max, steps){
+  /* [TILLAGT v5.513.0] steps: fem tal, ett per rang, for spelarens trad. Utan
+     trappa galler per gange ranks som forut - alla yrkesnoder ar ororda. */
+  return {pos: pos, id: node, name: name, eff: eff, per: per, max: max, steps: steps || null};
+}
+/* Vad <ranks> rangar av en nod ger. EN kalla, sa rutan och servern inte kan
+   saga olika: samma summa som skill_pct raknar. */
+function skNodeValue(n, ranks){
+  if (!n) return 0;
+  if (!n.steps) return (n.per || 0) * (ranks || 0);
+  let v = 0;
+  for (let i = 0; i < Math.min(ranks || 0, n.steps.length); i++) v += n.steps[i];
+  return v;
 }
 let SKILL_TREES = {};
 (function buildSkillMirror(){
+  /* [TILLAGT v5.513.0] SPELARENS EGET TRAD (Chris). Samma form som yrkenas -
+     fem steg, tre noder, toppnoden bara en av tre - men fem rangar med stigande
+     trappa i stallet for tre platta. Poangen kommer ur KARAKTARSNIVAN: femtio
+     nivaer ger femtio poang, och att maxa allt kostar sextioen. Man kan alltsa
+     inte fylla tradet, vilket ar hela poangen.
+     SPEGLAR skill_config pa servern rad for rad. Andras ett tal dar maste det
+     bytas har i samma leverans. */
+  SKILL_TREES.player = {
+    1: [skN(1,'coolant','Coolant Flow','p_fuel_regen',3,5,[3,3,4,4,5]),
+        skN(2,'apprentice','Apprentice','p_prof_xp',2,5,[2,2,3,3,4]),
+        skN(3,'training','Field Training','p_xp',2,5,[2,2,2,3,3])],
+    2: [skN(1,'offline','Offline Earnings','p_offline',4,5,[4,4,5,6,7]),
+        skN(2,'coresync','Core Sync','p_core_min',10,5,[10,10,10,15,15]),
+        skN(3,'money','Moneymaker','p_gold',2,5,[2,2,3,3,4])],
+    3: [skN(1,'godroll','God Roll','p_godroll',1,5,[1,1,1,2,2]),
+        skN(2,'fragsense','Fragment Sense','p_frag',2,5,[2,2,3,3,4]),
+        skN(3,'scaveye',"Scavenger's Eye",'p_luck',1,5,[1,2,2,3,3])],
+    4: [skN(1,'questmaster','Questmaster','p_quest',3,5,[3,3,4,4,5]),
+        skN(2,'wayfarer','Wayfarer','p_rep',3,5,[3,4,4,5,6]),
+        skN(3,'exprush','Expedition Rush','p_expspd',2,5,[2,2,3,3,4])],
+    5: [skN(1,'classpower','Class Power','p_class',25,1),
+        skN(2,'scavmaster','Master Scavenger','p_geardrop',10,1),
+        skN(3,'nightshift','Night Shift','p_offcap',6,1)]
+  };
   SKILL_TREES.jewelcrafter = {
     1: [skN(1,'speed','Faster Cutting','speed',2,3),
         skN(2,'preserve','Material Recovery','preserve',1,3),
@@ -26375,7 +26501,11 @@ function skillTierRanks(prof, tier){
 /* POANGEN. En per yrkesniva efter den forsta, och yrkets tak ar 20 - samma
    rakning som serverns, men har bara for att RITA. Servern avgor kopet. */
 function skillPoints(prof){
-  const total = Math.max(0, Math.min(profLvl(prof), 20) - 1);
+  /* [ANDRAT v5.513.0] Spelarens poang ar KARAKTARSNIVAN rakt av - inte niva
+     minus ett som yrkena. Samma tal som serverns skill_points ger. */
+  const total = prof === 'player'
+    ? Math.max(0, levelInfo().lvl)
+    : Math.max(0, Math.min(profLvl(prof), 20) - 1);
   let spent = 0;
   Object.keys((S.skills && S.skills[prof]) || {}).forEach(t => { spent += skillTierRanks(prof, +t); });
   const staged = skillStagedTotal(prof);
@@ -26550,18 +26680,21 @@ function ppTreeHTML(prof){
   const tree = SKILL_TREES[prof];
   if (!tree) return '';
   if (!PPT.sel || PPT.sel.prof !== prof) PPT.sel = null;
-  const lvl = profLvl(prof);
+  const lvl = prof === 'player' ? levelInfo().lvl : profLvl(prof);
   const pts = skillPoints(prof);
   const cap = skillCapstoneTaken(prof);
   const tierList = Object.keys(tree).map(Number).sort((a, b) => a - b);
 
   /* Tillstand per nod: agd, oppen (gar att kopa nu) eller slackt. Toppraden
      kraver full yrkesniva och lases sa fort EN av de tre ar vald. */
+  /* [ANDRAT v5.513.0] Toppnodens nivakrav ar 20 for ett yrke och spelets tak
+     for spelaren. EN rad, sa rutan och servern staller samma krav. */
+  const capLvl = prof === 'player' ? levelCap() : 20;
   const nodeState = (t, n) => {
     const ranks = skillViewRanks(prof, t, n.id);
     if (ranks > 0) return 'owned';
     if (t === 5){
-      if (lvl < 20 || cap) return 'dark';
+      if (lvl < capLvl || cap) return 'dark';
       return skillNodeOpen(prof, 5, n.pos) ? 'open' : 'dark';
     }
     return skillNodeOpen(prof, t, n.pos) ? 'open' : 'dark';
@@ -26571,7 +26704,7 @@ function ppTreeHTML(prof){
      "vagen ar oppen" (svag glod, andan du kan ga till), och helt tand nar bada
      noderna ar dina. Toppraden lyser bara om niva 20 ar nadd och ingen toppnod
      redan ar vald - annars vore glodet ett lofte som inte galler. */
-  const capReady = lvl >= 20 && !cap;
+  const capReady = lvl >= capLvl && !cap;
   const wireCls = (t1, p1, t2, p2) => {
     const a = skillOwnedAt(prof, t1, p1), b = skillOwnedAt(prof, t2, p2);
     if (a && b) return ' on';
@@ -26606,7 +26739,7 @@ function ppTreeHTML(prof){
         '<i class="pt-side s2' + sideCls(2, 3) + '"></i>'
       : '';
     rows += '<div class="pt-row r' + t + '">' +
-      '<div class="pt-tierlab">TIER ' + t + (t === 5 ? '<span>LEVEL 20</span>' : '') + '</div>' +
+      '<div class="pt-tierlab">TIER ' + t + (t === 5 ? '<span>LEVEL ' + capLvl + '</span>' : '') + '</div>' +
       '<div class="pt-nodes">' + side + nodes.map(n => {
         const ranks = skillViewRanks(prof, t, n.id);
         const st = nodeState(t, n);
@@ -26711,7 +26844,13 @@ function ppTreeHTML(prof){
 }
 /* [ANDRAT v5.509.0] Nollar ocksa materialets avtryck, sa de tva aldrig kan
    hamna i otakt vid en tvingad ombyggnad. */
-function ppForceRender(){ profPageSig = ''; ppMatSig = ''; renderProfPage(); }
+function ppForceRender(){
+  profPageSig = ''; ppMatSig = ''; renderProfPage();
+  /* [TILLAGT v5.513.0] Spelarens trad bor i karaktarsrutan, inte pa yrkessidan -
+     den ritas om harifran sa ett kop syns direkt aven dar. */
+  const pt = document.getElementById('pt-player');
+  if (pt && !pt.closest('[hidden]')) renderPlayerTree();
+}
 /* [ANDRAT v5.217.0] Ett klick LAGGER UT en poang. Ingenting skickas forran man
    bekraftar, sa man kan bygga hela sin plan, se effekterna och andra sig gratis.
    Toppnoden ar fortfarande ett beslut som laser de andra tva - men aven det gar
@@ -26729,7 +26868,12 @@ function skillPlace(prof, tier, node, tyst){
     nej('That node is not connected to anything you own yet.'); return;
   }
   if (tier === 5){
-    if (profLvl(prof) < 20){ nej('The last row opens at profession level 20.'); return; }
+    /* [ANDRAT v5.513.0] Spelarens trad mots mot karaktarsnivan och spelets tak. */
+    const kravLvl = prof === 'player' ? levelCap() : 20;
+    const harLvl  = prof === 'player' ? levelInfo().lvl : profLvl(prof);
+    if (harLvl < kravLvl){
+      nej('The last row opens at ' + (prof === 'player' ? 'character' : 'profession') +
+          ' level ' + kravLvl + '.'); return; }
     const cap = skillCapstoneTaken(prof);
     if (cap && cap.id !== node){ nej('You already picked a different capstone.'); return; }
   }
@@ -34652,7 +34796,8 @@ function renderLook(){
   }));
 }
 (function(){
-  const b = $('char-look-btn'); if (b) b.addEventListener('click', openLook);
+  /* [BORTTAGET v5.512.0] Lyssnaren pa char-look-btn. Knappen finns inte langre;
+     profilkortets pf-look oppnar samma ruta. */
   const x = $('look-close'), c = $('look-cancel'), sv = $('look-save');
   if (x) x.addEventListener('click', closeLook);
   if (c) c.addEventListener('click', closeLook);
