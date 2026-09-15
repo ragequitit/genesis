@@ -825,8 +825,14 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
    (fran 436 px) och tva nar det inte gor det. FYRA kan den inte bli: fyra
    kraver 584 px och sa bred blir rutan aldrig over 760 px fonsterbredd.
    Telefonen har sin egen regel langst ned i stilmallen. */
-.pg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;
-  align-items:start}
+/* [ANDRAT v5.537.0] align-items:start ar BORTA (Chris). VARFOR: den gjorde varje
+   kort sa hogt som sitt eget innehall, och forklaringsrutan har annat i sig an
+   noderna - alltsa blev en ruta i raden en annan storlek an sina grannar. Nu
+   stracks alla kort i en rad till radens hojd, sa de ar lika stora. Regeln kom
+   till i v5.529.0 nar raden var HALVTOM och de tva sista korten fick en tom
+   botten; med sex kort i tva fulla rader finns inte det problemet langre.
+   Flikens hojd andras inte: raden var redan sa hog som sitt hogsta kort. */
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px}
 /* [ANDRAT v5.534.0] HOJDEN TILLBAKA NED, BREDDEN KVAR (Chris). VARFOR: fliken
    rullade 38-46 px, och det ska den inte. Luften i SIDLED ar orord - korten ar
    lika breda och all text lika stor - men luften upptill och nedtill dras in.
@@ -849,6 +855,15 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 .pg-head2 b{display:block;font-size:13.5px;font-weight:900;line-height:1.15}
 .pg-head2 i{display:block;font-style:normal;font-size:9px;font-weight:900;
   letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-top:1px}
+/* [RATTAT v5.537.0] TVA IKONER I SAMMA RUTA (Chris bild 1). VARFOR: reservtecknet
+   ar ocksa ett <i>, och raden ovanfor sager att VARJE <i> i rubrikraden ska
+   visas - den skrevs for underrubriken ("DAMAGE"), langt innan noden fick en
+   bild. Nar den ritade ikonen kom ritades alltsa bada: bilden mitt i rutan och
+   tecknet bakom den. Tva rader lagar det utan att rora underrubriken: tecknet ar
+   gomt igen, och visas bara nar bilden FALLERAR - precis som overallt annars.
+   Samma falla lurar i varje ruta som stiler sina <i> brett; cs-gh gor det inte. */
+.pg-head2 .art-fall{display:none}
+.pg-head2 .noart > .art-fall{display:block}
 .pg-nums{display:flex;align-items:flex-end;justify-content:space-between;gap:6px}
 /* [TILLAGT v5.532.0] nowrap. "0 / 200" brots mellan snedstrecket och talet
    och blev tva rader mitt i kortet - syns i Chris bild 1 ocksa, men med tre
@@ -8270,7 +8285,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.536.0 — RITADE IKONER</div>
+        <div class="sn-ver">GENESIS v5.537.0 — EN IKON PER RUTA</div>
       </div>
     </div>
   </aside>
@@ -9410,7 +9425,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.536.0 — RITADE IKONER</div>
+            <div class="desc">GENESIS v5.537.0 — EN IKON PER RUTA</div>
           </div>
         </div>
       </div>
@@ -20084,14 +20099,19 @@ function renderCharStats(){
     const mina = rows.filter(x => (x[2] || 'combat') === g[0]);
     if (!mina.length) return;
     h += '<div class="cs-grp" style="--gc:' + g[3] + '">' +
-      '<div class="cs-gh">' +
+      /* [TILLAGT v5.537.0] Hela namnet i hovringen (Chris). Rubriken kortas med
+         tre punkter nar spalten ar smal, och da ska namnet ga att fa fram utan
+         att byta skarmbredd. Samma sak pa RADERNA, sa alla rader i rutan beter
+         sig lika - det var uttryckligen det han bad om. */
+      '<div class="cs-gh" title="' + esc(g[1]) + '">' +
         /* [ANDRAT v5.536.0] Chris ritade ikoner. Filnamnet foljer gruppens
            NYCKEL, sa en ny grupp behover ingen tabellrad for sin bild - den
            heter bara som nyckeln. Saknas filen star tecknet kvar. */
         icoBox('cs-gi', 'assets/ui/stats/' + g[0] + '.webp', g[2]) +
         '<span class="cs-gn">' + esc(g[1]) + '</span></div>' +
       '<div class="cs-gb">' + mina.map(x =>
-        '<div class="cs-row"><span class="k">' + esc(x[0]) + '</span>' +
+        '<div class="cs-row"><span class="k" title="' + esc(x[0]) + '">' +
+          esc(x[0]) + '</span>' +
         '<span class="v">' + x[1] + '</span></div>').join('') + '</div></div>';
   });
   el2.innerHTML = h;
