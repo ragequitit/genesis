@@ -8302,7 +8302,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.539.0 — LAKEREGLERNAS ETIKETT</div>
+        <div class="sn-ver">GENESIS v5.540.0 — RYKTET SAGER SANNINGEN</div>
       </div>
     </div>
   </aside>
@@ -8471,7 +8471,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
             <div class="rep-meta"><span id="rep-next">Next rank in —</span></div>
             <div class="bonus-title">Region Bonus</div>
             <div class="bonus-list">
-              <div class="bonus-row"><span>Production</span><span id="rep-bonus">+0%</span></div>
+              <!-- [ANDRAT v5.540.0] "Production" -> "Vendor prices" (Chris). Kortet lovade
+                   en produktionsbonus som inte finns kvar; rabatten hos handlaren gor det. -->
+              <div class="bonus-row"><span>Vendor prices</span><span id="rep-bonus">0%</span></div>
             </div>
           </div>
         </div>
@@ -9442,7 +9444,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.539.0 — LAKEREGLERNAS ETIKETT</div>
+            <div class="desc">GENESIS v5.540.0 — RYKTET SAGER SANNINGEN</div>
           </div>
         </div>
       </div>
@@ -17798,7 +17800,15 @@ function repRank(regionId){
   const t = S.rep[regionId || S.world.current] || 0;
   let r = 0; for (const th of REP_THRESH){ if (t >= th) r++; } return r;
 }
-function repBonusMult(){ return 1 + 0.02 * repRank(); }
+/* [RIVET v5.540.0] repBonusMult - 2 % produktion per stjarna. Den anropades
+   INTE fran ett enda stalle, varken har eller i servern: produktionssystemet den
+   horde till revs, men talet blev kvar och skrevs ut pa tva skarmar. Rykte lovade
+   alltsa en bonus som ingenting nagonsin las.
+   [TILLAGT v5.540.0] repVendorPct - vad rykte VERKLIGEN ger. Servern raknar
+   3 % lagre pris per stjarna i vendor_price_for och vendor_stack_price. Talet
+   skrivs har en gang och lases av bade statsraden och ryktepanelen; andras det
+   i servern ar det EN rad har som ska folja med. */
+function repVendorPct(regionId){ return 3 * repRank(regionId); }
 /* ---------- HANDLARENS TIPS ----------
    En handlare som verkligen litar på dig lägger undan saker. Vid fyra stjärnor
    kommer en epic-pjäs, vid fem en rare eller bättre — HÖGST en per region och dygn,
@@ -20085,13 +20095,13 @@ function charStatRows(){
   up('loot', 'Gear Rarity', helperBonus('gearrar'));
   /* [BORTTAGET v5.391.0] 'Token Yield' pekade pa en hjalparformaga 'tokens'
      som inte finns i helper_ability_config - raden var alltid noll och dold. */
-  const rep = 2 * repRank();
-  /* [ANDRAT v5.535.0] Ordet "production" flyttat fran TALET till ETIKETTEN.
-     VARFOR: vardekolumnen ar med flit hogerstalld och bryts aldrig, sa ett varde
-     med ett ORD i blev bredare an hela statsspalten - uppmatt 41 px over kanten
-     pa 360 px, dar spalten bara ar 114 px bred. Samma fel som Travel Speed hade
-     med sitt "time", och samma lagning: talet ar ett tal, ordet star i namnet. */
-  if (rep > 0) rad('world', 'Region Production', '+' + rep + '%');
+  /* [ANDRAT v5.540.0] "Region Production" -> "Vendor Prices" (Chris). VARFOR:
+     raden lovade produktion, och det systemet finns inte langre - den siffran
+     pekade pa ingenting. Rykte ger i stallet lagre priser hos handlaren, vilket
+     servern raknar pa riktigt i varje kop. Minustecknet ar med flit: priset GAR
+     NED, precis som Travel Speed-raden visar sin tid. */
+  const rep = repVendorPct();
+  if (rep > 0) rad('world', 'Vendor Prices', '\u2212' + rep + '%');
   return r;
 }
 /* [RIVET v5.535.0] CS_SHUT och klicklyssnaren pa [data-csgrp] - grupperna gar
@@ -22324,7 +22334,9 @@ function updateUI(force){
     el.repFill.style.width = Math.min(100, Math.max(0, (mine - prev) / (next - prev)) * 100) + '%';
     el.repNext.textContent = 'Next rank in ' + fmtDur(Math.max(0, next - mine));
   }
-  el.repBonus.textContent = '+' + (rank * 2) + '%';
+  /* [ANDRAT v5.540.0] Samma tal som statsraden, ur samma funktion. Vid noll
+     stjarnor star det 0 % utan tecken - det finns ingen rabatt att visa an. */
+  el.repBonus.textContent = (rank > 0 ? '\u2212' : '') + repVendorPct() + '%';
 
   const li = levelInfo();
   /* Vid taket fortsatter paragon. Den star som "50+12" - ett tal man kan lasa
