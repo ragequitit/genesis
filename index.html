@@ -807,7 +807,10 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
    det till en egen sida. */
 #panel-character{position:relative}
 .lo-drop{position:absolute;right:10px;left:auto;z-index:40;
-  width:min(260px, calc(100% - 20px));
+  /* [ANDRAT v5.525.0] 260 -> 300 px (Chris). Namnet bröts pa mitten i den smala
+     rutan; med ett tak pa tio tecken och de har fyrtio pixlarna ryms det pa en
+     rad bredvid knappen. */
+  width:min(300px, calc(100% - 20px));
   border:1px solid var(--cyan);border-radius:11px;padding:9px;
   background:rgba(7,13,28,.97);
   box-shadow:0 14px 34px -10px rgba(0,0,0,.85), 0 0 0 1px rgba(56,232,255,.12)}
@@ -825,17 +828,23 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   border-radius:9px;padding:7px 8px;background:var(--bg-row)}
 .lo-row.on{border-color:var(--cyan);background:rgba(56,232,255,.08)}
 .lo-nm{flex:1;min-width:0;font-size:11.5px;font-weight:800;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap}
+  text-overflow:ellipsis;white-space:nowrap;
+  /* Radbrytning var redan avstangd; det som saknades var att raden fick krympa.
+     min-width:0 pa BADA hallen, sa knappen tar sin plats och namnet resten. */
+  flex:1 1 0}
 .lo-n{flex:0 0 auto;font-family:var(--font-mono);font-size:10px;color:var(--text-dim)}
-.lo-now{flex:0 0 auto;font-size:8.5px;font-weight:900;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--cyan);padding:5px 8px}
+.lo-now{flex:0 0 auto;font-size:8.5px;font-weight:900;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--cyan);padding:5px 6px}
 .lo-act{flex:0 0 auto;padding:5px 11px;border-radius:7px;cursor:pointer;font-size:9px;
   font-weight:900;letter-spacing:.08em;text-transform:uppercase;
   border:1px solid var(--cyan);background:rgba(56,232,255,.1);color:var(--cyan)}
+/* [ANDRAT v5.525.0] De tre ikonerna ar VITA (Chris). De stod i den dampade
+   texttonen och foll ihop med ramen - man sag tre grafarger och inte tre
+   knappar. */
 .lo-ic{flex:0 0 auto;width:24px;padding:5px 0;border-radius:7px;cursor:pointer;
   font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);
-  color:var(--text-dim)}
-.lo-ic:hover{color:var(--text);border-color:var(--cyan-dim)}
+  color:#fff}
+.lo-ic:hover{color:#fff;border-color:var(--cyan)}
 .lo-new{margin-top:3px;padding:9px;border-radius:9px;cursor:pointer;font-size:9.5px;
   font-weight:900;letter-spacing:.1em;text-transform:uppercase;
   border:1px dashed var(--border);background:transparent;color:var(--text-dim)}
@@ -8090,7 +8099,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.524.0 — HAMTAT SYNS GRONT</div>
+        <div class="sn-ver">GENESIS v5.525.0 — LOADOUTNAMN PA EN RAD</div>
       </div>
     </div>
   </aside>
@@ -9226,7 +9235,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.524.0 — HAMTAT SYNS GRONT</div>
+            <div class="desc">GENESIS v5.525.0 — LOADOUTNAMN PA EN RAD</div>
           </div>
         </div>
       </div>
@@ -12296,7 +12305,10 @@ function renderLoadouts(){
     return '<div class="lo-row' + (pa ? ' on' : '') + '">' +
       '<span class="lo-nm">' + esc(r.name || ('Loadout ' + r.idx)) + '</span>' +
       '<span class="lo-n">' + n + '</span>' +
-      (pa ? '<span class="lo-now">Equipped now</span>'
+      /* [ANDRAT v5.525.0] "Equipped now" -> "Equipped" (Chris bugg, mätt). Den
+         langre texten tog mer plats an Activate-knappen bredvid, sa just den rad
+         man bar kapade sitt eget namn medan de andra raderna hade gott om plats. */
+      (pa ? '<span class="lo-now">Equipped</span>'
           : '<button class="lo-act" data-loact="' + r.idx + '">Activate</button>') +
       /* [TILLAGT v5.520.0] Spara om DEN HAR uppsattningen till det man bar just
          nu. Forut fanns bara "ny" - att andra en befintlig krävde att man tog
@@ -12327,8 +12339,9 @@ document.addEventListener('click', async e => {
   LO.busy = true;
   try {
     if (ny){
+      /* [ANDRAT v5.525.0] Tio tecken (Chris). Langre namn brot raden i luckan. */
       const namn = await askText({title: 'Name this loadout',
-        body: 'What is this set for?', placeholder: 'Adventure', yes: 'SAVE'});
+        body: 'Up to 10 characters.', placeholder: 'Adventure', yes: 'SAVE', max: 10});
       if (namn !== null){
         const r = await srvRpc('loadout_new', {p_character: SRV.charId, p_name: namn});
         const n = r && r.items ? Object.keys(r.items).length : 0;
@@ -12345,7 +12358,8 @@ document.addEventListener('click', async e => {
     } else if (rn){
       const i = +rn.dataset.loren;
       const gammalt = (LO.rows.find(r => +r.idx === i) || {}).name || '';
-      const namn = await askText({title: 'Rename loadout', body: '', value: gammalt, yes: 'SAVE'});
+      const namn = await askText({title: 'Rename loadout', body: 'Up to 10 characters.',
+        value: gammalt, yes: 'SAVE', max: 10});
       if (namn !== null){
         await srvRpc('loadout_rename', {p_character: SRV.charId, p_idx: i, p_name: namn});
         await netLoadoutState();
@@ -14451,7 +14465,7 @@ function askText(opts){
       '<div class="ask-box" style="--pc:var(--cyan)">' +
         '<div class="ask-h1">' + esc(opts.title || '') + '</div>' +
         (opts.body ? '<div class="ask-body">' + esc(opts.body) + '</div>' : '') +
-        '<input class="ask-input" type="text" maxlength="24" placeholder="' +
+        '<input class="ask-input" type="text" maxlength="' + (opts.max || 24) + '" placeholder="' +
           esc(opts.placeholder || '') + '" value="' +
           String(opts.value || '').replace(/"/g, '&quot;') + '">' +
         '<div class="ask-row">' +
@@ -14462,11 +14476,14 @@ function askText(opts){
     document.body.appendChild(back);
     const f = back.querySelector('.ask-input');
     const done = v => { back.remove(); resolve(v); };
-    back.querySelector('[data-yes]').addEventListener('click', () => done(f.value.trim()));
+    /* Taket galler aven det som SKICKAS, inte bara vad faltet slapper in - ett
+       klistrat namn kan vara langre an maxlength i vissa webblasare. */
+    const svar = () => done(f.value.trim().slice(0, opts.max || 24));
+    back.querySelector('[data-yes]').addEventListener('click', svar);
     back.querySelector('[data-no]').addEventListener('click', () => done(null));
     back.addEventListener('click', e => { if (e.target === back) done(null); });
     f.addEventListener('keydown', e => {
-      if (e.key === 'Enter') done(f.value.trim());
+      if (e.key === 'Enter') svar();
       if (e.key === 'Escape') done(null);
     });
     setTimeout(() => { f.focus(); f.select(); }, 30);
