@@ -7989,7 +7989,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.515.0 — UTLOGGAD SAGS RAKT UT</div>
+        <div class="sn-ver">GENESIS v5.516.0 — TRADET GAR ATT KLICKA I</div>
       </div>
     </div>
   </aside>
@@ -9109,7 +9109,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.515.0 — UTLOGGAD SAGS RAKT UT</div>
+            <div class="desc">GENESIS v5.516.0 — TRADET GAR ATT KLICKA I</div>
           </div>
         </div>
       </div>
@@ -26628,11 +26628,46 @@ const SKILL_HELP = {
   /* [TILLAGT v5.425.0] De tva generella samlarnoderna. */
   rank_focus:
     'Your finds are drawn from the steps your profession level has opened. This gives an ordinary find a second roll and keeps the better of the two, so more of what you pick up belongs to the higher steps.',
+  /* [TILLAGT v5.516.0] Spelarens trad. En mening om VAD, en om varfor det ar
+     vart poangen. */
+  p_fuel_regen:
+    'Fuel comes back on its own while you play. This makes it come back faster, so you can travel more often without waiting for the tank.',
+  p_prof_xp:
+    'Every profession you learn levels faster. It counts for gathering, crafting and your station alike \u2014 so it is worth more the more professions you run.',
+  p_xp:
+    'Your own level rises faster. Level is what opens regions, dungeons and the last row of this tree, so this is the node that speeds up everything else.',
+  p_offline:
+    'What the world produces while you are away. The longer you stay logged out, the more this one is worth.',
+  p_core_min:
+    'Core Sync is the window where everything runs richer. The base window is thirty minutes; each rank adds to it, so the good stretch lasts longer.',
+  p_gold:
+    'Gold from every source at once \u2014 expeditions, quests, encounters, selling. It does not look like much per rank, but it touches everything you do.',
+  p_godroll:
+    'A god roll is when a piece drops with better numbers than its rarity should allow. This raises that chance on top of the base one.',
+  p_frag:
+    'Fragments are what you spend on caches. More of them means more helpers and more gear out of the same play.',
+  p_luck:
+    'Loot Luck raises the chance of a piece of gear, a schematic and a helper cache. It is laid on AFTER the base cap, so it is never eaten by it.',
+  p_quest:
+    'Everything a contract pays \u2014 gold, reputation and fragments alike. Worth most to someone who runs contracts rather than expeditions.',
+  p_rep:
+    'Reputation from every source: quests, encounters, dungeons, expeditions and time spent in the region. Reputation is what makes the vendor cheaper.',
+  p_expspd:
+    'Expeditions finish sooner. The reward is unchanged \u2014 you simply get it back faster, so the short runs are worth restarting more often.',
+  p_class:
+    'Your class bonuses hit harder \u2014 the combat bonus, the idle bonus and the perk. It does NOT touch the signature: two of the five signatures are whole slots, a bag and a helper place, and a quarter of a slot is nothing.',
+  p_geardrop:
+    'The chance of a piece of gear, everywhere it can drop: expeditions, encounters and dungeons alike.',
+  p_offcap:
+    'There is a limit to how many hours away actually count. This raises the ceiling, so a long night is not wasted.',
   rare_luck:
     'Every gathering profession has a rare material it only turns up now and then. This makes that happen more often. It does not open it earlier \u2014 the level gate is unchanged.'
 };
 function skillEffText(n, ranks){
-  const now = n.per * ranks, next = n.per * (ranks + 1);
+  /* [ANDRAT v5.516.0] Med trappa ar varje rang olika stor. Texten maste raknas
+     ur samma summa som servern betalar - annars lovar rutan ett tal och spelet
+     ger ett annat. skNodeValue ar den enda kallan. */
+  const now = skNodeValue(n, ranks), next = skNodeValue(n, ranks + 1);
   const line = (v) => {
     switch (n.eff){
       /* [ANDRAT v5.95.0] "craft time" och "time per produced unit" lastes som
@@ -26676,6 +26711,23 @@ function skillEffText(n, ranks){
                                 : 'Fuel Cells restore +' + v + ' fuel each';
       case 'future_pve': return 'Reserves the Trauma Kit line for the coming PvE update';
       case 'future_travel': return 'Reserves a travel-efficiency line for a coming update';
+      /* [TILLAGT v5.516.0] SPELARENS FEMTON NODER. Samma form som yrkenas rader:
+         vad EN summa ger, i klartext. */
+      case 'p_fuel_regen': return '+' + v + '% fuel regeneration';
+      case 'p_prof_xp':    return '+' + v + '% profession XP';
+      case 'p_xp':         return '+' + v + '% character XP';
+      case 'p_offline':    return '+' + v + '% from time spent away';
+      case 'p_core_min':   return '+' + v + ' minutes of Core Sync';
+      case 'p_gold':       return '+' + v + '% gold from everything';
+      case 'p_godroll':    return '+' + v + '% god roll chance';
+      case 'p_frag':       return '+' + v + '% fragments';
+      case 'p_luck':       return '+' + v + '% Loot Luck';
+      case 'p_quest':      return '+' + v + '% on quest rewards';
+      case 'p_rep':        return '+' + v + '% reputation from everything';
+      case 'p_expspd':     return '-' + v + '% expedition time';
+      case 'p_class':      return '+' + v + '% to your class bonuses';
+      case 'p_geardrop':   return '+' + v + '% chance of gear everywhere';
+      case 'p_offcap':     return '+' + v + ' hours of offline time counted';
       default: return '';
     }
   };
@@ -26772,7 +26824,13 @@ function ppTreeHTML(prof){
         const rad = ef.next || ef.now;
         const hjalp = n.name + (rad ? ' \u2014 ' + rad : '') +
           (SKILL_HELP[n.eff] ? '\n\n' + SKILL_HELP[n.eff] : '');
+        /* [TILLAGT v5.516.0] Noden bar VILKET TRAD den hor till. Forut lastes det
+           ur profPageRef - yrkessidans oppna yrke - och spelarens trad bor i
+           karaktarsrutan, dar den variabeln ar tom. Klicket foll darfor igenom
+           och ingenting hande. Nu star svaret pa noden sjalv, sa samma tva
+           lyssnare tjanar bada rutorna. */
         return '<div class="' + cls.join(' ') + '" data-ptnode="' + t + ':' + n.id + '"' +
+          ' data-pttree="' + esc(prof) + '"' +
           ' data-pttip="' + esc(hjalp) + '">' +
           '<div class="pt-oct"><span>' + (n.ico || SKILL_ICO[n.eff] || '\u2b50') + '</span>' +
             '<i class="pt-rank">' + ranks + ' / ' + n.max + '</i></div>' +
@@ -26997,11 +27055,14 @@ async function skillReset(prof){
 /* [TILLAGT v5.228.0] Hogerklick pa en nod tar tillbaka en utlagd poang. */
 document.addEventListener('contextmenu', e => {
   const nd = e.target.closest('[data-ptnode]');
-  if (!nd || !profPageRef) return;
+  if (!nd) return;
+  /* [ANDRAT v5.516.0] Tradet las ur noden, inte ur yrkessidan. */
+  const trad = nd.dataset.pttree || profPageRef;
+  if (!trad) return;
   e.preventDefault();
   const parts = nd.dataset.ptnode.split(':');
-  PPT.sel = {prof: profPageRef, tier: +parts[0], node: parts[1]};
-  skillTakeBack(profPageRef, +parts[0], parts[1]);
+  PPT.sel = {prof: trad, tier: +parts[0], node: parts[1]};
+  skillTakeBack(trad, +parts[0], parts[1]);
 });
 document.addEventListener('click', e => {
   /* [TILLAGT v5.291.0] Glomknappen i yrkesrutan. Gar det igenom stangs rutan -
@@ -27021,13 +27082,18 @@ document.addEventListener('click', e => {
      i samma tryck (Chris punkt 13). Ar noden inte oppen, maxad eller poangen
      slut valjs den bara - besked om varfor star i rutan under. */
   const nd = e.target.closest('[data-ptnode]');
-  if (nd && profPageRef){
+  if (nd){
+    /* [ANDRAT v5.516.0] Se noten vid noden: tradet star pa den, inte i
+       profPageRef. Utan detta gjorde ett klick i karaktarsrutan ingenting. */
+    const trad = nd.dataset.pttree || profPageRef;
+    if (!trad) return;
     const parts = nd.dataset.ptnode.split(':');
     const t = +parts[0], id = parts[1];
-    const forstaKlicket = !PPT.sel || PPT.sel.tier !== t || PPT.sel.node !== id;
-    PPT.sel = {prof: profPageRef, tier: t, node: id};
+    const forstaKlicket = !PPT.sel || PPT.sel.prof !== trad ||
+                          PPT.sel.tier !== t || PPT.sel.node !== id;
+    PPT.sel = {prof: trad, tier: t, node: id};
     PPT.resetArmed = false;
-    skillPlace(profPageRef, t, id, forstaKlicket);
+    skillPlace(trad, t, id, forstaKlicket);
     return;
   }
   const clr = e.target.closest('[data-ptclear]');
