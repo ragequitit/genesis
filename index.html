@@ -799,26 +799,37 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   font-weight:900;background:rgba(255,255,255,.05);border:1px solid var(--border);
   color:var(--text)}
 .pg-btns button:disabled{opacity:.35;cursor:default}
-/* Loadout: tre kort under varandra, var och en med sina platser och tva knappar. */
-.lo-wrap{display:flex;flex-direction:column;gap:8px}
-.lo-card{border:1px solid var(--border);border-radius:10px;padding:10px 11px;
-  background:var(--bg-row)}
-.lo-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.lo-name{flex:1;min-width:0;background:transparent;border:none;color:var(--text);
-  font-size:12px;font-weight:800;outline:none;padding:0}
-.lo-when{font-size:9px;color:var(--text-dim);font-family:var(--font-mono);flex:0 0 auto}
-.lo-slots{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
-.lo-slot{width:28px;height:28px;border-radius:6px;border:1px solid var(--border-soft);
-  background:var(--bg-inset);display:flex;align-items:center;justify-content:center;
-  overflow:hidden;font-size:13px}
-.lo-slot.empty{opacity:.35}
-.lo-slot img{width:100%;height:100%;object-fit:contain;pointer-events:none}
-.lo-btns{display:flex;gap:6px}
-.lo-btns button{flex:1;padding:8px 10px;border-radius:8px;cursor:pointer;
-  font-size:9.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
-  background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text)}
-.lo-btns button.go{border-color:var(--cyan);background:rgba(56,232,255,.12);color:var(--cyan)}
-.lo-btns button:disabled{opacity:.4;cursor:default}
+/* [OMBYGGT v5.517.0] Loadouten ar en LISTA, inte kort med bildrutor. En rad per
+   uppsattning: namnet till vanster, antal pjaser, och knappen till hoger. */
+.lo-wrap{display:flex;flex-direction:column;gap:5px}
+.lo-top{display:flex;align-items:center;justify-content:space-between;
+  font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);
+  padding:0 2px 3px}
+.lo-top span{font-family:var(--font-mono);color:var(--cyan);letter-spacing:0;font-size:11px}
+.lo-row{display:flex;align-items:center;gap:6px;border:1px solid var(--border);
+  border-radius:9px;padding:7px 8px;background:var(--bg-row)}
+.lo-row.on{border-color:var(--cyan);background:rgba(56,232,255,.08)}
+.lo-nm{flex:1;min-width:0;font-size:11.5px;font-weight:800;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.lo-n{flex:0 0 auto;font-family:var(--font-mono);font-size:10px;color:var(--text-dim)}
+.lo-now{flex:0 0 auto;font-size:8.5px;font-weight:900;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--cyan);padding:5px 8px}
+.lo-act{flex:0 0 auto;padding:5px 11px;border-radius:7px;cursor:pointer;font-size:9px;
+  font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--cyan);background:rgba(56,232,255,.1);color:var(--cyan)}
+.lo-ic{flex:0 0 auto;width:24px;padding:5px 0;border-radius:7px;cursor:pointer;
+  font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);
+  color:var(--text-dim)}
+.lo-ic:hover{color:var(--text);border-color:var(--cyan-dim)}
+.lo-new{margin-top:3px;padding:9px;border-radius:9px;cursor:pointer;font-size:9.5px;
+  font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  border:1px dashed var(--border);background:transparent;color:var(--text-dim)}
+.lo-new:hover{border-color:var(--cyan);color:var(--cyan)}
+.lo-full{margin-top:3px;text-align:center;font-size:9.5px;color:var(--text-dim);padding:6px}
+.ask-input{width:100%;margin:10px 0 2px;padding:9px 11px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg-inset);color:var(--text);
+  font-size:13px;outline:none}
+.ask-input:focus{border-color:var(--cyan)}
 .char-split{
   display:grid;
   grid-template-columns:minmax(0,1.85fr) minmax(0,1.15fr);
@@ -7989,7 +8000,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.516.0 — TRADET GAR ATT KLICKA I</div>
+        <div class="sn-ver">GENESIS v5.519.0 — FEMTON NODER SOM GOR NAGOT</div>
       </div>
     </div>
   </aside>
@@ -9109,7 +9120,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.516.0 — TRADET GAR ATT KLICKA I</div>
+            <div class="desc">GENESIS v5.519.0 — FEMTON NODER SOM GOR NAGOT</div>
           </div>
         </div>
       </div>
@@ -11719,7 +11730,10 @@ async function netVendorBuyStack(regionId, key, qty){
      receptboken oppen stod raden kvar rod tills man stangde och oppnade den
      igen. redrawAll ar den gemensamma omritningen - allt som beror pa
      serverdata ska ga genom den, annars blir det har felet igen nasta gang. */
+  /* [TILLAGT v5.518.0] Och bodens egen ruta, av samma skal som gearkopet: en
+     staplad vara som tar slut ska forsvinna ur hyllan direkt. */
   redrawAll();
+  vendorViewsRedraw(regionId);
   return r;
 }
 async function netSellStack(key, qty, rar){
@@ -12132,43 +12146,34 @@ function invDropDuplicates(){
    sekunder. Nu flyttas pjasen lokalt DIREKT och servern bekraftar i bakgrunden;
    nekas det backar vi genom att hamta sanningen och saga till. Optimistiskt,
    men aldrig ohederligt - servern ar fortfarande den som avgor. */
-/* ===== LOADOUT (v5.511.0) — TRE UPPSATTNINGAR UTRUSTNING (Chris) =====
+/* ===== LOADOUT (v5.517.0) — FEM NAMNGIVNA UPPSATTNINGAR (Chris) =====
+   [OMBYGGT] Forut var det tre numrerade kort med bildrutor. Nu ar det en LISTA
+   som spelaren fyller sjalv: en rad per uppsattning med namnet man skrivit, en
+   Activate-knapp, och "+ New loadout" sa lange det finns plats. Rubriken sager
+   hur manga av fem som ar tagna, sa taket aldrig ar en overraskning.
+   Bildrutorna ar borta med flit - namnet sager mer an fjorton smarutor, och de
+   visade anda tomt for en pjas som inte lag i vaskan just da.
    Servern ager allt: den sparar VILKA pjaser som satt pa kroppen och satter pa
-   dem igen vid aktivering. Klienten ritar bara och trycker pa knappar.
-   En pjas finns bara EN gang - en loadout ar en lista med pekare, inte kopior.
-   Har man salt eller skrotat nagot saknas just den platsen vid aktiveringen och
-   det sags rakt ut; resten satts pa anda. Adelstenen ingar inte: den har en egen
-   vag in och ut och byts inte av en loadout. */
-const LO_SLOTS = [0, 1, 2, 3, 4, 7, 5, 9, 6, 8, 12, 13, 10, 11];
+   dem igen. En sald pjas saknas bara; resten satts pa anda. */
+const LO_MAX = 5;
 let LO = {rows: [], busy: false};
 async function netLoadoutState(){
   if (!NET.on) return null;
   LO.rows = (await srvRpc('loadout_state', {p_character: SRV.charId})) || [];
   return LO.rows;
 }
-async function netLoadoutSave(idx, namn){
-  if (!NET.on) return null;
-  const r = await srvRpc('loadout_save', {p_character: SRV.charId, p_idx: idx, p_name: namn || null});
-  await netLoadoutState();
-  return r;
-}
-async function netLoadoutActivate(idx){
-  if (!NET.on) return null;
-  const r = await srvRpc('loadout_activate', {p_character: SRV.charId, p_idx: idx});
-  await netPullItems();
-  renderInventory(); updateUI(true);
-  return r;
-}
-function loRowFor(idx){ return (LO.rows || []).find(r => +r.idx === idx) || null; }
-function loSlotHTML(row, slot){
-  const sid = row && row.items ? row.items[String(slot)] : null;
-  const it = sid ? gearBySid(sid) : null;
-  /* Namnet pa den tomma rutan tas ur GEAR_SLOTS, samma lista som karaktarsrutan
-     anvander - inte ur en egen tabell som kan glida isar. */
-  const sn = (GEAR_SLOTS[slot] && GEAR_SLOTS[slot].name) || '';
-  if (!it) return '<span class="lo-slot empty" title="' + esc(sn) + '"></span>';
-  return '<span class="lo-slot" style="border-color:' + gearRarCol(it) + '" title="' +
-    esc(gearName(it)) + '">' + artWithFallback(gearArt(it), '\ud83d\udce6') + '</span>';
+/* Bar man precis det som star i en uppsattning ar DEN pa. Ingen flagga behovs -
+   svaret star redan pa kroppen, och en flagga hade kunnat ljuga efter ett byte. */
+function loIsWorn(row){
+  if (!row || !row.items) return false;
+  const nycklar = Object.keys(row.items);
+  if (!nycklar.length) return false;
+  return nycklar.every(sl => {
+    const it = S.equip && S.equip[+sl];
+    const sid = row.items[sl];
+    const nu = it ? gearBySid(it.sid || it.id) || it : null;
+    return !!(it && (it.sid === sid || (nu && nu.sid === sid)));
+  });
 }
 function renderLoadouts(){
   const box = $('lo-wrap');
@@ -12177,56 +12182,78 @@ function renderLoadouts(){
     box.innerHTML = '<div class="ct-soon">Loadouts live on the server.<br>Sign in to use them.</div>';
     return;
   }
-  let h = '';
-  for (let i = 1; i <= 3; i++){
-    const row = loRowFor(i);
-    const n = row && row.items ? Object.keys(row.items).length : 0;
-    h += '<div class="lo-card">' +
-      '<div class="lo-head">' +
-        '<input class="lo-name" data-loname="' + i + '" maxlength="24" placeholder="Loadout ' + i + '" value="' +
-          esc((row && row.name) || '').replace(/"/g, '&quot;') + '">' +
-        '<span class="lo-when">' + (row ? n + ' pieces' : 'empty') + '</span>' +
-      '</div>' +
-      '<div class="lo-slots">' + LO_SLOTS.map(sl => loSlotHTML(row, sl)).join('') + '</div>' +
-      '<div class="lo-btns">' +
-        '<button data-losave="' + i + '">Save current gear</button>' +
-        '<button class="go" data-loact="' + i + '"' + (row ? '' : ' disabled') + '>Activate</button>' +
-      '</div></div>';
-  }
+  const rader = (LO.rows || []).slice().sort((a, b) => a.idx - b.idx);
+  let h = '<div class="lo-top">Loadouts<span>' + rader.length + ' / ' + LO_MAX + '</span></div>';
+  h += rader.map(r => {
+    const pa = loIsWorn(r);
+    const n = r.items ? Object.keys(r.items).length : 0;
+    return '<div class="lo-row' + (pa ? ' on' : '') + '">' +
+      '<span class="lo-nm">' + esc(r.name || ('Loadout ' + r.idx)) + '</span>' +
+      '<span class="lo-n">' + n + '</span>' +
+      (pa ? '<span class="lo-now">Equipped now</span>'
+          : '<button class="lo-act" data-loact="' + r.idx + '">Activate</button>') +
+      '<button class="lo-ic" data-loren="' + r.idx + '" title="Rename">\u270e</button>' +
+      '<button class="lo-ic" data-lodel="' + r.idx + '" title="Delete">\u2715</button>' +
+      '</div>';
+  }).join('');
+  h += rader.length < LO_MAX
+    ? '<button class="lo-new" data-lonew="1">+ New loadout from current gear</button>'
+    : '<div class="lo-full">All ' + LO_MAX + ' loadouts are in use \u2014 delete one to make room.</div>';
   box.innerHTML = h;
 }
-/* EN lyssnare pa hela sidan, som resten av spelet - knapparna ritas om hela
-   tiden och far darfor aldrig ha egna lyssnare. */
 document.addEventListener('click', async e => {
-  const sv = e.target.closest('[data-losave]'), ak = e.target.closest('[data-loact]');
-  if (!sv && !ak) return;
+  const ny = e.target.closest('[data-lonew]'), ak = e.target.closest('[data-loact]'),
+        rn = e.target.closest('[data-loren]'), dl = e.target.closest('[data-lodel]');
+  if (!ny && !ak && !rn && !dl) return;
   if (LO.busy) return;
   LO.busy = true;
   try {
-    if (sv){
-      const i = +sv.dataset.losave;
-      const fält = document.querySelector('[data-loname="' + i + '"]');
-      const r = await netLoadoutSave(i, fält ? fält.value : '');
-      const n = r && r.items ? Object.keys(r.items).length : 0;
-      say(n ? ('Saved ' + n + ' piece' + (n === 1 ? '' : 's') + '.') : 'Nothing equipped to save.');
+    if (ny){
+      const namn = await askText({title: 'Name this loadout',
+        body: 'What is this set for?', placeholder: 'Adventure', yes: 'SAVE'});
+      if (namn !== null){
+        const r = await srvRpc('loadout_new', {p_character: SRV.charId, p_name: namn});
+        const n = r && r.items ? Object.keys(r.items).length : 0;
+        say(n ? ('Saved ' + n + ' piece' + (n === 1 ? '' : 's') + '.') : 'Nothing equipped to save.');
+        await netLoadoutState();
+      }
+    } else if (rn){
+      const i = +rn.dataset.loren;
+      const gammalt = (LO.rows.find(r => +r.idx === i) || {}).name || '';
+      const namn = await askText({title: 'Rename loadout', body: '', value: gammalt, yes: 'SAVE'});
+      if (namn !== null){
+        await srvRpc('loadout_rename', {p_character: SRV.charId, p_idx: i, p_name: namn});
+        await netLoadoutState();
+      }
+    } else if (dl){
+      const i = +dl.dataset.lodel;
+      const namn = (LO.rows.find(r => +r.idx === i) || {}).name || ('Loadout ' + i);
+      const ja = await askConfirm({title: 'Delete ' + namn + '?',
+        body: 'The gear itself is untouched \u2014 only the saved set goes away.', yes: 'DELETE'});
+      if (ja){
+        await srvRpc('loadout_delete', {p_character: SRV.charId, p_idx: i});
+        await netLoadoutState();
+      }
     } else {
-      const r = await netLoadoutActivate(+ak.dataset.loact);
+      const r = await srvRpc('loadout_activate', {p_character: SRV.charId, p_idx: +ak.dataset.loact});
+      await netPullItems(); renderInventory(); updateUI(true);
       const d = [];
       if (r && r.equipped) d.push(r.equipped + ' equipped');
       if (r && r.missing)  d.push(r.missing + ' gone');
       if (r && r.failed)   d.push(r.failed + " wouldn't fit");
       say(d.length ? d.join(' \u00b7 ') : 'Nothing to put on.');
+      await netLoadoutState();
     }
     renderLoadouts();
   } catch (err){ say(srvErrText(err)); }
   finally { LO.busy = false; }
 });
-/* ===== SPELARENS TRAD OCH PARAGON I KARAKTARSRUTAN (v5.513.0) =====
+/* [ATERSTALLT v5.517.0] SPELARENS TRAD OCH PARAGON I KARAKTARSRUTAN. Aven dessa
+   bodde i loadout-blocket och foll med nar det byttes. Nu star de har, bredvid
+   flikvaxlaren som anropar dem.
    Tradet ritas av ppTreeHTML - SAMMA funktion som yrkessidan anvander, bara med
-   'player' i stallet for ett yrkesnamn. Ingen andra ritare byggs vid sidan om;
-   den var redan generisk sa nar som pa nivakravet, som nu ar en rad.
-   Paragon ar INTE ett trad: fem rutor bredvid varandra, sa den far en egen
-   liten ritare. */
+   'player' i stallet for ett yrke. Ingen andra ritare byggs vid sidan om.
+   Paragon ar INTE ett trad: fem rutor bredvid varandra, egen liten ritare. */
 function renderPlayerTree(){
   const box = $('pt-player');
   if (!box) return;
@@ -12258,8 +12285,7 @@ function renderParagon(){
       const full = pts >= max;
       return '<div class="pg-cell"><b>' + esc(n.name) + '</b>' +
         '<span class="pg-val">+' + varde.toFixed(2).replace(/\.00$/, '') + '%</span>' +
-        '<div class="pg-sub">' + pts + ' / ' + max + '<br>+' +
-          (+n.per_point) + '% each</div>' +
+        '<div class="pg-sub">' + pts + ' / ' + max + '<br>+' + (+n.per_point) + '% each</div>' +
         '<div class="pg-btns">' +
           '<button data-pgbuy="' + esc(n.node) + '" data-pgn="1"' +
             ((kvar < 1 || full) ? ' disabled' : '') + '>+1</button>' +
@@ -12283,6 +12309,10 @@ document.addEventListener('click', async e => {
   } catch (err){ say(srvErrText(err)); }
   finally { PG.busy = false; }
 });
+/* [ATERSTALLT v5.517.0] FLIKVAXLAREN. Den bodde i samma block som loadouten och
+   revs av misstag nar blocket byttes ut - mattes upp direkt efterat: fyra klick,
+   noll byten. Den star nu i ett EGET block, sa nasta ombyggnad av loadouten inte
+   kan ta den med sig. */
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-cttab]');
   if (!t) return;
@@ -12291,8 +12321,8 @@ document.addEventListener('click', e => {
   document.querySelectorAll('#panel-character .ct-pane').forEach(p => {
     p.hidden = (p.dataset.ctpane !== vald);
   });
-  /* Loadouten hamtas forst nar man faktiskt oppnar fliken - ingen trafik for en
-     ruta ingen tittar pa. */
+  /* Rutorna hamtar sitt forst nar man oppnar dem - ingen trafik for nagot ingen
+     tittar pa. */
   if (vald === 'load'){
     renderLoadouts();
     if (NET.on && !LO.rows.length) netLoadoutState().then(renderLoadouts).catch(() => {});
@@ -12794,7 +12824,13 @@ async function netVendorBuy(regionId, slot){
      laddade om - och trycker man pa den igen sager servern helt riktigt nej,
      vilket sag ut som en bugg fast det var skarmen som halkat efter. */
   await netVendorLookInto(regionId);
-  redrawZone();
+  /* [ANDRAT v5.518.0] BODEN RITADES INTE OM EFTER ETT KOP (Chris). VARFOR: raden
+     har hette redrawZone - alltsa zonsidan, den enda plats boden fanns nar den
+     skrevs. Sedan boden fick ett eget fonster stod den kopta pjasen kvar i
+     hyllan tills man bytte flik fram och tillbaka. Exakt samma fel som klockan
+     hade i v5.496.0, och lagningen finns redan: vendorViewsRedraw svarar pa
+     fragan VILKA rutor visar boden just nu. */
+  vendorViewsRedraw(regionId);
   renderInventory(); updateUI(true);
   return r;
 }
@@ -14253,6 +14289,38 @@ function askConfirm(opts){
     back.querySelector('[data-yes]').addEventListener('click', () => done(true));
     back.querySelector('[data-no]').addEventListener('click', () => done(false));
     back.addEventListener('click', e => { if (e.target === back) done(false); });
+  });
+}
+/* [TILLAGT v5.517.0] EN RUTA MAN SKRIVER I. Samma skal som askInfo: utan den
+   hade rutan kopierats en fjarde gang. Svarar med texten, eller null om man
+   avbryter - sa den som anropar kan skilja "tomt namn" fran "angrade sig". */
+function askText(opts){
+  return new Promise(resolve => {
+    const back = document.createElement('div');
+    back.className = 'ask-back';
+    back.innerHTML =
+      '<div class="ask-box" style="--pc:var(--cyan)">' +
+        '<div class="ask-h1">' + esc(opts.title || '') + '</div>' +
+        (opts.body ? '<div class="ask-body">' + esc(opts.body) + '</div>' : '') +
+        '<input class="ask-input" type="text" maxlength="24" placeholder="' +
+          esc(opts.placeholder || '') + '" value="' +
+          String(opts.value || '').replace(/"/g, '&quot;') + '">' +
+        '<div class="ask-row">' +
+          '<button class="pf-btn" data-yes>' + esc(opts.yes || 'SAVE') + '</button>' +
+          '<button class="pf-btn" data-no>CANCEL</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(back);
+    const f = back.querySelector('.ask-input');
+    const done = v => { back.remove(); resolve(v); };
+    back.querySelector('[data-yes]').addEventListener('click', () => done(f.value.trim()));
+    back.querySelector('[data-no]').addEventListener('click', () => done(null));
+    back.addEventListener('click', e => { if (e.target === back) done(null); });
+    f.addEventListener('keydown', e => {
+      if (e.key === 'Enter') done(f.value.trim());
+      if (e.key === 'Escape') done(null);
+    });
+    setTimeout(() => { f.focus(); f.select(); }, 30);
   });
 }
 /* [TILLAGT v5.476.0] EN LITEN RUTA MED BARA EN KNAPP.
@@ -16052,9 +16120,29 @@ function totalHP(){ return BASE_HP + baseHealth() + equippedList().reduce((s, it
 function totalPower(){ return basePower() + equippedList().reduce((s, it) => s + (it ? (it.pw || 0) : 0), 0); }
 function totalDamage(){ return baseDamage() + equippedList().reduce((s, it) => s + (it ? (it.dm || 0) : 0), 0); }
 function totalHit(){ return Math.floor(totalDamage() * totalPower() / 100); }
+/* [TILLAGT v5.519.0] PARAGON I KLIENTENS RAKNING. Servern lagger Fortune och
+   Scavenging i gear_bonus och Insight i grant_xp; statsrutan laser klientens
+   egna funktioner och maste darfor kunna samma sak. Talen kommer ur samma svar
+   som paragonrutan ritas ur - ingen andra kalla. */
+function paragonPct(effekt){
+  const st = (typeof PG !== 'undefined' && PG && PG.state) || null;
+  if (!st || !st.nodes) return 0;
+  let v = 0;
+  st.nodes.forEach(n => { if (n.effect === effekt) v += (+n.points || 0) * (+n.per_point || 0); });
+  return v;
+}
 function gearBonus(key){
   let v = 0;
   equippedList().forEach(it => { if (it) it.a.forEach(x => { if (x.k === key) v += x.v; }); });
+  /* [TILLAGT v5.519.0] SPELARTRADET RAKNAS HAR OCKSA (Chris). VARFOR: servern
+     lagger fyra av noderna i sin gear_bonus, sa varenda rakning dar far dem.
+     Statsrutan ar KLIENTENS och laser den har funktionen - utan samma rad hade
+     rutan visat ett tal och spelet gett ett annat. Samma fyra nycklar, samma
+     ordning, samma kalla som servern. */
+  const p = {frag: 'p_frag', gold: 'p_gold', luck: 'p_luck', expspd: 'p_expspd'}[key];
+  if (p) v += skillPct('player', p);
+  if (key === 'frag') v += paragonPct('pg_frag');
+  if (key === 'gold') v += paragonPct('pg_gold');
   return v;
 }
 
@@ -19456,7 +19544,10 @@ function charStatRows(){
   up('Fragment Find', gearBonus('frag') + helperBonus('frag') + gemPct('frag_find'));
   up('Gold Find', gearBonus('gold') + helperBonus('gold') + gemPct('gold_find'));
   up('Loot Luck', gearBonus('luck') + boostPct('luck'));
-  up('XP Bonus', gearBonus('xp') + boostPct('xp') + gemPct('player_xp'));
+  /* [ANDRAT v5.519.0] Field Training och paragonens Insight rakas i grant_xp pa
+     servern - da maste de sta har ocksa, annars ljuger raden. */
+  up('XP Bonus', gearBonus('xp') + boostPct('xp') + gemPct('player_xp') +
+                 skillPct('player', 'p_xp') + paragonPct('pg_xp'));
   /* [BORTTAGET v5.219.0] Offline Earnings stod alltid pa noll och gick inte
      att hoja nagonstans. En rad som alltid sager noll ar en rad som ljuger. */
   /* [RATTAT v5.348.0] Klassen saknades aven har - servern lagger class_bonus i
@@ -19470,7 +19561,26 @@ function charStatRows(){
   up('Scrap Find', helperBonus('scrap'));
   up('Expedition Speed', expSpeedPct());
   up('Sell Value', helperBonus('sellvalue'));
-  up('Fuel Regen', skillPct('refiner', 'fuel_regen'));
+  up('Fuel Regen', skillPct('refiner', 'fuel_regen') + skillPct('player', 'p_fuel_regen'));
+  /* [TILLAGT v5.519.0] SPELARTRADETS EGNA RADER (Chris). De fyra som gar genom
+     gearBonus - guld, fragment, tur och expeditionsfart - star redan i raderna
+     ovanfor och behovde ingenting. De har atta har ingen egen rad i dag, och en
+     nod man kopt ska synas nagonstans. Noll doljs av up(), sa listan vaxer bara
+     for den som faktiskt lagt poang. */
+  up('Profession XP', skillPct('player', 'p_prof_xp'));
+  up('Offline Earnings', skillPct('player', 'p_offline'));
+  up('God Roll Chance', skillPct('player', 'p_godroll'));
+  up('Quest Rewards', skillPct('player', 'p_quest'));
+  up('Reputation Gain', skillPct('player', 'p_rep'));
+  up('Class Power', skillPct('player', 'p_class'));
+  up('Gear Drop Chance', skillPct('player', 'p_geardrop'));
+  {
+    /* Tva som inte ar procent utan minuter och timmar - egna rader med enhet. */
+    const cs = skillPct('player', 'p_core_min');
+    if (cs > 0) r.push(['Core Sync', '+' + cs + ' min']);
+    const oc = skillPct('player', 'p_offcap');
+    if (oc > 0) r.push(['Offline Cap', '+' + oc + ' h']);
+  }
   up('Cache Odds', helperBonus('cacheluck'));
   up('Gear Rarity', helperBonus('gearrar'));
   /* [BORTTAGET v5.391.0] 'Token Yield' pekade pa en hjalparformaga 'tokens'
@@ -26586,7 +26696,9 @@ function skillPct(prof){
   Object.keys(tree).forEach(t => {
     (tree[t] || []).forEach(n => {
       const r = skillNodeRanks(prof, +t, n.id);
-      if (r > 0 && effs.indexOf(n.eff) >= 0) sum += n.per * r;
+      /* [ANDRAT v5.519.0] Med trappa ar rangarna olika stora - skNodeValue ar
+         samma summa som servern betalar. Utan trappa raknar den per * ranks. */
+      if (r > 0 && effs.indexOf(n.eff) >= 0) sum += skNodeValue(n, r);
     });
   });
   return sum;
@@ -26990,28 +27102,42 @@ function skillStageOrder(prof){
   }
   return kvar.length ? null : ordning;
 }
+/* [TILLAGT v5.518.0] En bekraftelse i taget. Forut var knappen levande medan
+   femtio anrop gick i rad - man trodde att trycket inte tagit och tryckte igen,
+   och da startade en ANDRA omgang parallellt mot samma poang. */
+let SKILL_CONFIRMING = false;
 async function skillConfirm(prof){
+  if (SKILL_CONFIRMING) return;
   const ordning = skillStageOrder(prof);
   if (!ordning){ say('That plan does not hold together \u2014 clear it and try again.'); return; }
   if (!ordning.length) return;
   if (NET.on){
-    for (const steg of ordning){
-      try {
-        await srvRpc('skill_buy', {p_character: SRV.charId, p_prof: prof,
-          p_tier: steg.tier, p_node: steg.node});
-      } catch (e){
-        const t = String(e && e.message || e);
+    SKILL_CONFIRMING = true;
+    /* Knappen sager att den arbetar. Tystnad ar det varsta svaret en knapp kan
+       ge, och den har kunde arbeta i flera sekunder. */
+    document.querySelectorAll('[data-ptconfirm="' + prof + '"]').forEach(b => {
+      b.disabled = true; b.textContent = 'SAVING\u2026';
+    });
+    try {
+      /* [ANDRAT v5.518.0] HELA PLANEN I ETT ANROP. Forut ett per poang - femtio
+         poang blev femtio resor till servern. */
+      const r = await srvRpc('skill_buy_many', {p_character: SRV.charId, p_prof: prof,
+        p_plan: ordning.map(s2 => ({tier: s2.tier, node: s2.node}))});
+      if (r && r.error){
+        const t = String(r.error);
         say(t === 'no_points_left' ? 'No skill points left.'
-          : t === 'node_locked' ? 'One of the nodes lost its path \u2014 nothing more was saved.'
-          : t === 'capstone_locked' ? 'The last row opens at profession level 20.'
+          : t === 'node_locked' ? 'One of the nodes lost its path \u2014 the rest was saved.'
+          : t === 'capstone_locked' ? 'The last row opens at the level cap.'
           : t === 'capstone_already_chosen' ? 'You already picked a different capstone.'
           : t === 'skill_maxed' ? 'That skill is already maxed.'
           : 'The server said no.');
-        skillStageClear(prof);
-        await netPullSkills();
-        ppForceRender(); renderProfCards(true);
-        return;
+      } else if (r && r.bought){
+        say('Spent ' + r.bought + ' point' + (r.bought === 1 ? '' : 's') + '.');
       }
+    } catch (e){
+      say(srvErrText(e));
+    } finally {
+      SKILL_CONFIRMING = false;
     }
     skillStageClear(prof);
     await netPullSkills();
