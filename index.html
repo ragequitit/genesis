@@ -8867,7 +8867,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.581.0 — GILLEN PER KARAKTAR</div>
+        <div class="sn-ver">GENESIS v5.582.0 — MANAGE SOM EGEN VY</div>
       </div>
     </div>
   </aside>
@@ -10076,7 +10076,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.581.0 — GILLEN PER KARAKTAR</div>
+            <div class="desc">GENESIS v5.582.0 — MANAGE SOM EGEN VY</div>
           </div>
         </div>
       </div>
@@ -36605,22 +36605,27 @@ function renderGuild(){
   if (!st.guild){ body.innerHTML = guildlessHTML(st); return; }
   const officer = (st.me.role === 'leader' || st.me.role === 'officer');
   let h = '';
-  h += (officer && GUILD.view === 'manage') ? guildManageHTML(st) : guildMainHTML(st);
+  h += (GUILD.view === 'manage') ? guildManageHTML(st) : guildMainHTML(st);
   /* [ANDRAT v5.129.0] Vaxlingen sitter i UNDERKANTEN som en enda fyrkantig
-     knapp delad av ett streck - Guild till vanster, Manage till hoger. */
-  if (officer)
-    h += '<div class="gd-seg2">' +
-      '<div class="' + (GUILD.view === 'main' ? 'active' : '') + '" data-g="view:main">Guild</div>' +
-      '<div class="purple ' + (GUILD.view === 'manage' ? 'active' : '') + '" data-g="view:manage">Manage' +
-        ((st.join_requests || []).length ? ' ' + st.join_requests.length : '') +
-      '</div></div>';
+     knapp delad av ett streck - Guild till vanster, Manage till hoger.
+     [ANDRAT v5.581.0] VAXLINGEN VISAS FOR ALLA (Chris punkt 5). Den var forut
+     ledningens ensak, vilket ar varfor en vanlig medlem inte kunde ha en andra
+     vy att lagga sitt medlemskap i - och darfor inte kunde bli av med knappen i
+     identitetsspalten. Nu ser alla samma tva platser; vad som STAR i Manage
+     styrs av rollen, inte om raden finns. Siffran ar ansokningar som vantar och
+     hor bara officeren till. */
+  h += '<div class="gd-seg2">' +
+    '<div class="' + (GUILD.view === 'main' ? 'active' : '') + '" data-g="view:main">Guild</div>' +
+    '<div class="purple ' + (GUILD.view === 'manage' ? 'active' : '') + '" data-g="view:manage">Manage' +
+      ((officer && (st.join_requests || []).length) ? ' ' + st.join_requests.length : '') +
+    '</div></div>';
   /* [RATTAT v5.180.3] UTKASTET FORSVANN VID VARJE OMRITNING. Panelen byggs om
      med innerHTML vid varje gilleshandling och varje byte Guild <-> Manage - och
      skrivfaltet foljde med i soporna. Nu sparas det innan och laggs tillbaka. */
   { const old = $('gd-input'); if (old) GUILD.draft = old.value; }
   body.innerHTML = h;
   { const inp = $('gd-input'); if (inp && GUILD.draft) inp.value = GUILD.draft; }
-  if (GUILD.view !== 'manage' || !officer) renderGuildChatMsgs();
+  if (GUILD.view !== 'manage') renderGuildChatMsgs();
   /* Modereringen listar chatten ur samma minne, sa den hamtar nytt om den ar tom. */
   if (GUILD.view === 'manage' && GUILD.mtab === 'mod' && !GUILD.chat.length) guildChatPull();
 }
@@ -36645,10 +36650,15 @@ function guildMainHTML(st){
     '<div class="gd-motd"><div class="h">Message of the day</div>' +
       (g.motd ? esc(g.motd) : '<span class="desc">Nothing pinned yet.</span>') + '</div>' +
     (g.descr ? '<div class="desc" style="margin-top:8px">' + esc(g.descr) + '</div>' : '') +
-    '<div class="gd-idbtns">' +
-      (officer ? gBtn('\uD83D\uDC64 Invite', 'mgo:recruit') + gBtn('\u2699 Settings', 'mgo:profile')
-               : gConfirmBtn('Leave guild', 'leave', 'danger')) +
-    '</div></div>';
+    /* [ANDRAT v5.581.0] EN VANLIG MEDLEM FAR INGA KNAPPAR ALLS (Chris). Det gick
+       inte forut: Leave guild var medlemmens enda vag ut ur gillet, och att ta
+       bort raden hade last in hen. Nu bor medlemskapet i Manage-vyn, som alla
+       nar, sa spalten kan sta ren. Officerare behaller Invite och Settings -
+       genvagar in i samma vy. */
+    (officer
+      ? '<div class="gd-idbtns">' + gBtn('\uD83D\uDC64 Invite', 'mgo:recruit') +
+          gBtn('\u2699 Settings', 'mgo:profile') + '</div>'
+      : '') + '</div>';
 
   /* Mitten: operationerna + framstegen */
   let ops = '<div class="gd-panel gd-opscol"><div class="gd-plabel">Guild operations' +
@@ -36734,16 +36744,33 @@ function guildManageHTML(st){
   /* [NYTT v5.124.0] Egen ruta for ledningen, delad i fem delar. Har styrs
      PRESENTATION och PERSONER - aldrig mal, XP, bidrag, belongar, veckoreset
      eller ambush-skyddet. De reglerna ager servern, och ingen kan rora dem. */
+  /* [OMBYGGT v5.581.0] MANAGE ar en EGEN VY FOR ALLA (Chris punkt 5), inte
+     langre bara ledningens flik. Skalet ar konkret: den enda vagen ut ur ett
+     gille var knappen i identitetsspalten, sa den spalten kunde inte tommas pa
+     knappar sa lange Leave bodde dar. Nu bor medlemskapet i sin egen flik som
+     ALLA nar, och da kan spalten sta ren - vilket var hela Chris punkt.
+     ⚠️ Svepet visade dessutom att en OFFICER inte kunde lamna sitt gille alls:
+     Leave-knappen fanns pa exakt ett stalle i hela filen, i grenen for vanliga
+     medlemmar. Officerare fick Invite och Settings i stallet, och ingen vag ut.
+     Medlemsfliken rattar det pa kopet.
+     Vem som ser vilka flikar: medlemskapet ser alla, de fyra styrflikarna bara
+     officerare och ledare, administrationen bara ledaren. */
   const role = st.me.role, leader = role === 'leader';
+  const officer = role === 'leader' || role === 'officer';
   const TABS = [
+    ['member',   '\uD83E\uDDFE', 'Membership',  ''],
     ['profile',  '\uD83D\uDEE1', 'Profile',     ''],
     ['recruit',  '\uD83D\uDC65', 'Recruitment', ''],
     ['members',  '\uD83D\uDC64', 'Members',     ''],
     ['mod',      '\uD83D\uDCAC', 'Moderation',  ''],
     ['admin',    '\uD83D\uDC51', 'Administration', 'Leader only']
   ];
+  const kanSe = t => t === 'member' ? true : (t === 'admin' ? leader : officer);
+  /* Star man pa en flik man inte far se - t.ex. efter en degradering mitt i
+     rutan - faller man tillbaka till medlemskapet i stallet for en tom sida. */
+  if (!kanSe(GUILD.mtab)) GUILD.mtab = officer ? 'profile' : 'member';
   let nav = '<div class="mg-nav">' + TABS.map(t => {
-    if (t[0] === 'admin' && !leader) return '';
+    if (!kanSe(t[0])) return '';
     return '<div class="mg-tab' + (GUILD.mtab === t[0] ? ' active' : '') +
       (t[0] === 'admin' ? ' lead' : '') + '" data-g="mtab:' + t[0] + '">' +
       '<span class="ic">' + t[1] + '</span><span>' + t[2] +
@@ -36751,14 +36778,48 @@ function guildManageHTML(st){
   }).join('') + '</div>';
 
   let body = '';
-  if (GUILD.mtab === 'profile')      body = mgProfile(st, leader);
+  if (GUILD.mtab === 'member')       body = mgMembership(st, role, leader);
+  else if (GUILD.mtab === 'profile') body = mgProfile(st, leader);
   else if (GUILD.mtab === 'recruit') body = mgRecruit(st, leader);
   else if (GUILD.mtab === 'members') body = mgMembers(st, role, leader);
   else if (GUILD.mtab === 'mod')     body = mgModeration(st, role, leader);
-  else if (GUILD.mtab === 'admin')   body = leader ? mgAdmin(st) : mgProfile(st, leader);
-  else body = mgProfile(st, leader);
+  else if (GUILD.mtab === 'admin')   body = leader ? mgAdmin(st) : mgMembership(st, role, leader);
+  else body = mgMembership(st, role, leader);
 
   return '<div class="mg-wrap">' + nav + '<div>' + body + '</div></div>';
+}
+/* ---- 0. MEDLEMSKAPET: den enda fliken alla ser ---- */
+function mgMembership(st, role, leader){
+  const g = st.guild;
+  const me = (st.members || []).find(m => m.cid === SRV.charId) || {};
+  const mutad = st.me.muted_secs ? fmtDur(st.me.muted_secs) : null;
+  let h = '<div class="mg-cols"><div class="gd-panel">' +
+    '<div class="gd-plabel">Your membership</div>' +
+    '<div class="mg-mrow">' + avChip(me.avatar, me.name, 40, me.online) +
+      '<div class="who"><div class="nm">' + esc(me.name || '?') +
+        (me.handle ? ' <span class="desc">@' + esc(me.handle) + '</span>' : '') +
+        ' <span class="gd-role ' + role + '">' + role + '</span></div>' +
+      '<div class="mt">' + esc(g.name) + ' [' + esc(g.tag) + ']' +
+        ' \u00b7 joined ' + (me.joined_days === 0 ? 'today' : (me.joined_days || 0) + 'd ago') +
+        ' \u00b7 week \u2605' + (me.week_contrib || 0) +
+        ' \u00b7 total \u2605' + (me.total_contrib || 0) +
+      '</div></div></div>' +
+    (mutad ? '<div class="mg-lock">\uD83D\uDD07 You are muted in guild chat for ' + mutad + '.</div>' : '') +
+    '<div class="mg-lock" style="margin-top:8px">Contribution, rewards and weekly targets are ' +
+      'fixed game rules \u2014 nobody in the guild can change them.</div></div>';
+
+  /* Vagen ut. Ledaren far den INTE: servern vagrar anda med leader_must_transfer,
+     och en knapp som alltid sager nej ar samre an ingen knapp - dar star skalet
+     och vad man gor at det i stallet. */
+  h += '<div><div class="mg-danger"><div class="h">\uD83D\uDEAA Leave guild</div>' +
+    (leader
+      ? '<div class="d">You are the Leader. Hand leadership to somebody else under ' +
+          'Administration first \u2014 a guild cannot be left without one.</div>'
+      : '<div class="d">You keep your character, your gear and your contribution history. ' +
+          'Rejoining is subject to the usual cooldown.</div>' +
+        gConfirmBtn('Leave guild', 'leave', 'danger')) +
+    '</div></div></div>';
+  return h;
 }
 /* ---- 1. PROFIL: hur gillet presenterar sig ---- */
 function mgProfile(st, leader){
