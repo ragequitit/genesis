@@ -6649,7 +6649,19 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    men den flytten maste ta med sig hamtningsknapparna, som i dag bara finns
    dar. Tas panelen bort forst forsvinner enda vagen att hamta gillets
    belaningar. Darfor bara bredden nu. */
-.guild-modal{width:min(1180px,96vw);max-width:96vw}
+/* [RATTAT v5.581.0] BREDDEN FRAN v5.576.0 HADE ALDRIG TRATT I KRAFT.
+   Regeln stod som `.guild-modal` - EN klass - och forlorade mot
+   `.modal.profile-modal` hogre upp, som ar TVA klasser och satter 960 px med
+   max-width 960. Rutan har alltsa varit 960 px bred hela tiden, bade fore och
+   efter \"1080 -> 1180\". Uppmatt foljd: de tre spalterna (262 + 1fr + 330 plus
+   mellanrum) vill ha 1044 px och fick 894, sa innehallet spillde 118 px i
+   sidled pa VARJE datorbredd, och 291 px vid 820. Skrivs som `div.modal` plus
+   klassen, precis som quest-modal redan gor for att vinna samma strid.
+   SAMMA FALLA GALLER FYRA ANDRA RUTOR - friends, node, frag, dgc - som ocksa
+   ar 960 px mot sin egen regel. De ar INTE rorda har: var och en behover matas
+   for sig, och fyra rutor som byter bredd i samma leverans ar inte en rattning
+   utan en ombyggnad. */
+div.modal.guild-modal{width:min(1180px,96vw);max-width:96vw}
 .node-modal{width:min(430px,94vw);max-width:94vw}
 /* ===== SVARIGHETSVALET (v5.145.0) =====
    Tva kort sida vid sida: det vanliga i cyan, det heroiska i magenta. Varje kort
@@ -8061,6 +8073,24 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .fr2{flex-wrap:wrap}.fr2 .stat{min-width:0}.fr2 .acts{width:100%;justify-content:flex-end}
   .gd-cards2{grid-template-columns:1fr}
 }
+/* [TILLAGT v5.581.0] MELLANLANDET 761-1199 PX HADE INGEN LAYOUT.
+   De tre spalterna ar 262 + mitten + 330 plus tva mellanrum, och mitten kan
+   inte bli smalare an sitt innehall: uppmatt vill rutnatet ha 1044 px. Under
+   761 px staplades de redan, over 1200 far de plats - men DAREMELLAN stod tre
+   spalter kvar i en ruta som inte rymmer dem. Uppmatt vid 820 px: 1044 px
+   innehall i en 753 px yta, alltsa 291 px som foll utanfor at hoger. Det hann
+   aldrig synas forut eftersom rutan var last vid 960 px och spillde overallt.
+   Gransen ar satt vid 1199: vid 1200 px ar rutan 1152 och innehallet far
+   1118 px, alltsa 74 px till overs - luft nog att inte tippa over pa en
+   rullningslist. Samma stapling som telefonen redan anvander, sa inget nytt
+   utseende behover provas ut. */
+@media (max-width:1199px){
+  .guild-modal{height:auto;max-height:88vh}
+  .guild-modal > .profile-body{overflow-y:auto}
+  .gd2-grid{grid-template-columns:1fr;flex:0 0 auto}
+  .gd-memcol,.gd-chatcol,.gd-idcol,.gd-opscol{flex:0 0 auto}
+  .gd-mems{max-height:260px}
+}
 
 /* Vaxeln finns bara pa smal skarm - pa bordsskarm star bada korten bredvid
    varandra och behover ingen.
@@ -8804,7 +8834,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.580.0 — DRONARRUTAN FAR PLATS</div>
+        <div class="sn-ver">GENESIS v5.581.0 — GILLEN PER KARAKTAR</div>
       </div>
     </div>
   </aside>
@@ -10013,7 +10043,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.580.0 — DRONARRUTAN FAR PLATS</div>
+            <div class="desc">GENESIS v5.581.0 — GILLEN PER KARAKTAR</div>
           </div>
         </div>
       </div>
@@ -33739,8 +33769,12 @@ function renderSocial(){
     if (g) g.addEventListener('click', () => setFrTab('requests'));
   }
   if (!NET.on){ box.innerHTML = '<div class="desc">Sign in to use friends.</div>'; return; }
-  const b = (label, act, h, cls) =>
-    '<button class="btn-neutral tiny ' + (cls || '') + '" data-social="' + act + '" data-h="' + esc(h) + '">' + label + '</button>';
+  /* [ANDRAT v5.581.0] Knappen bar ocksa KARAKTARS-ID nar raden har ett. En
+     gillesinbjudan galler en karaktar, och vanraden vet redan vilken van som
+     spelar vad - da ska den inte skickas som ett handtag och gissas om. */
+  const b = (label, act, h, cls, c) =>
+    '<button class="btn-neutral tiny ' + (cls || '') + '" data-social="' + act + '" data-h="' + esc(h) +
+    '" data-c="' + esc(c || '') + '">' + label + '</button>';
   const canInvite = SRV.guild && (SRV.guild.role === 'leader' || SRV.guild.role === 'officer');
   const more = h => '<div style="position:relative">' +
     b('\u22EF More', 'more', h) + '</div>';
@@ -33749,7 +33783,7 @@ function renderSocial(){
     h = fri.length
       ? fri.map(f => socialLine(f,
           b('\uD83D\uDC41 View', 'view', f.handle) +
-          (canInvite && !f.in_guild ? b('\u2795 Guild invite', 'ginvite', f.handle) : '') +
+          (canInvite && !f.in_guild ? b('\u2795 Guild invite', 'ginvite', f.handle, '', f.char_id) : '') +
           b('Remove', 'remove', f.handle) +
           b('Block', 'block', f.handle, 'danger'))).join('')
       : '<div class="desc">NO FRIENDS YET \u2014 search for players by name above.</div>';
@@ -33768,14 +33802,17 @@ function renderSocial(){
   }
   box.innerHTML = h;
   box.querySelectorAll('[data-social]').forEach(btn => btn.addEventListener('click', () => {
-    const h2 = btn.dataset.h, act = btn.dataset.social;
+    const h2 = btn.dataset.h, act = btn.dataset.social, c2 = btn.dataset.c || null;
     if (act === 'view')    { findPlayer(h2); return; }
     if (act === 'accept')  socialDo('friend_respond', {p_handle: h2, p_accept: true},  h2 + ' is now your friend.');
     if (act === 'decline') socialDo('friend_respond', {p_handle: h2, p_accept: false}, 'Request declined.');
     if (act === 'remove')  socialDo('friend_remove',  {p_handle: h2}, 'Removed.');
     if (act === 'block')   socialDo('block_player',   {p_handle: h2}, h2 + ' is blocked.');
     if (act === 'unblock') socialDo('unblock_player', {p_handle: h2}, h2 + ' is unblocked.');
-    if (act === 'ginvite') guildDo('guild_invite', {p_handle: h2}, 'Guild invitation sent to ' + h2 + '.');
+    if (act === 'ginvite'){
+      if (!c2){ say('That friend has no character to invite yet.'); return; }
+      guildDo('guild_invite', {p_target: c2}, 'Guild invitation sent.');
+    }
   }));
 }
 const FRIEND_MAX = 100;
@@ -34567,15 +34604,19 @@ async function findPlayer(h){
     const btns = r.is_me ? '<span class="fr-sub">This is you</span>' :
       '<button class="btn-neutral tiny" data-addfriend="' + esc(r.handle) + '">Add friend</button>' +
       (canInvite && !r.guild_tag ?
-        '<button class="btn-neutral tiny" data-ginvite="' + esc(r.handle) + '">Guild invite</button>' : '') +
+        '<button class="btn-neutral tiny" data-ginvite="' + esc(r.char_id || '') + '">Guild invite</button>' : '') +
       '<button class="btn-neutral tiny danger" data-blockplayer="' + esc(r.handle) + '">Block</button>';
     box.innerHTML = socialLine(r, btns);
     const add = box.querySelector('[data-addfriend]');
     if (add) add.addEventListener('click', () =>
       socialDo('friend_request', {p_handle: add.dataset.addfriend}, 'Request sent.'));
     const gin = box.querySelector('[data-ginvite]');
-    if (gin) gin.addEventListener('click', () =>
-      guildDo('guild_invite', {p_handle: gin.dataset.ginvite}, 'Guild invitation sent.'));
+    if (gin) gin.addEventListener('click', () => {
+      /* [ANDRAT v5.581.0] Traffen bar karaktarens id - inbjudan galler den
+         karaktaren, inte hela kontot. */
+      if (!gin.dataset.ginvite){ say('That player has no character to invite yet.'); return; }
+      guildDo('guild_invite', {p_target: gin.dataset.ginvite}, 'Guild invitation sent.');
+    });
     const blk = box.querySelector('[data-blockplayer]');
     if (blk) blk.addEventListener('click', () =>
       socialDo('block_player', {p_handle: blk.dataset.blockplayer}, 'Blocked.'));
@@ -34908,7 +34949,12 @@ function handleErrText(e){
 }
 async function netMyProfile(){
   if (!NET.on) return null;
-  const r = await srvRpc('my_profile', {});
+  /* [ANDRAT v5.581.0] GILLET HOR TILL KARAKTAREN, INTE KONTOT (Chris).
+     my_profile svarade forut om kontots gille, vilket var hela felet: en andra
+     karaktar pa samma konto sags som medlem i det gille den forsta gatt med i.
+     Nu foljer karaktaren med fragan. Porten fragar INNAN man valt karaktar, och
+     da ar null ratt - handtaget och looken kommer anda, gillet blir tomt. */
+  const r = await srvRpc('my_profile', {p_character: SRV.charId || null});
   SRV.handle = (r && r.handle) || null;
   SRV.handleCanChangeAt = (r && r.can_change_at) ? new Date(r.can_change_at).getTime() : 0;
   /* [NYTT v5.121.0] Utseendet och gillet foljer med i samma svar. */
@@ -36618,15 +36664,23 @@ function guildMainHTML(st){
   let right = '<div><div class="gd-panel gd-memcol">' +
     '<div class="gd-plabel">Members<span>' + g.members + ' / ' + g.capacity +
       ' \u00b7 online ' + online + '</span></div><div class="gd-mems">' +
-    /* [TILLAGT v5.453.0] RADEN AR EN KNAPP (Chris). Andra medlemmar bar handtag
+    /* [TILLAGT v5.453.0] RADEN AR EN KNAPP (Chris). Andra medlemmar bar namn
        och portratt pa raden: hovring lyfter raden och forstorar portrattet,
        hoger- eller vansterklick oppnar Inspect / Send friend request. Den egna
-       raden ar bara text. Chatt ar inte med - listan saknar karaktars-id. */
+       raden ar bara text.
+       [ANDRAT v5.581.0] RADEN AR EN KARAKTAR, INTE ETT KONTO (Chris). Namnet
+       som star storst ar KARAKTARENS - det ar den som ar medlem - och handtaget
+       star dampat bredvid sa man anda ser vem som spelar den. \"Du\" avgors av
+       karaktars-id, inte av handtaget: bada dina karaktarer delar handtag och
+       den gamla jamforelsen hade markt bada som dig sjalv. Karaktars-id foljer
+       nu ocksa med i raden, sa menyn kan viska och inspektera RATT karaktar. */
     (st.members || []).map(m =>
-      '<div class="gd-mem' + (m.handle !== SRV.handle ? ' hov" data-gmh="' + esc(m.handle) +
-        '" data-gmav="' + esc(m.avatar || '') : '') + '">' + avChip(m.avatar, m.handle, 34, m.online) +
-      '<div style="flex:1;min-width:0"><div class="nm">' + esc(m.handle) +
-        (m.handle === SRV.handle ? ' <span class="desc">(you)</span>' : '') + '</div>' +
+      '<div class="gd-mem' + (m.cid !== SRV.charId ? ' hov" data-gmh="' + esc(m.handle || '') +
+        '" data-gmc="' + esc(m.cid) + '" data-gmn="' + esc(m.name || '') +
+        '" data-gmav="' + esc(m.avatar || '') : '') + '">' + avChip(m.avatar, m.name, 34, m.online) +
+      '<div style="flex:1;min-width:0"><div class="nm">' + esc(m.name || '?') +
+        (m.cid === SRV.charId ? ' <span class="desc">(you)</span>' : '') +
+        (m.handle ? ' <span class="desc">@' + esc(m.handle) + '</span>' : '') + '</div>' +
       '<div class="rl ' + m.role + '">' + m.role.toUpperCase() +
         (m.level ? ' \u00b7 LVL ' + m.level : '') + '</div></div>' +
       '<span class="dot' + (m.online ? ' on' : '') + '"></span></div>').join('') +
@@ -36734,53 +36788,66 @@ function mgRecruit(st, leader){
   h += '<div class="gd-panel"><div class="gd-plabel">Pending applications' +
     '<span>' + (st.join_requests || []).length + '</span></div>' +
     ((st.join_requests || []).length
-      ? st.join_requests.map(r => '<div class="mg-mrow">' + avChip(r.avatar, r.handle, 32) +
-          '<div class="who"><div class="nm">' + esc(r.handle) + '</div>' +
-          '<div class="mt">' + (r.level ? 'LVL ' + r.level : 'no character') +
+      ? st.join_requests.map(r => '<div class="mg-mrow">' + avChip(r.avatar, r.name, 32) +
+          '<div class="who"><div class="nm">' + esc(r.name || '?') +
+          (r.handle ? ' <span class="desc">@' + esc(r.handle) + '</span>' : '') + '</div>' +
+          '<div class="mt">' + (r.level ? 'LVL ' + r.level : 'no level yet') +
           ' \u00b7 waiting ' + fmtDur(r.waiting_secs) + '</div></div>' +
-          '<div class="acts">' + gBtn('Accept', 'joinok:' + r.handle) +
-          gBtn('Decline', 'joinno:' + r.handle, 'danger') + '</div></div>').join('')
+          '<div class="acts">' + gBtn('Accept', 'joinok:' + r.cid) +
+          gBtn('Decline', 'joinno:' + r.cid, 'danger') + '</div></div>').join('')
       : '<div class="desc">Nobody is waiting.</div>') + '</div>';
 
+  /* [ANDRAT v5.581.0] INBJUDAN GALLER EN KARAKTAR (Chris). Ett handtag racker
+     inte langre - bjuder man in \"Cobby\" ar fragan vilken av Cobbys karaktarer
+     som ska in. Samma tva falt som posten anvander, och av samma skal: namnen ar
+     unika i dag men inget hindrar en dubblett i morgon, sa servern slar upp
+     karaktaren INOM handtaget och aldrig pa namnet ensamt. */
   h += '<div class="gd-panel"><div class="gd-plabel">Sent invitations' +
     '<span>' + (st.sent_invites || []).length + '</span></div>' +
-    '<div class="mg-field"><div class="fl">Invite a player</div><div class="find-row">' +
+    '<div class="mg-field"><div class="fl">Invite a character</div><div class="find-row">' +
       '<input class="gate-input" id="mg-inv" maxlength="16" placeholder="Handle">' +
+      '<input class="gate-input" id="mg-invc" maxlength="16" placeholder="Character">' +
       gBtn('Invite', 'invgo') + '</div></div>' +
     ((st.sent_invites || []).length
-      ? st.sent_invites.map(i => '<div class="mg-mrow">' + avChip(null, i.handle, 28) +
-          '<div class="who"><div class="nm">' + esc(i.handle) + '</div>' +
+      ? st.sent_invites.map(i => '<div class="mg-mrow">' + avChip(null, i.name, 28) +
+          '<div class="who"><div class="nm">' + esc(i.name || '?') +
+          (i.handle ? ' <span class="desc">@' + esc(i.handle) + '</span>' : '') + '</div>' +
           '<div class="mt">by ' + esc(i.by || '?') + ' \u00b7 expires in ' +
             fmtDur(i.expires_secs) + '</div></div>' +
-          '<div class="acts">' + gBtn('Revoke', 'revoke:' + i.handle, 'danger') + '</div></div>').join('')
+          '<div class="acts">' + gBtn('Revoke', 'revoke:' + i.cid, 'danger') + '</div></div>').join('')
       : '<div class="desc">No invitations out.</div>') + '</div></div>';
   return h;
 }
 /* ---- 3. MEDLEMMAR ---- */
 function mgMembers(st, role, leader){
+  /* [ANDRAT v5.581.0] VARJE RAD AR EN KARAKTAR (Chris). Knapparna bar numera
+     karaktarens id, inte handtaget: ett handtag pekar inte langre ut en enda
+     medlem, sa \"sparka Cobby\" hade varit en fraga utan svar nar Cobby har tre
+     karaktarer i gillet. Servern kraver ocksa id nu. */
   const rows = (st.members || []).map(m => {
-    const isMe = m.handle === SRV.handle;
+    const isMe = m.cid === SRV.charId;
     /* En officer far bara rora VANLIGA medlemmar - aldrig en annan officer
        eller ledaren. Servern sager samma sak; det har ar bara knapparna. */
     const canTouch = !isMe && (leader || (role === 'officer' && m.role === 'member'));
-    let acts = gBtn('View', 'view:' + m.handle);
+    let acts = gBtn('View', 'insp:' + m.cid);
     if (canTouch){
-      if (leader && m.role === 'member')  acts += gBtn('Promote', 'promote:' + m.handle);
-      if (leader && m.role === 'officer') acts += gBtn('Demote', 'demote:' + m.handle);
-      acts += m.muted_secs ? gBtn('Unmute', 'unmute:' + m.handle) : gBtn('Mute', 'mutepick:' + m.handle);
-      if (leader) acts += gConfirmBtn('Transfer', 'transfer:' + m.handle);
-      acts += gConfirmBtn('Remove', 'kick:' + m.handle, 'danger');
+      if (leader && m.role === 'member')  acts += gBtn('Promote', 'promote:' + m.cid);
+      if (leader && m.role === 'officer') acts += gBtn('Demote', 'demote:' + m.cid);
+      acts += m.muted_secs ? gBtn('Unmute', 'unmute:' + m.cid) : gBtn('Mute', 'mutepick:' + m.cid);
+      if (leader) acts += gConfirmBtn('Transfer', 'transfer:' + m.cid);
+      acts += gConfirmBtn('Remove', 'kick:' + m.cid, 'danger');
     } else if (!isMe){
       acts += '<span class="mg-lock">\uD83D\uDD12 ' +
         (m.role === 'leader' ? 'Leader' : 'Officer') + '</span>';
     }
     let pick = '';
-    if (GUILD.mutePick === m.handle)
+    if (GUILD.mutePick === m.cid)
       pick = '<div style="flex:1 0 100%;display:flex;gap:7px;margin-top:6px">' +
-        gBtn('10 min', 'mute:' + m.handle + ':10') + gBtn('1 hour', 'mute:' + m.handle + ':60') +
-        gBtn('24 hours', 'mute:' + m.handle + ':1440') + gBtn('Cancel', 'mutepick:') + '</div>';
-    return '<div class="mg-mrow">' + avChip(m.avatar, m.handle, 34, m.online) +
-      '<div class="who"><div class="nm">' + esc(m.handle) + (isMe ? ' (you)' : '') +
+        gBtn('10 min', 'mute:' + m.cid + ':10') + gBtn('1 hour', 'mute:' + m.cid + ':60') +
+        gBtn('24 hours', 'mute:' + m.cid + ':1440') + gBtn('Cancel', 'mutepick:') + '</div>';
+    return '<div class="mg-mrow">' + avChip(m.avatar, m.name, 34, m.online) +
+      '<div class="who"><div class="nm">' + esc(m.name || '?') + (isMe ? ' (you)' : '') +
+        (m.handle ? ' <span class="desc">@' + esc(m.handle) + '</span>' : '') +
         ' <span class="gd-role ' + m.role + '">' + m.role + '</span></div>' +
       '<div class="mt">LVL ' + (m.level || '?') +
         ' \u00b7 ' + (m.online ? 'online' : (m.last_seen_secs == null ? 'never seen'
@@ -36807,10 +36874,11 @@ function mgModeration(st, role, leader){
     '<div class="gd-plabel" style="margin-top:14px">Muted members' +
       '<span>' + (st.mutes || []).length + '</span></div>' +
     ((st.mutes || []).length
-      ? st.mutes.map(m => '<div class="mg-mrow">' + avChip(null, m.handle, 28) +
-          '<div class="who"><div class="nm">' + esc(m.handle) + '</div>' +
+      ? st.mutes.map(m => '<div class="mg-mrow">' + avChip(null, m.name, 28) +
+          '<div class="who"><div class="nm">' + esc(m.name || '?') +
+          (m.handle ? ' <span class="desc">@' + esc(m.handle) + '</span>' : '') + '</div>' +
           '<div class="mt">\uD83D\uDD07 ' + fmtDur(m.secs_left) + ' left</div></div>' +
-          '<div class="acts">' + gBtn('Unmute', 'unmute:' + m.handle) + '</div></div>').join('')
+          '<div class="acts">' + gBtn('Unmute', 'unmute:' + m.cid) + '</div></div>').join('')
       : '<div class="desc">Nobody is muted.</div>') +
     '<div class="mg-lock" style="margin-top:8px">Message length and rate limits are enforced by the ' +
       'server, so spam is already blocked.</div></div>';
@@ -36822,7 +36890,7 @@ function mgModeration(st, role, leader){
           ? '<div class="mg-lrow"><span class="ic">\u2699</span><span class="tx desc">' + esc(m.body) +
             '</span><span class="ag">' + fmtDur(m.at_secs) + '</span></div>'
           : '<div class="mg-lrow"><span class="ic">\uD83D\uDCAC</span>' +
-            '<span class="tx"><span class="who">' + esc(m.handle || '?') + '</span> ' + esc(m.body) +
+            '<span class="tx"><span class="who">' + esc(m.name || m.handle || '?') + '</span> ' + esc(m.body) +
             '</span><span class="ag">' + fmtDur(m.at_secs) + '</span>' +
             gBtn('\u2715', 'delmsg:' + m.id, 'danger') + '</div>').join('')
       : '<div class="desc">No messages yet.</div>') + '</div></div></div>';
@@ -36841,7 +36909,15 @@ function mgAdmin(st){
       'guildmate ambush protection are fixed game rules. They cannot be edited from here.</div></div>' +
     '<div class="mg-danger" style="margin-top:12px"><div class="h">\uD83D\uDC51 Transfer leadership</div>' +
     '<div class="d">The new leader becomes Leader and you become an Officer.</div>' +
-    '<div class="find-row"><input class="gate-input" id="mg-transfer" maxlength="16" placeholder="Handle">' +
+    /* [ANDRAT v5.581.0] VAL UR LISTAN, INTE ETT HANDTAG (Chris). Ett handtag
+       pekar inte langre ut en medlem - kontot kan ha flera karaktarer i gillet -
+       och da finns det inget ratt svar pa vem som ska bli ledare. Listan visar
+       precis de karaktarer som FINNS i gillet, sa valet kan inte bli fel. */
+    '<div class="find-row"><select class="gate-input" id="mg-transfer">' +
+      (st.members || []).filter(m => m.cid !== SRV.charId)
+        .map(m => '<option value="' + esc(m.cid) + '">' + esc(m.name || '?') +
+          (m.handle ? ' (@' + esc(m.handle) + ')' : '') + '</option>').join('') +
+      '</select>' +
       gConfirmBtn('Transfer', 'transferfield', 'danger') + '</div></div></div>' +
 
     '<div><div class="mg-danger"><div class="h">\u26A0 Disband guild</div>' +
@@ -36938,7 +37014,9 @@ function renderGuildChatMsgs(){
     const item = m.item ? '<span class="gd-itemlink chat-link" data-gditem="' + m.id + '" style="--rc:' +
       (GRARC[m.item.rarity] || GRARC[0]) + '">[' + esc(gItemName(m.item.key)) + ']</span>' : '';
     const ann = m.kind === 'announce';
-    return '<div class="gd-msg' + (ann ? ' chat-msg announce' : '') + '"><span class="who ' + (m.role || '') + '">' + (ann ? '\ud83d\udce3 ' : '') + esc(m.handle || '?') +
+    /* [ANDRAT v5.581.0] Avsandaren ar en KARAKTAR. Raden visade handtaget, som
+       inte langre pekar ut vem i gillet som skrev. */
+    return '<div class="gd-msg' + (ann ? ' chat-msg announce' : '') + '"><span class="who ' + (m.role || '') + '">' + (ann ? '\ud83d\udce3 ' : '') + esc(m.name || m.handle || '?') +
       '</span><span class="when">' + fmtDur(m.at_secs) + ' ago</span>' +
       '<div class="txt">' + esc(m.body) + ' ' + item + '</div></div>';
   }).join('');
@@ -37028,9 +37106,19 @@ $('guild-body').addEventListener('click', e => {
   const a = el.dataset.g;
   if (a.indexOf('view:') === 0){
     const v = a.slice(5);
-    /* "View" pa en medlem oppnar vanrutans uppslag; annars ar det vybytet. */
     if (v === 'main' || v === 'manage'){ GUILD.view = v; GUILD.confirm = null; renderGuild(); return; }
     openFriends(); findPlayer(v); return;
+  }
+  /* [ANDRAT v5.581.0] \"View\" pa en medlem gick forut till vanrutans uppslag pa
+     HANDTAGET, som visar kontots senast spelade karaktar - alltsa kunde den visa
+     en helt annan karaktar an raden man tryckte pa. Nu oppnas inspektionen pa
+     medlemmens egen karaktar. */
+  if (a.indexOf('insp:') === 0){
+    const cid = a.slice(5);
+    const m = ((GUILD.state && GUILD.state.members) || []).find(x => x.cid === cid);
+    if (m && m.handle) openInspect(m.handle, cid);
+    else say('That member has no account handle yet.');
+    return;
   }
   if (a.indexOf('mgo:') === 0){
     GUILD.view = 'manage'; GUILD.mtab = a.slice(4); GUILD.confirm = null; renderGuild(); return;
@@ -37072,7 +37160,7 @@ $('guild-body').addEventListener('click', e => {
     }, 'Recruitment saved.'); return;
   }
   if (a.indexOf('revoke:') === 0){
-    guildDo('guild_revoke_invite', {p_handle: a.slice(7)}, 'Invitation revoked.'); return;
+    guildDo('guild_revoke_invite', {p_target: a.slice(7)}, 'Invitation revoked.'); return;
   }
   if (a.indexOf('mutepick:') === 0){
     GUILD.mutePick = a.slice(9) || null; renderGuild(); return;
@@ -37080,10 +37168,10 @@ $('guild-body').addEventListener('click', e => {
   if (a.indexOf('mute:') === 0){
     const q = a.split(':');
     GUILD.mutePick = null;
-    guildDo('guild_mute', {p_handle: q[1], p_minutes: parseInt(q[2], 10)}, q[1] + ' is muted.'); return;
+    guildDo('guild_mute', {p_target: q[1], p_minutes: parseInt(q[2], 10)}, 'Muted.'); return;
   }
   if (a.indexOf('unmute:') === 0){
-    guildDo('guild_unmute', {p_handle: a.slice(7)}, 'Unmuted.'); return;
+    guildDo('guild_unmute', {p_target: a.slice(7)}, 'Unmuted.'); return;
   }
   if (a.indexOf('delmsg:') === 0){
     const id = parseInt(a.slice(7), 10);
@@ -37096,8 +37184,8 @@ $('guild-body').addEventListener('click', e => {
   if (a === 'pinclear'){ guildDo('guild_update', {p_pinned: ''}, 'Pin removed.'); return; }
   if (a === 'do:transferfield'){
     const h = (($('mg-transfer') || {}).value || '').trim();
-    if (!h){ say('Type the handle of the new leader first.'); return; }
-    guildDo('guild_transfer_lead', {p_handle: h}, 'Leadership transferred.'); return;
+    if (!h){ say('Pick the new leader first.'); return; }
+    guildDo('guild_transfer_lead', {p_target: h}, 'Leadership transferred.'); return;
   }
   if (a === 'disbandgo'){
     guildDo('guild_disband', {p_confirm_name: ($('mg-disband') || {}).value || ''},
@@ -37147,22 +37235,25 @@ $('guild-body').addEventListener('click', e => {
     return;
   }
   if (a === 'invgo'){
-    const h = (($('mg-inv') || {}).value || '').trim();
-    if (h) guildDo('guild_invite', {p_handle: h}, 'Invitation sent.');
+    const h = (($('mg-inv')  || {}).value || '').trim();
+    const c = (($('mg-invc') || {}).value || '').trim();
+    if (!h){ say('Type the handle first.'); return; }
+    if (!c){ say('Type the character name too \u2014 a guild place belongs to a character.'); return; }
+    guildDo('guild_invite', {p_handle: h, p_name: c}, 'Invitation sent to ' + c + '.');
     return;
   }
-  if (a.indexOf('joinok:') === 0){ guildDo('guild_respond_join', {p_handle: a.slice(7), p_accept: true}, 'Accepted.'); return; }
-  if (a.indexOf('joinno:') === 0){ guildDo('guild_respond_join', {p_handle: a.slice(7), p_accept: false}, 'Declined.'); return; }
+  if (a.indexOf('joinok:') === 0){ guildDo('guild_respond_join', {p_target: a.slice(7), p_accept: true}, 'Accepted.'); return; }
+  if (a.indexOf('joinno:') === 0){ guildDo('guild_respond_join', {p_target: a.slice(7), p_accept: false}, 'Declined.'); return; }
   if (a.indexOf('claim:') === 0){
     const parts = a.split(':');
     guildDo('guild_claim', {p_op_idx: parseInt(parts[1], 10), p_milestone: parts[2]},
       'Reward claimed \u2014 the goods are in your mailbox.');
     return;
   }
-  if (a.indexOf('promote:') === 0){ guildDo('guild_set_role', {p_handle: a.slice(8), p_role: 'officer'}, 'Promoted.'); return; }
-  if (a.indexOf('demote:') === 0){ guildDo('guild_set_role', {p_handle: a.slice(7), p_role: 'member'}, 'Demoted.'); return; }
-  if (a.indexOf('do:kick:') === 0){ guildDo('guild_kick', {p_handle: a.slice(8)}, 'Removed.'); return; }
-  if (a.indexOf('do:transfer:') === 0){ guildDo('guild_transfer_lead', {p_handle: a.slice(12)}, 'Leadership transferred.'); return; }
+  if (a.indexOf('promote:') === 0){ guildDo('guild_set_role', {p_target: a.slice(8), p_role: 'officer'}, 'Promoted.'); return; }
+  if (a.indexOf('demote:') === 0){ guildDo('guild_set_role', {p_target: a.slice(7), p_role: 'member'}, 'Demoted.'); return; }
+  if (a.indexOf('do:kick:') === 0){ guildDo('guild_kick', {p_target: a.slice(8)}, 'Removed.'); return; }
+  if (a.indexOf('do:transfer:') === 0){ guildDo('guild_transfer_lead', {p_target: a.slice(12)}, 'Leadership transferred.'); return; }
   if (a === 'do:leave'){ guildDo('guild_leave', {}, 'You left the guild.').then(() => guildSockClose()); return; }
   if (a === 'chatsend'){ guildChatSendNow(); return; }
 });
@@ -37529,13 +37620,13 @@ function chatRowHTML(m, chan){
   if (m.sys) return '<div class="chat-msg sys">' + (CHAT_CFG.stamps ? '<span class="when">' + chatStamp(m.at) + '</span>' : '') +
     '<span class="txt">' + esc(m.body) + '</span></div>';
   const cls = 'chat-msg ' + chan + (m.kind === 'announce' ? ' announce' : '') + (chatIsMention(m) ? ' mention' : '');
-  const who = esc(m.sender_name || m.handle || '?');
+  const who = esc(m.sender_name || m.name || m.handle || '?');
   const handle = esc(m.sender_handle || m.handle || '');
   const tag = m.sender_tag ? '<span class="tag">[' + esc(m.sender_tag) + ']</span>' : '';
   const at = m.created_at ? new Date(m.created_at).getTime() : (m.at_secs != null ? Date.now() - m.at_secs * 1000 : Date.now());
   return '<div class="' + cls + '" data-cid="' + (m.id || '') + '" data-csrc="' + (chan === 'guild' ? 'guild' : 'chat') + '">' +
     (CHAT_CFG.stamps ? '<span class="when">' + chatStamp(at) + '</span>' : '') +
-    '<span class="who" data-cwho="' + who + '" data-chandle="' + handle + '" data-cchar="' + esc(m.sender_char || '') + '">' +
+    '<span class="who" data-cwho="' + who + '" data-chandle="' + handle + '" data-cchar="' + esc(m.sender_char || m.cid || '') + '">' +
     (m.kind === 'announce' ? '\ud83d\udce3 ' : '') + who + tag + ':</span>' +
     '<span class="txt">' + chatFmtBody(m) + '</span></div>';
 }
@@ -37659,7 +37750,10 @@ async function chatFetchTab(tab, older){
            sa siffran hoppade upp nar man sjalv skrev och foll tillbaka forst vid
            nasta synk. Nu raknas bara andras - samma regel pa bada sidor. */
         if (CHAT.tab !== 'guild' && CHAT.guildPrimed)
-          CHAT.unread.guild += fresh.filter(r => r.kind !== 'sys' && r.handle !== SRV.handle).length;
+          /* [ANDRAT v5.581.0] Egna rader kandes igen pa HANDTAGET, som bada
+             mina karaktarer delar - byter man karaktar raknades den andras rader
+             som mina och forsvann ur siffran. Karaktars-id ar det som skiljer. */
+          CHAT.unread.guild += fresh.filter(r => r.kind !== 'sys' && r.cid !== SRV.charId).length;
         if (CHAT.guildPrimed) fresh.forEach(r => chatNotify(r, 'guild'));
         CHAT.guildPrimed = true;
       }
@@ -38143,7 +38237,10 @@ function chatMenuOpen(el, x, y){
     const b = ev.target.closest('[data-cm]'); if (!b) return; const act = b.dataset.cm; chatMenuClose();
     if (act === 'whisper'){ chatOpenConv(cid, name); }
     else if (act === 'friend'){ socialDo('friend_request', {p_handle: handle}, 'Friend request sent.'); }
-    else if (act === 'invite'){ guildDo('guild_invite', {p_handle: handle}, 'Invite sent.'); }
+    else if (act === 'invite'){
+      if (!cid){ say('No character to invite \u2014 open the guild window and invite by name.'); return; }
+      guildDo('guild_invite', {p_target: cid}, 'Invite sent.');
+    }
     else if (act === 'duel'){ try { openDuelChallenge(cid, name); } catch (e){} }
     else if (act === 'block'){ if (confirm('Block ' + name + '? You will not see each other\'s messages.')) socialDo('block_player', {p_handle: handle}, 'Blocked.').then(chatSync); }
     else if (act === 'report'){ const why = prompt('Report this message \u2014 why?', ''); if (why != null) srvRpc('chat_report', {p_character: SRV.charId, p_source: src, p_message_id: +mid, p_reason: why}).then(() => say('Reported. Thank you.')).catch(e => say(srvErrText(e, 'Could not report.'))); }
@@ -39131,7 +39228,7 @@ function plMenuOpenFor(sp, r, opts){
     if (act === 'view')    { openInspect(h, cid); return; }
     if (act === 'whisper') { if (cid) chatOpenConv(cid, nm); return; }
     if (act === 'friend')  { socialDo('friend_request', {p_handle: h}, 'Request sent.'); return; }
-    if (act === 'ginvite') { guildDo('guild_invite', {p_handle: h}, 'Invitation sent to ' + nm + '.'); return; }
+    if (act === 'ginvite') { guildDo('guild_invite', {p_target: cid}, 'Invitation sent to ' + nm + '.'); return; }
   });
 }
 /* Kartan viker ihop spelare som star pa varandra till EN bricka. Da far man
@@ -39162,7 +39259,11 @@ document.addEventListener('click', e => {
 /* [TILLAGT v5.453.0] GILLETS MEDLEMSRAD (Chris): hogerklick ger menyn, hovring
    over brickan ger ett stort portratt. */
 function gmMenu(row){
-  plMenuOpenFor({id: null, handle: row.dataset.gmh, name: row.dataset.gmh},
+  /* [ANDRAT v5.581.0] Raden bar numera karaktarens id och namn, sa menyn pekar
+     pa RATT karaktar - forut fanns bara handtaget och inspektionen tog kontots
+     senast spelade, som kan vara en helt annan medlem. */
+  plMenuOpenFor({id: row.dataset.gmc || null, handle: row.dataset.gmh,
+                 name: row.dataset.gmn || row.dataset.gmh},
                 row.getBoundingClientRect(), {guild: true});
 }
 document.addEventListener('contextmenu', e => {
@@ -39175,7 +39276,7 @@ function avBigShow(row, chip){
   avBigHide();
   const el = document.createElement('div');
   el.className = 'av-big';
-  el.innerHTML = avChip(row.dataset.gmav || null, row.dataset.gmh, 128, false);
+  el.innerHTML = avChip(row.dataset.gmav || null, row.dataset.gmn || row.dataset.gmh, 128, false);
   document.body.appendChild(el);
   const r = chip.getBoundingClientRect();
   /* Till hoger om brickan; far den inte plats, till vanster. */
