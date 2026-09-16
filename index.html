@@ -6355,6 +6355,47 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .pvb-verdict.win b{color:var(--cyan)} .pvb-verdict.lose b{color:#ff5670}
 .pvb-verdict span{font-size:12px;color:var(--text-dim);line-height:1.5;max-width:420px}
 .pvb-verdict .pve-starter{color:#7ddc5a;font-weight:800}
+/* [TILLAGT v5.570.0] Belaningskorten i segerrutan. Antalet spalter foljer hur
+   MANGA kort som faktiskt ritades - annars hade tva kort strackt sig over halva
+   arenan var. Taket ar fyra, som expeditionsrutan. Bredden hindrar korten fran
+   att bli breda remsor nar arenan ar 1200 px. */
+.pvb-verdict .pvb-rw{grid-template-columns:repeat(var(--rwn,4),minmax(0,1fr));
+  max-width:min(560px,100%);margin:2px 0 4px;width:100%}
+/* RAMEN. .rw-card bar en gra kantlinje och later --rc farga bara TALET - darfor
+   sag korten gra ut fast variabeln var satt. Chris ville ha neonbla ramar, sa
+   har far kanten folja --rc pa riktigt, med en svag glod utat sa den lyser som
+   i skissen. Bara i segerrutan: expeditionens belaningsruta ar orord. */
+.pvb-verdict .rw-card{border-color:var(--cyan-dim);
+  box-shadow:0 0 0 1px rgba(56,232,255,.12), 0 0 14px rgba(56,232,255,.10)}
+@media (max-width:700px){
+  /* Arenan ar 280 px hog pa telefon och segerrutan far inte rullas. Uppmatt
+     utrymme for korten dar: 147 px vid 360 px bredd, sedan rubriken VICTORY
+     (33), knappen (36) och mellanrummen ar avdragna. Ett fullstort kort ar 149
+     px hogt, alltsa rymdes inte ens EN rad. Korten dras darfor in har - bilden
+     fran 48,5 till 30 px, rubriken till 8,5 px pa hogst tva rader - och tre far
+     sta i bredd i stallet for fyra, sa de inte blir sextio pixlar breda. */
+  .pvb-verdict .pvb-rw{grid-template-columns:repeat(min(3,var(--rwn,3)),minmax(0,1fr));gap:5px}
+  /* De sista nitton pixlarna: rutans EGEN luft, inte kortens. Med 20 px
+     kantavstand och 8 px mellan delarna spillde fyra kort 19 px over arenans
+     280. 12 och 6 ger 22 tillbaka, alltsa tre over - och texten star lika fritt,
+     for det ar kanten som krymper, inte innehallet. */
+  .pvb-verdict{padding:12px;gap:6px}
+  /* Knappens egen marginal ovanfor ar overflodig nar rutan redan har ett
+     mellanrum mellan delarna - den lade en andra luft pa samma stalle, och det
+     var den sista pixeln som spillde. */
+  .pvb-verdict .pve-close{margin-top:0}
+  .pvb-verdict .rw-card{padding:5px 3px 6px;gap:1px}
+  .pvb-verdict .rw-card .cd-ico.art-wrap{width:21px;height:21px}
+  .pvb-verdict .rw-card .cd-ico.art-wrap .art-img{width:21px;height:21px}
+  .pvb-verdict .rw-card .cd-ico.art-wrap.noart{font-size:15px;padding:1px 0 3px}
+  /* TVA RADERS RESERV BEHALLS, aven har. v5.207.0 satte den dit for att
+     skrotets namn gar over tva rader nar de andra gar over en - utan reserven
+     star skrotets ikon en rad lagre an grannarnas i samma rad. Jag provade att
+     ta bort den for att vinna hojd och fick precis den skevheten tillbaka; de
+     pixlarna hamtas i stallet ur bilden och stoppningen. */
+  .pvb-verdict .rw-card .cd-k{font-size:8.5px;letter-spacing:.06em;min-height:2.2em;line-height:1.2}
+  .pvb-verdict .rw-card .cd-v{font-size:10px}
+}
 .pve-close{padding:11px;border-radius:9px;cursor:pointer;font-size:10.5px;font-weight:900;
   letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--cyan-dim);
   background:rgba(56,232,255,.1);color:var(--cyan);margin-top:6px;min-width:160px}
@@ -8605,7 +8646,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.569.0 — STAENDE BILD PA TELEFON</div>
+        <div class="sn-ver">GENESIS v5.570.0 — SEGERNS BELONINGAR SOM KORT</div>
       </div>
     </div>
   </aside>
@@ -9785,7 +9826,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.569.0 — STAENDE BILD PA TELEFON</div>
+            <div class="desc">GENESIS v5.570.0 — SEGERNS BELONINGAR SOM KORT</div>
           </div>
         </div>
       </div>
@@ -11549,22 +11590,55 @@ function showFightPlayback(enc, r){
     let body, fillDrops = null;
     if (r.win){
       const rw = r.rewards || {};
-      const scrap = rw.scrap_qty
-        ? ' \u00b7 +' + rw.scrap_qty + ' ' + ((MATERIALS[rw.scrap_key] || {}).name || 'scrap') : '';
-      const frg = rw.frags ? ' \u00b7 +' + rw.frags + ' Fragment' + (rw.frags > 1 ? 's' : '') : '';
-      /* [TILLAGT v5.508.0] Ryktet en vinst ger. Servern delar ut det i ZONENS
-         region; raden sager bara hur mycket, som de ovriga. */
-      const rp = rw.rep ? ' \u00b7 +' + rw.rep + ' rep' : '';
-      const cch = rw.helper_cache ? ' \u00b7 Helper Cache' : '';
-      const sch = rw.schematic
-        ? ' \u00b7 ' + ((SCHEMATICS[rw.schematic] || {}).name || 'Schematic') : '';
-      /* [ANDRAT v5.467.0] PJASEN SOM KORT, INTE TEXT (Chris). Servern skickar
-         pjasens id; efter en hamtning finns den i vaskan och kan ritas med samma
-         bild och samma hovringskort som overallt annars. Hinner hamtningen inte
-         fram, eller skippades pjasen (full vaska), star texten kvar som forut. */
+      /* ===== BELONINGARNA SOM KORT (v5.570.0, Chris skiss) =====
+         Forut var hela vinsten en enda gra textrad: "+57 XP - +5 rep - +2 Scrap
+         - +1 Fragment". Nu ett kort per sak, med bild.
+         KORTEN AR INTE NYA. .rw-card ar samma komponent som expeditionens
+         belaningsruta redan anvander, och bilderna hamtas ur samma kallor -
+         experience.png, reputation.webp, fragments.png, skrotet via stackArtOf.
+         EN kalla for hur rykte och fragment ser ut, sa de tva rutorna inte kan
+         visa olika saker.
+         ALLA RAMAR AR NEONBLA har (Chris): skrotets gula och fragmentets lila
+         sag ut som om fargerna betydde nagot, vilket de inte gjorde.
+         Expeditionsrutan behaller sina egna farger - den ar inte rord.
+         BARA DET MAN FAKTISKT FICK far ett kort. Servern skickar xp, rep,
+         scrap_key/scrap_qty, frags, helper_cache, schematic samt starter_gear
+         och gear - ingenting annat, alltsa finns det inga PENGAR att visa: ett
+         mote betalar inte guld. Saknas ett varde ritas inget tomt kort.
+         Pjaserna star kvar i sin egen rad under, med RARITETENS farg - den
+         betyder nagot och ska inte blableras bort.
+         [ANDRAT v5.467.0, kvar] Pjasen ritas som kort efter en hamtning; hinner
+         den inte fram, eller skippades pjasen (full vaska), star texten kvar. */
+      const rwKort = [];
+      const rwKortHtml = (rubrik, bild, emoji, varde) =>
+        '<div class="rw-card" style="--rc:var(--cyan)"><span class="cd-k">' + rubrik + '</span>' +
+        rwCardIco(bild ? artUnlessMissing(bild) : '', emoji) +
+        '<span class="cd-v">' + varde + '</span></div>';
+      if (rw.xp)  rwKort.push(rwKortHtml('Experience', 'assets/ui/experience.png', '\u2728',
+                                         '+' + fmt(rw.xp) + ' XP'));
+      if (rw.rep) rwKort.push(rwKortHtml('Reputation', 'assets/ui/reputation.webp', '\ud83c\udfc6',
+                                         '+' + fmt(rw.rep) + ' rep'));
+      if (rw.scrap_qty){
+        const md = MATERIALS[rw.scrap_key] || {};
+        rwKort.push(rwKortHtml(esc(md.name || 'Scrap'), stackArtOf(rw.scrap_key),
+                               md.ico || '\ud83d\udd29', '+' + fmt(rw.scrap_qty)));
+      }
+      if (rw.frags) rwKort.push(rwKortHtml('Fragments', 'assets/ui/fragments.png', '\ud83d\udd37',
+                                           '+' + fmt(rw.frags)));
+      if (rw.helper_cache) rwKort.push(rwKortHtml('Helper Cache', 'assets/ui/cache/helper.webp',
+                                                  '\ud83c\udf81', '+1'));
+      if (rw.schematic){
+        const sd = SCHEMATICS[rw.schematic] || {};
+        rwKort.push(rwKortHtml('Schematic', stackArtOf(rw.schematic), '\ud83d\udcdc',
+                               esc(sd.name || 'Schematic')));
+      }
       const drops = [rw.starter_gear, rw.gear].filter(Boolean);
       const sgt = drops.map(starterGearText).filter(Boolean).join(' \u00b7 ');
-      body = '<b>VICTORY</b><span>+' + fmt(rw.xp || 0) + ' XP' + rp + scrap + frg + cch + sch + '</span>' +
+      body = '<b>VICTORY</b>' +
+        (rwKort.length
+          ? '<div class="rw-cards pvb-rw" style="--rwn:' + Math.min(4, rwKort.length) + '">'
+            + rwKort.join('') + '</div>'
+          : '') +
         '<div class="pvb-drops" id="pvb-drops">' +
           (sgt ? '<span class="pve-starter">' + esc(sgt) + '</span>' : '') + '</div>';
       /* Hamtningen startar nu, men kortet ritas forst nar segerrutan finns
