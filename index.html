@@ -1860,18 +1860,28 @@ body.dragging *{cursor:grabbing !important}
      visade sig lasas utmarkt utan den. Texten och mataren star numera langst ner
      mot piedestalens ljusaste parti, sa dar - och bara dar - behovs det pa riktigt.
      Ovanfor 68 % av hojden ar bilden helt oror'd. */
+  /* [ANDRAT v5.587.0] FONDEN AR REGIONENS EGEN (Chris konst). Bilden pekas ut
+     av --hero-img, som refreshRegionUI satter nar man byter varld - fem bilder,
+     en per region, alla med sin piedestal pa samma stalle. Star variabeln tom
+     (fore forsta ritningen) faller den tillbaka pa den gamla stillbilden, sa
+     rutan aldrig star naken. Morkningen i nederkanten ar ororord: texten och
+     mataren star dar, mot piedestalens ljusaste parti. */
+  --hero-img:url('assets/bg/bg_data_node.png?v=2');
   background:
     linear-gradient(180deg, transparent 68%, rgba(7,10,22,.5) 84%, rgba(7,10,22,.88) 100%),
-    url('assets/bg/bg_data_node.png?v=2') center/cover no-repeat,
+    var(--hero-img) center/cover no-repeat,
     radial-gradient(ellipse at 50% 15%, rgba(56,140,255,.16), transparent 55%),
     radial-gradient(ellipse at 50% 100%, rgba(123,108,255,.14), transparent 60%),
     linear-gradient(180deg,#0b1024,#070a16);
 }
 @media (max-width:820px){
   .hero{
+    /* Telefonen far SAMMA regionsbild - de ar gjorda for bada - men behaller
+       sin egen enklare botten. Den gamla mobilbilden ar reserv pa samma satt. */
+    --hero-img:url('assets/bg/bg_data_node_mobile.png?v=2');
     background:
       linear-gradient(180deg, transparent 68%, rgba(7,10,22,.5) 84%, rgba(7,10,22,.88) 100%),
-      url('assets/bg/bg_data_node_mobile.png?v=2') center/cover no-repeat,
+      var(--hero-img) center/cover no-repeat,
       linear-gradient(180deg,#0b1024,#070a16);
   }
 }
@@ -1940,8 +1950,31 @@ body.dragging *{cursor:grabbing !important}
   transition:transform .09s ease-out;
 }
 .core-hex svg{pointer-events:none;touch-action:none;display:block}
+/* [TILLAGT v5.587.0] NODBILDEN. Samma 191 px som SVG-prismat hade, sa
+   piedestalen under den inte behover flyttas. Bilden ligger OVANPA prismat och
+   doljer det; gar filen inte att hamta tas .hasnode bort och prismat syns igen. */
+.core-img{display:none;width:191px;height:191px;object-fit:contain;
+  pointer-events:none;-webkit-user-drag:none;user-select:none;
+  transition:filter .5s linear;
+  filter:drop-shadow(0 0 22px color-mix(in srgb, var(--core-col) 55%, transparent))}
+.core-hex.hasnode .core-img{display:block}
+.core-hex.hasnode .core-svg{display:none}
 .core-wrap.core-holding .core-hex{transform:scale(1.03)}
 .core-hex.core-hit{transform:scale(1.07)}
+/* [TILLAGT v5.587.0] BOINKEN (Chris). Ett tryck ska KANNAS. Noden trycks ihop
+   nedat forst - bred och lag, som nagot som tar emot - och studsar sedan over
+   sitt eget lage innan den lander. Skalningen sitter pa BILDEN och inte pa
+   .core-hex, for traffytan ska inte rora sig under fingret; samma skal som
+   knapparna som sjunker tva pixlar i stallet for att hoppa.
+   Ingen boink for den som bett om lugn - se prefers-reduced-motion nedan. */
+@keyframes coreBoink{
+  0%   {transform:scale(1,1)}
+  22%  {transform:scale(1.14,.86)}
+  45%  {transform:scale(.92,1.10)}
+  68%  {transform:scale(1.06,.96)}
+  100% {transform:scale(1,1)}
+}
+.core-img.boink{animation:coreBoink .34s cubic-bezier(.34,1.56,.64,1)}
 /* 212 -> 191 px, alltsa exakt 10 % mindre (v0.72.0). Attributen i markupen
    ligger kvar som reserv; CSS vinner over dem. */
 .core-svg{width:191px;height:191px;transition:filter .5s linear;
@@ -1974,7 +2007,8 @@ body.dragging *{cursor:grabbing !important}
 @keyframes sparkle{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
 .core-spark-anim{animation:sparkle .3s ease}
 @media (prefers-reduced-motion: reduce){
-  .core-alive::after,.core-ring-slow,.core-ring-rev,.core-spark-anim{animation:none}
+  .core-alive::after,.core-ring-slow,.core-ring-rev,.core-spark-anim,
+  .core-img.boink{animation:none}
 }
 /* Siffrorna som sprutar ur kärnan — referenskonsten från spelarens andra bygge.
    Flyger alltid uppåt/utåt (aldrig ner under tummen), fasta vinklar i sekvens
@@ -8955,7 +8989,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.586.0 — CORE SYNC-KORTET NED 15 %</div>
+        <div class="sn-ver">GENESIS v5.587.0 — REGIONENS FOND OCH NOD</div>
       </div>
     </div>
   </aside>
@@ -9151,6 +9185,12 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
           <div class="boost-bar" id="boost-bar"></div>
           <div class="core-wrap core-alive" id="core-wrap">
             <div class="core-hex" id="core-hex">
+              <!-- [TILLAGT v5.587.0] REGIONENS EGEN NOD (Chris konst). Bilden byts
+                   av refreshRegionUI; SVG-prismat under ar KVAR som reserv och
+                   visas bara om filen inte gar att hamta, sa rutan aldrig blir tom.
+                   Elementet #core-hex ar ororts: halla, slappa, gnistan och
+                   traffytan hanger alla pa det id:t. -->
+              <img class="core-img" id="core-img" alt="" draggable="false">
               <svg viewBox="0 0 200 200" width="212" height="212" class="core-svg">
                 <defs>
                   <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
@@ -10164,7 +10204,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.586.0 — CORE SYNC-KORTET NED 15 %</div>
+            <div class="desc">GENESIS v5.587.0 — REGIONENS FOND OCH NOD</div>
           </div>
         </div>
       </div>
@@ -19791,6 +19831,11 @@ function startHold(e){ if (editMode) return; e.preventDefault(); holding = true;
   el.coreWrap.classList.add('core-holding');
   el.hex.classList.add('core-hit');
   setTimeout(() => el.hex.classList.remove('core-hit'), 90);
+  /* [TILLAGT v5.587.0] BOINKEN (Chris). Klassen tas bort och sätts om med en
+     omritning emellan - utan den startar animationen inte om nar man trycker
+     igen innan den forra hunnit ta slut, och da kanns bara vartannat tryck. */
+  { const ni = $('core-img');
+    if (ni){ ni.classList.remove('boink'); void ni.offsetWidth; ni.classList.add('boink'); } }
   el.coreSpark.classList.remove('core-spark-anim');
   void el.coreSpark.getBBox && el.coreSpark.getBoundingClientRect();
   el.coreSpark.classList.add('core-spark-anim'); holdT = 0; tickAcc = 0;
@@ -23311,10 +23356,11 @@ function updateUI(force){
       ? 'CORE SYNC \u00b7 ALL PROFESSIONS +15% \u00b7 ' + fmtDur(syncLeft) : '';
     shiftLine.style.color = syncLeft > 0 ? 'var(--gold)' : '';
   }
-  if (el.coreWrap){
-    el.coreWrap.style.setProperty('--core-col', 'var(--cyan)');
-    el.coreWrap.style.setProperty('--core-col2', 'var(--violet)');
-  }
+  /* [BORTTAGET v5.587.0] Har tvingades noden tillbaka till spelets cyan varje
+     ritning. Nu bar varje region sin EGEN fargton - skenet ska folja nodens
+     farg (Chris) - och raden hade slatat ut alla fem till samma bla en tiondels
+     sekund efter att refreshRegionUI satt dem. Fargen sätts pa ETT stalle nu:
+     applyRegionArt. */
   el.hint.classList.toggle('full', full);
 
   /* [BORTTAGET v5.2.0] hyllan och koptipset fanns bara for maskinerna. */
@@ -33643,8 +33689,45 @@ $('hrev-overlay').addEventListener('click', e => { if (e.target === $('hrev-over
    langre finns. Resan startas fran kartans knapp via startTravel(). */
 
 /* --- Regionberoende UI (hero + ryktesrutan) --- */
+/* ===== REGIONENS FOND OCH NOD (v5.587.0, Chris konst) =====
+   Fem bakgrunder och fem noder, en uppsattning per varld. Filnamnen foljer
+   REGIONENS NYCKEL och inte dess visningsnamn - samma regel som materialen och
+   avatarerna redan lyder, sa "The Last Armada" ligger under novacommand.webp.
+   Da kan namnet skrivas om utan att en enda bild behover dopas om.
+   SKENETS FARG ar MATT ur bilden, inte gissad: kroppens ton ar snittet av en
+   ring mellan 30 och 62 procent av nodens radie, karnans ton snittet av de
+   innersta 16 procenten. Sedan ar de lyfta i mattnad sa de syns mot en mork
+   fond. Ritar du om en nod maste raderna har matas om - de laser inte bilden. */
+const REGION_NOD = {
+  voxholm:     {glod:'#35d46e', karna:'#fce957'},   /* gron kub, bargstenskarna */
+  drakemark:   {glod:'#8b5cff', karna:'#df92fb'},   /* lila kub, ljus stjarna   */
+  cutlassbay:  {glod:'#3fd8a6', karna:'#faa446'},   /* turkos med guldram       */
+  novacommand: {glod:'#8fc4ff', karna:'#aab2fb'},   /* iskristall               */
+  quarantine:  {glod:'#f5c542', karna:'#9db35a'}    /* mossbelagd sten, barnsten*/
+};
+function applyRegionArt(nyckel){
+  const hero = $('panel-home-server');
+  if (hero) hero.style.setProperty('--hero-img', "url('assets/bg/region/" + nyckel + ".webp')");
+  const wrap = el.coreWrap, hex = el.hex, img = $('core-img');
+  const f = REGION_NOD[nyckel];
+  if (wrap && f){
+    wrap.style.setProperty('--core-col',  f.glod);
+    wrap.style.setProperty('--core-col2', f.karna);
+  }
+  if (!img || !hex) return;
+  const fil = 'assets/nodes/' + nyckel + '.webp';
+  if (img.dataset.nyckel === nyckel) return;        /* redan ratt bild - ror inget */
+  img.dataset.nyckel = nyckel;
+  /* Klassen sätts forst nar bilden FAKTISKT ar hamtad. Tills dess star
+     SVG-prismat kvar, och gar filen inte att hamta star det kvar for gott -
+     rutan kan aldrig bli en tom fyrkant. */
+  img.onload  = () => hex.classList.add('hasnode');
+  img.onerror = () => { hex.classList.remove('hasnode'); img.dataset.nyckel = ''; };
+  img.src = fil;
+}
 function refreshRegionUI(){
   const R = REGIONS[S.world.current];
+  applyRegionArt(S.world.current);
   el.heroTitle.textContent = R.name.toUpperCase();
   el.regionThumb.textContent = R.name.toUpperCase();
   /* Raden visar VAR man star. Star man bara i regionen utan att ha gatt in i en
@@ -35766,7 +35849,14 @@ window.addEventListener('beforeunload', () => { if (!resetInProgress) save(); })
    utan bild-i-bild och genomskinlig for muspekaren - den kan varken pausas eller
    klickas pa av misstag. Gar filen inte att spela tas elementet bort helt och
    stillbilden star kvar; rutan kan aldrig bli svart. */
+/* [AVSTANGD v5.587.0] FILMEN VILAR (Chris: "vi byter till dessa tillsvidare").
+   Videon lag over hela fonden och hade dolt regionsbilderna helt - de hade
+   laddats ned och aldrig synts. Koden star KVAR orord bakom en enda rad, for
+   det ar en brytare och inte ett beslut: ta bort raden och filmen ar tillbaka.
+   Filen assets/bg/background_video.mp4 hamtas inte langre. */
+const HERO_VIDEO_PA = false;
 (function heroVideo(){
+  if (!HERO_VIDEO_PA) return;
   const hero = $('panel-home-server');
   if (!hero) return;
   if (reduceMotion) return;                                        /* spelaren har bett om lugn */
