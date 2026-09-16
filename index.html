@@ -1263,8 +1263,15 @@ body.dragging *{cursor:grabbing !important}
 .sp-head{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:800;margin-bottom:6px}
 .sp-item{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;border:1px solid var(--rc);cursor:pointer;margin-bottom:4px;background:var(--bg-row)}
 .sp-item:hover{box-shadow:inset 0 0 12px -6px var(--rc)}
-.sp-art{width:30px;height:30px;background-size:contain;background-position:center;background-repeat:no-repeat}
-.sp-nm{font-size:10px;font-family:var(--font-mono);font-weight:800}
+/* [RATTAT v5.560.0] flex:0 0 auto pa bilden och min-width:0 pa namnet. VARFOR:
+   raden ar en flexrad, och utan detta krympte BILDEN nar namnet var langt -
+   uppmatt 21 px bred i stallet for 30 pa en pjas som heter nagot langre an
+   "Deep Pack". Nu ar det namnet som kortas med tre punkter, som det ska vara:
+   bilden har en storlek, texten far anpassa sig. Galler alla tre valjarna -
+   ryggsackens, valvets och utrustningsplatsernas - de delar dessa regler. */
+.sp-art{flex:0 0 auto;width:30px;height:30px;background-size:contain;background-position:center;background-repeat:no-repeat}
+.sp-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:10px;font-family:var(--font-mono);font-weight:800}
 .sp-none{font-size:10px;color:var(--text-faint);padding:4px 2px}
 .item-top{display:flex;gap:14px;align-items:flex-start;margin-bottom:2px}
 .item-art{width:104px;height:104px;flex:0 0 auto;border-radius:10px;border:2px solid var(--rc,var(--border-glow));background:var(--bg-inset) center/contain no-repeat;box-shadow:0 0 18px -6px var(--rc,transparent)}
@@ -8466,7 +8473,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.559.0 — STORRE KATEGORIIKONER</div>
+        <div class="sn-ver">GENESIS v5.562.0 — DODA LYSSNARE RIVNA</div>
       </div>
     </div>
   </aside>
@@ -9630,7 +9637,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.559.0 — STORRE KATEGORIIKONER</div>
+            <div class="desc">GENESIS v5.562.0 — DODA LYSSNARE RIVNA</div>
           </div>
         </div>
       </div>
@@ -10552,10 +10559,9 @@ async function netWorkOrders(){
     return rows;
   } catch (e){ return null; }
 }
-async function netClaimOrder(prof){
-  if (!NET.on) return null;
-  return srvRpc('claim_work_order', {p_character: SRV.charId, p_prof: prof});
-}
+/* [RIVET v5.562.0] netClaimOrder (Chris). Sista ledet i samma kedja: knappen
+   forsvann, lyssnaren revs, och da hade kopplingen ingen som ringde den.
+   Serverfunktionen claim_work_order star kvar - den ar inte min att riva. */
 /* [BORTTAGET v5.308.0] Kopplingen till den andra avbrytfunktionen - den som
    tomde hela yrkets ko. Ingen rad anropade den, och serverfunktionen bakom ar
    riven i samma andetag. Krysset per rad ar den enda vagen ut ur kon nu. */
@@ -18480,15 +18486,28 @@ function showVaultBagPicker(socket, anchor){
   S.vault.inv.forEach((row, i) => { if (row && row.gear && ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) fits.push({src: 'vault', i: i, g: row.gear}); });
   const pick = document.createElement('div');
   pick.className = 'slot-picker';
+  /* [RATTAT v5.560.0] VALVETS VASKVALJARE VAR OSTILAD. Den byggde sina rader med
+     sp-opt, sp-img, sp-plus och sp-empty - fyra klassnamn som INTE finns i
+     stilmallen. Rutan runt omkring hade stil, men raderna inuti var bara text,
+     och sp-img var en tom span med en bakgrundsbild och ingen storlek: noll gange
+     noll, alltsa en osynlig bild. De tva andra valjarna - ryggsackens och
+     utrustningsplatsernas - bygger samma popup med sp-item, sp-art, sp-nm och
+     sp-none, som ar stilade sedan lange. Nu anvander alla tre samma namn.
+     Raritetsfargen foljer med som i de andra, och rutan klams in i fonstret i
+     hojdled ocksa - forut kunde den hamna nedanfor skarmkanten. */
   pick.innerHTML = '<div class="sp-head">Vault bag slot ' + (socket + 1) + '</div>' +
-    (fits.length ? fits.map(f => '<div class="sp-opt" data-fitvbag="' + f.i + '" data-fitvsrc="' + f.src + '"><span class="sp-img" style="background-image:url(\'' +
-      gearArt(f.g) + '\')"></span><span>' + gearName(f.g) + '</span><span class="sp-plus">+' + ITEMS[f.g.t].bag +
+    (fits.length ? fits.map(f => '<div class="sp-item" data-fitvbag="' + f.i + '" data-fitvsrc="' + f.src +
+      '" style="--rc:' + gearRarCol(f.g) + '">' +
+      '<span class="sp-art" style="background-image:url(\'' + gearArt(f.g) + '\')"></span>' +
+      '<span class="sp-nm">' + gearName(f.g) + ' · +' + ITEMS[f.g.t].bag +
       (f.src === 'vault' ? ' · in vault' : '') + '</span></div>').join('')
-      : '<div class="sp-empty">No bags in your backpack or vault.</div>');
+      : '<div class="sp-none">No bags in your backpack or vault.</div>');
   document.body.appendChild(pick);
   const r = anchor.getBoundingClientRect();
-  pick.style.left = Math.min(r.left, window.innerWidth - 220) + 'px';
-  pick.style.top = (r.bottom + 6) + 'px';
+  const vx = Math.max(8, Math.min(r.left, window.innerWidth - 198));
+  const vy = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - pick.offsetHeight - 8));
+  pick.style.left = vx + 'px';
+  pick.style.top = vy + 'px';
   bringToFront(pick);
   pick.querySelectorAll('[data-fitvbag]').forEach(opt => {
     opt.addEventListener('click', () => {
@@ -25494,25 +25513,12 @@ function openZone(regionId, zi, keepNote){
      (buggfamilj 9) - stegare, laketrosklar, Enter, Abandon och Claim. */
   const dgBox = $('zone-dg');
   if (dgBox) dgBox.addEventListener('click', ev => {
-    const st = pveDgDefaults();
-    const step = ev.target.closest('[data-dgs]');
-    if (step){
-      const k = step.dataset.dgs, d = +step.dataset.d;
-      const cap = k === 'r'
-        ? Math.min(pveOwned('revive_kit'), (PVE.dg && PVE.dg.dungeon) ? PVE.dg.dungeon.revive_max : 1)
-        : pveOwned(k === 'b' ? 'bandage' : 'first_aid_kit');
-      st[k] = Math.max(0, Math.min(cap, st[k] + d));
-      openZone(regionId, zi, true); return;
-    }
-    const opt = ev.target.closest('[data-dgo]');
-    if (opt){
-      const v = +opt.dataset.v;
-      if (opt.dataset.dgo === 'under') st.under = v; else st.until = v;
-      /* Malet maste ligga OVER golvet - annars vagrar servern, med ratta. */
-      if (st.until <= st.under) st.until = st.under < 50 ? 50 : (st.under < 75 ? 75 : 100);
-      if (st.under >= st.until) st.under = st.until === 50 ? 40 : (st.until === 75 ? 50 : 75);
-      openZone(regionId, zi, true); return;
-    }
+    /* [RIVET v5.562.0] Grenarna for [data-dgs] och [data-dgo] (Chris), och med
+       dem uppslaget av standardvardena som bara de tva laste. Stegaren
+       for bandage, forstahjalpen och aterupplivning, och de tva laketrosklarna,
+       flyttade till DUNGEONPOPUPEN i v5.145.0 och heter data-dgcs och data-dgco
+       dar. Ingen knapp i hela filen bar langre de gamla markningarna, sa de tva
+       grenarna kunde aldrig ga igang. */
     if (ev.target.closest('#dg-enter')){
       /* [ANDRAT v5.145.0] Knappen startar inte langre direkt - den oppnar
          svarighetsvalet, och loppet borjar med ett av de tva korten. */
@@ -26681,7 +26687,10 @@ function renderPetPanel(){
      vad som oppnar dem. Under korten star lagets samlade bonusar som chip. */
   /* Platsraknaren finns inte langre i rutan; raknandet star kvar och skriver
      bara om rutan mot formodan skulle fa tillbaka den. */
-  const grid = $('pet-team-grid'), buff = $('pet-buff-line'), cnt = $('pet-team-count');
+  /* [RIVET v5.561.0] Uppslaget av hjalparlagets raknare (Chris). Samma sak som i
+     prestationsrutan: hjalparlagets "3/5" hade en egen plats i det gamla
+     gransnittet, och den platsen finns inte langre. */
+  const grid = $('pet-team-grid'), buff = $('pet-buff-line');
   if (!grid) return;
   const slots = teamSlots();
   /* [TILLAGT v5.275.0] Rutnatet var lagt for TRE. En fjarde plats hade darfor
@@ -26743,7 +26752,6 @@ function renderPetPanel(){
   /* [ANDRAT v5.239.0] Rutan har ingen platsraknare langre (Chris punkt 5).
      Raknandet star kvar, men skrivningen maste tala om att malet kan saknas -
      annars kastar hela omritningen av hjalparrutan ett fel. */
-  if (cnt) cnt.textContent = n + '/' + slots;
   /* [ANDRAT v5.87.0] SAMMA FORMAGA RAKNAS IHOP. Tre hjalpare med saljvarde gav
      forut tre chip med var sin siffra - men spelet lagger ihop dem, sa skarmen
      sa nagot annat an det som gallde. Nu ett chip per formaga med summan i. */
@@ -28582,27 +28590,11 @@ document.addEventListener('click', async e => {
     .then(() => { say('Cancelled \u2014 the materials are back.'); renderProfPage(); ppRedrawBook(); redrawAll(); })
     .catch(err => say(srvErrText(err, 'Could not cancel it.')));
 });
-/* [BORTTAGET v5.307.0] Lyssnaren till tom kon-knappen. Ingen knapp skickar det
-   langre. Serverfunktionen star kvar orord - den ar inte min att riva. */
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-collectout]');
-  if (!b) return;
-  /* [RATTAT v5.234.0] Raknade fel falt. Servern svarar {mailed: n} - den lade om
-     till leverans via posten - men klienten las r.collected, som aldrig funnits.
-     Foljden: den sa "The backpack is still full" varje gang, aven nar allt gick
-     igenom. Ett dott varde som sag levande ut. */
-  const fore = godRollIdsNow();
-  srvRpc('collect_work_output', {p_character: SRV.charId})
-    .then(r => Promise.all([netWorkOrders(), netPullItems(), netPullMailbox()]).then(() => r))
-    .then(r => {
-      const n = (r && (r.mailed | 0)) || 0;
-      say(n ? ('Delivered ' + n + ' piece' + (n > 1 ? 's' : '') + ' to your inbox.')
-            : 'Nothing was ready.');
-      renderProfPage(); redrawAll();
-      showGodRollIfAny(fore);
-    })
-    .catch(err => say(srvErrText(err, 'Could not collect.')));
-});
+/* [BORTTAGET v5.307.0] Knappen "tom kon". Utdata gar via posten sedan dess.
+   [RIVET v5.562.0] Och nu lyssnaren med (Chris). Kommentaren ovanfor pastod att
+   den redan var borta - den stod kvar och vantade pa en knapp som inte finns.
+   Serverfunktionen collect_work_output star kvar orord; den ar inte min att
+   riva, och ett tomt anrop skadar ingen. */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-qtab]');
   if (!b) return;
@@ -29571,22 +29563,9 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-pickprof]')){ openProfessions(); profScene = 'pick'; renderProfessions(); return; }
   /* [ANDRAT v5.8.0] Lankningen satt pa HELA kortet och syntes inte. Nu ar den en
      egen knapp som sager Link, och det lankade kortet sager Linked. */
-  const cl = e.target.closest('[data-claimorder]');
-  if (cl){
-    const prof = cl.dataset.claimorder;
-    if (NET.on){
-      netClaimOrder(prof).then(r => {
-        delete S.orders[prof];
-        say('Collected ' + craftedName(r && r.crafted) + '.');
-        netPullItems().then(() => redrawAll());
-      }).catch(err => say(srvErrText(err, 'Could not collect it.')));
-    } else {
-      /* Offlinelage: samma utfall som servern ger, via den vanliga vagen. */
-      const o = S.orders[prof];
-      if (o){ delete S.orders[prof]; craftRecipe(o.recipe, true); redrawAll(); }
-    }
-    return;
-  }
+  /* [RIVET v5.562.0] Grenen for [data-claimorder] (Chris). Ingen knapp bar den
+     markningen; den forsvann nar arbetsordrarna lades om till leverans via
+     posten. Med den gar netClaimOrder ocksa - den hade ingen annan anropare. */
   /* [BORTTAGET v5.48.0] Lank-klicket. Knappen finns inte langre. */
 });
 function petWinHTML(p){
@@ -31957,8 +31936,11 @@ function renderAchievements(){
   box.innerHTML = h;
   box.querySelectorAll('[data-achtab]').forEach(b =>
     b.addEventListener('click', () => { achTab = b.dataset.achtab; renderAchievements(); }));
-  const c = $('ach-count'); if (c) c.textContent = klara + ' / ' + alla.length;
-  const i = $('ach-idle');  if (i) i.textContent = '+' + achWorkPct() + '%';
+  /* [RIVET v5.561.0] ach-count och ach-idle (Chris). De rakningarna horde till
+     spelet FORE ombyggnaden: rutan hade en egen plats for "12 av 40" och en for
+     den idle-bonus prestationer gav. Bada tavlorna togs ned nar rutan gjordes om,
+     men rakningen stod kvar och skrev till element som inte finns. achWorkPct
+     ar KVAR - den anvands av kortet hogst upp i rutan, som lever. */
 }
 function openAchievements(){
   checkAchievements();
