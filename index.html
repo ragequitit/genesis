@@ -781,7 +781,13 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 /* [TILLAGT v5.513.0] Tradet och paragon ar hogre an rutan. De far rulla INNE i
    sin flik - karaktarsrutan sjalv ska aldrig rullas, det var hela poangen med
    att riva rubrikraden. */
-.ct-scroll{max-height:343px;overflow-y:auto;overflow-x:hidden;padding-right:3px}
+/* [ANDRAT v5.567.0] 343 -> 348 px. VARFOR: karaktarsrutan ar 392 px hog och
+   raden den star i ar 397 - Core och Professions bredvid ar hogre. De fem
+   pixlarna fanns alltsa redan i raden och kostar INGENTING: uppmatt ar radens
+   hojd, kartans hojd och sidans rullning oforandrade vid alla sex bredder.
+   De ar marginal at paragonfliken, som annars lag en enda pixel fran att
+   rullas igen sa fort ett tal blev langre. */
+.ct-scroll{max-height:348px;overflow-y:auto;overflow-x:hidden;padding-right:3px}
 @media (max-width:820px){ .ct-scroll{max-height:none;overflow:visible} }
 /* [OMBYGGT v5.527.0] PARAGONRUTAN EFTER CHRIS BILD. Listen overst, fem kort och
    en forklaringsruta i samma rutnat. */
@@ -912,6 +918,31 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text)}
 .pg-reset:hover:not(:disabled){border-color:#ff5d7a;color:#ff5d7a}
 .pg-reset:disabled{opacity:.3;cursor:default}
+/* ===== PARAGONRUTNATET VID 1440 (v5.567.0) =====
+   CHRIS: fliken rullade fortfarande vid 1440. MATT ORSAK: sexspaltslayouten ger
+   karaktarsrutan tva sjattedelar av bredden, och vid 1440 blir det 373 px mot
+   498-501 pa bade 1280 och 1920 - 1280 ar BREDARE dar, for under 1281 gar sidan
+   over till tva spalter och rutan far halva skarmen. Med 373 px racker inte
+   auto-fits 140 px till tre kort (3*140 + 2*6 = 432), sa de blev TVA i bredd,
+   sex kort i TRE rader, 461 px innehall i en 343 px yta: rullade 118 px.
+   Regeln tvingar alltsa tre spalter over 1280 - Chris beslut fran v5.532.0 -
+   och betalar for dem genom att dra in luften i kortet, inte texten:
+     padding 8/12 -> 7/8, ikonrutan 30 -> 26 px, rubrikradens gap 8 -> 6 och
+     dess undermarginal 5 -> 4.
+   Underrubriken far INTE brytas: GOLD BONUS tog tva rader vid 119 px och
+   drog hela forsta raden 10 px hogre, eftersom raden ar sa hog som sitt hogsta
+   kort. Med nowrap star den pa en rad och far plats.
+   TELEFONREGELN LIGGER SIST i bladet och ar orord - den har min-width, sa de
+   kan aldrig galla samtidigt.
+   UPPMATT EFTERAT: 3 kort per rad och 0 px rullning pa alla sex bredder;
+   innehallet ar 340 px vid 1440 mot ytans 348. Ingenting klipps. */
+@media (min-width:1281px){
+  .pg-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .pg-cell{padding:7px 8px 7px}
+  .pg-head2{gap:6px;margin-bottom:4px}
+  .pg-ico{width:26px;height:26px}
+  .pg-head2 i{white-space:nowrap;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis}
+}
 /* [OMBYGGT v5.517.0] Loadouten ar en LISTA, inte kort med bildrutor. En rad per
    uppsattning: namnet till vanster, antal pjaser, och knappen till hoger. */
 /* [TILLAGT v5.520.0] LUCKAN. Ligger absolut inne i karaktarsrutan, hangande
@@ -5105,6 +5136,20 @@ div.modal.quest-modal{width:min(760px, calc(100vw - 24px));max-width:none}
 @media (max-width:760px){
   #qwin-overlay .qwin-grid{grid-template-columns:1fr}
   #qwin-overlay .qwin-right{border-left:0;border-bottom:1px solid var(--border);min-height:210px;order:-1}
+/* [RATTAT v5.568.0] TELEFONEN BESKAR FRAN FEL STALLE (Chris nya questbilder).
+   Pa dator ar bildramen STAENDE, 221x311, och da ar det ratt att beskara fran
+   ovankanten - benen faller bort, huvudet star kvar. Pa telefon lagger sig
+   rutan overst i full bredd och blir LIGGANDE, 360x190, och dar betyder samma
+   regel att bara den oversta tredjedelen syns.
+   Sa lange bilderna var rena portratt med huvudet hogst upp gick det bra. De
+   nya Voxholmbilderna har gestalten mitt i en miljo, och da visade telefonen
+   skyltar, broar och hartoppar: Siv forsvann helt i fyra av fem, och i
+   vx_bram_03 sag man en trabjalke.
+   30 % ned ar uppmatt, inte gissat - hela uppsattningen renderades i 360x190
+   vid ovankanten, mitten, 30 % och 38 %. Vid mitten klipptes fyra i pannan
+   (torv_02, torv_05, liv_01, liv_03); vid 30 % star ansiktet helt i alla 25.
+   Bara telefonen: den staende ramen behaller ovankanten. */
+  #qwin-overlay .qwin-por .art-img{object-position:center 30%}
   /* [ANDRAT v5.340.0] Telefonen far ocksa tre i bredd nar det ar tre - annars
      hade just den skarm dar ytan ar dyrast behallit den halvtomma raden. Vid
      360 px spillde ordet SILVER atta pixlar ut, sa luften i sidled dras in och
@@ -8251,8 +8296,15 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    spalter ger da hundra pixlar per kort - smalare an namnet "Scavenging".
    Telefonen far tva. REGELN STAR SIST i bladet med flit: la den tidigare vinner
    den vanliga .pg-grid over den, precis som bossradens regel varnar om. */
+/* [RATTAT v5.567.0] TALET KLIPPTES PA 360 PX. Hittat under mataningen av
+   1440-fixen, inte rapporterat: pa en 360-skarm ar kortet 155 px och raden
+   "40 / 200" plus "+4.00% current bonus" delade den bredden bredvid varandra.
+   Poangtalet ar det forsta i raden, sa det var det som klipptes - man sag
+   "40 / 2". Nu far raden brytas, och bonusen lagger sig under talet i stallet
+   for bredvid. Bara pa telefon; over 760 px har raden alltid fatt plats. */
 @media (max-width:760px){
   .pg-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pg-nums{flex-wrap:wrap}
 }
 
 /* ===== BELONINGSKORTEN PA TELEFON (v5.533.0) =====
@@ -8544,7 +8596,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.566.0 — KUVERTEN OCH KRYSSET</div>
+        <div class="sn-ver">GENESIS v5.568.0 — VOXHOLMS QUESTBILDER</div>
       </div>
     </div>
   </aside>
@@ -9724,7 +9776,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.566.0 — KUVERTEN OCH KRYSSET</div>
+            <div class="desc">GENESIS v5.568.0 — VOXHOLMS QUESTBILDER</div>
           </div>
         </div>
       </div>
@@ -12983,12 +13035,19 @@ function renderParagon(){
   '<div class="pg-cell pg-how" style="--pc:var(--violet)">' +
     '<div class="pg-head2">' + icoBox('pg-ico', '', '\u221e') +
       '<span><b>How it works</b><i>Paragon</i></span></div>' +
-    '<p>All XP past level 50 becomes <b>paragon points</b>.</p>' +
+    /* [ANDRAT v5.567.0] Bada styckena kortade med fyra ord vardera. VARFOR: vid
+       1440 ar kortet 119 px brett och texten blev sju rader i stallet for fyra.
+       Forklaringsrutan star i andra raden, och raden ar sa hog som sitt hogsta
+       kort - de tre extraraderna drog alltsa hela raden 29 px ned och var det
+       som fortfarande tvingade fram en rullning sedan luften var indragen.
+       Meningarna sager samma sak; "All" och "Changed your mind?" bar ingen
+       upplysning. */
+    '<p>XP past level 50 becomes <b>paragon points</b>.</p>' +
     /* [ANDRAT v5.535.0] Regeln bakom talet star i BEKRAFTELSEN, inte har. Tva
        rader till i den har rutan gjorde den hogre an de andra korten igen, och
        da rullade hela fliken - vilket var precis det Chris bad bort. */
-    '<p>Changed your mind? Reset for <b>' +
-      fmt(pgResetGold()) + 'g</b> whenever you like.</p>' +
+    '<p>Reset for <b>' +
+      fmt(pgResetGold()) + 'g</b> anytime.</p>' +
   '</div>' +
   '</div>';
   box.innerHTML = h;
