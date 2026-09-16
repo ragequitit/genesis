@@ -2611,7 +2611,9 @@ body.dragging *{cursor:grabbing !important}
 .qi-fuel{background-image:url('assets/ui/fuel.png')}
 .qi-credits{background-image:url('assets/ui/credits.png')}
 .qi-fragments{background-image:url('assets/ui/fragments.png')}
-.qi-inbox{background-image:url('assets/ui/inbox.png')}
+/* [ANDRAT v5.566.0] .png -> .webp. Chris ritade kuvertet, och sidlistens
+   knapp ska visa samma bild som inkorgens rubrik. */
+.qi-inbox{background-image:url('assets/ui/inbox.webp')}
 .qi-achievements{background-image:url('assets/ui/achievements.png')}
 .qi-events{background-image:url('assets/ui/events.png')}
 .qi-daily{background-image:url('assets/ui/daily.png')}
@@ -3764,7 +3766,6 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
    ingenting att hamta, och da ska knappen sluta locka. */
 .mail-bar .mb-take:disabled{opacity:.38;cursor:default;color:var(--text-dim);
   border-color:var(--border-soft);background:transparent}
-.mail-bar .mb-take-ico{font-size:14px;line-height:1}
 /* Tomlaget: en egen ruta med streckad kant, bild och tva rader text. */
 .mail-empty{display:flex;flex-direction:column;align-items:center;gap:9px;
   padding:34px 18px 28px;border-radius:14px;
@@ -5448,6 +5449,18 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    studsade och ingen vaska oppnades. Lardomen star redan skriven har ovanfor;
    den maste ocksa FOLJA MED nar en knapp byter axel. */
 .bag-btn:active:not(:disabled){transform:translateY(-50%) translateY(2px) scale(.985)}
+/* [BUGG v5.566.0] SAMMA FALLA EN TREDJE GANG, NU AT ANDRA HALLET (Chris).
+   Regeln ovanfor upprepar centreringen for kryss som ar centrerade med
+   translateY(-50%). TVA kryss ar det INTE: dagsrutans (position:relative) och
+   inkorgens nya (position:static). For dem LADE regeln till en centrering som
+   aldrig funnits, sa knappen hoppade UPPAT i samma ogonblick man tryckte -
+   uppmatt 14 px i dagsrutan och 17 px i inkorgen. Fingret hamnade ovanfor
+   knappen, mus-upp landade pa titelraden, och rutan stangdes inte.
+   LARDOMEN, nu tredje gangen: ett nedtryckt lage far bara upprepa den
+   placering knappen FAKTISKT har. De har tva har ingen, och da ska de bara
+   sjunka. */
+.dr-x:active:not(:disabled),
+.mail-head2 .mail-x:active:not(:disabled){transform:translateY(2px) scale(.985)}
 /* [TILLAGT v5.91.0] PA TELEFON LAG VAPENRUTAN OVANPA KNAPPEN. Knappen svavar
    vid radens vanstra kant, och pa en bred skarm finns det luft dar. Pa 390 px
    racker raden inte till de tre platserna, sa de bredde ut sig anda ut i kanten
@@ -8531,7 +8544,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.565.0 — INKORGEN OMBYGGD</div>
+        <div class="sn-ver">GENESIS v5.566.0 — KUVERTEN OCH KRYSSET</div>
       </div>
     </div>
   </aside>
@@ -9064,9 +9077,10 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <b class="mb-count" id="mail-count">0 / 30</b>
         <span class="mb-track"><i id="mail-fill"></i></span>
         <span class="mb-pct" id="mail-pct">0%</span>
+        <!-- [ANDRAT v5.566.0] Lad-tecknet bredvid "Take all" ar borttaget (Chris).
+             Det var en generisk emoji bland ritade bilder. -->
         <button class="mb-take" id="mail-takeall"
-                title="Take every attachment that fits in your backpack">
-          <span class="mb-take-ico">📦</span>Take all</button>
+                title="Take every attachment that fits in your backpack">Take all</button>
       </div>
       <div class="mail-list" id="mail-list"></div>
     </div>
@@ -9710,7 +9724,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.565.0 — INKORGEN OMBYGGD</div>
+            <div class="desc">GENESIS v5.566.0 — KUVERTEN OCH KRYSSET</div>
           </div>
         </div>
       </div>
@@ -18818,11 +18832,15 @@ function mailItemHTML(it, mid, i){
   return '<div class="mail-item">' + art +
     '<span class="mi-name">' + (it.name || it.key) + (it.qty > 1 ? ' ×' + it.qty : '') + '</span></div>';
 }
-/* [TILLAGT v5.565.0] Kuvertet i rubrikrutan och i tomlaget. Bilden ar spelets
-   egen inkorgsikon - samma fil som knappen i sidlisten anvander - och tecknet
-   star kvar som reserv, som overallt annars. */
-function mailIcoHTML(){
-  const src = artUnlessMissing('assets/ui/inbox.png');
+/* [ANDRAT v5.566.0] TVA KUVERT, INTE ETT (Chris). Rubriken bar det slutna med
+   sin toning; tomlaget bar det oppna med lappen. De ar olika bilder for att de
+   sager olika saker - "har ar din post" och "har finns ingen post" - och da ska
+   de inte vara samma teckning i tva storlekar.
+   Rubrikens fil ar densamma som knappen i sidlisten anvander, sa inkorgen ser
+   likadan ut var man an moter den. Tecknet star kvar som reserv i bada. */
+function mailIcoHTML(stor){
+  const vag = stor ? 'assets/ui/inbox_empty.webp' : 'assets/ui/inbox.webp';
+  const src = artUnlessMissing(vag);
   return src ? artWithFallback(src, '\u2709\ufe0f')
              : '<i class="art-fall" style="display:block">\u2709\ufe0f</i>';
 }
@@ -18847,7 +18865,7 @@ function renderMail(){
   if (!n){
     list.innerHTML =
       '<div class="mail-empty' + (NET.on ? '' : ' off') + '">' +
-        '<div class="me-art art-wrap">' + mailIcoHTML() + '</div>' +
+        '<div class="me-art art-wrap">' + mailIcoHTML(true) + '</div>' +
         '<div class="me-h">Inbox clear</div>' +
         '<div class="me-p">New messages and reward deliveries will appear here.</div>' +
         '<div class="me-pill"><span class="me-dot"></span>' +
@@ -32220,7 +32238,15 @@ $('mail-takeall').addEventListener('click', () => {
   const n = takeAllMail();
   spawnFloat({text: n ? 'Took ' + n + ' item' + (n === 1 ? '' : 's') : 'Nothing fits — backpack full'});
 });
-makeDraggable($('mail-overlay'), [$('mail-overlay').querySelector('.inv-titlebar'), $('mail-overlay').querySelector('.inv-emblem'), $('mail-overlay')]);
+/* [ANDRAT v5.566.0] Inkorgens handtag namns var for sig (Chris: rutan gick
+   inte att dra). Rubrikraden HETER fortfarande inv-titlebar, sa uppslaget
+   traffade den - men nu star ocksa kapacitetsraden och sjalva rutan i listan,
+   sa det finns nagot att greppa aven mellan knapparna. Knappar ar aldrig
+   handtag; det sorterar dragfunktionen sjalv. */
+makeDraggable($('mail-overlay'), [$('mail-overlay').querySelector('.inv-titlebar'),
+  $('mail-overlay').querySelector('.mail-bar'),
+  $('mail-overlay').querySelector('.modal'),
+  $('mail-overlay').querySelector('.inv-emblem'), $('mail-overlay')]);
 makeDraggable($('pets-overlay'), [$('pets-overlay').querySelector('.inv-titlebar'), $('pets-overlay').querySelector('.inv-emblem'), $('pets-overlay')]);
 /* [TILLAGT v5.42.0] Punkt 5: ALLA popup-fonster ska ga att dra. Dessa fem
    saknade det - butiken (som listan namnde), vanner, profil, stationen och
