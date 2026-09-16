@@ -7040,11 +7040,28 @@ div.modal.node-modal{width:min(430px,94vw);max-width:94vw}
 @media (max-width:980px){
   .dr-row{grid-template-columns:repeat(6,minmax(0,1fr))}
   .dr-cell{min-height:96px}
+  /* [RATTAT v5.583.0] Krysset i rutans eget horn. Gransen gar vid 980 och inte
+     vid 760, for huvudraden borjar bryta redan pa surfplatta: uppmatt vid 820 px
+     lag krysset 73 px ned i rubriken. Se den langa noten i telefonstycket. */
+  .dr-x{position:absolute;top:8px;right:8px;z-index:3;margin:0}
+  .dr-head{padding-right:46px}
 }
 @media (max-width:760px){
   .float-win.open > .daily-modal{max-height:92vh}
   .float-win.open > .daily-modal > .dr-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .daily-modal{padding:12px 10px 10px}
+  /* [RATTAT v5.583.0] DAGSTAVLAN HADE INGEN VAG UT PA TELEFON (Chris) - man
+     kom bara loss med F5.
+     TVA SAKER SAMTIDIGT. Krysset FANNS men satt inte dar ett kryss sitter:
+     huvudraden bryts pa smal skarm, teckenforklaringen tar tre rader, och
+     krysset foljde med ned - uppmatt vid 390 px lag det pa x=120, y=400, alltsa
+     mitt inne i rubriken i stallet for i hornet. Ingen letar dar. Och att trycka
+     UTANFOR rutan gick inte heller: rutan ar 96vw bred, sa det fanns 8 px kant
+     pa var sida att sikta pa - en trafflista ingen hand traffar.
+     Krysset ligger nu i rutans eget overkanthorn (regeln star i 980-stycket
+     ovan, for brytningen borjar redan pa surfplatta), OVER huvudet, sa ingen
+     radbrytning kan flytta det. Uppmatt efterat: 40x40 px, 9 px fran bada
+     kanterna, vid bade 390 och 360. */
   .dr-row{gap:4px;padding:4px}
   .dr-cell{min-height:86px;padding:6px 3px 5px;border-radius:7px}
   .dr-num{font-size:13px;left:5px;top:4px}
@@ -7621,10 +7638,18 @@ div.modal.node-modal.widest{width:min(1000px,96vw);max-width:96vw}
 @media (max-width:700px){
   /* Telefonen staplar: bilden overst i full bredd med ett fast forhallande, sa
      den varken forsvinner eller strackts till en remsa nar texten ar kort. */
-  .dr-wrap{grid-template-columns:minmax(0,1fr);gap:12px}
+  .dr-wrap{grid-template-columns:minmax(0,1fr);gap:9px}
   .dr-art{min-height:0;aspect-ratio:16/10}
   .dr-title{font-size:23px}
   .dr-clock b{font-size:32px}
+  /* [RATTAT v5.583.0] RUTAN RULLADE PA 360 PX (Chris). Uppmatt: innehallet var
+     581 px i en 552 px yta nar dronaren var ute, alltsa 29 px for mycket - och
+     7 px for mycket aven i vila. Det ar inte EN rad som ar for hog, det ar tio
+     smala mellanrum: hogerspalten har atta luckor a 11 px plus wrapens 12.
+     Luckorna gar till 7 och 9, vilket ger 41 px tillbaka. Ingen text och ingen
+     bild kortas - bara luften mellan dem, som ar det billigaste stallet att ta
+     det pa. Talen galler bara telefon; pa dator finns gott om hojd. */
+  .dr-side{gap:7px}
   .dr-stats{gap:8px}
   .dr-stat{padding:10px}
   .dr-stat .v{font-size:16px}
@@ -8867,7 +8892,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.582.0 — MANAGE SOM EGEN VY</div>
+        <div class="sn-ver">GENESIS v5.583.0 — KLOCKAN, KORTET OCH KRYSSET</div>
       </div>
     </div>
   </aside>
@@ -10076,7 +10101,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.582.0 — MANAGE SOM EGEN VY</div>
+            <div class="desc">GENESIS v5.583.0 — KLOCKAN, KORTET OCH KRYSSET</div>
           </div>
         </div>
       </div>
@@ -24934,9 +24959,8 @@ function zoneScanPct(){
   if (!S.zoneScan || !ZONE_SCAN_TIME) return 0;
   return Math.max(0, Math.min(100, Math.round(100 * zoneScanGone() / ZONE_SCAN_TIME)));
 }
-function zoneScanTimeText(){
-  return fmtDur(zoneScanGone()) + ' elapsed \u00b7 ' + fmtDur(zoneScanLeft()) + ' left';
-}
+/* [BORTTAGET v5.583.0] zoneScanTimeText - den lilla raden "0m 21s elapsed -
+   0m 9s left" ar borta ur dronarrutan, och ingen annan lasare fanns. */
 /* Dronaren kommer hem. I serverlage ar det servern som kartlagger - klienten
    fragar bara. Offline gor vi det sjalva. */
 function checkZoneScan(){
@@ -26884,14 +26908,33 @@ function renderBoostBar(){
       '<span class="bc-time">' + fmtDur(left) + '</span></div>';
   }
   bar.innerHTML = h;
+  /* [RATTAT v5.583.0] CORE SYNC-KORTET LASTE SIG PA SKARMEN (Chris). Det gick
+     inte att stanga med nagot annat an F5.
+     ORSAKEN: raden ovanfor byter ut hela bricklistens innehall, och den gor det
+     VARJE SEKUND for att nedrakningen ska rora sig. Brickan man hovrade over
+     revs alltsa bort under muspekaren - och nar elementet ar borta kan dess
+     mouseleave aldrig ga. Kortet hade ingen som helst kvar som kunde stanga
+     det. Samma familj som "en lyssnare utan knapp", fast at andra hallet:
+     knappen forsvann fran lyssnaren.
+     LOSNINGEN: lyssna pa LISTEN, som star kvar, i stallet for pa brickan som
+     byts ut. Dessutom tre sakerhetsventiler - pekaren lamnar listen, ett
+     klick nagonstans, eller Escape. Och vid varje omritning stangs kortet om
+     brickan inte langre finns. */
   const chip = $('sync-chip');
-  if (chip){
-    chip.addEventListener('mouseenter', e => {
-      const b = chip.getBoundingClientRect();
+  if (!chip) hideSyncTip();
+  if (!bar.dataset.syncHooked){
+    bar.dataset.syncHooked = '1';
+    bar.addEventListener('mouseover', e => {
+      const c = e.target.closest('#sync-chip'); if (!c) return;
+      const b = c.getBoundingClientRect();
       showSyncTip(b.left, b.bottom);
     });
-    chip.addEventListener('mouseleave', hideSyncTip);
-  } else hideSyncTip();
+    bar.addEventListener('mouseout', e => {
+      const to = e.relatedTarget;
+      if (!to || !to.closest || !to.closest('#sync-chip')) hideSyncTip();
+    });
+    bar.addEventListener('mouseleave', hideSyncTip);
+  }
   hookBoostTips(bar);
 }
 /* Hovringen berättar vad boosten gör. Samma kort som allt annat i spelet använder,
@@ -26933,7 +26976,10 @@ function tickZoneScanClock(){
   if (el) el.textContent = fmtDur(zoneScanLeft());
   /* Zonrutans matare och siffror. BARA texten och bredden byts - hela rutan
      ritas aldrig om, annars rivs knapparna bort under fingret. */
-  const kl = $('node-scan-clock'); if (kl) kl.textContent = zoneScanTimeText();
+  /* [ANDRAT v5.583.0] Den STORA siffran tickas nu, inte den lilla raden under -
+     den ar borttagen. Tickaren skriver bara text och bredd; hela rutan ritas
+     aldrig om, annars rivs knapparna bort under fingret. */
+  const kl = $('node-scan-big'); if (kl) kl.textContent = fmtDur(zoneScanLeft());
   const fi = $('node-scan-fill');  if (fi) fi.style.width = zoneScanPct() + '%';
   /* [TILLAGT v5.187.0] SJALVRATTANDE VAKT. Zonrutan ritas av flera vagar -
      knappen i rutan, kartans egen knapp, och serverns svar - och missar EN av
@@ -39429,8 +39475,9 @@ function nodeZoneHTML(){
        [BEHALLET fran v5.183.0] Siffrorna raknas ur den SPARADE sluttiden, som
        servern ager - inte ur en egen raknare. De overlever omladdning,
        utloggning och karaktarsbyte av sig sjalva. id:na node-scan-fill och
-       node-scan-clock ar OFORANDRADE: sekundtickaren letar upp dem varje
-       sekund, och byter man namn slutar nedrakningen rora sig. */
+       node-scan-big ar det tickaren letar upp varje sekund - byter man namn pa
+       dem slutar nedrakningen rora sig, vilket ar precis vad som hande i
+       v5.575.0. */
     const drArt = mine ? 'assets/ui/drone/drone_scouting.webp'
                        : 'assets/ui/drone/drone_send.webp';
     const drWrap = sida =>
@@ -39452,12 +39499,15 @@ function nodeZoneHTML(){
         drHead('Drone scouting', true) +
         /* [RATTAT v5.575.0] KLOCKAN VAR EN HEL MENING I 40 PIXLAR (Chris).
            zoneScanTimeText ger "0m 30s elapsed - 0m 0s left" - en text som
-           bryts i fyra rader nar den satts i den stora stilen. Stort star nu
-           BARA den aterstaende tiden, som i skissen; hela meningen star kvar
-           som en liten rad under, sa ingenting gick forlorat.
-           id:t foljer med till det lilla faltet, for sekundtickaren letar upp
-           node-scan-clock varje sekund och skriver hela meningen dit. */
-        '<div class="dr-clock"><b>' + fmtDur(zoneScanLeft()) + '</b>' +
+           bryts i fyra rader nar den satts i den stora stilen.
+           [RATTAT v5.583.0] MEN DEN STORA SIFFRAN STOD STILL (Chris). Nar id:t
+           flyttades till den lilla raden blev den stora siffran ett tal som
+           skrevs EN gang, vid omritningen, och aldrig mer - sa "0m 30s" stod
+           kvar medan den lilla raden under tickade. Ratt siffra, dod klocka.
+           Nu bar den stora siffran ett eget id och tickas varje sekund, och den
+           lilla raden ar borttagen: den sa samma sak en gang till, och det var
+           bara den som rorde sig. */
+        '<div class="dr-clock"><b id="node-scan-big">' + fmtDur(zoneScanLeft()) + '</b>' +
           '<span>Time remaining</span></div>' +
         '<div class="nd-scanbar"><i id="node-scan-fill" style="width:' + zoneScanPct() + '%"></i></div>' +
         '<div class="dr-steps">' +
@@ -39465,7 +39515,6 @@ function nodeZoneHTML(){
           '<span class="bar"></span>' +
           '<span class="dr-step on"><span class="mk"></span>Scanning</span>' +
         '</div>' +
-        '<div class="dr-note" id="node-scan-clock">' + zoneScanTimeText() + '</div>' +
         '<div class="dr-note">Exploring ' + esc(NODE.zone || '') + '\u2026</div>' +
         '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>');
       return h;
@@ -39991,6 +40040,13 @@ document.addEventListener('pointermove', e => {
   if (ptTipEl) ptTipMove(e.clientX, e.clientY);
 });
 document.addEventListener('pointerdown', ptTipHide);
+/* [TILLAGT v5.583.0] Sakerhetsventiler for Core Sync-kortet: ett klick var som
+   helst utanfor brickan, eller Escape, stanger det. Kortet ska aldrig kunna
+   overleva att brickan under det forsvinner. */
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest || !e.target.closest('#sync-chip')) hideSyncTip();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideSyncTip(); });
 makeDraggable($('node-overlay'), $('node-overlay').querySelector('.inv-titlebar'));
 $('node-close').addEventListener('pointerdown', e => {
   e.stopPropagation(); e.preventDefault(); closeNodeWin();
