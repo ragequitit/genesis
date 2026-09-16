@@ -7450,6 +7450,30 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   transition:width .9s linear}
 .nd-scantime{font-size:11px;color:var(--text-dim);text-align:center;font-variant-numeric:tabular-nums}
 
+/* [TILLAGT v5.573.0] Skrivrutan i inkorgen. */
+.mb-send{margin-left:6px}
+.mail-send{margin:0 12px 10px;padding:12px;border-radius:12px;
+  border:1px solid var(--cyan-dim);background:rgba(56,232,255,.05);
+  display:flex;flex-direction:column;gap:9px}
+.mail-send[hidden]{display:none}
+.ms-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ms-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ms-f > span{font-size:9.5px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text-dim)}
+.ms-f input,.ms-f textarea{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:9px;
+  border:1px solid var(--border);background:var(--bg-inset);color:var(--text);
+  font-size:13px;font-family:inherit;resize:vertical}
+.ms-f input:focus,.ms-f textarea:focus{outline:none;border-color:var(--cyan-dim)}
+.ms-note{font-size:11.5px;min-height:1.2em;color:var(--text-dim)}
+.ms-note.bad{color:#ff5670}
+.ms-note.good{color:#37e08a}
+.ms-acts{display:flex;gap:8px}
+.ms-acts button{flex:1;padding:10px 8px;font-size:11px;font-weight:900;letter-spacing:.1em}
+@media (max-width:700px){
+  /* Vid 360 px blev tva falt bredvid varandra 150 px breda och ett handtag pa
+     tjugo tecken fick plats till halften. En kolumn i stallet. */
+  .ms-grid{grid-template-columns:1fr}
+}
 .fr-char{color:var(--text);font-weight:900}
 .fr-lvl{margin-left:8px;color:var(--text-dim);font-weight:800;letter-spacing:.06em}
 .nd-acts{display:flex;gap:8px;margin-top:12px}
@@ -8715,7 +8739,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.572.0 — VEM VANNEN SPELAR</div>
+        <div class="sn-ver">GENESIS v5.573.0 — SKICKA GULD</div>
       </div>
     </div>
   </aside>
@@ -9252,6 +9276,33 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Det var en generisk emoji bland ritade bilder. -->
         <button class="mb-take" id="mail-takeall"
                 title="Take every attachment that fits in your backpack">Take all</button>
+        <!-- [TILLAGT v5.573.0] SKICKA. Inkorgen kunde bara TA EMOT (Chris) - det
+             fanns ingen vag alls att skicka nagot till nagon. -->
+        <button class="mb-take mb-send" id="mail-compose"
+                title="Send gold to another player">Send</button>
+      </div>
+      <!-- Skrivrutan bor INNE i inkorgen, inte i ett eget fonster: man skickar
+           dar man laser, och de tva listorna ar samma sak sedd at tva hall. -->
+      <div class="mail-send" id="mail-send" hidden>
+        <div class="ms-grid">
+          <label class="ms-f"><span>To (handle)</span>
+            <input id="ms-handle" type="text" autocomplete="off" spellcheck="false" maxlength="24"></label>
+          <label class="ms-f"><span>Character</span>
+            <input id="ms-char" type="text" autocomplete="off" spellcheck="false" maxlength="24"></label>
+        </div>
+        <div class="ms-grid">
+          <label class="ms-f"><span>Subject</span>
+            <input id="ms-subject" type="text" autocomplete="off" maxlength="60"></label>
+          <label class="ms-f"><span>Gold</span>
+            <input id="ms-gold" type="number" min="1" step="1" inputmode="numeric"></label>
+        </div>
+        <label class="ms-f"><span>Message (optional)</span>
+          <textarea id="ms-body" rows="2" maxlength="300"></textarea></label>
+        <div class="ms-note" id="ms-note"></div>
+        <div class="ms-acts">
+          <button class="btn-primary" id="ms-send">Send gold</button>
+          <button class="btn-neutral" id="ms-cancel">Cancel</button>
+        </div>
       </div>
       <div class="mail-list" id="mail-list"></div>
     </div>
@@ -9895,7 +9946,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.572.0 — VEM VANNEN SPELAR</div>
+            <div class="desc">GENESIS v5.573.0 — SKICKA GULD</div>
           </div>
         </div>
       </div>
@@ -19107,6 +19158,71 @@ function renderMail(){
 }
 /* Lappen: ETT meddelande i sin helhet. Den föds vid behov och tas bort med ESC
    eller krysset, precis som föremålsfönstren. */
+/* ===== SKICKA GULD TILL EN ANNAN SPELARE (v5.573.0, Chris) =====
+   Inkorgen kunde bara TA EMOT. Nu skickar den ocksa.
+   POSTEN GAR TILL EN KARAKTAR, inte till ett konto: guldet ligger last hos just
+   den karaktaren (Chris beslut). Darfor tva falt - handtaget OCH karaktaren.
+   Handtaget ensamt racker inte, och karaktarsnamnet ensamt far aldrig avgora
+   vart guldet gar: namnen ar unika i dag, men inget hindrar en dubblett i
+   morgon. Servern slar upp karaktaren INOM det handtaget.
+   ALLA sparrar sitter pa servern - tackning, blockering, inkorgstak, agarkoll.
+   Det har ar bara rutan; den far aldrig vara det som avgor om guldet flyttas. */
+const MS_FEL = {
+  no_such_player:    'No player with that handle.',
+  no_such_character: 'That player has no character by that name.',
+  cannot_mail_self:  'That is the character you are playing.',
+  blocked:           'You cannot send to that player.',
+  inbox_full:        'Their inbox is full.',
+  insufficient_gold: 'You do not have that much gold.',
+  bad_amount:        'Enter an amount of at least 1 gold.',
+  bad_subject:       'Give the message a subject.',
+  not_your_character:'Sign in again.',
+  offline:           'No connection.'
+};
+function msNote(txt, sort){
+  const n = $('ms-note'); if (!n) return;
+  n.textContent = txt || '';
+  n.className = 'ms-note' + (sort ? ' ' + sort : '');
+}
+function msToggle(pa){
+  const box = $('mail-send'); if (!box) return;
+  const open = pa == null ? box.hidden : pa;
+  box.hidden = !open;
+  if (open){ msNote(''); const h = $('ms-handle'); if (h) h.focus(); }
+}
+async function msSend(){
+  const btn = $('ms-send'); if (!btn || btn.disabled) return;
+  const handle = ($('ms-handle').value || '').trim();
+  const namn   = ($('ms-char').value || '').trim();
+  const amne   = ($('ms-subject').value || '').trim();
+  const guld   = Math.floor(Number($('ms-gold').value || 0));
+  if (!handle || !namn){ msNote('Fill in both the handle and the character.', 'bad'); return; }
+  if (!amne){ msNote(MS_FEL.bad_subject, 'bad'); return; }
+  if (!(guld > 0)){ msNote(MS_FEL.bad_amount, 'bad'); return; }
+  btn.disabled = true; msNote('Sending\u2026');
+  try {
+    /* Rutan raknar i GULD, servern i KOPPAR. Omraningen sker HAR och pa ett
+       enda stalle - skickade jag guldtalet rakt in hade tio guld blivit en
+       tiotusendel av det. Samma falla som auktionen hade i v4.47.0. */
+    const r = await srvRpc('mail_send_gold', {
+      p_character: SRV.charId,
+      p_to_handle: handle, p_to_character: namn,
+      p_subject: amne, p_body: ($('ms-body').value || '').trim(),
+      p_gold: guld * 10000
+    });
+    msNote('Sent ' + (r && r.gold ? moneyPlain(r.gold) : guld + 'g') +
+           ' to ' + esc((r && r.to) || namn) + '.', 'good');
+    $('ms-gold').value = ''; $('ms-subject').value = ''; $('ms-body').value = '';
+    /* Avsandarens egen kassa andrades: hamta hem den i stallet for att rakna
+       ut den lokalt, sa rutan aldrig visar ett tal servern inte haller med om. */
+    if (typeof netPull === 'function') { try { await netPull(); } catch(e){} }
+    if (typeof renderMail === 'function') renderMail();
+  } catch (e){
+    const m = String((e && e.message) || e);
+    let txt = ''; for (const k in MS_FEL) if (m.indexOf(k) >= 0){ txt = MS_FEL[k]; break; }
+    msNote(txt || srvErrText(e, 'The message could not be sent.'), 'bad');
+  } finally { btn.disabled = false; }
+}
 function openMailNote(id){
   const m = findMail(id);
   if (!m) return;
@@ -32427,6 +32543,11 @@ $('frag-close').addEventListener('click', closeFragWin);
 $('fc-helper-buy').addEventListener('click', openCache);
 $('fc-gear-buy').addEventListener('click', openGearCache);
 makeDraggable($('frag-overlay'), [$('frag-overlay').querySelector('.inv-titlebar'), $('frag-overlay')]);
+/* [TILLAGT v5.573.0] Skrivrutans tre knappar. Enter i ett textfalt skickar
+   INTE - ett felskrivet handtag plus ett tryck pa Enter ska inte flytta guld. */
+if ($('mail-compose')) $('mail-compose').addEventListener('click', () => msToggle());
+if ($('ms-cancel'))    $('ms-cancel').addEventListener('click', () => msToggle(false));
+if ($('ms-send'))      $('ms-send').addEventListener('click', msSend);
 $('nav-inbox').addEventListener('click', () => toggleWindow('mail-overlay', openMail, () => {
   $('mail-overlay').classList.remove('open');
   document.querySelectorAll('.mail-note').forEach(n => n.remove());
