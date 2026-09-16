@@ -7460,6 +7460,9 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .ms-f{display:flex;flex-direction:column;gap:4px;min-width:0}
 .ms-f > span{font-size:9.5px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
   color:var(--text-dim)}
+.ms-f select{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:9px;
+  border:1px solid var(--border);background:var(--bg-inset);color:var(--text);
+  font-size:13px;font-family:inherit}
 .ms-f input,.ms-f textarea{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:9px;
   border:1px solid var(--border);background:var(--bg-inset);color:var(--text);
   font-size:13px;font-family:inherit;resize:vertical}
@@ -7472,7 +7475,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 @media (max-width:700px){
   /* Vid 360 px blev tva falt bredvid varandra 150 px breda och ett handtag pa
      tjugo tecken fick plats till halften. En kolumn i stallet. */
-  .ms-grid{grid-template-columns:1fr}
+  .ms-grid{grid-template-columns:1fr;gap:7px}
+  /* Vid 360 spillde rutan 15 px over fonstret nar valjaren kom till. Luften
+     dras in - falten och texten ar lika stora, det ar kanterna som krymper. */
+  .mail-send{padding:10px;gap:7px}
+  .ms-acts button{padding:9px 8px}
 }
 .fr-char{color:var(--text);font-weight:900}
 .fr-lvl{margin-left:8px;color:var(--text-dim);font-weight:800;letter-spacing:.06em}
@@ -8739,7 +8746,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.573.0 — SKICKA GULD</div>
+        <div class="sn-ver">GENESIS v5.574.0 — SKICKA PJASER</div>
       </div>
     </div>
   </aside>
@@ -9296,6 +9303,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
           <label class="ms-f"><span>Gold</span>
             <input id="ms-gold" type="number" min="1" step="1" inputmode="numeric"></label>
         </div>
+        <label class="ms-f"><span>Attach from your backpack</span>
+          <select id="ms-item"><option value="">Nothing</option></select></label>
         <label class="ms-f"><span>Message (optional)</span>
           <textarea id="ms-body" rows="2" maxlength="300"></textarea></label>
         <div class="ms-note" id="ms-note"></div>
@@ -9946,7 +9955,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.573.0 — SKICKA GULD</div>
+            <div class="desc">GENESIS v5.574.0 — SKICKA PJASER</div>
           </div>
         </div>
       </div>
@@ -19176,6 +19185,9 @@ const MS_FEL = {
   insufficient_gold: 'You do not have that much gold.',
   bad_amount:        'Enter an amount of at least 1 gold.',
   bad_subject:       'Give the message a subject.',
+  bind_on_pickup:    'That cannot be sent \u2014 it binds when you pick it up.',
+  item_must_be_in_bag:'That item is no longer in your backpack.',
+  no_item:           'Pick something to attach.',
   not_your_character:'Sign in again.',
   offline:           'No connection.'
 };
@@ -19184,11 +19196,29 @@ function msNote(txt, sort){
   n.textContent = txt || '';
   n.className = 'ms-note' + (sort ? ' ' + sort : '');
 }
+function msFillItems(){
+  /* Vaskans pjaser, hamtade ur rutnatet. Bara rutor med ett SERVER-id kan
+     skickas - en lokal rad utan id finns inte for servern.
+     BUNDNA PJASER SILAS INTE BORT HAR. Rutan vet inte sakert vad som ar bundet;
+     servern gor det. Valjer man en sadan svarar servern "that cannot be sent",
+     vilket ar arligare an att tyst dolja den och lata spelaren undra vart den
+     tog vagen. */
+  const sel = $('ms-item'); if (!sel) return;
+  const valt = sel.value;
+  const rader = (S.inv || [])
+    .map(r => r && r.gear)
+    .filter(g => g && g.sid)
+    .map(g => '<option value="' + esc(String(g.sid)) + '">' +
+      esc(gearName(g)) + (g.r != null && GEAR_RAR[g.r] ? ' \u00b7 ' + esc(GEAR_RAR[g.r].name) : '') +
+      '</option>').join('');
+  sel.innerHTML = '<option value="">Nothing</option>' + rader;
+  if (valt) sel.value = valt;
+}
 function msToggle(pa){
   const box = $('mail-send'); if (!box) return;
   const open = pa == null ? box.hidden : pa;
   box.hidden = !open;
-  if (open){ msNote(''); const h = $('ms-handle'); if (h) h.focus(); }
+  if (open){ msNote(''); msFillItems(); const h = $('ms-handle'); if (h) h.focus(); }
 }
 async function msSend(){
   const btn = $('ms-send'); if (!btn || btn.disabled) return;
@@ -19198,20 +19228,32 @@ async function msSend(){
   const guld   = Math.floor(Number($('ms-gold').value || 0));
   if (!handle || !namn){ msNote('Fill in both the handle and the character.', 'bad'); return; }
   if (!amne){ msNote(MS_FEL.bad_subject, 'bad'); return; }
-  if (!(guld > 0)){ msNote(MS_FEL.bad_amount, 'bad'); return; }
+  const pjas = ($('ms-item') && $('ms-item').value) || '';
+  /* ETT brev bar en sak. Skickar man bada blir det tva brev, tva rader i
+     inkorgen och tva hamtningar - och om den andra misslyckas star den forsta
+     redan skickad. Hellre saga det rakt ut an att gora halva jobbet tyst. */
+  if (pjas && guld > 0){
+    msNote('Send the gold and the item one at a time.', 'bad'); return;
+  }
+  if (!pjas && !(guld > 0)){ msNote(MS_FEL.bad_amount, 'bad'); return; }
   btn.disabled = true; msNote('Sending\u2026');
   try {
     /* Rutan raknar i GULD, servern i KOPPAR. Omraningen sker HAR och pa ett
        enda stalle - skickade jag guldtalet rakt in hade tio guld blivit en
        tiotusendel av det. Samma falla som auktionen hade i v4.47.0. */
-    const r = await srvRpc('mail_send_gold', {
+    const gemensamt = {
       p_character: SRV.charId,
       p_to_handle: handle, p_to_character: namn,
-      p_subject: amne, p_body: ($('ms-body').value || '').trim(),
-      p_gold: guld * 10000
-    });
-    msNote('Sent ' + (r && r.gold ? moneyPlain(r.gold) : guld + 'g') +
-           ' to ' + esc((r && r.to) || namn) + '.', 'good');
+      p_subject: amne, p_body: ($('ms-body').value || '').trim()
+    };
+    const r = pjas
+      ? await srvRpc('mail_send_item', Object.assign({p_item: pjas}, gemensamt))
+      : await srvRpc('mail_send_gold', Object.assign({p_gold: guld * 10000}, gemensamt));
+    msNote(pjas
+      ? 'Item sent to ' + esc((r && r.to) || namn) + '.'
+      : 'Sent ' + (r && r.gold ? moneyPlain(r.gold) : guld + 'g') +
+        ' to ' + esc((r && r.to) || namn) + '.', 'good');
+    if ($('ms-item')) $('ms-item').value = '';
     $('ms-gold').value = ''; $('ms-subject').value = ''; $('ms-body').value = '';
     /* Avsandarens egen kassa andrades: hamta hem den i stallet for att rakna
        ut den lokalt, sa rutan aldrig visar ett tal servern inte haller med om. */
