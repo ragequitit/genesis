@@ -1968,6 +1968,25 @@ body.dragging *{cursor:grabbing !important}
   filter:drop-shadow(0 0 calc(var(--nod) * .12) color-mix(in srgb, var(--core-col) 55%, transparent))}
 .core-hex.hasnode .core-img{display:block}
 .core-hex.hasnode .core-svg{display:none}
+/* [TILLAGT v5.591.0] RINGARNA RUNT BILDEN. De ligger 1,55 ganger nodens bredd,
+   alltsa UTANFOR kuben och inte over den. Strecken ar tjockare an prismats
+   (2,2 och 2,8 mot 1,2 och 1,6): ringytan ar mindre nu, och ett streck ritat i
+   en 200-enheters teckning som krymps till 124 px blir 0,7 px tunt - alltsa
+   nastan osynligt. Samma tva animationer som prismat redan har.
+   Ringarna visas BARA nar bilden ar hamtad; faller den bort ritas prismat, och
+   det bar sina egna ringar inuti sig. */
+.core-rings{display:none;position:absolute;left:50%;top:50%;
+  width:calc(var(--nod) * 1.55);height:calc(var(--nod) * 1.55);
+  transform:translate(-50%,-50%);pointer-events:none;z-index:0;overflow:visible}
+.core-hex.hasnode .core-rings{display:block}
+/* [TILLAGT v5.591.0] ANDNINGEN (Chris: "pulserar langsamt, bara 5 %"). Samma
+   takt som skenet bakom redan andas i, 5,5 sekunder, sa de tva ror sig i samma
+   puls i stallet for att slass om uppmarksamheten. */
+@keyframes coreNodPuls{
+  0%,100%{transform:scale(1)}
+  50%    {transform:scale(1.05)}
+}
+.core-hex.hasnode .core-img{animation:coreNodPuls 5.5s ease-in-out infinite}
 .core-wrap.core-holding .core-hex{transform:scale(1.03)}
 .core-hex.core-hit{transform:scale(1.07)}
 /* [TILLAGT v5.587.0] BOINKEN (Chris). Ett tryck ska KANNAS. Noden trycks ihop
@@ -1983,7 +2002,10 @@ body.dragging *{cursor:grabbing !important}
   68%  {transform:scale(1.06,.96)}
   100% {transform:scale(1,1)}
 }
-.core-img.boink{animation:coreBoink .34s cubic-bezier(.34,1.56,.64,1)}
+/* Boinken ar tyngre an pulsen i regelvikt, annars hade andningen atit upp den:
+   `.core-hex.hasnode .core-img` ar tre klasser, `.core-img.boink` bara tva. */
+.core-img.boink,
+.core-hex.hasnode .core-img.boink{animation:coreBoink .34s cubic-bezier(.34,1.56,.64,1)}
 /* 212 -> 191 px, alltsa exakt 10 % mindre (v0.72.0). Attributen i markupen
    ligger kvar som reserv; CSS vinner over dem. */
 .core-svg{width:var(--nod);height:var(--nod);transition:filter .5s linear;
@@ -2017,7 +2039,8 @@ body.dragging *{cursor:grabbing !important}
 .core-spark-anim{animation:sparkle .3s ease}
 @media (prefers-reduced-motion: reduce){
   .core-alive::after,.core-ring-slow,.core-ring-rev,.core-spark-anim,
-  .core-img.boink{animation:none}
+  .core-img.boink,.core-hex.hasnode .core-img,
+  .core-hex.hasnode .core-img.boink{animation:none}
 }
 /* Siffrorna som sprutar ur kärnan — referenskonsten från spelarens andra bygge.
    Flyger alltid uppåt/utåt (aldrig ner under tummen), fasta vinklar i sekvens
@@ -9108,7 +9131,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.590.0 — NODEN PA 80 PX</div>
+        <div class="sn-ver">GENESIS v5.591.0 — RINGARNA OCH ANDNINGEN</div>
       </div>
     </div>
   </aside>
@@ -9309,6 +9332,22 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
                    visas bara om filen inte gar att hamta, sa rutan aldrig blir tom.
                    Elementet #core-hex ar ororts: halla, slappa, gnistan och
                    traffytan hanger alla pa det id:t. -->
+              <!-- [TILLAGT v5.591.0] RINGARNA TILLBAKA (Chris). Nar prismat byttes
+                   mot en fast bild forsvann de tva motroterande sexhorningarna med
+                   det, och rutan tappade sin rorelse. Det ar SAMMA tva polygoner
+                   som prismat hade och samma tva animationer - bara utlyfta ur
+                   SVG:n sa de kan ligga runt en bild i stallet for inuti en
+                   teckning. Fargen ar nodens egen, som allt annat sken. -->
+              <svg class="core-rings" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+                <g class="core-ring-slow">
+                  <polygon points="100,18 171,59 171,141 100,182 29,141 29,59" fill="none"
+                    stroke="var(--core-col)" stroke-width="2.2" stroke-dasharray="6 10" opacity="0.7"/>
+                </g>
+                <g class="core-ring-rev">
+                  <polygon points="100,34 158,67 158,133 100,166 42,133 42,67" fill="none"
+                    stroke="var(--core-col2)" stroke-width="2.8" stroke-dasharray="3 7" opacity="0.75"/>
+                </g>
+              </svg>
               <img class="core-img" id="core-img" alt="" draggable="false">
               <svg viewBox="0 0 200 200" width="212" height="212" class="core-svg">
                 <defs>
@@ -10323,7 +10362,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.590.0 — NODEN PA 80 PX</div>
+            <div class="desc">GENESIS v5.591.0 — RINGARNA OCH ANDNINGEN</div>
           </div>
         </div>
       </div>
@@ -19953,8 +19992,17 @@ function startHold(e){ if (editMode) return; e.preventDefault(); holding = true;
   /* [TILLAGT v5.587.0] BOINKEN (Chris). Klassen tas bort och sätts om med en
      omritning emellan - utan den startar animationen inte om nar man trycker
      igen innan den forra hunnit ta slut, och da kanns bara vartannat tryck. */
+  /* [RATTAT v5.591.0] KLASSEN TOGS ALDRIG BORT. Det gjorde ingen skada sa lange
+     boinken var nodens enda animation - men nu andas noden ocksa, och de tva
+     delar samma egenskap: sa fort boink-klassen satt kvar stod andningen stilla
+     for gott efter forsta trycket. Klassen tas bort nar animationen tagit slut,
+     och reflowen ovanfor finns kvar sa ett nytt tryck mitt i ett pagaende hopp
+     startar om det i stallet for att ignoreras. */
   { const ni = $('core-img');
-    if (ni){ ni.classList.remove('boink'); void ni.offsetWidth; ni.classList.add('boink'); } }
+    if (ni){
+      ni.classList.remove('boink'); void ni.offsetWidth; ni.classList.add('boink');
+      ni.addEventListener('animationend', () => ni.classList.remove('boink'), {once: true});
+    } }
   el.coreSpark.classList.remove('core-spark-anim');
   void el.coreSpark.getBBox && el.coreSpark.getBoundingClientRect();
   el.coreSpark.classList.add('core-spark-anim'); holdT = 0; tickAcc = 0;
