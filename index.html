@@ -6642,7 +6642,12 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 /* ===== VANNER & GILLEN (v5.122.0 - byggd mot mockup) =====
    Breda fonster, atkantiga neon-emblem (som sidoradens ikoner), gillets
    instrumentvy i tre spalter och stora vanrader. */
-.friends-modal{width:min(900px,95vw);max-width:95vw}
+/* [RATTAT v5.581.0] Samma fella som gillerutan: en klass forlorar mot
+   `.modal.profile-modal`, som ar tva klasser och satter 960 px plus ett tak pa
+   960. Vanrutan har alltsa varit 960 bred i stallet for sina egna 900. Skrivs
+   med `div.modal` framfor, och taket maste skrivas om explicit - annars klamms
+   bredden anda. */
+div.modal.friends-modal{width:min(900px,95vw);max-width:95vw}
 /* [ANDRAT v5.576.0] 1080 -> 1180 px (Chris). Fyra paneler trangdes i ett
    fonster byggt for tre: chatten, medlemslistan och operationskorten klipptes
    alla av. Bredden ar steg ETT av ombyggnaden - Guild progress ska bort helt,
@@ -6662,7 +6667,14 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    for sig, och fyra rutor som byter bredd i samma leverans ar inte en rattning
    utan en ombyggnad. */
 div.modal.guild-modal{width:min(1180px,96vw);max-width:96vw}
-.node-modal{width:min(430px,94vw);max-width:94vw}
+/* [RATTAT v5.581.0] NODRUTANS GRUNDBREDD HADE SLUTAT GALLA. `.wide` (520),
+   `.wider` (760) och `.widest` (1000) ar TVA klasser var och star senare i
+   filen, sa de vann - men GRUNDLAGET ar en enda klass och forlorade. Uppmatt:
+   430 skrivet, 960 i verkligheten. Det ar den kartlagda zonen och kontraktet
+   som drabbats - smala textpaneler utspanda till dubbel bredd. `.widest` var
+   ocksa fel, fast pa annat satt: dess 1000 px vann men klipptes av taket pa
+   960, sa boden var 40 px smalare an skrivet. */
+div.modal.node-modal{width:min(430px,94vw);max-width:94vw}
 /* ===== SVARIGHETSVALET (v5.145.0) =====
    Tva kort sida vid sida: det vanliga i cyan, det heroiska i magenta. Varje kort
    bar sin egen accentfarg i EN variabel - byts den byter hela kortet farg.
@@ -7395,13 +7407,13 @@ div.modal.guild-modal{width:min(1180px,96vw);max-width:96vw}
 .cast-fill{height:100%;width:0;background:#f4fbff;box-shadow:0 0 14px rgba(255,255,255,.55)}
 .cast-left{font-size:11px;color:var(--text-dim);font-family:var(--font-mono)}
 .cast-cancel{margin-top:14px;width:100%}
-.node-modal.wide{width:min(520px,94vw)}
+div.modal.node-modal.wide{width:min(520px,94vw);max-width:94vw}
 /* [TILLAGT v5.493.1] Motet behover mer an de breda 520 (Chris bild). Husens rum
    ar BREDA bilder och tal en smal spalt; fiendebilderna ar STAENDE, och pa 520
    blev bildspalten 100 px - en remsa. 760 ger bilden ungefar halva rutan, som i
    forebilden. */
-.node-modal.wider{width:min(760px,94vw)}
-.node-modal.widest{width:min(1000px,96vw)}
+div.modal.node-modal.wider{width:min(760px,94vw);max-width:94vw}
+div.modal.node-modal.widest{width:min(1000px,96vw);max-width:96vw}
 /* [TILLAGT v5.494.0] Bodens tva spalter. Bildtexten ligger OVER bilden langst
    ner - darav position:relative har och absolute pa .shop-cap. */
 .shop-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px;
@@ -7518,6 +7530,24 @@ div.modal.guild-modal{width:min(1180px,96vw);max-width:96vw}
   .fr2.fr2{gap:10px}
   .fr2.fr2 .stat{min-width:104px}
   .fr2.fr2 .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* [RATTAT v5.581.0] FJARDE FORSOKET - OCH DET FORSTA SOM ar MATT FRAM.
+     Fragan var VAD som satter namnspaltens minsta bredd. Svaret ar att det inte
+     ar innehallet alls: `min-width` ar redan 0 och namnspaltens min-content ar
+     46-138 px, alltsa langt under det den faktiskt far. Det som avgor ar
+     FLEX-BASEN 40 %, for radbrytningen i flexbox raknas pa basen - INTE pa den
+     krympta bredden. Uppmatt vid 390 px: raden ar 298 px invandigt, och
+     52 + 119 (40 %) + status + 20 i mellanrum blir 295 nar statusen ar
+     "ACTIVE NOW" (104 px) men 325 nar den ar "LAST SEEN 72H 13M AGO" (141 px).
+     Over 298 hoppar statusen ned pa egen rad, namnspalten vaxer till 236 och
+     raden blir 38 px hogre. Darfor var det just de LANGE frantexterna som gav
+     de hoga raderna - namnet hade aldrig med saken att gora.
+     Basen satt till 0: da ar den hypotetiska bredden noll, statusen far alltid
+     plats pa forsta raden, och namnspalten VAXER in i det som blir over.
+     Undertexten far punkter av samma skal som namnet redan har - annars bryts
+     ett langt karaktarsnamn i tva rader och ojamnheten kommer tillbaka den
+     vagen. Uppmatt efterat: alla rader 108 px vid bade 390 och 360. */
+  .fr2.fr2 .who{flex:1 1 0}
+  .fr2.fr2 .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 .fr-char{color:var(--text);font-weight:900}
 .fr-lvl{margin-left:8px;color:var(--text-dim);font-weight:800;letter-spacing:.06em}
@@ -8326,7 +8356,10 @@ div.modal.guild-modal{width:min(1180px,96vw);max-width:96vw}
 .dgc-frame .dgc-bname{font-size:11px}
 /* Hela rutan nagot smalare - hogerspalten behover inte mer, och da behover
    vansterspalten det inte heller. */
-.dgc-modal{width:min(1120px,96vw)}
+/* [RATTAT v5.581.0] Dungeonvalet: skrivet 1120, uppmatt 960 - bade bredden och
+   taket forlorade mot `.modal.profile-modal`. Hela finjusteringen hogre upp i
+   det har stycket ar gjord for 1120 px. */
+div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 /* ===== [ANDRAT v5.435.1] TREDJE GENOMGANGEN ===== */
 /* Plus, minus och siffran halverade. De var sa breda att varunamnet klamdes
    ihop till "First A..." - och namnet ar det man laser forst. */
@@ -33712,8 +33745,13 @@ function socialLine(f, buttons){
      gilletagg, egen lampkolumn for online/senast sedd, och atgarderna till
      hoger. Menyn "More" fallar ut under raden. */
   const on = !!f.online;
+  /* [ANDRAT v5.581.0] "LAST SEEN ... AGO" kortat till bara tiden. Raden over
+     sager redan OFFLINE, sa orden bar ingen egen upplysning - men de gjorde
+     statusspalten 141 px bred i stallet for 104, och det var precis den
+     skillnaden som slog ut radbrytningen pa telefon. Namnspalten far de 37
+     pixlarna i stallet. */
   const s2 = on ? 'ACTIVE NOW'
-    : (f.last_seen_secs == null ? 'never seen' : 'LAST SEEN ' + fmtDur(f.last_seen_secs).toUpperCase() + ' AGO');
+    : (f.last_seen_secs == null ? 'NEVER SEEN' : fmtDur(f.last_seen_secs).toUpperCase());
   return '<div class="fr2' + (on ? ' on' : '') + '">' +
     avChip(f.avatar, f.handle, 52, on) +
     /* [ANDRAT v5.572.0] RADEN SA INTE VEM VANNEN SPELAR (Chris). Den visade
