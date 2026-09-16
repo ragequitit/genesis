@@ -6643,7 +6643,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    Breda fonster, atkantiga neon-emblem (som sidoradens ikoner), gillets
    instrumentvy i tre spalter och stora vanrader. */
 .friends-modal{width:min(900px,95vw);max-width:95vw}
-.guild-modal{width:min(1080px,96vw);max-width:96vw}
+/* [ANDRAT v5.576.0] 1080 -> 1180 px (Chris). Fyra paneler trangdes i ett
+   fonster byggt for tre: chatten, medlemslistan och operationskorten klipptes
+   alla av. Bredden ar steg ETT av ombyggnaden - Guild progress ska bort helt,
+   men den flytten maste ta med sig hamtningsknapparna, som i dag bara finns
+   dar. Tas panelen bort forst forsvinner enda vagen att hamta gillets
+   belaningar. Darfor bara bredden nu. */
+.guild-modal{width:min(1180px,96vw);max-width:96vw}
 .node-modal{width:min(430px,94vw);max-width:94vw}
 /* ===== SVARIGHETSVALET (v5.145.0) =====
    Tva kort sida vid sida: det vanliga i cyan, det heroiska i magenta. Varje kort
@@ -7480,6 +7486,26 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
      dras in - falten och texten ar lika stora, det ar kanterna som krymper. */
   .mail-send{padding:10px;gap:7px}
   .ms-acts button{padding:9px 8px}
+  /* [RATTAT v5.578.0] VANLISTAN STOD OJAMN PA TELEFON (Chris). Uppmatt vid
+     360 px: raderna blev 117, 159 och 159. ORSAKEN ar aritmetik, inte text.
+     Raden ar en flexrad som far brytas, och delarna kraver
+       avatar 52 + namnspalt 128 (40 %) + statusens golv 118 + tva mellanrum 28
+     = 326 px i en rad som ar 320 bred. SEX pixlar over, sa statusen hoppar ned
+     pa egen rad - men bara nar namnet ar langt nog att fylla sin spalt, vilket
+     ar varfor vissa rader var 117 och andra 159.
+     DEN HAR REGELN LOSER DET INTE HELT. Uppmatt efterat: 117 -> 113 och
+     159 -> 151, alltsa fyra respektive atta pixlar lagre men raderna star
+     fortfarande ojamna. Sex pixlar var alltsa inte hela skillnaden - namn-
+     spalten kan anda inte krympa till sina 40 %, och nasta steg ar att ta reda
+     pa VAD som satter dess minsta bredd (troligen texten under namnet, som far
+     brytas men inte kortas). Regeln star kvar for att den ar en akta
+     forbattring, inte for att felet ar borta.
+     Tre forsok har nu gjorts: punkter pa NAMNET (namnet var brett for att
+     spalten var det), en egen breddregel (den lag FORE .fr2 .who i filen och
+     forlorade), och den har. */
+  .fr2.fr2{gap:10px}
+  .fr2.fr2 .stat{min-width:104px}
+  .fr2.fr2 .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 .fr-char{color:var(--text);font-weight:900}
 .fr-lvl{margin-left:8px;color:var(--text-dim);font-weight:800;letter-spacing:.06em}
@@ -7500,11 +7526,20 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dr-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:stretch}
 .dr-art{position:relative;border-radius:14px;overflow:hidden;min-height:230px;
   background:#0a0a18;border:1px solid rgba(124,92,255,.22)}
-.dr-art img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0}
+/* [RATTAT v5.575.0] Dronaren satt langst ut till vanster (Chris). Bilden ar
+   bredare an ramen, och utan object-position beskars den fran mitten av FILEN -
+   inte fran mitten av motivet. Dronaren ar ritad vanster om mitten, sa den
+   hamnade i kanten. 38 % fran vanster satter den mitt i rutan. */
+.dr-art img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;
+  object-position:38% center}
 .dr-side{display:flex;flex-direction:column;gap:11px;min-width:0}
 .dr-eyebrow{font-size:11px;font-weight:900;letter-spacing:.1em;color:#ffc542;
   text-transform:uppercase;display:flex;align-items:center;gap:8px}
-.dr-title{font-size:30px;font-weight:900;letter-spacing:.01em;line-height:1.05;color:var(--text)}
+/* [RATTAT v5.575.0] Rubriken var 30 px fast oavsett hur smal spalten var, sa
+   THE MINESHAFT bröts i tva rader och tryckte ned allt under. Den far nu folja
+   spaltens bredd mellan 18 och 30 px. */
+.dr-title{font-size:clamp(18px,4.4vw,30px);font-weight:900;letter-spacing:.01em;
+  line-height:1.05;color:var(--text)}
 .dr-chip{align-self:flex-start;display:inline-flex;align-items:center;gap:9px;
   padding:8px 15px;border-radius:999px;font-size:12px;font-weight:900;letter-spacing:.12em;
   text-transform:uppercase;border:1px solid var(--border-soft);color:var(--text-dim)}
@@ -7529,7 +7564,8 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   color:var(--text-dim);white-space:nowrap}
 .dr-stat .v{font-size:19px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums}
 .dr-clock{display:flex;align-items:baseline;gap:12px}
-.dr-clock b{font-size:40px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;
+.dr-clock{flex-wrap:wrap}
+.dr-clock b{white-space:nowrap;font-size:clamp(26px,6vw,40px);font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;
   line-height:1;letter-spacing:.01em}
 .dr-clock span{font-size:10.5px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;
   color:var(--text-dim)}
@@ -7837,7 +7873,19 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .gd2-grid .gd-panel{min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .gd-idcol{flex:1 1 auto}
 .gd-opscol{flex:1 1 auto;overflow-y:auto}
-.gd-progcol{flex:0 0 auto}
+/* [TILLAGT v5.577.0] Anspraket inne i steget. */
+.ms{position:relative}
+.ms.claimable{border-color:#ffc542;box-shadow:0 0 0 1px rgba(255,197,66,.25)}
+.ms-claim{margin-top:6px;width:100%;padding:6px 4px;border-radius:7px;cursor:pointer;
+  font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid transparent;background:#ffc542;color:#061018}
+.ms-st{margin-top:6px;font-size:8.5px;font-weight:900;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--text-faint);min-height:1em}
+.ms.claimed .ms-st{color:#37e08a}
+.gd-mine{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.gd-mine .gp-num{font-size:20px;font-weight:900;color:var(--cyan)}
+.gd-mine .gp-lbl{font-size:10px;font-weight:800;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-dim)}
 .gd-memcol{flex:1 1 0;min-height:150px}
 .gd-chatcol{flex:1.15 1 0;min-height:220px}
 .gd-seg2{display:grid;grid-template-columns:1fr 1fr;margin-top:12px;
@@ -7863,7 +7911,17 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   padding:9px 10px;margin-top:12px;font-size:12px;color:#dfe6f5;line-height:1.35}
 .gd-motd .h{font-size:9.5px;letter-spacing:.14em;color:var(--text-dim);font-weight:800;
   text-transform:uppercase;margin-bottom:5px}
-.gd-idbtns{display:flex;gap:8px;margin-top:12px}
+/* [ANDRAT v5.579.0] KNAPPARNA LANGST NED I IDENTITETSSPALTEN (Chris).
+   De satt direkt under beskrivningen, alltsa pa olika hojd beroende pa hur
+   lang gillets text rakade vara - och i ett gille utan beskrivning svavade de
+   mitt i en tom spalt. margin-top:auto trycker ned dem mot spaltens botten, sa
+   de star pa samma stalle i varje gille. Spalten ar redan en flexkolumn, sa
+   det kostar ingen ny struktur.
+   VEM SOM SER VAD ar ororda: officerare far Invite och Settings, en vanlig
+   medlem far Leave guild. Att ge medlemmen INGA knappar alls, som Chris
+   skissade, skulle ta bort enda vagen ut ur gillet - den flytten hor ihop med
+   att Manage blir en egen vy, inte med den har raden. */
+.gd-idbtns{display:flex;gap:8px;margin-top:auto;padding-top:12px}
 .gd-idbtns .btn-neutral{flex:1}
 .op2{border:1px solid var(--border);border-radius:12px;background:var(--bg-row);
   padding:11px 12px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
@@ -8746,7 +8804,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.574.0 — SKICKA PJASER</div>
+        <div class="sn-ver">GENESIS v5.580.0 — DRONARRUTAN FAR PLATS</div>
       </div>
     </div>
   </aside>
@@ -9955,7 +10013,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.574.0 — SKICKA PJASER</div>
+            <div class="desc">GENESIS v5.580.0 — DRONARRUTAN FAR PLATS</div>
           </div>
         </div>
       </div>
@@ -19745,20 +19803,27 @@ const EXPEDITIONS = {
     'The Grasslands': [
       {id:'vox_grasslan_1', name:'Break the First Cube', mins:5, lvl:1}
     ],
+    /* [RATTAT v5.575.0] LVL VAR EXPEDITIONENS BAND, INTE KARAKTARSNIVAN (Chris).
+       Rutan sa "level 2" om Salvage a Failed Build, servern kravde nivo 7, och
+       en nivo 4 fick alltsa nej pa nagot rutan sagt att hen klarade. Tva olika
+       saker delade namnet lvl: klienten hade bandet (1, 2, 3 - vilken tredjedel
+       av regionen expeditionen ligger i) och servern den KARAKTARSNIVA som
+       kravs. Talen nedan ar nu serverns, hamtade ur expedition_config.
+       Vill man veta bandet star det i id:ts sista siffra. */
     'The Village': [
-      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:15, lvl:1}
+      {id:'vox_village_1', name:'Settle a Plot Dispute', mins:15, lvl:3}
     ],
     'The Mineshaft': [
-      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:45, lvl:2}
+      {id:'vox_mineshaf_2', name:'Chase the Glowing Seam', mins:45, lvl:5}
     ],
     'The Lava Layer': [
-      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:120, lvl:2}
+      {id:'vox_lavalaye_2', name:'Salvage a Failed Build', mins:120, lvl:7}
     ],
     'The Skybuild': [
-      {id:'vox_skybuild_3', name:"Finish the Half-Built Bridge", mins:240, lvl:3}
+      {id:'vox_skybuild_3', name:"Finish the Half-Built Bridge", mins:240, lvl:9}
     ],
     'The Deepshaft': [
-      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:480, lvl:3}
+      {id:'vox_deepshaf_3', name:'Whatever Dug Here First', mins:480, lvl:10}
     ]
   },
   drakemark: {
@@ -36503,17 +36568,40 @@ function guildMainHTML(st){
 
   /* Mitten: operationerna + framstegen */
   let ops = '<div class="gd-panel gd-opscol"><div class="gd-plabel">Guild operations' +
-    '<span>resets in ' + fmtDur(w.ends_secs) + ' \u00b7 scaled for ' + w.eligible + '</span></div>';
+    '<span>resets in ' + fmtDur(w.ends_secs) + ' \u00b7 scaled for ' + w.eligible + '</span></div>' +
+    /* Bidragstalet stod i den borttagna panelen. Det ar det enda darifran som
+       verkligen sa nagot eget, sa det foljer med hit. */
+    '<div class="gd-mine"><span class="gp-num">\u2605 ' + mine + '</span>' +
+      '<span class="gp-lbl">your contribution this week</span></div>';
   if (!w.in_snapshot)
     ops += '<div class="desc" style="color:#ffc542;margin-bottom:8px">You joined after this week began \u2014 ' +
       'you can contribute, and rewards resume next week.</div>';
   ops += (w.ops || []).map(op => {
     const meta = GOP[op.cat] || ['\u2699\uFE0F', op.cat];
     const pc = Math.min(100, Math.round(100 * op.progress / op.gold));
-    const pips = ['bronze','silver','gold'].map(ms =>
-      '<div class="ms ' + ms + (op['done_' + ms] ? ' reached' : '') + '">' +
-        '<div class="star">\u2605</div><div class="tier">' + ms.toUpperCase() + '</div>' +
-        '<div class="tgt">' + op[ms] + '</div></div>').join('');
+    /* [OMBYGGT v5.577.0] ANSPRAKEN BOR I OPERATIONSKORTEN NU (Chris).
+       Forut fanns de i en egen panel, Guild progress, med nio kort som
+       upprepade samma tre kategorier och samma tre steg en gang till. Panelen
+       ar borta; markena har flyttat in dit de hor hemma - pa det kort vars mal
+       de tillhor. En kategori, en rad, tre steg.
+       RATTVISAN ar kvar utan ett andra belaningssystem: guildClaimState svarar
+       'nomine' at den som inte bidragit nagot alls, och da star det CONTRIBUTE
+       i stallet for en knapp. Den som lat andra gora jobbet far alltsa
+       fortfarande ingenting. */
+    const pips = ['bronze','silver','gold'].map(ms => {
+      const stc = guildClaimState(st, op, ms);
+      return '<div class="ms ' + ms + (op['done_' + ms] ? ' reached' : '') +
+        (stc === 'claimable' ? ' claimable' : '') + (stc === 'claimed' ? ' claimed' : '') + '">' +
+        '<div class="star">' + (stc === 'claimed' ? '\u2705' : '\u2605') + '</div>' +
+        '<div class="tier">' + ms.toUpperCase() + '</div>' +
+        '<div class="tgt">' + op[ms] + '</div>' +
+        (stc === 'claimable'
+          ? '<button class="ms-claim" data-g="claim:' + op.idx + ':' + ms + '">Claim</button>'
+          : '<div class="ms-st">' +
+            (stc === 'claimed' ? 'CLAIMED' : stc === 'nomine' ? 'CONTRIBUTE' :
+             stc === 'late' ? 'NEXT WEEK' : '') + '</div>') +
+        '</div>';
+    }).join('');
     return '<div class="op2">' + emblemChip(null, meta[0], 46, 'var(--cyan)') +
       '<div class="op2-main"><div class="op2-title">' + meta[1] + '</div>' +
       '<div class="op2-bar"><div class="op2-fill" style="width:' + pc + '%"></div></div>' +
@@ -36523,24 +36611,8 @@ function guildMainHTML(st){
   }).join('');
   ops += '</div>';
 
-  let prog = '<div class="gd-panel gd-progcol"><div class="gd-plabel">Guild progress</div>' +
-    '<div class="gp-head"><span class="gp-num">\u2605 ' + mine + '</span>' +
-      '<span class="gp-lbl">your contribution this week</span></div>' +
-    '<div class="chests">' +
-    (w.ops || []).map(op => ['bronze','silver','gold'].map(ms => {
-      const stc = guildClaimState(st, op, ms);
-      const meta = GOP[op.cat] || ['\u2699\uFE0F', op.cat];
-      return '<div class="chest ' + ms + (stc === 'claimable' ? ' claimable' : '') + '">' +
-        '<div class="ic">' + (stc === 'claimed' ? '\u2705' : stc === 'claimable' ? '\uD83C\uDF81' : '\uD83D\uDD12') + '</div>' +
-        '<div class="cap">' + meta[0] + ' ' + op.cat + '</div>' +
-        '<div class="tier">' + ms.toUpperCase() + '</div>' +
-        (stc === 'claimable'
-          ? '<button data-g="claim:' + op.idx + ':' + ms + '">Claim</button>'
-          : '<div class="st' + (stc === 'claimed' ? ' claimed' : '') + '">' +
-            (stc === 'claimed' ? 'CLAIMED' : stc === 'nomine' ? 'CONTRIBUTE' :
-             stc === 'late' ? 'NEXT WEEK' : 'LOCKED') + '</div>') +
-        '</div>';
-    }).join('')).join('') + '</div></div>';
+  /* [BORTTAGET v5.577.0] Guild progress. Nio kort som upprepade Operations.
+     Anspraken flyttade in i operationskorten ovan. */
 
   /* Hoger: medlemmar + chatt */
   let right = '<div><div class="gd-panel gd-memcol">' +
@@ -36562,7 +36634,7 @@ function guildMainHTML(st){
     '<div class="gd-panel gd-chatcol"><div class="gd-plabel">Guild chat</div>' +
     guildChatHTML(st) + '</div></div>';
 
-  return '<div class="gd2-grid" id="gd2"><div>' + left + '</div><div>' + ops + prog + '</div>' +
+  return '<div class="gd2-grid" id="gd2"><div>' + left + '</div><div>' + ops + '</div>' +
     right + '</div>';
 }
 /* ---- Ledarens och officerarnas egna flik ---- */
@@ -38495,8 +38567,16 @@ function openNodeWin(kind, region, zone, keep, id){
      vara trasig fast den var hel; det var spalten som var fel.
      Matt fore: 140x291. Efter: cirka 420x290, alltsa ungefar bildens egna
      proportioner. Jag skickade det har utan att mata bredden - felet var mitt. */
+  /* [ANDRAT v5.580.0] DEN OKARTLAGDA ZONEN FLYTTAS FRAN 520 TILL 760 (Chris).
+     Jag trodde forst att det breda laget inte slog till alls. Det gjorde det -
+     men 520 px delat pa tva spalter ger 240 var, och i den bredden bryts
+     rubriken i tva rader och dronarbilden blir en smal remsa. Det ar samma
+     matfel som husrutan hade i v5.494.2: ratt klass, for lite plats.
+     Motet och huset ligger redan pa 760 av precis det skalet, och dronarrutan
+     har samma tva spalter. */
   w.querySelector('.node-modal').classList.toggle('wider',
-    kind === 'encounter' || kind === 'town');
+    kind === 'encounter' || kind === 'town' ||
+    (kind === 'zone' && typeof isZoneCharted === 'function' && !isZoneCharted(region, zone)));
   /* [TILLAGT v5.494.0] Boden ar bredast: lagret har namn, sallsynthet och ett
      pris med tre valorer pa samma rad. */
   w.querySelector('.node-modal').classList.toggle('widest', kind === 'shop');
@@ -39170,7 +39250,14 @@ function nodeZoneHTML(){
     if (mine){
       h += drWrap(
         drHead('Drone scouting', true) +
-        '<div class="dr-clock"><b id="node-scan-clock">' + zoneScanTimeText() + '</b>' +
+        /* [RATTAT v5.575.0] KLOCKAN VAR EN HEL MENING I 40 PIXLAR (Chris).
+           zoneScanTimeText ger "0m 30s elapsed - 0m 0s left" - en text som
+           bryts i fyra rader nar den satts i den stora stilen. Stort star nu
+           BARA den aterstaende tiden, som i skissen; hela meningen star kvar
+           som en liten rad under, sa ingenting gick forlorat.
+           id:t foljer med till det lilla faltet, for sekundtickaren letar upp
+           node-scan-clock varje sekund och skriver hela meningen dit. */
+        '<div class="dr-clock"><b>' + fmtDur(zoneScanLeft()) + '</b>' +
           '<span>Time remaining</span></div>' +
         '<div class="nd-scanbar"><i id="node-scan-fill" style="width:' + zoneScanPct() + '%"></i></div>' +
         '<div class="dr-steps">' +
@@ -39178,6 +39265,7 @@ function nodeZoneHTML(){
           '<span class="bar"></span>' +
           '<span class="dr-step on"><span class="mk"></span>Scanning</span>' +
         '</div>' +
+        '<div class="dr-note" id="node-scan-clock">' + zoneScanTimeText() + '</div>' +
         '<div class="dr-note">Exploring ' + esc(NODE.zone || '') + '\u2026</div>' +
         '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>');
       return h;
