@@ -7757,10 +7757,20 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
    Rutnatet ar tva spalter fran 761 px och EN pa telefon: vid 360 px blir ett
    halvt kort 165 px brett, och en bild pa 120 av dem lamnar 45 px till texten.
    Da ar det battre att stapla. */
-.ex2-slots{display:grid;grid-template-columns:1fr 1fr;gap:11px;align-items:start}
+/* [ANDRAT v5.604.0] ALLA FYRA KORTEN LIKA HOGA, inte bara de i samma rad.
+   Ett klart kort saknar raden "Returning in" och blev darfor 14 px lagre an ett
+   som fortfarande gar - uppmatt 204 mot 218. I ett rutnat med fyra rutor syns
+   det direkt att den nedre raden ar hogre. 1fr ger alla rader samma hojd. */
+.ex2-slots{display:grid;grid-template-columns:1fr 1fr;gap:11px;
+  align-items:stretch;grid-auto-rows:1fr}
 .ex2-slot{display:flex;gap:11px;padding:10px;border-radius:14px;
   border:1px solid var(--border);background:rgba(255,255,255,.02)}
-.ex2-slot.on{border-color:rgba(61,255,158,.4)}
+.ex2-slot.on{border-color:rgba(255,255,255,.14)}
+/* Ett klart kort lyser gront i hela ramen. Det ar det som ersatter ordet
+   "Ready": i ett rutnat med fyra kort hittar ogat en fargad ram innan det laser
+   nagot. */
+.ex2-slot.klar{border-color:var(--green,#3dff9e);
+  box-shadow:0 0 22px -10px var(--green,#3dff9e)}
 /* Bilden till vanster i alla fyra, som Chris bad om. 118 px av kortets 385 -
    uppmatt racker det till att motivet gar att kanna igen utan att texten
    trangs ihop. */
@@ -7774,18 +7784,18 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 /* [TILLAGT v5.603.0] TRE BRICKOR PA EN RAD (Chris). Slot, laget och nivan bryter
    annars i tva vaningar i ett halvt kort. Brickorna dras ihop tills alla tre
    ryms: mindre text, mindre luft, och \"Level\" kortat till \"Lv\". */
-.ex2-slots .brickrad{gap:5px;flex-wrap:nowrap}
-.ex2-slots .brickrad .ex2-badge{padding:3px 7px;font-size:8px;letter-spacing:.09em;gap:5px}
-.ex2-slots .brickrad .ex2-badge .dot{width:6px;height:6px}
+/* [ANDRAT v5.604.0] TVA BRICKOR I STALLET FOR TRE, och de far vaxa tillbaka.
+   Med lagesbrickan borta finns gott om bredd: uppmatt behover de tva kvar 158 px
+   i en spalt pa 211, alltsa 53 px over. Talen ar tillbaka pa samma matt som
+   brickorna har i resten av rutan. */
+.ex2-slots .brickrad{gap:7px;flex-wrap:nowrap}
+.ex2-slots .brickrad .ex2-badge{padding:5px 11px;font-size:9.5px;letter-spacing:.11em;gap:6px}
 /* Platsraden krymper med, av samma skal - \"DRAKEMARK · THE BLACK KEEP\" bryts
    annars mitt i zonnamnet. */
 .ex2-slots .ex2-where{font-size:9.5px;letter-spacing:.06em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .ex2-slots .ex2-where .ui-ico{width:12px;height:12px;vertical-align:-2px}
-/* [RATTAT v5.603.0] KORTEN I SAMMA RAD BLIR LIKA HOGA (Chris). align-items:start
-   lat varje kort bli sin egen hojd, sa tva kort bredvid varandra slutade pa olika
-   stallen. stretch ger radens hogsta kort till bada. */
-.ex2-slots{align-items:stretch}
+/* [FLYTTAT v5.604.0] stretch star i huvudregeln ovan tillsammans med 1fr. */
 /* Den hogra fotnoten - "The team returns automatically" - faller bort i rutnatet.
    Den sager inget som inte redan star, och i ett halvt kort tvingar den raden i
    tva vaningar. */
@@ -9243,7 +9253,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.603.0 — BRICKRADEN OCH NALEN</div>
+        <div class="sn-ver">GENESIS v5.604.0 — MINDRE TEXT, STORRE BRICKOR</div>
       </div>
     </div>
   </aside>
@@ -10484,7 +10494,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.603.0 — BRICKRADEN OCH NALEN</div>
+            <div class="desc">GENESIS v5.604.0 — MINDRE TEXT, STORRE BRICKOR</div>
           </div>
         </div>
       </div>
@@ -40570,15 +40580,25 @@ function nodeExpHTML(){
              egen rad forut, vilket kostade 33 px plus mellanrum i varje kort -
              uppmatt var det en av tva saker som gjorde att fyra kort inte fick
              plats utan rullning. Den sager samma sak bredvid platsnumret. */
+          /* [ANDRAT v5.604.0] LAGESBRICKAN BORTTAGEN (Chris). Den sa "Ready"
+             ovanfor ett "Done" i 25 punkter, och "Active" ovanfor en nedrakning -
+             i bada fallen upprepade den det som redan stod storst pa kortet.
+             Kvar star platsnumret och nivan, som ingenting annat sager, och de
+             far vaxa i den bredd brickan lamnade efter sig.
+             Att ett kort ar klart syns i stallet pa KORTET: ramen och mataren
+             gar till gront, vilket ar lattare att fanga i ogonvran i ett rutnat
+             an ett ord i atta punkter. */
           '<div class="ex2-chips brickrad">' +
             '<span class="ex2-badge">Slot ' + (i + 1) + '</span>' +
-            '<span class="ex2-badge on"><span class="dot"></span>' +
-              (klar ? 'Ready' : 'Active') + '</span>' +
-            (def.lvl ? '<span class="ex2-badge">\u26a1 Lv ' + def.lvl + '</span>' : '') +
+            (def.lvl ? '<span class="ex2-badge">\u26a1 Level ' + def.lvl + '</span>' : '') +
           '</div>' +
           '<div class="ex2-title" style="font-size:19px">' + esc(def.name) + '</div>' +
           expWhereRad(def, false, true) +
-          '<div class="ex2-lbl">' + (klar ? 'The team is back' : 'Returning in') + '</div>' +
+          /* [ANDRAT v5.604.0] "The team is back" ar borttaget (Chris) - det stod
+             precis ovanfor ordet Done och sa samma sak en gang till. Etiketten
+             star kvar nar expeditionen GAR, for da behover talet under sig en
+             forklaring: annars ar 7h 22m bara ett tal. */
+          (klar ? '' : '<div class="ex2-lbl">Returning in</div>') +
           '<div class="ex2-clock">' + uiIco('dur') + '<b id="exp-clock-' + i + '">' +
             (klar ? 'Done' : fmtDur(left)) + '</b></div>' +
           '<div class="ex2-bar"><div class="ex2-fill" id="exp-fill-' + i + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
