@@ -1980,7 +1980,21 @@ body.dragging *{cursor:grabbing !important}
   transition:opacity .18s ease-out, transform .18s ease-out;
   z-index:0;
 }
-.core-wrap.core-holding::before{opacity:1;transform:translate(-50%,-50%) scale(1)}
+/* [TILLAGT v5.594.0] SKENET ANDAS MEDAN MAN HALLER (Chris). Halltiden ar det
+   enda tillfallet dar noden ska kannas levande, sa rorelsen sitter dar i stallet
+   for att ga hela tiden. Starkare, svagare, starkare: opaciteten vandrar mellan
+   0,55 och 1 och ringen vidgar sig nagra procent i samma takt, 2,4 sekunder per
+   varv - langsamt nog att lasa som en andning och inte som ett blink.
+   Overgangen pa raden ovanfor star kvar: den tar skenet UPP nar man trycker och
+   NER nar man slapper. Animationen tar over daremellan, och nar den slutar
+   lamnar den tillbaka till samma varden den startade fran, sa slappet blir mjukt
+   i stallet for ett hopp. */
+@keyframes coreHallPuls{
+  0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(.94)}
+  50%    {opacity:1;  transform:translate(-50%,-50%) scale(1.06)}
+}
+.core-wrap.core-holding::before{opacity:1;transform:translate(-50%,-50%) scale(1);
+  animation:coreHallPuls 2.4s ease-in-out infinite}
 .core-hex{
   position:relative;z-index:1;cursor:pointer;touch-action:none;
   transition:transform .09s ease-out;
@@ -2012,14 +2026,10 @@ body.dragging *{cursor:grabbing !important}
   width:calc(var(--nod) * 1.74);height:calc(var(--nod) * 1.74);
   transform:translate(-50%,-50%);pointer-events:none;z-index:0;overflow:visible}
 .core-hex.hasnode .core-rings{display:block}
-/* [TILLAGT v5.591.0] ANDNINGEN (Chris: "pulserar langsamt, bara 5 %"). Samma
-   takt som skenet bakom redan andas i, 5,5 sekunder, sa de tva ror sig i samma
-   puls i stallet for att slass om uppmarksamheten. */
-@keyframes coreNodPuls{
-  0%,100%{transform:scale(1)}
-  50%    {transform:scale(1.05)}
-}
-.core-hex.hasnode .core-img{animation:coreNodPuls 5.5s ease-in-out infinite}
+/* [BORTTAGET v5.594.0] ANDNINGEN (coreNodPuls). Noden zoomade in och ut fem
+   procent hela tiden; Chris ville ha rorelsen i SKENET vid hall i stallet, se
+   .core-wrap.core-holding::before nedan. Nodbilden star alltsa stilla nu - utom
+   nar man trycker, da boinken fortfarande gar. */
 .core-wrap.core-holding .core-hex{transform:scale(1.03)}
 .core-hex.core-hit{transform:scale(1.07)}
 /* [TILLAGT v5.587.0] BOINKEN (Chris). Ett tryck ska KANNAS. Noden trycks ihop
@@ -2072,8 +2082,8 @@ body.dragging *{cursor:grabbing !important}
 .core-spark-anim{animation:sparkle .3s ease}
 @media (prefers-reduced-motion: reduce){
   .core-alive::after,.core-ring-slow,.core-ring-rev,.core-spark-anim,
-  .core-img.boink,.core-hex.hasnode .core-img,
-  .core-hex.hasnode .core-img.boink{animation:none}
+  .core-img.boink,.core-hex.hasnode .core-img.boink,
+  .core-wrap.core-holding::before{animation:none}
 }
 /* Siffrorna som sprutar ur kärnan — referenskonsten från spelarens andra bygge.
    Flyger alltid uppåt/utåt (aldrig ner under tummen), fasta vinklar i sekvens
@@ -9164,7 +9174,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.592.0 — FEM RATTELSER</div>
+        <div class="sn-ver">GENESIS v5.594.0 — SKENET ANDAS VID HALL</div>
       </div>
     </div>
   </aside>
@@ -10401,7 +10411,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.592.0 — FEM RATTELSER</div>
+            <div class="desc">GENESIS v5.594.0 — SKENET ANDAS VID HALL</div>
           </div>
         </div>
       </div>
@@ -37096,15 +37106,29 @@ function guildClaimState(st, op, ms){
   if (!(op.mine > 0)) return 'nomine';
   return 'claimable';
 }
+/* Hur manga ansokningar vantar pa MITT svar? Servern fyller join_requests BARA
+   at ledare och officerare - en vanlig medlem far en tom lista - sa langden ar
+   redan rollriktig och behover ingen egen kontroll har. */
+function guildAnsokningar(st){
+  return (st && st.guild && st.join_requests) ? st.join_requests.length : 0;
+}
 function renderGuildBadge(){
   const b = $('guild-badge'); if (!b) return;
   const st = GUILD.state; let n = 0;
   if (st){
     if (!st.guild) n = (st.invites || []).length;
-    else if (st.week && st.week.ops)
-      st.week.ops.forEach(op => ['bronze','silver','gold'].forEach(ms => {
-        if (guildClaimState(st, op, ms) === 'claimable') n++;
-      }));
+    else {
+      /* [TILLAGT v5.593.0] ANSOKNINGAR GER NOTIS (Chris). Market raknade bara
+         belaningar man kunde hamta, sa en ansokan om att fa ga med i gillet syntes
+         INGENSTANS utanfor gillerutan - ledaren maste oppna rutan och byta till
+         Manage for att upptacka att nagon stod och vantade. Nu bor den i samma
+         roda mark som allt annat som kraver ett svar. */
+      n += guildAnsokningar(st);
+      if (st.week && st.week.ops)
+        st.week.ops.forEach(op => ['bronze','silver','gold'].forEach(ms => {
+          if (guildClaimState(st, op, ms) === 'claimable') n++;
+        }));
+    }
   }
   b.textContent = n; b.style.display = n ? '' : 'none';
 }
@@ -38642,7 +38666,12 @@ async function socialPulse(){
       try {
         await netGuildState();
         const st = GUILD.state;
+        /* [ANDRAT v5.593.0] Ansokningarna maste in i signaturen ocksa. Utan dem
+           andrades inte c nar nagon sokte, och star gillerutan oppen pa Manage
+           ritades den inte om - ansokan hade dykt upp forst nasta gang man rorde
+           rutan sjalv. */
         const c = st ? (st.guild ? 1000 + ((st.week && st.week.ops) ? st.week.ops.length : 0)
+                                        + guildAnsokningar(st) * 100
                                  : (st.invites || []).length) : -1;
         const badgeFore = $('guild-badge') ? $('guild-badge').textContent : '';
         renderGuildBadge();
