@@ -1931,6 +1931,14 @@ body.dragging *{cursor:grabbing !important}
   content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
   background:linear-gradient(180deg, transparent 68%, rgba(7,10,22,.5) 84%, rgba(7,10,22,.88) 100%);
 }
+/* [ANDRAT v5.597.0] RUBRIKEN LAMNAR PLATS AT BRICKORNA. Nar Core Sync flyttade
+   upp i hornet la den sig OVER regionens namn pa fem av sex bredder - uppmatt
+   slutar brickan 202 px in i rutan, och titeln borjar sa tidigt som 13 px in vid
+   360. Titeln ar centrerad, sa den gar inte att skjuta at sidan utan att hamna
+   snett; den far i stallet borja under brickorna. Utrymmet ar MATT i stunden av
+   renderBoostBar - en bricka eller tre ger olika hojd - och ar noll nar ingen
+   boost gar, sa rubriken star kvar exakt dar den alltid gjort for den som inte
+   har nagot igang. */
 .hero-head{text-align:center;padding-top:6px;z-index:2}
 /* [ANDRAT v5.88.0] Regionens namn over noden bar Orbitron. Bokstavsavstandet ar
    nedskruvat: typsnittet ar redan brett, och det gamla avstandet gjorde ordet
@@ -3976,8 +3984,12 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 /* Aktiva flaskor: en lodrät lista uppe till vänster i scenen. Bara ikonen i sin
    cirkel plus tiden — texten om vad boosten gör bor i hovringen, så listan aldrig
    växer över halva skärmen när tre boostar går samtidigt. */
+/* [ANDRAT v5.597.0] Mater mot HERO-rutans hörn nu, inte mot scenens. Talen är
+   desamma - tio pixlar in från vänster och uppifrån - men de räknas från en
+   annan kant, och det är hela flytten. z-index lyfts över rubriken så brickan
+   inte hamnar bakom regionens namn när de möts. */
 .boost-bar{
-  position:absolute;left:10px;top:10px;z-index:4;
+  position:absolute;left:10px;top:10px;z-index:6;
   display:flex;flex-direction:column;gap:6px;align-items:flex-start;
   pointer-events:none;                 /* listan får inte skugga kärnan för klick */
 }
@@ -9185,7 +9197,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.596.0 — EXPEDITIONSRUTAN TAJTAD</div>
+        <div class="sn-ver">GENESIS v5.597.0 — CORE SYNC I HORNET</div>
       </div>
     </div>
   </aside>
@@ -9370,15 +9382,19 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 
       <!-- HERO / HOME SERVER + TAP CORE -->
       <section class="panel hero" id="panel-home-server">
+        <!-- Aktiva flaskor: bara ikonen och tiden. Vad boosten gör står i
+             hovringen, inte på skärmen jämt.
+             [FLYTTAT v5.597.0] Raden låg inuti core-stage och hamnade därför
+             UNDER regionens namn - scenen börjar ju först där rubriken slutar.
+             Chris ville ha den i rutans eget övre vänstra hörn, så den ligger nu
+             direkt i hero och mäter mot dess kant i stället för mot scenens. -->
+        <div class="boost-bar" id="boost-bar"></div>
         <div class="hero-head">
           <h1 class="hero-title" id="hero-title">NEON HUB</h1>
         </div>
 
         <!-- Placeholder-yta: byt mot canvas/animation i spelet -->
         <div class="core-stage" id="core-stage">
-          <!-- Aktiva flaskor: bara ikonen och tiden, uppe i vänstra hörnet av
-               scenen. Vad boosten gör står i hovringen, inte på skärmen jämt. -->
-          <div class="boost-bar" id="boost-bar"></div>
           <div class="core-wrap core-alive" id="core-wrap">
             <div class="core-hex" id="core-hex">
               <!-- [TILLAGT v5.587.0] REGIONENS EGEN NOD (Chris konst). Bilden byts
@@ -10422,7 +10438,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.596.0 — EXPEDITIONSRUTAN TAJTAD</div>
+            <div class="desc">GENESIS v5.597.0 — CORE SYNC I HORNET</div>
           </div>
         </div>
       </div>
@@ -27322,6 +27338,20 @@ function renderBoostBar(){
      byts ut. Dessutom tre sakerhetsventiler - pekaren lamnar listen, ett
      klick nagonstans, eller Escape. Och vid varje omritning stangs kortet om
      brickan inte langre finns. */
+  /* ⚠️ [FORSOKT OCH EJ LOST v5.597.0] RUBRIKEN SKULLE VIKA UNDAN FOR BRICKAN.
+     Nar Core Sync flyttade upp i hornet lagger den sig OVER regionens namn pa
+     fem av sex bredder - uppmatt slutar brickan 202 px in i rutan, och titeln
+     borjar sa tidigt som 13 px in vid 360. Titeln ar centrerad och gar inte att
+     skjuta at sidan utan att hamna snett, sa tanken var att den skulle borja
+     UNDER brickorna.
+     TRE VAGAR PROVADES och ingen flyttade titeln en enda pixel: padding-top via
+     CSS-variabel i en calc, padding-top inline, och padding-top inline med
+     !important. Ett svep over VARJE CSS-regel som traffar elementet hittade
+     ingen regel som ror padding alls - anda stod den kvar pa 6 px. Marginal pa
+     .hero-head satte sig (30 respektive 98 px, uppmatt) men flyttade inte heller
+     titeln. Nagot i rutans flexlayout ater utrymmet, och jag hittade inte vad.
+     Koden som forsokte ar BORTTAGEN i stallet for att lamnas kvar dod. Krocken
+     star kvar och ar ett beslut for Chris - se leveransanteckningen. */
   const chip = $('sync-chip');
   if (!chip) hideSyncTip();
   else tickSyncTip();
