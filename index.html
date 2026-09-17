@@ -271,6 +271,33 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   background:var(--bg-inset);box-shadow:none;color:var(--text-faint);
 }
 .ht-card.locked{cursor:default;opacity:.55}
+/* [TILLAGT v5.592.0] KORTET LIGGER NER OVER 760 PX (Chris: "bilden ar for
+   liten, ge den vanstra halvan av kortet, texten till hoger").
+   ⚠️ Uppmatt FORE: figuren var 100 px i tre av sex bredder - men bara 88 vid
+   1920 och NITTON vid 1440, for bildrutan var satt att krympa (flex 0 1 auto,
+   min-height 0) och kortet ar bara 108 px hogt dar. Bilden ar alltsa inte for
+   liten overallt utan kollapsar dar hojden tryter, och det ser ut som att den
+   \"bara\" ar liten.
+   Halva kortet ar en ANDEL och inte ett matt, sa den kan inte kollapsa: rutan ar
+   alltid 50 procent bred och sa hog som kortet. Figuren ritas med background-size
+   contain, sa den passas in utan att tanjas aven nar rutan inte ar kvadratisk.
+   TELEFONEN STAPLAR som forut - vid 360 px ar hela kortet 100 px brett, och
+   halva det ar 50 px till bilden och 50 till texten, alltsa oläsbart bada tva. */
+@media (min-width:761px){
+  .ht-card:not(.empty):not(.locked){
+    flex-direction:row;align-items:stretch;gap:9px;padding:8px;padding-top:8px}
+  .htc-art{flex:0 0 50%;width:50%;height:auto;aspect-ratio:auto;
+    align-self:stretch;min-height:0}
+  .htc-side{flex:1 1 0;min-width:0;display:flex;flex-direction:column;
+    gap:3px;justify-content:center;min-height:0}
+  /* Namnet lamnar sin absoluta plats langst upp och stallar sig i spalten. Det
+     far brytas i tva rader nu - spalten ar smal, och en avklippt hjalpare med
+     punkter sager mindre an ett namn pa tva rader. */
+  .htc-name{position:static;left:auto;right:auto;top:auto;
+    white-space:normal;text-align:left;line-height:1.2;margin-bottom:1px}
+  .htc-eff{text-align:left;margin-bottom:4px}
+  .htc-bar{margin-top:0}
+}
 .htc-plus{font-size:22px;line-height:1}
 .htc-hint{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase}
 /* Bonusraden underst. */
@@ -1975,8 +2002,14 @@ body.dragging *{cursor:grabbing !important}
    nastan osynligt. Samma tva animationer som prismat redan har.
    Ringarna visas BARA nar bilden ar hamtad; faller den bort ritas prismat, och
    det bar sina egna ringar inuti sig. */
+/* [ANDRAT v5.592.0] RAMEN VAXER SA BADA RINGARNA FLYTTAR UT 5 PX (Chris).
+   Ringarna ar ritade i en 200-enheters teckning: den inre polygonen spanner 132
+   av 200, den yttre 164. For att den INRE kanten ska flytta ut fem riktiga
+   pixlar maste hela ramen vaxa 200/132 ganger sa mycket, alltsa 15,2 px - och da
+   foljer den yttre med ut 12,5 px av sig sjalv. Darav 1,55 -> 1,74 vid en 80 px
+   nod. Raknat, inte provat fram: talet haller aven om nodstorleken andras igen. */
 .core-rings{display:none;position:absolute;left:50%;top:50%;
-  width:calc(var(--nod) * 1.55);height:calc(var(--nod) * 1.55);
+  width:calc(var(--nod) * 1.74);height:calc(var(--nod) * 1.74);
   transform:translate(-50%,-50%);pointer-events:none;z-index:0;overflow:visible}
 .core-hex.hasnode .core-rings{display:block}
 /* [TILLAGT v5.591.0] ANDNINGEN (Chris: "pulserar langsamt, bara 5 %"). Samma
@@ -9131,7 +9164,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.591.0 — RINGARNA OCH ANDNINGEN</div>
+        <div class="sn-ver">GENESIS v5.592.0 — FEM RATTELSER</div>
       </div>
     </div>
   </aside>
@@ -9339,13 +9372,19 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
                    SVG:n sa de kan ligga runt en bild i stallet for inuti en
                    teckning. Fargen ar nodens egen, som allt annat sken. -->
               <svg class="core-rings" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+                <!-- [ANDRAT v5.592.0] BADA RINGARNA UT 5 PX OCH TYDLIGARE (Chris).
+                     Den INRE ar helstreckad nu, den yttre streckad som forut, och
+                     bada gar fran 0,70/0,75 till 0,95 i tathet. Att flytta dem 5 px
+                     gors INTE har utan pa ramen: teckningen ar 200 enheter bred och
+                     skalas, sa "5 px" hade betytt olika mycket vid olika nodstorlek.
+                     Ramen vaxte i stallet, se .core-rings. -->
                 <g class="core-ring-slow">
                   <polygon points="100,18 171,59 171,141 100,182 29,141 29,59" fill="none"
-                    stroke="var(--core-col)" stroke-width="2.2" stroke-dasharray="6 10" opacity="0.7"/>
+                    stroke="var(--core-col)" stroke-width="2.4" stroke-dasharray="6 10" opacity="0.95"/>
                 </g>
                 <g class="core-ring-rev">
                   <polygon points="100,34 158,67 158,133 100,166 42,133 42,67" fill="none"
-                    stroke="var(--core-col2)" stroke-width="2.8" stroke-dasharray="3 7" opacity="0.75"/>
+                    stroke="var(--core-col2)" stroke-width="3" opacity="0.95"/>
                 </g>
               </svg>
               <img class="core-img" id="core-img" alt="" draggable="false">
@@ -10362,7 +10401,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.591.0 — RINGARNA OCH ANDNINGEN</div>
+            <div class="desc">GENESIS v5.592.0 — FEM RATTELSER</div>
           </div>
         </div>
       </div>
@@ -22586,16 +22625,49 @@ function closeExpeditions(){ closeNodeWin(); }
    da ut knappen mitt under ett musklick. Nu ritas den bara nar innehallet
    faktiskt skiljer sig - samma grepp som det gamla fonstret anvande. */
 let expPanelSig = '';
+/* [OMBYGGT v5.592.0] SIGNATUREN LASER LAGET, INTE TEXTEN (Chris bugg 3).
+   Forut jamfordes hela HTML-strangen. Pa Active-fliken byter nedrakningen varje
+   sekund, alltsa skilde sig strangen ALLTID - och rutan byggdes om en gang i
+   sekunden. Rullar man ned i listan kastas man da upp till toppen igen, for
+   innerHTML nollstaller rullningen. Samma omritning bytte dessutom ut knappen
+   mitt under ett finger, vilket ar precis den fallan kommentaren ovan varnar for.
+   Nu beskriver signaturen VAD som visas - flik, plats, nivå, vilka korningar som
+   ar igang och vilka som blivit klara - och tiderna tickas for sig, i de element
+   som redan star ritade. Rutan byggs alltsa om nar nagot HANDER, inte nar en
+   sekund gatt. */
+function expPanelLage(){
+  const runs = S.exp.runs || [];
+  return [NODE.etab, expNote, S.world.current, S.world.zone, S.world.travel ? 1 : 0,
+          expSlots(), levelInfo().lvl, (S.exp.found || []).length,
+          runs.map(r => r.id + (nu() >= (r.endsAt || 0) ? ':klar' : ':gar')).join(',')
+         ].join('|');
+}
 function renderExpPanel(){
   const w = document.getElementById('node-overlay');
   if (!w || !w.classList.contains('open')) { expPanelSig = ''; return; }
   if (!NODE || NODE.kind !== 'expedition') { expPanelSig = ''; return; }
   const box = document.getElementById('node-body'); if (!box) return;
-  const html = nodeExpHTML();
-  if (html === expPanelSig) return;
-  expPanelSig = html;
-  box.innerHTML = html;
+  const lage = expPanelLage();
+  if (lage === expPanelSig){ tickExpKlockor(); return; }
+  expPanelSig = lage;
+  box.innerHTML = nodeExpHTML();
   wireNodeWin();
+}
+/* Bara SIFFRAN och mataren byts - inget element rivs, sa varken rullningen eller
+   ett finger pa en knapp tappar fotfastet. Samma grepp som dronarrutans klocka. */
+function tickExpKlockor(){
+  const runs = S.exp.runs || [];
+  for (let i = 0; i < runs.length; i++){
+    const r = runs[i];
+    const kl = document.getElementById('exp-clock-' + i);
+    const fi = document.getElementById('exp-fill-' + i);
+    if (!kl && !fi) continue;
+    const left = Math.max(0, ((r.endsAt || 0) - nu()) / 1000);
+    const def = expDefById(r.id) || {};
+    const total = Math.max(1, r.total || (def.mins ? def.mins * 60 : 60));
+    if (kl) kl.textContent = left <= 0 ? 'Done' : fmtDur(left);
+    if (fi) fi.style.width = Math.min(100, Math.max(0, ((total - left) / total) * 100)).toFixed(1) + '%';
+  }
 }
 
 /* ---------- LJUDMOTORN ----------
@@ -27700,13 +27772,19 @@ function renderPetPanel(){
          klickbart och pilen sa inget nytt. */
       html += '<div class="ht-card" data-teamslot="' + i + '" data-teampet="' + p.uid + '"' +
               ' title="' + petName(p) + ' \u2014 click to change" style="--hc:' + col + '">' +
+        /* [OMBYGGT v5.592.0] BILDEN TAR VANSTRA HALVAN, TEXTEN HOGRA (Chris).
+           Namnet, formagan och mataren ligger i en egen spalt nu - utan den
+           kunde de tre inte flyttas at sidan tillsammans. Pa telefon staplas de
+           som forut; se .htc-side i stilarna. */
         '<span class="htc-badge">Lv ' + li.lvl + '</span>' +
-        '<div class="htc-name">' + petName(p) + '</div>' +
         '<div class="htc-art"><div class="pet-sprite" style="' + petSpriteVars(p.sp, 100) +
           ';border:0;background:transparent"></div></div>' +
-        (eff ? '<div class="htc-eff">' + eff + '</div>' : '<div class="htc-eff dim">No ability</div>') +
-        '<div class="htc-bar"><i style="width:' + pct + '%"></i><b>' +
-          (max ? 'FULLY GROWN' : fmt(li.into) + ' / ' + fmt(li.need) + ' XP') + '</b></div>' +
+        '<div class="htc-side">' +
+          '<div class="htc-name">' + petName(p) + '</div>' +
+          (eff ? '<div class="htc-eff">' + eff + '</div>' : '<div class="htc-eff dim">No ability</div>') +
+          '<div class="htc-bar"><i style="width:' + pct + '%"></i><b>' +
+            (max ? 'FULLY GROWN' : fmt(li.into) + ' / ' + fmt(li.need) + ' XP') + '</b></div>' +
+        '</div>' +
       '</div>';
     } else {
       html += '<div class="ht-card empty" data-teamslot="' + i + '" title="Choose a helper">' +
@@ -34924,7 +35002,29 @@ function renderQuests(){
   if (QUESTS.view === 'offers'){
     /* Vilorna hor hemma HAR och ingen annanstans: en plats som raknar ned ar ett
        erbjudande som inte kommit an, inte ett aktivt uppdrag. */
-    let ho = offers.length ? offers.map(q => questRowHTML(q, 'offer', full)).join('') : '';
+    /* [ANDRAT v5.592.0] ERBJUDANDENA GRUPPERAS PER REGION (Chris punkt 1).
+       Han sag FEMTON kontrakt i rutan men bara TRE noder pa kartan och trodde
+       det var ett fel. Det ar det inte: varje besokt region har tre platser, och
+       fem besokta regioner ger femton erbjudanden - medan kartan bara ritar den
+       region man star i. Kontrollerat mot servern: moppit har 3 platser i var och
+       en av fem regioner, yuyu har 3 i en enda.
+       Listan sa bara inte VAR nagot lag. Femton losa rader las som femton
+       kontrakt att hamta har; med regionen utskriven och den egna overst ser man
+       direkt att tolv av dem ligger i andra varldar. Samma grepp som
+       expeditionernas Discovered-flik far i samma leverans. */
+    const ordning = o => (o.region === S.world.current ? 0 : 1);
+    offers.sort((a, b) => ordning(a) - ordning(b) ||
+      String(a.region || '').localeCompare(String(b.region || '')) || (a.pos || 0) - (b.pos || 0));
+    let ho = '', sistaRegion = null;
+    offers.forEach(q => {
+      if (q.region !== sistaRegion){
+        sistaRegion = q.region;
+        const namn = esc((REGIONS[q.region] && REGIONS[q.region].name) || q.region || '');
+        ho += '<div class="section-label" style="margin:' + (ho ? '12px' : '2px') + ' 0 5px">' +
+          namn + (q.region === S.world.current ? ' \u2014 your region' : '') + '</div>';
+      }
+      ho += questRowHTML(q, 'offer', full);
+    });
     cds.forEach(o => {
       const reg = REGIONS[o.region] ? REGIONS[o.region].name : o.region;
       const left = Math.max(0, Math.round((new Date(o.cooldown_until).getTime() - Date.now()) / 1000));
@@ -40173,15 +40273,21 @@ function nodeExpHTML(){
          '<span>Travel may be required before starting.</span></div>';
     /* [BEHALLET fran v5.152.0] RUBRIKERNA. Utan dem ar listan trettio rader i
        rad och man ser inte var granserna gar. */
-    let sist = -1, kropp = '';
+    /* [OMBYGGT v5.592.0] RUBRIKERNA SAGER VAR SAKERNA FINNS (Chris punkt 4).
+       Forut stod det tre ord: din zon, din region, och "Farther out" om ALLT
+       som lag langre bort - alltsa fyra regioner under en enda rubrik, och den
+       sa ingenting om var man var nar man rullade. Nu bar varje ny region sin
+       egen rubrik, sa man vet hela vagen ned vad man tittar pa.
+       Zonrubriken ar borttagen: den raden ligger overst i listan och behover
+       inte tala om att den ar din - man star ju dar. */
+    let sistaRegion = null, kropp = '';
     defs.forEach(d => {
-      const rk = rank(d);
-      if (rk !== sist){
-        sist = rk;
-        kropp += '<div class="section-label" style="margin:' + (kropp ? '10px' : '0') + ' 0 4px">' +
-          (rk === 0 ? '\ud83d\udccd ' + esc(d.zone) + ' \u2014 your zone'
-           : rk === 1 ? esc((REGIONS[d.region] && REGIONS[d.region].name) || d.region) + ' \u2014 your region'
-           : 'Farther out') + '</div>';
+      if (d.region !== sistaRegion){
+        sistaRegion = d.region;
+        const namn = esc((REGIONS[d.region] && REGIONS[d.region].name) || d.region);
+        const dinRegion = d.region === S.world.current;
+        kropp += '<div class="section-label" style="margin:' + (kropp ? '12px' : '0') + ' 0 5px">' +
+          namn + (dinRegion ? ' \u2014 your region' : '') + '</div>';
       }
       kropp += nodeExpRow(d);
     });
@@ -40250,9 +40356,9 @@ function nodeExpHTML(){
           expWhereRad(def, false) +
           (def.lvl ? '<div class="ex2-chips">' + expChip('\u26a1', 'Level ' + def.lvl) + '</div>' : '') +
           '<div class="ex2-lbl">' + (klar ? 'The team is back' : 'Returning in') + '</div>' +
-          '<div class="ex2-clock">' + uiIco('dur') + '<b>' +
+          '<div class="ex2-clock">' + uiIco('dur') + '<b id="exp-clock-' + i + '">' +
             (klar ? 'Done' : fmtDur(left)) + '</b></div>' +
-          '<div class="ex2-bar"><div class="ex2-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+          '<div class="ex2-bar"><div class="ex2-fill" id="exp-fill-' + i + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
           '<div class="ex2-foot"><span class="k">' +
             (klar ? 'Waiting for you' : 'Expedition in progress') + '</span>' +
             '<span>The team returns automatically.</span></div>' +
