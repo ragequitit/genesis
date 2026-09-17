@@ -7673,6 +7673,10 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .nd-exp .mt b{color:var(--text)}
 .nd-exp button{width:100%;padding:9px;font-size:10.5px;font-weight:900;letter-spacing:.1em}
 .nd-scroll{max-height:46vh;overflow-y:auto}
+/* [TILLAGT v5.602.0] Expeditionsrutan far rulla langre innan den bryter. 46 vh
+   var satt for en textlista; Active-fliken bar nu fyra kort med bild, och taket
+   var lika mycket orsak till rullningen som kortens egen hojd. */
+.expwin .nd-scroll{max-height:60vh}
 /* ===== EXPEDITIONSRUTAN, OMBYGGD v5.588.0 EFTER CHRIS TRE SKISSER =====
    Alla tre flikar delar SAMMA bild per expedition (assets/exp/<id>.webp) och
    beskar den olika: stort och liggande i This zone, nastan kvadratiskt i
@@ -7747,10 +7751,30 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .ex2-ract button{padding:12px 18px;font-size:10.5px;font-weight:900;letter-spacing:.12em;
   white-space:nowrap}
 /* ---- 3. ACTIVE: slotkort ---- */
-.ex2-slot{display:flex;gap:14px;padding:12px;margin-bottom:11px;border-radius:14px;
+/* [ANDRAT v5.602.0] TVA I BREDD (Chris). Fyra platser stod forut i en enda spalt
+   med 210 px bilder, sa man fick rulla for att se plats tre och fyra - och
+   nedrakningen pa de nedre korten syntes aldrig utan att man letade.
+   Rutnatet ar tva spalter fran 761 px och EN pa telefon: vid 360 px blir ett
+   halvt kort 165 px brett, och en bild pa 120 av dem lamnar 45 px till texten.
+   Da ar det battre att stapla. */
+.ex2-slots{display:grid;grid-template-columns:1fr 1fr;gap:11px;align-items:start}
+.ex2-slot{display:flex;gap:11px;padding:10px;border-radius:14px;
   border:1px solid var(--border);background:rgba(255,255,255,.02)}
 .ex2-slot.on{border-color:rgba(61,255,158,.4)}
-.ex2-slot .ex2-art{width:210px;min-height:200px;align-self:stretch}
+/* Bilden till vanster i alla fyra, som Chris bad om. 118 px av kortets 385 -
+   uppmatt racker det till att motivet gar att kanna igen utan att texten
+   trangs ihop. */
+.ex2-slot .ex2-art{width:118px;min-height:150px;align-self:stretch}
+.ex2-slots .ex2-title{font-size:16px}
+.ex2-slots .ex2-clock b{font-size:25px}
+.ex2-slots .ex2-clock .ic,.ex2-slots .ex2-clock img{width:22px;height:22px}
+.ex2-slots .ex2-smain{gap:4px}
+.ex2-slots .ex2-lbl{font-size:9px}
+.ex2-slots .ex2-slot button{padding:10px}
+/* Den hogra fotnoten - "The team returns automatically" - faller bort i rutnatet.
+   Den sager inget som inte redan star, och i ett halvt kort tvingar den raden i
+   tva vaningar. */
+.ex2-slots .ex2-foot span:last-child:not(.k){display:none}
 .ex2-smain{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:7px}
 .ex2-badge{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;
   padding:4px 10px;border-radius:8px;border:1px solid var(--border);
@@ -7785,7 +7809,9 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
   .ex2-row{flex-direction:column}
   .ex2-row .ex2-art{width:100%;min-height:0;aspect-ratio:16/9}
   .ex2-ract button{width:100%}
+  .ex2-slots{grid-template-columns:1fr;gap:10px}
   .ex2-slot{flex-direction:column}
+  .ex2-slots .ex2-foot span:last-child:not(.k){display:inline}
   .ex2-slot .ex2-art{width:100%;min-height:0;aspect-ratio:16/9}
   .ex2-clock b{font-size:28px}
   .ex2-slot.tom{flex-direction:row}
@@ -9202,7 +9228,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.601.0 — FIENDERNA FAR EN FORM</div>
+        <div class="sn-ver">GENESIS v5.602.0 — FYRA PLATSER I RUTNAT</div>
       </div>
     </div>
   </aside>
@@ -10443,7 +10469,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.601.0 — FIENDERNA FAR EN FORM</div>
+            <div class="desc">GENESIS v5.602.0 — FYRA PLATSER I RUTNAT</div>
           </div>
         </div>
       </div>
@@ -40512,14 +40538,18 @@ function nodeExpHTML(){
       kropp += '<div class="ex2-slot on' + (klar ? ' klar' : '') + '">' +
         expArt(r.id, '', false) +
         '<div class="ex2-smain">' +
+          /* [ANDRAT v5.602.0] NIVAN FLYTTAR UPP TILL BRICKRADEN. Den stod pa en
+             egen rad forut, vilket kostade 33 px plus mellanrum i varje kort -
+             uppmatt var det en av tva saker som gjorde att fyra kort inte fick
+             plats utan rullning. Den sager samma sak bredvid platsnumret. */
           '<div class="ex2-chips">' +
             '<span class="ex2-badge">Slot ' + (i + 1) + '</span>' +
             '<span class="ex2-badge on"><span class="dot"></span>' +
               (klar ? 'Ready' : 'Active') + '</span>' +
+            (def.lvl ? '<span class="ex2-badge">\u26a1 Level ' + def.lvl + '</span>' : '') +
           '</div>' +
           '<div class="ex2-title" style="font-size:19px">' + esc(def.name) + '</div>' +
           expWhereRad(def, false) +
-          (def.lvl ? '<div class="ex2-chips">' + expChip('\u26a1', 'Level ' + def.lvl) + '</div>' : '') +
           '<div class="ex2-lbl">' + (klar ? 'The team is back' : 'Returning in') + '</div>' +
           '<div class="ex2-clock">' + uiIco('dur') + '<b id="exp-clock-' + i + '">' +
             (klar ? 'Done' : fmtDur(left)) + '</b></div>' +
@@ -40532,7 +40562,10 @@ function nodeExpHTML(){
             : '<button class="btn-neutral" disabled>Still out</button>') +
         '</div></div>';
     }
-    h += '<div class="nd-scroll">' + kropp + '</div>';
+    /* [ANDRAT v5.602.0] PLATSERNA LIGGER I ETT RUTNAT (Chris). Fyra kort pa rad
+       under varandra blev en meter att rulla, och bilderna tog mest av hojden.
+       Tva i bredd och tva pa hojd far alla fyra att synas samtidigt. */
+    h += '<div class="nd-scroll"><div class="ex2-slots">' + kropp + '</div></div>';
     h += '<div class="ex2-note">\u2139\ufe0f Expeditions continue while you are away.</div>';
   }
   h += '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
