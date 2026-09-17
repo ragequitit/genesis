@@ -7771,6 +7771,21 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .ex2-slots .ex2-smain{gap:4px}
 .ex2-slots .ex2-lbl{font-size:9px}
 .ex2-slots .ex2-slot button{padding:10px}
+/* [TILLAGT v5.603.0] TRE BRICKOR PA EN RAD (Chris). Slot, laget och nivan bryter
+   annars i tva vaningar i ett halvt kort. Brickorna dras ihop tills alla tre
+   ryms: mindre text, mindre luft, och \"Level\" kortat till \"Lv\". */
+.ex2-slots .brickrad{gap:5px;flex-wrap:nowrap}
+.ex2-slots .brickrad .ex2-badge{padding:3px 7px;font-size:8px;letter-spacing:.09em;gap:5px}
+.ex2-slots .brickrad .ex2-badge .dot{width:6px;height:6px}
+/* Platsraden krymper med, av samma skal - \"DRAKEMARK · THE BLACK KEEP\" bryts
+   annars mitt i zonnamnet. */
+.ex2-slots .ex2-where{font-size:9.5px;letter-spacing:.06em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.ex2-slots .ex2-where .ui-ico{width:12px;height:12px;vertical-align:-2px}
+/* [RATTAT v5.603.0] KORTEN I SAMMA RAD BLIR LIKA HOGA (Chris). align-items:start
+   lat varje kort bli sin egen hojd, sa tva kort bredvid varandra slutade pa olika
+   stallen. stretch ger radens hogsta kort till bada. */
+.ex2-slots{align-items:stretch}
 /* Den hogra fotnoten - "The team returns automatically" - faller bort i rutnatet.
    Den sager inget som inte redan star, och i ett halvt kort tvingar den raden i
    tva vaningar. */
@@ -9228,7 +9243,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.602.0 — FYRA PLATSER I RUTNAT</div>
+        <div class="sn-ver">GENESIS v5.603.0 — BRICKRADEN OCH NALEN</div>
       </div>
     </div>
   </aside>
@@ -10469,7 +10484,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.602.0 — FYRA PLATSER I RUTNAT</div>
+            <div class="desc">GENESIS v5.603.0 — BRICKRADEN OCH NALEN</div>
           </div>
         </div>
       </div>
@@ -17297,7 +17312,10 @@ const UI_ICO = {
   /* [TILLAGT v5.507.1] Samma fil och emoji som uppdragens ryktesbricka. */
   rep:    ['assets/ui/reputation.webp', '\ud83c\udfc6'],
   /* [TILLAGT v5.510.0] Pjaschansen pa expeditionsraden. */
-  gear:   ['assets/ui/gear.png',        '\ud83d\udee1']
+  gear:   ['assets/ui/gear.png',        '\ud83d\udee1'],
+  /* [TILLAGT v5.603.0] Nalen ar spelets egen (Chris), samma fil som husrutans
+     regelrader redan anvander. Emojin star kvar som reserv om filen saknas. */
+  pin:    ['assets/ui/rule/pin.webp',   '\ud83d\udccd']
 };
 /* [TILLAGT v5.349.0] MYNTIKONEN EFTER BELOPPET (Chris). Ett belopp under ett
    guld ar inte guld. Valjer bilden efter beloppets storsta valor, precis som
@@ -40339,10 +40357,20 @@ function expShardRad(def){
     (done ? '\u2714' : '\u25cb') + '</i>' +
     (done ? 'Shard gathered' : 'Shard not gathered yet') + '</div>';
 }
-function expWhereRad(def, here){
-  return '<div class="ex2-where">\ud83d\udccd ' +
-    esc(REGIONS[def.region] ? REGIONS[def.region].name : def.region) +
-    ' \u00b7 ' + esc(def.zone) +
+function expWhereRad(def, here, kort){
+  /* [ANDRAT v5.603.0] Spelets egen nal i stallet for emojin (Chris).
+     KORT LAGE (slotkorten i rutnatet): regionen skrivs bara ut nar den INTE ar
+     den man star i. Chris bad om mindre text for att slippa radbrytet, men det
+     racker inte - uppmatt behover \"DRAKEMARK \u00b7 THE BLACK KEEP\" 252 px i en
+     spalt pa 211, och \"THE LAST ARMADA \u00b7 THE SILENT CRUISER\" 329. Krympning
+     till lasbar grans tar bort en handfull pixlar, inte hundra.
+     Zonnamnet ensamt ryms med god marginal, och det ar zonen som pekar ut
+     expeditionen - regionen ar i de flesta fall din egen. Star expeditionen i en
+     ANNAN region skrivs den ut, for da ar den upplysningen det viktiga. */
+  const egen = kort && def.region === S.world.current;
+  return '<div class="ex2-where">' + uiIco('pin') + ' ' +
+    (egen ? '' : esc(REGIONS[def.region] ? REGIONS[def.region].name : def.region) + ' \u00b7 ') +
+    esc(def.zone) +
     (here ? ' <span style="color:var(--green,#3dff9e)">\u00b7 You are here</span>' : '') +
     '</div>';
 }
@@ -40542,14 +40570,14 @@ function nodeExpHTML(){
              egen rad forut, vilket kostade 33 px plus mellanrum i varje kort -
              uppmatt var det en av tva saker som gjorde att fyra kort inte fick
              plats utan rullning. Den sager samma sak bredvid platsnumret. */
-          '<div class="ex2-chips">' +
+          '<div class="ex2-chips brickrad">' +
             '<span class="ex2-badge">Slot ' + (i + 1) + '</span>' +
             '<span class="ex2-badge on"><span class="dot"></span>' +
               (klar ? 'Ready' : 'Active') + '</span>' +
-            (def.lvl ? '<span class="ex2-badge">\u26a1 Level ' + def.lvl + '</span>' : '') +
+            (def.lvl ? '<span class="ex2-badge">\u26a1 Lv ' + def.lvl + '</span>' : '') +
           '</div>' +
           '<div class="ex2-title" style="font-size:19px">' + esc(def.name) + '</div>' +
-          expWhereRad(def, false) +
+          expWhereRad(def, false, true) +
           '<div class="ex2-lbl">' + (klar ? 'The team is back' : 'Returning in') + '</div>' +
           '<div class="ex2-clock">' + uiIco('dur') + '<b id="exp-clock-' + i + '">' +
             (klar ? 'Done' : fmtDur(left)) + '</b></div>' +
