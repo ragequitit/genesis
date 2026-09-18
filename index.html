@@ -6688,7 +6688,33 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .dgs-drop b{text-align:center;line-height:1.2}
 .dgs-drop .dgs-fx{font-style:italic;font-size:9.5px;color:#e8c15a;text-align:center;
   line-height:1.3}
-.dgs-none{font-size:10.5px;color:var(--text-faint);text-align:center}
+/* [OMBYGGT v5.606.5] RARITETSRAMEN (Chris: "det blev ingen rarity frame, lite
+   antiklimatiskt"). Forsta forsoket tog bort ladan helt - men det Chris ville
+   bort fran var den GRA, likadana ladan runt varje pjas, inte ramen som sadan.
+   En ram som sager nagot ar tvartom hela poangen: en legendarisk pjas ska synas
+   pa en halv sekund. Ramen bygger darfor pa raritetens egen farg, precis som
+   spelets andra pjasrutor: linjen ar fargen, botten ar samma farg utspadd mot
+   morkret underifran, och skenet runt bilden ar fargen igen. Ar pjasen vanlig
+   blir allt gratt av sig sjalv - ingen specialregel behovs. */
+.dgs-drop{--rc:var(--border)}
+.dgs-drop .pvb-drop-art{
+  width:76px;height:76px;border-radius:14px;display:grid;place-items:center;
+  border:1px solid var(--rc);box-shadow:none;
+  background:radial-gradient(120% 120% at 50% 100%,
+    color-mix(in srgb,var(--rc) 26%,transparent),rgba(6,10,22,.94) 72%)}
+.dgs-drop .pvb-drop-art .art-img{width:58px;height:58px;object-fit:contain;
+  filter:drop-shadow(0 0 9px color-mix(in srgb,var(--rc) 75%,transparent))}
+/* Ramen lyser starkare ju sallsyntare pjasen ar - color-mix gor det utan en
+   tabell: en gra ton ger ett gratt sken, en gyllene ett gyllene. */
+.dgs-drop{border-color:color-mix(in srgb,var(--rc) 45%,var(--border));
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--rc) 9%,transparent),transparent 60%),rgba(255,255,255,.03)}
+.dgs-drop.has-tip{cursor:pointer}
+.dgs-drop.has-tip:hover{border-color:var(--rc);
+  box-shadow:0 0 22px -8px var(--rc)}
+.dgs-drop .dgs-rar{font-weight:800}
+.dgs-drop i{flex-direction:column;gap:2px}
+.dgs-drop .dgs-by{color:var(--text-faint);font-size:9.5px;letter-spacing:.05em}
 /* Bossarna som en rad marken: gront for den som foll, rott dar man vande. */
 .dgs-bosses{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;flex:0 0 auto}
 .dgs-boss{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
@@ -9374,7 +9400,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.606.3 — LOPPET SYNS</div>
+        <div class="sn-ver">GENESIS v5.606.5 — RARITETEN SYNS</div>
       </div>
     </div>
   </aside>
@@ -10630,7 +10656,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.606.3 — LOPPET SYNS</div>
+            <div class="desc">GENESIS v5.606.5 — RARITETEN SYNS</div>
           </div>
         </div>
       </div>
@@ -13315,17 +13341,28 @@ function showDungeonSummary(r){
                         esc(sd.name || 'Schematic')));
   }
 
-  /* ---- Pjaserna: ett kort var, med bossen som lamnade det ---- */
+  /* ---- Pjaserna: ett kort var, med bossen som lamnade det ----
+     [RATTAT v5.606.5] NAMNET VAR VITT (Chris: "det star rare och uncommon, men
+     det ser man inte nar man far dom"). Raden skrev color:R.color - och RARITIES
+     har inga fargfalt alls, bara id, name och mult. Varje namn fick alltsa
+     color:undefined, vilket webblasaren kastar, sa ALLA pjaser stod i vanlig vit
+     text oavsett raritet. Buggen ar aldre an kvittots ombyggnad - den foljde med
+     fran den gamla textversionen. Fargen tas nu ur rarCol(), samma kalla som
+     vaskan, striden och hovringsrutan anvander. */
   const drops = (r.boss_loot || []).filter(b => b && b.gear).map(b => {
     const g = b.gear;
     const D = ITEMS[g.key] || {name: g.key};
     const R = RARITIES[g.rarity] || RARITIES[0];
+    const col = rarCol(g.rarity);
     const art = (typeof itemArtFor === 'function') ? itemArtFor(g.key, g.rarity) : '';
-    return '<div class="pvb-drop dgs-drop">' +
-      '<span class="pvb-drop-art" style="--rc:' + R.color + '">' +
-        artWithFallback(art, '📦') + '</span>' +
-      '<b style="color:' + R.color + '">' + esc(D.name || g.key) + '</b>' +
-      '<i>' + esc(R.name) + ' · ' + esc(b.name) + '</i>' +
+    return '<div class="pvb-drop dgs-drop" style="--rc:' + col + '"' +
+      (g.id ? ' data-sid="' + esc(String(g.id)) + '"' : '') + '>' +
+      '<span class="pvb-drop-art">' + artWithFallback(art, '\ud83d\udce6') + '</span>' +
+      '<b style="color:' + col + '">' + esc(D.name || g.key) + '</b>' +
+      /* Raritet och boss pa var sin rad: pa ett smalt kort bot punkten mellan
+         dem av mitt i, och da stod den ensam sist pa forsta raden. */
+      '<i><span class="dgs-rar" style="color:' + col + '">' + esc(R.name) + '</span>' +
+        '<span class="dgs-by">' + esc(b.name) + '</span></i>' +
       (g.fx ? '<em class="dgs-fx">' + pveEffLine(g.fx) + '</em>' : '') +
       '</div>';
   }).join('');
@@ -13362,7 +13399,28 @@ function showDungeonSummary(r){
     '<button class="pve-close" id="pve-close">Close</button></div>';
   document.body.appendChild(ov);
   ov.addEventListener('click', ev => {
-    if (ev.target.closest('#pve-close')) ov.remove();
+    if (ev.target.closest('#pve-close')){ hideGearTip(); ov.remove(); }
+  });
+  /* [TILLAGT v5.606.5] HOVRINGSRUTAN PA FYNDEN (Chris: "jag kunde inte hovra
+     over dom"). Kvittot visste bara pjasens NYCKEL och raritet - inte vilken
+     pjas som rullats - sa det fanns ingenting att sla upp. Servern skickar nu
+     pjasens id i samma objekt (pve_dungeon_claim), precis som stridens segerruta
+     redan gjorde, och da fungerar spelets vanliga gear-kort rakt av: samma ruta
+     man ser i vaskan, med raritetens ram och de riktiga talen.
+     Bade hovring OCH klick - pa telefon finns ingen mus.
+     Hittas pjasen inte (full vaska, postad i stallet) hander ingenting; kortet
+     star kvar som text. */
+  ov.querySelectorAll('.dgs-drop[data-sid]').forEach(el => {
+    const it = gearBySid(el.dataset.sid);
+    if (!it) return;
+    el.classList.add('has-tip');
+    const visa = () => {
+      const b = el.getBoundingClientRect();
+      showGearTip(it, b.left + b.width / 2, b.top - 8, true);
+    };
+    el.addEventListener('mouseenter', visa);
+    el.addEventListener('mouseleave', () => hideGearTip());
+    el.addEventListener('click', ev => { ev.stopPropagation(); visa(); });
   });
 }
 /* Startar striden fran zonrutan. */
@@ -17700,7 +17758,12 @@ function artWithFallback(src, emoji){
      ut. Samma buggfamilj som husdjursrutorna hade. draggable=false lamnar
      musen till spelet. */
   return '<img class="art-img" draggable="false" src="' + src + '" alt="" ' +
-         'onerror="artMiss(this.getAttribute(\'src\'));var p=this.parentNode;this.remove();p.classList.add(\'noart\');">' +
+         /* [RATTAT v5.606.4] p KUNDE VARA NULL. Hinner rutan ritas om innan en
+            bild hunnit misslyckas ar bilden redan borttagen ur sidan, och da
+            har den ingen foralder att satta 'noart' pa - raden kastade ett fel
+            i konsolen. Hittat medan dungeonkvittots pjaskort mattes: tre kort,
+            tre fel. Ingen synlig skada, men ett fel ar ett fel. */
+         'onerror="artMiss(this.getAttribute(\'src\'));var p=this.parentNode;this.remove();if(p)p.classList.add(\'noart\');">' +
          '<i class="art-fall">' + (emoji || '\ud83d\udce6') + '</i>';
 }
 function itemArtFor(key, rarIdx){
