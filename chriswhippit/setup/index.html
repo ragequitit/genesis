@@ -574,6 +574,11 @@ const CHANNELS = {
 };
 const CHANNEL_ORDER = ['chriswhippit', 'vloggar', 'extra', 'twitch', 'annat'];
 
+const DAY_NAMES = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+const DAY_NAMES_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+const isoDate = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
 const ROUTE_PATHS = { hem: '', setup: 'setup/', schema: 'schema/', faq: 'faq/', dl: 'nedladdningar/', shop: 'shop/' };
 
 const CONTENT_DEFAULTS = {
@@ -589,14 +594,7 @@ const CONTENT_DEFAULTS = {
     { group: 'Ljud och bild', items: ['Mikrofon — fyll i modell', 'Kamera — fyll i modell', 'Ljus — fyll i modell', 'Hörlurar — fyll i modell'] },
     { group: 'Skrivbord', items: ['Stol — fyll i modell', 'Tangentbord — fyll i modell', 'Mus — fyll i modell', 'Musmatta — fyll i modell'] }
   ],
-  schema: [
-    { day: 'Måndag', date: '', what: 'Pokémon GO', channel: 'chriswhippit', time: '19:00' },
-    { day: 'Tisdag', date: '', what: 'Ledigt', channel: 'annat', time: '—' },
-    { day: 'Onsdag', date: '', what: 'Live', channel: 'twitch', time: '20:00' },
-    { day: 'Torsdag', date: '', what: 'Ny video', channel: 'chriswhippit', time: '17:00' },
-    { day: 'Fredag', date: '', what: 'Discgolf', channel: 'vloggar', time: '15:00' },
-    { day: 'Helg', date: '', what: 'Vad som händer', channel: 'annat', time: '—' }
-  ],
+  schema: [],
   faq: [
     { q: 'Vilken dator har du?', a: 'Hela speclistan finns på setup-sidan.' },
     { q: 'Hur ofta laddar du upp?', a: 'Nästan varje dag på YouTube, plus streams på Twitch.' },
@@ -726,9 +724,10 @@ class Component extends DCLogic {
 
   applyContent(c) {
     const next = {};
-    ['stats', 'setup', 'schema', 'faq', 'downloads', 'shop'].forEach((k) => {
+    ['stats', 'setup', 'faq', 'downloads', 'shop'].forEach((k) => {
       if (Array.isArray(c[k]) && c[k].length) next[k] = c[k];
     });
+    if (Array.isArray(c.schema)) next.schema = c.schema;
     if (Object.keys(next).length) this.setState((s) => ({ content: { ...s.content, ...next } }));
     if (c.sponsors && c.sponsors.length) this.setState({ sponsors: c.sponsors });
     if (c.social) { this.setState({ social: c.social }); this.loadSocialThumbs(c.social); }
@@ -851,24 +850,32 @@ class Component extends DCLogic {
       const hit = (c.stats || []).find((s) => (s.platform || '').toLowerCase() === name.toLowerCase());
       return hit ? hit.value : '';
     };
-    // group schedule entries by day so a day can hold several releases
+    // seven real days from this week's Monday; later dates wait their turn
+    const monday = new Date();
+    monday.setHours(12, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const en = this.state.lang === 'en';
     const schemaDays = [];
-    (c.schema || []).forEach((r) => {
-      const key = (r.day || '') + '|' + (r.date || '');
-      let day = schemaDays.find((d) => d.key === key);
-      if (!day) {
-        day = { key: key, day: r.day, date: r.date || '', items: [] };
-        schemaDays.push(day);
-      }
-      const ch = CHANNELS[r.channel] || { label: '', color: CHANNELS.annat.color };
-      day.items.push({
-        what: r.what,
-        time: r.time || '',
-        channel: ch.label,
-        color: ch.color,
-        timeColor: r.time && r.time !== '—' ? 'var(--color-accent-300)' : 'var(--color-neutral-700)'
+    for (let n = 0; n < 7; n++) {
+      const dt = new Date(monday);
+      dt.setDate(monday.getDate() + n);
+      const key = isoDate(dt);
+      schemaDays.push({
+        key: key,
+        day: (en ? DAY_NAMES_EN : DAY_NAMES)[dt.getDay()],
+        date: dt.getDate() + ' ' + MONTHS[dt.getMonth()],
+        items: (c.schema || []).filter((r) => r.date === key).map((r) => {
+          const ch = CHANNELS[r.channel] || { label: '', color: CHANNELS.annat.color };
+          return {
+            what: r.what,
+            time: r.time || '',
+            channel: ch.label,
+            color: ch.color,
+            timeColor: r.time && r.time !== '—' ? 'var(--color-accent-300)' : 'var(--color-neutral-700)'
+          };
+        })
       });
-    });
+    }
     const thumbs = this.state.socialThumbs || {};
     const socialPosts = (this.state.social || []).map((p) => {
       const url = (p.url || '').trim();
@@ -902,7 +909,7 @@ class Component extends DCLogic {
       sponsorLoop: loop,
       setupGroups: (c.setup || []).map((g) => ({ group: g.group, items: (g.items || []).map((t) => ({ text: t })) })),
       schemaRows: schemaDays,
-      schemaShort: schemaDays.slice(0, 5),
+      schemaShort: schemaDays,
       channelKeys: CHANNEL_ORDER.map((k) => ({ label: CHANNELS[k].label, color: CHANNELS[k].color })),
       faqRows: c.faq || [],
       faqTop: (c.faq || []).slice(0, 3),
