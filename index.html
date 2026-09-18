@@ -6658,6 +6658,25 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 /* PvE-effektens rad (v5.36.0): guldton, sa den skiljer sig fran formagorna. */
 .gt-pve{font-size:10px;color:#e8c15a;line-height:1.4}
 .dg-fx{color:#e8c15a;font-style:italic;font-size:9.5px}
+/* [TILLAGT v5.606.2] KVITTOTS EGEN RUTA. Samma sprak som dungeonfonstret: samma
+   ram, samma radie, samma morka botten - sa de tva rutorna man ser i rad nar man
+   hamtar ett lopp ser ut att hora ihop. Kortet ar en kolumn med luft mellan
+   delarna, listan rullar for sig sa knappen alltid syns, och knappen star
+   centrerad i stallet for klistrad i vanstra hornet. */
+.dgs-card{width:min(720px,96vw);max-height:calc(100vh - 28px);
+  display:flex;flex-direction:column;gap:11px;
+  padding:18px 20px 16px;border-radius:18px;
+  border:1px solid rgba(120,190,255,.32);background:#080d1c;
+  box-shadow:0 0 0 1px rgba(56,232,255,.06) inset,0 24px 70px rgba(0,0,0,.6)}
+.dgs-card .pve-result{gap:5px}
+.dgs-rule{height:1px;background:var(--border-soft);flex:0 0 auto}
+.dgs-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:0;
+  padding-right:4px}
+.dgs-card .pve-close{align-self:center;margin-top:2px;min-width:210px;flex:0 0 auto}
+@media (max-width:700px){
+  .dgs-card{padding:15px 15px 13px;gap:9px}
+  .dgs-card .pve-close{min-width:0;width:100%}
+}
 
 /* Yrkesmallen (v5.43.0): XP-pluppar, sidoyrkets lager och den gemensamma
    knappen. Knappen ar RAKT KOPIERAD fran yrkeskortens OPEN. */
@@ -9291,7 +9310,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.606.1 — HÄMTA LOPPET</div>
+        <div class="sn-ver">GENESIS v5.606.2 — HÄMTA LOPPET</div>
       </div>
     </div>
   </aside>
@@ -10547,7 +10566,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.606.1 — HÄMTA LOPPET</div>
+            <div class="desc">GENESIS v5.606.2 — HÄMTA LOPPET</div>
           </div>
         </div>
       </div>
@@ -13138,7 +13157,16 @@ function showDungeonSummary(r){
                   ref.r ? ref.r + ' revive' : ''].filter(Boolean).join(', ');
   const ov = document.createElement('div');
   ov.id = 'pve-overlay';
-  ov.innerHTML = '<div class="pve-stage">' +
+  /* [RATTAT v5.606.2] KVITTOT LANADE STRIDENS RUTA (Chris bild: texten klistrad
+     i kanten, Close ovanpa sista raden). Wrappern hette .pve-stage - och DEN
+     klassen byggdes om i v5.465.0 till stridsscenens ram: overflow:hidden, noll
+     stoppning, vanlig blockflode. Scenen behover det, for den lagger ut figurer
+     absolut. Kvittot skickar in vanlig text och en knapp, och fick da noll
+     stoppning och ingen radlucka - en punkt fran ramen hela vagen runt, uppmatt.
+     Det ar SAMMA familj som noterna vid .pve-grid > .pve-stage: tre olika rutor
+     pa ett klassnamn. Darfor byter kvittot namn i stallet for att lappa den
+     delade regeln - da kan nasta andring av striden inte na hit igen. */
+  ov.innerHTML = '<div class="dgs-card">' +
     '<div class="pve-result"><b class="' + (r.died ? 'loss' : 'win') + '">' +
     (r.died ? 'PULLED OUT' : 'DUNGEON CLEARED') + '</b>' +
     '<span>' + r.bosses + ' bosses down \u00b7 +' + fmt(r.xp || 0) + ' XP' +
@@ -13158,9 +13186,14 @@ function showDungeonSummary(r){
       ? '<div class="dg-sub">Supplies ran out. You walked out with everything you had won, ' +
         'and at a quarter health.</div>'
       : '') +
-    (bosses || '<div class="dg-ev">No bosses were reached.</div>') +
-    (r.bosses > 0 && !(r.boss_loot || []).some(b => b.gear)
-      ? '<div class="dg-ev">No gear this time \u2014 it is never guaranteed.</div>' : '') +
+    '<div class="dgs-rule"></div>' +
+    /* Bosslistan rullar for sig. En lang dungeon sköt forut Close-knappen nedat
+       tills den hamnade utanfor skarmen pa telefon. */
+    '<div class="dgs-list">' +
+      (bosses || '<div class="dg-ev">No bosses were reached.</div>') +
+      (r.bosses > 0 && !(r.boss_loot || []).some(b => b.gear)
+        ? '<div class="dg-ev">No gear this time \u2014 it is never guaranteed.</div>' : '') +
+    '</div>' +
     (refTxt ? '<div class="dg-sub">Returned unused: ' + refTxt + '</div>' : '') +
     '<button class="pve-close" id="pve-close">Close</button></div>';
   document.body.appendChild(ov);
