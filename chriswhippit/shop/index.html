@@ -93,6 +93,10 @@
   [data-active="1"] { color: var(--color-text) !important; }
   [data-lift] { transition: transform .45s cubic-bezier(.2,.7,.2,1), box-shadow .45s ease, background .45s ease; }
   [data-lift]:hover { transform: translateY(-6px); box-shadow: 0 0 0 1px var(--color-accent-600), 0 18px 44px rgba(0,0,0,.6); }
+  [data-gear] { transition: color .2s ease, border-color .2s ease; }
+  [data-gear]:hover { color: var(--color-accent-200) !important; border-color: var(--color-accent-600) !important; }
+  [data-chan] { text-decoration: none; transition: color .2s ease; }
+  [data-chan]:hover { color: var(--color-accent-300) !important; }
   [data-social] { transition: transform .4s cubic-bezier(.2,.7,.2,1), box-shadow .4s ease; }
   [data-social]:hover { transform: translateY(-4px); box-shadow: 0 0 0 1px var(--color-accent-600), 0 18px 40px rgba(0,0,0,.5); }
   [data-sponsor] { transition: transform .45s cubic-bezier(.2,.7,.2,1), box-shadow .45s ease; }
@@ -329,7 +333,12 @@
                     <div style="font-family: var(--font-heading); font-size: 17px; font-weight: 500;">{{ it.what }}</div>
                     <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
                       <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{ it.timeColor }};">{{ it.time }}</span>
-                      <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600);">{{ it.channel }}</span>
+                      <sc-if value="{{ it.hasChannelLink }}">
+                        <a href="{{ it.channelUrl }}" target="_blank" data-chan style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600);">{{ it.channel }}</a>
+                      </sc-if>
+                      <sc-if value="{{ it.noChannelLink }}">
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600);">{{ it.channel }}</span>
+                      </sc-if>
                     </div>
                   </div>
                 </div>
@@ -395,7 +404,14 @@
           <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-accent-400);">{{ g.group }}</div>
           <ul style="margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 15px; color: var(--color-neutral-300);">
             <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="4">
-              <li>{{ it.text }}</li>
+              <li>
+                <sc-if value="{{ it.hasUrl }}">
+                  <a href="{{ it.url }}" target="_blank" data-gear style="color: var(--color-neutral-300); text-decoration: none; border-bottom: 1px solid var(--color-neutral-800);">{{ it.text }}</a>
+                </sc-if>
+                <sc-if value="{{ it.noUrl }}" hint-placeholder-val="{{ true }}">
+                  <span>{{ it.text }}</span>
+                </sc-if>
+              </li>
             </sc-for>
           </ul>
         </div>
@@ -424,7 +440,12 @@
                 <span style="flex: 0 0 3px; align-self: stretch; min-height: 22px; border-radius: 2px; background: {{ it.color }};"></span>
                 <div style="flex: 1 1 auto; min-width: 0; display: flex; gap: 8px 14px; align-items: baseline; flex-wrap: wrap; padding: 6px 10px 6px 0;">
                   <span style="flex: 1 1 200px; min-width: 0; font-family: var(--font-heading); font-size: 17px;">{{ it.what }}</span>
-                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-500);">{{ it.channel }}</span>
+                  <sc-if value="{{ it.hasChannelLink }}">
+                    <a href="{{ it.channelUrl }}" target="_blank" data-chan style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-500);">{{ it.channel }}</a>
+                  </sc-if>
+                  <sc-if value="{{ it.noChannelLink }}">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-500);">{{ it.channel }}</span>
+                  </sc-if>
                   <span style="flex: 0 0 auto; margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{ it.timeColor }};">{{ it.time }}</span>
                 </div>
               </div>
@@ -566,11 +587,11 @@ const FALLBACK_SPONSORS = [
 const HANDLES = ['@chriswhippit', '@whippitsson', '@whippitextra'];
 
 const CHANNELS = {
-  chriswhippit: { label: 'ChrisWhippit', color: '#9184d9' },
-  vloggar: { label: 'Whippit Vloggar', color: '#6fb7c9' },
-  extra: { label: 'Whippit Extra', color: '#c99a6f' },
-  twitch: { label: 'Twitch', color: '#b07fd1' },
-  annat: { label: 'Annat', color: '#7a7a88' }
+  chriswhippit: { label: 'ChrisWhippit', color: '#9184d9', url: 'https://www.youtube.com/@chriswhippit' },
+  vloggar: { label: 'Whippit Vloggar', color: '#6fb7c9', url: 'https://www.youtube.com/@whippitsson' },
+  extra: { label: 'Whippit Extra', color: '#c99a6f', url: 'https://www.youtube.com/@whippitextra' },
+  twitch: { label: 'Twitch', color: '#b07fd1', url: 'https://www.twitch.tv/chriswhippit' },
+  annat: { label: 'Annat', color: '#7a7a88', url: '' }
 };
 const CHANNEL_ORDER = ['chriswhippit', 'vloggar', 'extra', 'twitch', 'annat'];
 
@@ -587,6 +608,14 @@ const isoDate = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart
 
 const ROUTE_PATHS = { hem: '', setup: 'setup/', schema: 'schema/', faq: 'faq/', dl: 'nedladdningar/', shop: 'shop/' };
 
+const isPlaceholderSetup = (setup) => {
+  if (!Array.isArray(setup) || !setup.length) return false;
+  return setup.every((g) => (g.items || []).every((raw) => {
+    const t = (typeof raw === 'string' ? raw : (raw && raw.text) || '').trim();
+    return /—\s*(fyll i modell)?$/.test(t);
+  }));
+};
+
 const CONTENT_DEFAULTS = {
   stats: [
     { platform: 'YouTube', value: '621K' },
@@ -596,9 +625,32 @@ const CONTENT_DEFAULTS = {
     { platform: 'X', value: '20K' }
   ],
   setup: [
-    { group: 'Dator', items: ['Processor — fyll i modell', 'Grafikkort — fyll i modell', 'Minne — fyll i modell', 'Skärm — fyll i modell'] },
-    { group: 'Ljud och bild', items: ['Mikrofon — fyll i modell', 'Kamera — fyll i modell', 'Ljus — fyll i modell', 'Hörlurar — fyll i modell'] },
-    { group: 'Skrivbord', items: ['Stol — fyll i modell', 'Tangentbord — fyll i modell', 'Mus — fyll i modell', 'Musmatta — fyll i modell'] }
+    { group: 'Dator', items: [
+      'Chassi — NZXT H710i Vit/Svart',
+      'Processor — Intel Core i9 11900K 3.5 GHz, 16MB',
+      'Grafikkort — ASUS GeForce RTX 4080 16GB TUF Gaming',
+      'RAM — Corsair 64GB (4x16GB) DDR4 3200MHz CL16 Vengean',
+      'Moderkort — NZXT N7 Z590',
+      'Hårddisk 1 — 1TB, M.2 Samsung 970 EVO Plus',
+      'Hårddisk 2 — 1TB, M.2 Samsung 970 EVO Plus',
+      'Hårddisk 3 — 1TB, Samsung 860 EVO',
+      'Hårddisk 4 — 1TB, Samsung 860 EVO',
+      'Kylare — NZXT Kraken Z73 360mm RGB Vit',
+      'Nätaggregat — NZXT C850 850W'
+    ] },
+    { group: 'Ljud och bild', items: [
+      'Capture Card — Elgato 4K60 PRO',
+      'Hörlurar — Logitech Pro X',
+      'Mikrofon — Shure Sm7b',
+      'Ljudutrustning — TC-Helicon GO XLR',
+      'Webcam — Sony A6600 + Objektiv (18-135/3.5-5.6 OSS)',
+      'Skärmar — 3 x Asus 24" ROG Strix 240 Hz'
+    ] },
+    { group: 'Skrivbord', items: [
+      'Tangentbord — Ducky ONE 3Series (Full Size)',
+      'Mus — Steelseries Rival 700',
+      'Stol — Vertagear - NZXT Special Edition'
+    ] }
   ],
   schema: [],
   faq: [
@@ -733,6 +785,7 @@ class Component extends DCLogic {
     ['stats', 'setup', 'faq', 'downloads', 'shop'].forEach((k) => {
       if (Array.isArray(c[k]) && c[k].length) next[k] = c[k];
     });
+    if (isPlaceholderSetup(next.setup)) delete next.setup;
     if (Array.isArray(c.schema)) next.schema = c.schema;
     if (Object.keys(next).length) this.setState((s) => ({ content: { ...s.content, ...next } }));
     if (c.sponsors && c.sponsors.length) this.setState({ sponsors: c.sponsors });
@@ -877,6 +930,9 @@ class Component extends DCLogic {
             what: r.what,
             time: r.time || '',
             channel: ch.label,
+            channelUrl: ch.url || '',
+            hasChannelLink: ch.url ? true : '',
+            noChannelLink: ch.url ? '' : true,
             color: col,
             fade: 'linear-gradient(90deg, ' + hexA(col, 0.26) + ' 0%, ' + hexA(col, 0.1) + ' 32%, transparent 78%)',
             timeColor: r.time && r.time !== '—' ? 'var(--color-accent-300)' : 'var(--color-neutral-700)'
@@ -915,7 +971,13 @@ class Component extends DCLogic {
       noDrag: this.noDrag,
       sponsorCount: sponsors.length + (this.state.lang === 'en' ? ' partners' : ' samarbeten'),
       sponsorLoop: loop,
-      setupGroups: (c.setup || []).map((g) => ({ group: g.group, items: (g.items || []).map((t) => ({ text: t })) })),
+      setupGroups: (c.setup || []).map((g) => ({
+        group: g.group,
+        items: (g.items || []).map((raw) => {
+          const it = typeof raw === 'string' ? { text: raw, url: '' } : (raw || {});
+          return { text: it.text || '', url: it.url || '', hasUrl: it.url ? true : '', noUrl: it.url ? '' : true };
+        })
+      })),
       schemaRows: schemaDays,
       schemaShort: schemaDays,
       channelKeys: CHANNEL_ORDER.map((k) => ({ label: CHANNELS[k].label, color: CHANNELS[k].color })),
