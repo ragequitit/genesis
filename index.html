@@ -8748,6 +8748,15 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .dgc-plan i{font-style:normal;font-size:9px;font-weight:800;letter-spacing:1.4px;
   text-transform:uppercase;color:var(--dgc)}
 .dgc-plan b{font-size:12px;font-weight:800;color:var(--text);margin-top:2px}
+/* [TILLAGT v5.607.0] Prognosraden under planrutan. Tva korta besked bredvid
+   varandra, eller ETT langt nar loppet inte gar ihop. */
+.dgc-forecast{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;padding:0 2px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;line-height:1.45}
+.dgc-forecast .dgf-low{color:var(--text-dim)}
+.dgc-forecast .dgf-low b{font-size:11.5px;color:var(--acc);margin:0}
+.dgc-forecast .dgf-use{color:var(--text-faint)}
+.dgc-forecast .dgf-bad{color:#ff5964;flex:1 1 100%}
+.dgc-forecast .dgf-wait{color:var(--text-faint);font-style:italic;font-weight:600}
 .dgc-plan u{text-decoration:none;font-size:10.5px;font-weight:700;color:var(--text-dim);
   margin-top:2px}
 .dgc-bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;
@@ -9400,7 +9409,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.606.5 — RARITETEN SYNS</div>
+        <div class="sn-ver">GENESIS v5.607.0 — PACKNINGEN RÄKNAS</div>
       </div>
     </div>
   </aside>
@@ -10656,7 +10665,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.606.5 — RARITETEN SYNS</div>
+            <div class="desc">GENESIS v5.607.0 — PACKNINGEN RÄKNAS</div>
           </div>
         </div>
       </div>
@@ -12623,6 +12632,89 @@ function pveDungeonTick(){
     }).catch(() => {});
   }
 }
+/* [TILLAGT v5.607.0] PROGNOSEN (Chris). Bedomningen kom forut ur en samlad
+   lista som hamtades en gang per synk och inte visste nagot om vad man packat -
+   den antog att man gick in tomhant. Servern kan nu svara pa den riktiga fragan:
+   den kor SAMMA simulering som sjalva loppet, med DIN packning och DINA
+   laketrosklar, och sager hur lagt halsan sjunker som varst.
+   Svaret cachas under en NYCKEL som innehaller packningen. Andrar man en siffra
+   blir nyckeln en annan, den gamla prognosen slutar galla och en ny hamtas -
+   utan att vi behover halla reda pa vad som andrats. */
+/* [TILLAGT v5.607.0] VILKEN dungeon rutan visar. DGC.dungeon ar den man PEKAT
+   pa (kan ligga i en annan region); PVE.dg.dungeon ar den man STAR vid. Rutan
+   handlar alltid om den forsta. Ett stalle, sa pillret, planraden och
+   hamtningen aldrig kan halla pa med var sin dungeon. */
+function dgcDungeonId(){
+  if (DGC && DGC.dungeon) return DGC.dungeon;
+  const d = PVE.dg && PVE.dg.dungeon;
+  return (d && (d.id || d.dungeon_id)) || null;
+}
+let DGF = null;              /* {key, data} eller null */
+let DGF_BUSY = null;         /* nyckeln som ar i luften just nu */
+let DGF_TIMER = 0;
+function dgfKey(dungeonId, heroic){
+  const st = pveDgDefaults();
+  return [dungeonId, heroic ? 'h' : 'n', st.b, st.f, st.r, st.under, st.until].join('|');
+}
+function dgfCurrent(dungeonId, heroic){
+  const k = dgfKey(dungeonId, heroic);
+  return (DGF && DGF.key === k) ? DGF.data : null;
+}
+/* Hamtningen ar FORDROJD. Stegaren skickar ett tryck i taget och en van spelare
+   trycker fem ganger pa en sekund - utan fordrojningen hade det blivit fem
+   anrop dar bara det sista betyder nagot. */
+function dgfRequest(dungeonId, heroic){
+  if (!NET.on || !SRV.charId || !dungeonId) return;
+  const k = dgfKey(dungeonId, heroic);
+  if ((DGF && DGF.key === k) || DGF_BUSY === k) return;
+  clearTimeout(DGF_TIMER);
+  DGF_TIMER = setTimeout(() => {
+    const kk = dgfKey(dungeonId, heroic);
+    if ((DGF && DGF.key === kk) || DGF_BUSY === kk) return;
+    const st = pveDgDefaults();
+    DGF_BUSY = kk;
+    srvRpc('pve_dungeon_forecast', {
+      p_character: SRV.charId, p_dungeon: dungeonId, p_heroic: !!heroic,
+      p_bandage: st.b, p_fak: st.f, p_revive: st.r,
+      p_under: st.under, p_until: st.until})
+      .then(r => {
+        DGF_BUSY = null;
+        if (!r) return;
+        DGF = {key: kk, data: r};
+        /* Bara pillret och planraden ritas om - inte hela rutan. En omritning
+           mitt i ett klick pa stegaren hade stulit nasta tryck. */
+        if ($('dgc-overlay') && $('dgc-overlay').classList.contains('open')) dgfPaint();
+      })
+      .catch(() => { DGF_BUSY = null; });
+  }, 220);
+}
+/* Skriver prognosen PA PLATS i de tva rutor som visar den. */
+function dgfPaint(){
+  const id = dgcDungeonId();
+  if (!id) return;
+  const f = dgfCurrent(id, DGC_SIDE === 'heroic');
+  const pill = $('dgc-rate-pill');
+  if (pill && f){
+    const rt = PVE_RATING[f.rating] || PVE_RATING.normal;
+    pill.style.setProperty('--rt', rt.col);
+    pill.innerHTML = '<i class="dot"></i>' + esc(rt.name);
+  }
+  const line = $('dgc-forecast');
+  if (line) line.innerHTML = dgfLineHTML(f);
+}
+/* Raden under planrutan: vad prognosen faktiskt sager, i klartext. */
+function dgfLineHTML(f){
+  if (!f) return '<span class="dgf-wait">Checking your loadout\u2026</span>';
+  if (f.died)
+    return '<span class="dgf-bad">You run out and get carried out. Pack more, or come back stronger.</span>';
+  const u = f.used || {}, anv = [];
+  if (u.b) anv.push(u.b + ' bandage' + (u.b === 1 ? '' : 's'));
+  if (u.f) anv.push(u.f + ' first aid');
+  if (u.r) anv.push(u.r + ' revive' + (u.r === 1 ? '' : 's'));
+  return '<span class="dgf-low">Lowest health: <b>' + Math.round(f.hp_low) + '%</b></span>' +
+    '<span class="dgf-use">' + (anv.length ? 'Uses ' + anv.join(' \u00b7 ') : 'Uses no supplies') +
+    '</span>';
+}
 function pveDgDefaults(){
   if (!PVE.dgSetup){
     PVE.dgSetup = {
@@ -12820,13 +12912,18 @@ function dgcCardHTML(dg, d, heroic){
 /* Bedomningen som en pille i samma rad som liv, tid och bossar. Har servern
    inte hunnit svara an ritas ingen pille alls - hellre tom an gissad. */
 function dgcRatingPill(heroic){
-  const d = PVE.dg && PVE.dg.dungeon;
-  const id = d && (d.id || d.dungeon_id);
-  const r = id && PVE.ratings ? PVE.ratings[id] : null;
-  const v = r ? r[heroic ? 'heroic' : 'normal'] : null;
+  const id = dgcDungeonId();
+  if (!id) return '';
+  /* [ANDRAT v5.607.0] Prognosen gar fore den samlade listan. Listan vet inget om
+     packningen - den ar serverns gissning pa en standardpackning - sa den duger
+     som forsta bild medan prognosen ar i luften, men sa fort svaret kommit ar
+     det DET som galler. Pillret har ett id sa det kan skrivas om pa plats. */
+  const f = dgfCurrent(id, heroic);
+  const r = PVE.ratings ? PVE.ratings[id] : null;
+  const v = (f && f.rating) || (r ? r[heroic ? 'heroic' : 'normal'] : null);
   if (!v) return '';
   const rt = PVE_RATING[v] || PVE_RATING.normal;
-  return '<span class="dgc-pill dgc-rate" style="--rt:' + rt.col + '">' +
+  return '<span class="dgc-pill dgc-rate" id="dgc-rate-pill" style="--rt:' + rt.col + '">' +
          '<i class="dot"></i>' + esc(rt.name) + '</span>';
 }
 function dgcButtonsHTML(heroic, disabled, why){
@@ -12920,7 +13017,11 @@ function dgcSupplyHTML(){
     '<b>Heal at ' + st.under + '% \u00b7 restore to ' + st.until + '%</b>' +
     '<u>' + st.b + ' Bandage' + (st.b === 1 ? '' : 's') +
       ' \u00b7 ' + st.f + ' First Aid \u00b7 ' + st.r + ' Revive' + (st.r === 1 ? '' : 's') +
-    '</u></span></div>';
+    '</u></span></div>' +
+    /* [TILLAGT v5.607.0] Vad packningen faktiskt ger. Raden skrivs pa plats nar
+       prognosen kommer; den bygger aldrig om rutan. */
+    '<div class="dgc-forecast" id="dgc-forecast">' +
+      dgfLineHTML(dgfCurrent(dgcDungeonId(), DGC_SIDE === 'heroic')) + '</div>';
   return '<div class="dgc-prepwrap">' +
     '<div class="dgc-kind">Medical loadout</div>' +
     '<div class="dgc-away">Unused supplies are returned after the run.</div>' +
@@ -13201,6 +13302,11 @@ function renderDgChoice(){
 
   const hoger = '<div class="dgc-pane right">' + dgcSupplyHTML() + '</div>';
 
+  /* [TILLAGT v5.607.0] Varje omritning ber om prognosen for DET lage rutan nu
+     visar. Ar svaret redan i cachen gor anropet ingenting; har packningen
+     andrats blir nyckeln en annan och en ny hamtning startar - fordrojd, sa
+     snabba tryck pa stegaren bara ger ETT anrop. */
+  dgfRequest(dgcDungeonId(), heroic);
   box.innerHTML = '<div class="dgc-frame' + (heroic ? ' heroic' : '') +
       (DGC_ASK ? ' asking' : '') + ((PVE.dg && PVE.dg.run && !pveDgDone()) ? ' running' : '') + '">' +
     '<div class="dgc-two">' + vanster + hoger + '</div>' +
