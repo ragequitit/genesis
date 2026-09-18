@@ -445,7 +445,12 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
       <sc-for list="{{ shopRows }}" as="p" hint-placeholder-count="3">
         <a href="{{ p.url }}" target="_blank" data-lift style="background: var(--color-surface); border-radius: 14px; box-shadow: 0 0 0 1px var(--color-neutral-800); overflow: hidden; color: var(--color-text); display: block;">
-          <div style="aspect-ratio: 1; background: repeating-linear-gradient(135deg, rgba(145,132,217,.08) 0 8px, transparent 8px 16px), var(--color-neutral-900); display: grid; place-items: center;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .12em; color: var(--color-neutral-600);">produktbild</span></div>
+          <sc-if value="{{ p.hasImage }}">
+            <div style="aspect-ratio: 1; overflow: hidden;"><img src="{{ p.image }}" alt="" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block;"></div>
+          </sc-if>
+          <sc-if value="{{ p.noImage }}" hint-placeholder-val="{{ true }}">
+            <div style="aspect-ratio: 1; background: repeating-linear-gradient(135deg, rgba(145,132,217,.08) 0 8px, transparent 8px 16px), var(--color-neutral-900); display: grid; place-items: center;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .12em; color: var(--color-neutral-600);">produktbild</span></div>
+          </sc-if>
           <div style="padding: 18px 20px 22px;"><div style="font-family: var(--font-heading); font-size: 16px; font-weight: 500;">{{ p.title }}</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-accent-300); margin-top: 6px;">Spreadshirt →</div></div>
         </a>
       </sc-for>
@@ -851,7 +856,7 @@ class Component extends DCLogic {
       faqRows: c.faq || [],
       faqTop: (c.faq || []).slice(0, 3),
       dlRows: (c.downloads || []).map((r) => ({ ...r, link: r.url || '#' })),
-      shopRows: c.shop || [],
+      shopRows: (c.shop || []).map((p) => ({ ...p, hasImage: p.image ? true : '', noImage: p.image ? '' : true })),
       statYouTube: stat('YouTube'),
       statInstagram: stat('Instagram'),
       statTikTok: stat('TikTok'),
