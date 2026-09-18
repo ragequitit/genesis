@@ -322,9 +322,9 @@
             </div>
             <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
               <sc-for list="{{ r.items }}" as="it" hint-placeholder-count="1">
-                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <div style="display: flex; gap: 10px; align-items: stretch; border-radius: 6px; background: {{ it.fade }};">
                   <span style="flex: 0 0 3px; align-self: stretch; min-height: 34px; border-radius: 2px; background: {{ it.color }};"></span>
-                  <div style="min-width: 0;">
+                  <div style="min-width: 0; padding: 4px 8px 4px 0;">
                     <div style="font-family: var(--font-heading); font-size: 17px; font-weight: 500;">{{ it.what }}</div>
                     <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
                       <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{ it.timeColor }};">{{ it.time }}</span>
@@ -419,9 +419,9 @@
           </div>
           <div style="flex: 3 1 240px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
             <sc-for list="{{ r.items }}" as="it" hint-placeholder-count="1">
-              <div style="display: flex; gap: 14px; align-items: flex-start;">
+              <div style="display: flex; gap: 14px; align-items: stretch; border-radius: 6px; background: {{ it.fade }};">
                 <span style="flex: 0 0 3px; align-self: stretch; min-height: 22px; border-radius: 2px; background: {{ it.color }};"></span>
-                <div style="flex: 1 1 auto; min-width: 0; display: flex; gap: 8px 14px; align-items: baseline; flex-wrap: wrap;">
+                <div style="flex: 1 1 auto; min-width: 0; display: flex; gap: 8px 14px; align-items: baseline; flex-wrap: wrap; padding: 6px 10px 6px 0;">
                   <span style="flex: 1 1 200px; min-width: 0; font-family: var(--font-heading); font-size: 17px;">{{ it.what }}</span>
                   <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-500);">{{ it.channel }}</span>
                   <span style="flex: 0 0 auto; margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{ it.timeColor }};">{{ it.time }}</span>
@@ -576,6 +576,12 @@ const CHANNEL_ORDER = ['chriswhippit', 'vloggar', 'extra', 'twitch', 'annat'];
 const DAY_NAMES = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
 const DAY_NAMES_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+const hexA = (hex, a) => {
+  const h = (hex || '').replace('#', '');
+  const n = h.length === 3 ? h.split('').map((x) => x + x).join('') : h;
+  const v = parseInt(n || '7a7a88', 16);
+  return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + a + ')';
+};
 const isoDate = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
 const ROUTE_PATHS = { hem: '', setup: 'setup/', schema: 'schema/', faq: 'faq/', dl: 'nedladdningar/', shop: 'shop/' };
@@ -865,11 +871,13 @@ class Component extends DCLogic {
         date: dt.getDate() + ' ' + MONTHS[dt.getMonth()],
         items: (c.schema || []).filter((r) => r.date === key).map((r) => {
           const ch = CHANNELS[r.channel] || { label: '', color: CHANNELS.annat.color };
+          const col = r.color || ch.color;
           return {
             what: r.what,
             time: r.time || '',
             channel: ch.label,
-            color: ch.color,
+            color: col,
+            fade: 'linear-gradient(90deg, ' + hexA(col, 0.26) + ' 0%, ' + hexA(col, 0.1) + ' 32%, transparent 78%)',
             timeColor: r.time && r.time !== '—' ? 'var(--color-accent-300)' : 'var(--color-neutral-700)'
           };
         })
