@@ -9589,7 +9589,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.611.0 — ALLT TÄNDER KÄRNAN</div>
+        <div class="sn-ver">GENESIS v5.612.0 — TVÅ MÖTEN I SAMMA ZON</div>
       </div>
     </div>
   </aside>
@@ -10850,7 +10850,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.611.0 — ALLT TÄNDER KÄRNAN</div>
+            <div class="desc">GENESIS v5.612.0 — TVÅ MÖTEN I SAMMA ZON</div>
           </div>
         </div>
       </div>
@@ -12339,6 +12339,11 @@ async function netBuyOfflineCap(hours){
 const PVE = {
   pct: 100, at: 0, max: 0, regen: 0,
   enc: null, cd: 0, canSearch: false, reason: '',
+  /* [TILLAGT v5.612.0] ALLA oppna moten spelaren kan se, aven i zoner han inte
+     star i. Zonen har flera PLATSER nu, sa ett enda mote racker inte langre.
+     `enc` star kvar och betyder FORSTA motet i zonen man star i, sa allt som
+     redan laser den fortsatter fungera precis som forut. */
+  encs: [], encPer: 1,
   fighting: false,
   /* [NYTT v5.155.0] ALLA VILANDE ZONER, inte bara den man star i. Servern
      skickar zon -> sekunder kvar; har sparas SLUTTIDEN i stallet, sa klockan
@@ -12398,6 +12403,11 @@ async function netPvePull(){
     PVE.pct = +r.hp_pct; PVE.at = Date.now();
     PVE.max = +r.hp_max; PVE.regen = +r.regen_pct_hour || 0;
     PVE.enc = r.encounter || null;
+    /* [TILLAGT v5.612.0] Listan galler ALLA zoner - servern skickar region och
+       zon pa varje kort, sa en zon man inte star i kan visa sina moten ocksa. */
+    PVE.encs = Array.isArray(r.encounters) ? r.encounters.slice()
+             : (r.encounter ? [r.encounter] : []);
+    PVE.encPer = Math.max(1, Math.floor(+r.enc_per_zone) || 1);
     PVE.cd = Math.max(0, Math.floor(+r.cooldown_secs) || 0);
     PVE.canSearch = !!r.can_search;
     PVE.reason = r.reason || '';
@@ -12424,7 +12434,14 @@ async function netPveReveal(region, zone){
   const r = await srvRpc('pve_reveal', region
     ? {p_character: SRV.charId, p_region: region, p_zone: zone}
     : {p_character: SRV.charId});
-  if (r) PVE.enc = r;
+  if (r){
+    PVE.enc = r;
+    /* [ANDRAT v5.612.0] Avslojningen ger FORSTA kortet i zonen. Zonen kan halla
+       fler, och de ovriga star i nasta tillstand - darfor hamtas det direkt.
+       Utan raden hade rutan visat ett mote i en sekund och tva i nasta. */
+    PVE.encs = (PVE.encs || []).filter(e => e && e.id !== r.id).concat([r]);
+    try { netPvePull(); } catch (e){}
+  }
   return r;
 }
 /* [TILLAGT v5.493.0] Titta in i en zon nar rutan oppnas. Servern slumpar bara
@@ -12435,7 +12452,10 @@ let pveKikar = null;
 function pveKika(region, zone){
   const nyckel = region + '|' + zone;
   if (!NET.on || !SRV.charId || pveKikar === nyckel) return;
-  if (PVE.enc && PVE.enc.region === region && PVE.enc.zone === zone) return;
+  /* [ANDRAT v5.612.0] Kiken gors om zonen inte har NAGOT mote spelet redan
+     kanner till. Forsta kiken fyller bada platserna i ett anrop, sa en zon man
+     aldrig sett ger tva moten pa en gang. */
+  if (pveEncsAt(region, zone).length) return;
   pveKikar = nyckel;
   netPveReveal(region, zone)
     .then(() => { if (NODE.kind === 'encounter') renderNodeWin(); })
@@ -12478,12 +12498,22 @@ const PVE_RATING = {
   hard:       {name: 'Hard',       col: '#ff9a3d'},
   impossible: {name: 'Impossible', col: '#ff5964'}
 };
+/* [TILLAGT v5.612.0] Motena i EN zon, i serverns ordning (platsordning). Samma
+   form som nodeQuestsAt har for kontrakten. Ritningen fragar har - den letar
+   aldrig sjalv i listan. */
+function pveEncsAt(regionId, zone){
+  return (PVE.encs || []).filter(e => e && e.region === regionId && e.zone === zone);
+}
+function pveEncById(id){
+  return (PVE.encs || []).find(e => e && e.id === id) || null;
+}
 /* Motesdelen av zonrutan. Ren text/knappar - lyssnarna satts av openZone,
    pa samma satt som allt annat i rutan. */
 function buildZoneEncounter(regionId, zone){
   let inner;
   const here = (S.world.current === regionId && S.world.zone === zone);
-  const enc = PVE.enc && PVE.enc.region === regionId && PVE.enc.zone === zone ? PVE.enc : null;
+  const lista = pveEncsAt(regionId, zone);
+  const enc = lista.length ? lista[0] : null;
   if (!NET.on){
     inner = '<div class="shelf-empty">Encounters need a live connection.</div>';
   } else if (pveDgBusy()){
@@ -12491,21 +12521,32 @@ function buildZoneEncounter(regionId, zone){
        vaktar samma grans. */
     inner = '<div class="shelf-empty">You are inside ' +
             (PVE.dg && PVE.dg.run ? PVE.dg.run.name : 'the dungeon') + '.</div>';
-  } else if (enc){
-    const rt = PVE_RATING[enc.rating] || PVE_RATING.normal;
-    inner =
-      '<div class="pve-card">' +
-      '<div class="pve-name">' + enc.name + '</div>' +
-      '<div class="pve-blurb">' + enc.blurb + '</div>' +
-      '<div class="pve-row"><span>Encounter Level ' + enc.level + ' \u00b7 ' + enc.type_name + '</span>' +
-      '<span class="pve-rate" style="color:' + rt.col + ';border-color:' + rt.col + '">' + rt.name + '</span></div>' +
-      pveVsHTML(enc) +
-      (pveLowHealth() ? '<div class="pve-low">LOW HEALTH</div>' : '') +
-      (here
-        ? '<div class="pve-btns"><button class="pve-fight" id="zone-pve-fight">Fight</button>' +
-          '<button class="pve-leave" id="zone-pve-leave">Leave</button></div>'
-        : '<div class="shelf-empty">Travel here to face it.</div>') +
-      '</div>';
+  } else if (lista.length){
+    /* [ANDRAT v5.612.0] ETT KORT PER MOTE. Knappen bar motets EGET id - utan det
+       hade alltid det forsta slagits, precis det fel kontrakten hade fore
+       v5.157.0 nar tva lag i samma zon. */
+    inner = lista.map(e => {
+      const rt = PVE_RATING[e.rating] || PVE_RATING.normal;
+      return '<div class="pve-card">' +
+        '<div class="pve-name">' + e.name + '</div>' +
+        '<div class="pve-blurb">' + e.blurb + '</div>' +
+        '<div class="pve-row"><span>Encounter Level ' + e.level + ' \u00b7 ' + e.type_name + '</span>' +
+        '<span class="pve-rate" style="color:' + rt.col + ';border-color:' + rt.col + '">' + rt.name + '</span></div>' +
+        pveVsHTML(e) +
+        (pveLowHealth() ? '<div class="pve-low">LOW HEALTH</div>' : '') +
+        (here
+          ? '<div class="pve-btns"><button class="pve-fight" data-encf="' + esc(e.id) + '">Fight</button>' +
+            '<button class="pve-leave" data-encleave="1">Leave</button></div>'
+          : '<div class="shelf-empty">Travel here to face it.</div>') +
+        '</div>';
+    }).join('');
+    /* Star en plats tom och utvilad gar det att leta fram ett till utan att
+       forst sla det som redan star dar - platserna vilar var for sig. */
+    if (here && PVE.canSearch)
+      inner += '<button class="pve-search" id="zone-pve-search">Search for another</button>';
+    else if (here && PVE.cd > 0)
+      inner += '<div class="shelf-empty">The next one turns up in ~' +
+               Math.max(1, Math.ceil(PVE.cd / 60)) + ' min.</div>';
   } else if (!here){
     inner = '<div class="shelf-empty">Travel here to look around.</div>';
   /* [BORTTAGET v5.40.0] Voxholm-grinden. Motena finns i alla fem varldarna nu;
@@ -13775,15 +13816,21 @@ function showDungeonSummary(r){
   });
 }
 /* Startar striden fran zonrutan. */
-function startPveFight(){
-  if (PVE.fighting || !PVE.enc) return;
-  const enc = PVE.enc;
+/* [ANDRAT v5.612.0] VILKET mote striden galler. Utan id tas det forsta i zonen
+   man star i, precis som forut - sa aldre anropsstallen beter sig likadant. */
+function startPveFight(id){
+  if (PVE.fighting) return;
+  const enc = (id ? pveEncById(id) : null) || (id ? null : PVE.enc);
+  if (!enc) return;
   PVE.fighting = true;
   netPveFight(enc.id)
     .then(r => {
       PVE.fighting = false;
       if (!r) return;
-      if (r.win) PVE.enc = null;
+      if (r.win){
+        PVE.encs = (PVE.encs || []).filter(e => e && e.id !== enc.id);
+        if (PVE.enc && PVE.enc.id === enc.id) PVE.enc = null;
+      }
       pveApplyHp(r.hp);
       showFightPlayback(enc, r);
       redrawZone();
@@ -26440,8 +26487,36 @@ function gmWin(){
   catch (e){ return null; }   /* annan sida i ramen - las den inte */
 }
 /* Laget beskrivs i kartans sprak: en text per region och zon. */
+/* [TILLAGT v5.612.0] MOTESMARKENA TILL KARTAN. Kartan tar numera en LISTA -
+   ett marke per mote - i stallet for ett lage per zon, sa tva moten i samma zon
+   far var sin plats. Reglerna, i ordning:
+     - vet spelet vilka moten som star i zonen ritas ETT marke per mote,
+     - vet det att zonen vilar ritas ett vilande marke (kartan doljer det),
+     - vet det ingenting alls ritas sa manga marken som zonen HALLER, sa en zon
+       man aldrig kikat in i ser ut som den faktiskt ar.
+   Platshallarens id bar zonen och numret. Trycker man pa ett sadant marke
+   oppnas rutan, kiken gors, och nasta ritning byter ut det mot det riktiga. */
+function gmEncNodes(){
+  const out = [];
+  for (const id of Object.keys(REGIONS)){
+    for (const z of REGIONS[id].zones){
+      if (z === TRADE_ZONE) continue;
+      const key = id + '|' + z;
+      const lista = pveEncsAt(id, z);
+      if (lista.length){
+        lista.forEach(e => out.push({id: e.id, zone: key, label: e.name, state: 'ready'}));
+      } else if (pveZoneResting(id, z)){
+        out.push({id: key + '|rest', zone: key, label: 'Encounter', state: 'cooldown'});
+      } else {
+        for (let i = 1; i <= Math.max(1, PVE.encPer || 1); i++)
+          out.push({id: key + '|' + i, zone: key, label: 'Encounter', state: 'ready'});
+      }
+    }
+  }
+  return out;
+}
 function gmState(){
-  const regions = {}, zones = {}, encounters = {};
+  const regions = {}, zones = {};
   const here = S.world.current, hereZone = S.world.zone || null;
   for (const id of Object.keys(REGIONS)){
     regions[id] = (id === here) ? 'current'
@@ -26452,14 +26527,11 @@ function gmState(){
       zones[key] = (id === here && z === hereZone) ? 'current'
                  : isZoneCharted(id, z) ? 'visited'
                  : (regions[id] === 'unknown' ? 'unknown' : 'uncharted');
-      /* Motet i en zon vilar en stund efter en vunnen strid. Servern ager
-         klockan; har sags bara vaket eller vilande. */
-      if (z !== TRADE_ZONE) encounters[key] = pveZoneResting(id, z) ? 'cooldown' : 'ready';
     }
   }
   return {
     current: {region: here, zone: hereZone},
-    regions: regions, zones: zones, encounters: encounters,
+    regions: regions, zones: zones, encounters: gmEncNodes(),
     quests: gmQuestNodes(),
     /* [BORTTAGET v5.409.0] players lag aldrig har, och ska inte laggas hit.
        Kartan lyssnar bara pa setPlayers: en narvarolista i setState hade ritat
@@ -26801,7 +26873,10 @@ function gmPick(o){
        dungeonen behaller den stora - de ar hela sidor i sig. */
     case 'encounter': {
       gmSel = {region: region, zone: o.zone || null}; gmSetTravel();
-      if (o.zone) openNodeWin('encounter', region, o.zone);
+      /* [ANDRAT v5.612.0] KARTANS ID FOLJER MED, precis som for kontrakten.
+         Kartan ritar ett marke per mote nu; utan id:t hade bada marken i en zon
+         oppnat det forsta motet. */
+      if (o.zone) openNodeWin('encounter', region, o.zone, false, o.id);
       break;
     }
     case 'quest': {
@@ -27409,10 +27484,14 @@ function openZone(regionId, zi, keepNote){
       .then(() => openZone(regionId, zi, true))
       .catch(e => { say(srvErrText(e)); netPvePull().then(() => openZone(regionId, zi, true)); });
   });
-  const pveF = $('zone-pve-fight');
-  if (pveF) pveF.addEventListener('click', () => { pveF.disabled = true; startPveFight(); });
-  const pveL = $('zone-pve-leave');
-  if (pveL) pveL.addEventListener('click', () => closeRegion());
+  /* [ANDRAT v5.612.0] Knapparna satt pa ETT id var. Med flera kort i zonen hade
+     bara det forsta kortets knappar fungerat - de ovriga hade sett levande ut
+     och inte gjort nagonting. Nu far varje kort sina egna lyssnare, och Fight
+     bar motets id. */
+  document.querySelectorAll('[data-encf]').forEach(b =>
+    b.addEventListener('click', () => { b.disabled = true; startPveFight(b.dataset.encf); }));
+  document.querySelectorAll('[data-encleave]').forEach(b =>
+    b.addEventListener('click', () => closeRegion()));
   /* [TILLAGT v5.34.0] Dungeonens alla knappar genom EN lyssnare pa dess ruta
      (buggfamilj 9) - stegare, laketrosklar, Enter, Abandon och Claim. */
   const dgBox = $('zone-dg');
@@ -40306,6 +40385,8 @@ function openNodeWin(kind, region, zone, keep, id){
   /* qid: VILKET kontrakt noden gallde. Utan det kan tva kontrakt i samma zon
      inte skiljas at, och rutan visar alltid det forsta. */
   NODE = {kind: kind, region: region, zone: zone, busy: false, qid: id || null,
+          /* [TILLAGT v5.612.0] eid: VILKET mote noden gallde, samma tanke som qid. */
+          eid: kind === 'encounter' ? (id || null) : null,
           etab: sameKind ? (NODE.etab || 'this') : 'this'};
   const w = $('node-overlay'); if (!w) return;
   /* [ANDRAT v5.493.0] Motet far det breda fonstret ocksa. Rutan ar tva spalter
@@ -40556,7 +40637,13 @@ function vendorLine(reg){
 }
 function nodeEncounterHTML(){
   const here = nodeHere();
-  const enc = (PVE.enc && PVE.enc.region === NODE.region && PVE.enc.zone === NODE.zone) ? PVE.enc : null;
+  /* [ANDRAT v5.612.0] VILKET mote noden gallde. Kartan ritar ett marke per mote
+     och skickar med id:t; saknas det - rutan oppnad fran nagot annat hall -
+     tas det forsta i zonen, som forr. Samma losning som kontrakten fick i
+     v5.157.0, och av exakt samma skal. */
+  const encLista = pveEncsAt(NODE.region, NODE.zone);
+  const enc = (NODE.eid ? encLista.find(e => e.id === NODE.eid) : null)
+              || (encLista.length ? encLista[0] : null);
   let h = nodeWhereHTML();
   if (!NET.on) return h + '<div class="shelf-empty">Encounters need a live connection.</div>';
   if (pveDgBusy())
@@ -40607,7 +40694,8 @@ function nodeEncounterHTML(){
       '</div>' +
     '</div>';
     h += '<div class="nd-acts">' +
-      '<button class="btn-primary" data-nd="' + (here ? 'fight' : 'travelfight') + '">' +
+      '<button class="btn-primary" data-nd="' + (here ? 'fight' : 'travelfight') +
+        '" data-e="' + esc(enc.id) + '">' +
         (here ? 'Begin encounter' : 'Travel and begin') + '</button>' +
       '<button class="btn-neutral" data-nd="close">Leave</button></div>';
     return h;
@@ -41093,15 +41181,20 @@ function nodeZoneHTML(){
       '<span class="ic">\uD83D\uDCDC</span>' +
       '<span class="tx">' + esc(q.name) + '<i>Contract waiting</i></span></div>';
   });
-  const enc = (PVE.enc && PVE.enc.region === NODE.region && PVE.enc.zone === NODE.zone) ? PVE.enc : null;
-  if (enc) what += '<div class="nd-what" data-ndgo="enc"><span class="ic">\u2694\uFE0F</span>' +
-    '<span class="tx">' + esc(enc.name) + '<i>Encounter, level ' + enc.level + '</i></span></div>';
+  /* [ANDRAT v5.612.0] En rad per mote. Zonen kan halla flera, och radens id
+     foljer med sa ratt mote oppnas - samma regel som kontraktsraderna. */
+  const encHar = pveEncsAt(NODE.region, NODE.zone);
+  encHar.forEach(e => {
+    what += '<div class="nd-what" data-ndgo="enc" data-e="' + esc(e.id) + '">' +
+      '<span class="ic">\u2694\uFE0F</span>' +
+      '<span class="tx">' + esc(e.name) + '<i>Encounter, level ' + e.level + '</i></span></div>';
+  });
   /* [TILLAGT v5.153.0] Motet raknades bara upp om det redan var FRAMLETAT. Star
      man i en zon dar inget letats fram sag rutan ingenting alls om moten, trots
      att kartan ritade en nod dar. Nu star raden sa fort zonen inte vilar. Vilar
      den namns motet inte - da finns det ingenting att gora, och noden ar borta
      fran kartan av samma skal. */
-  else if (NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone))
+  if (!encHar.length && NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone))
     what += '<div class="nd-what" data-ndgo="enc"><span class="ic">\u2694\uFE0F</span>' +
       '<span class="tx">Encounter<i>' +
       (nodeHere() ? 'Search the zone to find it' : 'Something waits here') +
@@ -41487,7 +41580,7 @@ function wireNodeWin(){
        Zonsidan finns kvar som fallskarm langst ner om inget matchar. */
     {
       closeNodeWin();
-      if (vart === 'enc'){ openNodeWin('encounter', reg, zon); return; }
+      if (vart === 'enc'){ openNodeWin('encounter', reg, zon, false, rad.dataset.e || null); return; }
       if (vart === 'exp'){ openNodeWin('expedition', reg, zon); return; }
       if (vart === 'quest'){ openNodeWin('quest', reg, zon, false, rad.dataset.q || null); return; }
       if (vart === 'town'){
@@ -41564,7 +41657,8 @@ function wireNodeWin(){
       return;
     }
     if (a === 'fight' || a === 'travelfight'){
-      const go = () => { closeNodeWin(); startPveFight(); };
+      const eid = btn.dataset.e || null;
+      const go = () => { closeNodeWin(); startPveFight(eid); };
       if (a === 'travelfight') nodeTravelThen(go); else go();
       return;
     }
