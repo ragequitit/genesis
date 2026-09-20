@@ -5818,7 +5818,13 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .ah-cat-ico.art-wrap{height:30px;display:inline-flex;align-items:center;justify-content:center}
 .ah-cat-ico .art-img{width:100%;height:100%;object-fit:contain;display:block}
 .ah-cat-ico.noart{height:auto}
-.ah-cat-lbl{flex:1;font-size:12px;letter-spacing:1px;text-transform:uppercase}
+/* [ANDRAT v5.618.0] Namnet kapades MITT I EN BOKSTAV pa 1280 - uppmatt 17 px
+   for MISCELLANEOUS och 6 for CONSUMABLES. Spalten far inte krympa under sitt
+   innehall utan min-width:0, sa texten rann over i stallet for att kortas. Nu
+   kortas den med tre punkter. Aldre fel an credits-fliken: samma tal uppmatt
+   utan den. */
+.ah-cat-lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;letter-spacing:1px;text-transform:uppercase}
 .ah-cat-n{font-family:var(--font-mono);font-size:11px;color:var(--text-faint)}
 .ah-cat.on .ah-cat-n{color:var(--text)}
 /* --- sok + filter --- */
@@ -5847,9 +5853,17 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .ah-f-row:hover{background:#141a38}
 .ah-f-row.on{background:#141a38;outline:1px solid var(--border-glow)}
 /* --- tabellen --- */
+/* [ANDRAT v5.619.0] FORSTA SPALTENS MINIMUM VAR FOR HOGT. Sex spalter med
+   SPIKAD bredd tar 582 px plus 48 i mellanrum; med 180 i minimum kraver raden
+   810, och mellanspalten ar 782 vid 1440 px skarm - alltsa stack varje
+   auktionsrad ut 40 px och KOP-knappen langst till hoger klipptes. Felet fanns
+   i ett band: 1281-1499. Under 1280 galler en egen smalare regel som redan
+   rymdes, och fran 1500 var fonstret brett nog - darfor syntes det bara pa
+   vissa skarmar. Uppmatt identiskt fore dagens andringar, sa det ar aldre.
+   120 i minimum ger 750 och rymmes hela vagen upp. */
 .ah-thead,.ah-row{
   display:grid;align-items:center;gap:8px;
-  grid-template-columns:minmax(180px,1fr) 105px 120px 75px 125px 85px 72px;
+  grid-template-columns:minmax(120px,1fr) 105px 120px 75px 125px 85px 72px;
 }
 .ah-thead{
   padding:8px 12px;color:var(--text-faint);font-size:10px;font-weight:700;
@@ -5946,6 +5960,11 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 }
 .ah-qty input:focus{outline:none;border-color:var(--cyan)}
 .ah-avail{color:var(--text-faint);font-size:11px;margin:6px 2px 0}
+/* [TILLAGT v5.619.0] Affaren i klartext. Bryter till flera rader hellre an att
+   spilla - namnet kan vara langt, och spalten ar 300 px pa telefon. */
+.ah-deal{margin:9px 2px 0;padding:8px 10px;border-radius:9px;
+  background:rgba(56,232,255,.06);border:1px solid var(--border-soft);
+  color:var(--text-dim);font-size:11px;line-height:1.45;overflow-wrap:anywhere}
 .ah-unit{display:block;font-style:normal;font-size:9.5px;color:var(--text-faint);font-family:var(--font-mono)}
 .mn-subj{font-size:11px;color:var(--text-dim);margin:2px 0 8px}
 .ah-pricebox{
@@ -6011,9 +6030,35 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 .ah-s{color:#c7cbe0}
 .ah-c{color:#d29a6a}
 .ah-note{text-align:center;color:var(--text-faint);font-size:11px;padding:8px 0 2px}
-@media (max-width:1280px){
+/* [ANDRAT v5.619.0] GRANSEN GICK VID 1280 OCH BORDE GA VID 1420. Den breda
+   uppstallningen behover 750 px i mellanspalten; fonstret ar 95 % av skarmen
+   och sidospalterna tar 584, sa mellanspalten racker forst vid ungefar 1405 px
+   skarmbredd. Mellan 1281 och 1404 slog alltsa den breda regeln till i ett
+   fonster som inte rymde den - uppmatt 131 px spill vid 1281, och KOP-knappen
+   stod 119 px utanfor raden. Det syntes bara pa vissa skarmbredder, vilket ar
+   varfor det kunnat sta kvar. */
+@media (max-width:1420px){
   .ah-main{grid-template-columns:190px 1fr 250px}
   .ah-thead,.ah-row{grid-template-columns:minmax(140px,1fr) 90px 100px 60px 110px 75px 66px}
+}
+/* [TILLAGT v5.620.0] MELLANSTEGET, 821-1270. Under 1280 gallde en smalare
+   sjuspaltsregel - men den kraver 689 px i mellanspalten, och fonstret ger bara
+   0,95 x skarmen minus 504 for sidospalterna. Vid 830 blir det 284, alltsa
+   uppmatt 418 px spill och KOP-knappen langt utanfor skarmen; vid 1100 var det
+   162 px. Sjuspaltsregeln racker forst fran omkring 1256, sa hela bandet
+   darunder stod trasigt - pa varje skarm mellan en liten barbar och en
+   surfplatta pa langden.
+   Losningen ar inte smalare spalter utan FARRE: sallsynthet, saljare, tid kvar
+   och avgift lamnar raden, precis som telefonlaget redan gor med tva av dem.
+   Sidospalterna krymper ocksa, 190/250 -> 140/190, vilket ger 386 px vid 821
+   mot de 340 fyra spalter behover. */
+@media (max-width:1270px) and (min-width:821px){
+  .ah-main{grid-template-columns:140px 1fr 190px}
+  /* Sista spalten ar 86 och inte 64: uppmatt bredd pa CANCEL-knappen i Mina
+     annonser. Med 64 stack just den knappen ut 10 px - BUY ar smalare och dolde
+     felet i kopvyn. */
+  .ah-thead,.ah-row{grid-template-columns:minmax(100px,1fr) 52px 100px 86px}
+  .ah-c-rar,.ah-c-seller,.ah-c-left,.ah-c-fee{display:none}
 }
 @media (max-width:820px){
   .ah-win{height:96vh;width:98vw}
@@ -6592,8 +6637,23 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
 @keyframes pvbFall{0%{transform:rotate(0);opacity:1;filter:none}35%{transform:rotate(-9deg) translateY(-8px)}
   100%{transform:rotate(-74deg) translateY(16px) scaleY(.9);opacity:.22;filter:grayscale(1)}}
 /* Resultatet: laggs over arenan nar sista slaget fallit. */
+/* [ANDRAT v5.613.0] SEGERRUTAN KLIPPTE BORT SIN EGEN KNAPP NAR EN PJAS FOLL.
+   Uppmatt: utan pjas ar innehallet exakt sa hogt som arenan (319 px pa dator).
+   Faller en pjas tillkommer dess kort och innehallet blir 348 - och eftersom
+   arenan doljer sitt spill och rutan CENTRERADE innehallet foll bade rubriken
+   VICTORY och Close-knappen utanfor, uppe och nere. Spelaren sag belaningarna
+   men hade ingen vag ut ur rutan; bytet var redan utdelat, sa det var kvittot
+   som var trasigt, inte loten. Uppmatt pa alla sex bredder: 29-50 px for hogt.
+   Tva andringar, och BADA behovs:
+     - safe center: centrera nar det far plats, borja uppifran nar det inte gor
+       det. Ren center gor overkanten omojlig att na aven med rullning.
+     - overflow-y:auto: vad som an hamnar har - tva pjaser, ritning, hjalparcache
+       - gar det att na. Rutan far rullas hellre an att gomma sin egen utgang.
+   Luften minskad sa det vanliga fallet ryms UTAN rullning; rullningen ar
+   skyddsnatet, inte losningen. */
 .pvb-verdict{position:absolute;inset:0;z-index:7;display:none;flex-direction:column;align-items:center;
-  justify-content:center;gap:8px;background:rgba(6,8,16,.72);backdrop-filter:blur(2px);padding:20px;text-align:center}
+  justify-content:safe center;gap:5px;background:rgba(6,8,16,.72);backdrop-filter:blur(2px);
+  padding:10px 20px;text-align:center;overflow-y:auto;overscroll-behavior:contain}
 .pvb-verdict.on{display:flex}
 .pvb-verdict b{font-size:28px;letter-spacing:.14em;font-weight:900}
 .pvb-verdict.win b{color:var(--cyan)} .pvb-verdict.lose b{color:#ff5670}
@@ -6604,7 +6664,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
    arenan var. Taket ar fyra, som expeditionsrutan. Bredden hindrar korten fran
    att bli breda remsor nar arenan ar 1200 px. */
 .pvb-verdict .pvb-rw{grid-template-columns:repeat(var(--rwn,4),minmax(0,1fr));
-  max-width:min(560px,100%);margin:2px 0 4px;width:100%}
+  max-width:min(560px,100%);margin:0;width:100%}
 /* RAMEN. .rw-card bar en gra kantlinje och later --rc farga bara TALET - darfor
    sag korten gra ut fast variabeln var satt. Chris ville ha neonbla ramar, sa
    har far kanten folja --rc pa riktigt, med en svag glod utat sa den lyser som
@@ -9589,7 +9649,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.612.0 — TVÅ MÖTEN I SAMMA ZON</div>
+        <div class="sn-ver">GENESIS v5.620.0 — ARBETSBONUSEN BÖRJAR GÄLLA</div>
       </div>
     </div>
   </aside>
@@ -10507,9 +10567,17 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
       </div>
       <div class="pets-scroll" style="padding:12px">
         <!-- [NYTT v5.131.0] Tva flikar: butiken och angerhyllan. -->
-        <div class="seg c2" id="shop-tabs" style="margin-bottom:12px">
+        <!-- [ANDRAT v5.615.0] En tredje flik: inbytet. Handlaren koper material
+             och betalar i credits - vilken sort beror pa regionen man star i. -->
+        <div class="seg c3" id="shop-tabs" style="margin-bottom:12px">
           <div class="seg-btn active" data-shoptab="buy">Shop</div>
           <div class="seg-btn purple" data-shoptab="back">Buyback <span class="n" id="bb-count"></span></div>
+          <div class="seg-btn" data-shoptab="trade">Trade in</div>
+        </div>
+        <div id="shop-pane-trade" style="display:none">
+          <div class="desc" style="margin-bottom:8px">This vendor buys what the region
+            produces, and pays in credits. Other regions want other things.</div>
+          <div class="upgrade-list" id="trade-list"></div>
         </div>
         <div id="shop-pane-back" style="display:none">
           <div class="desc" style="margin-bottom:8px">Anything you sold in the last hour —
@@ -10517,10 +10585,11 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
           <div class="upgrade-list" id="buyback-list"></div>
         </div>
         <div id="shop-pane-buy">
-        <div class="section-label">Offline Cap</div>
-        <div class="kv" style="margin-bottom:8px"><span class="k">Current offline cap</span><span class="v" id="prem-cap" style="color:var(--cyan)">6h</span></div>
-        <div class="upgrade-list" id="premium-offline"></div>
-        <div class="section-label" style="margin-top:14px">Supplies</div>
+        <!-- [BORTTAGET v5.615.0] OFFLINETAKET GICK ATT KOPA FOR 200-750 CREDITS.
+             Det priset sattes nar credits var nagot man kopte for pengar; nu
+             tjanas de in, och en vaskplats kostar 25. Kopet ar borta helt -
+             sjalva taket finns kvar och flyttas nagon annanstans senare. -->
+        <div class="section-label">Supplies</div>
         <div class="upgrade-list" id="shop-supplies"></div>
         <div class="section-label" style="margin-top:14px">Extra Bag Slots <span class="ppq-count">PREMIUM</span></div>
         <div class="upgrade-list" id="premium-bags"></div>
@@ -10850,7 +10919,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.612.0 — TVÅ MÖTEN I SAMMA ZON</div>
+            <div class="desc">GENESIS v5.620.0 — ARBETSBONUSEN BÖRJAR GÄLLA</div>
           </div>
         </div>
       </div>
@@ -12324,13 +12393,8 @@ async function netEnterZone(zone){
   updateUI(true);
   return r;
 }
-async function netBuyOfflineCap(hours){
-  if (!NET.on) return null;
-  const r = await srvRpc('buy_offline_cap', {p_character: SRV.charId, p_hours: hours});
-  await netPull(); await netPull();
-  updateUI(true);
-  return r;
-}
+/* [BORTTAGET v5.615.0] netBuyOfflineCap - anropade serverns buy_offline_cap,
+   som inte finns langre. */
 /* ================= PVE (v5.33.0): halsan och de vita motena =================
    Servern ar sanningen om halsan och striden. Det har ar bara spegeln:
    PVE sparas ALDRIG lokalt - en omladdning fragar servern och far ratt svar.
@@ -12403,10 +12467,16 @@ async function netPvePull(){
     PVE.pct = +r.hp_pct; PVE.at = Date.now();
     PVE.max = +r.hp_max; PVE.regen = +r.regen_pct_hour || 0;
     PVE.enc = r.encounter || null;
-    /* [TILLAGT v5.612.0] Listan galler ALLA zoner - servern skickar region och
-       zon pa varje kort, sa en zon man inte star i kan visa sina moten ocksa. */
-    PVE.encs = Array.isArray(r.encounters) ? r.encounters.slice()
-             : (r.encounter ? [r.encounter] : []);
+    /* [ANDRAT v5.614.0] Listan fran servern galler zonen man STAR i. Den kostade
+       26 ms per kort att bygga, sa alla zoners kort i varje hamtning hade blivit
+       over en sekund nar kartan ar utforskad - och rutan hamtas hela tiden.
+       Zoner man KIKAT pa ligger kvar har; de kom fran kiken och rors inte av en
+       hamtning, annars hade kartans marken blinkat bort varje varv. */
+    const iZonen = Array.isArray(r.encounters) ? r.encounters.slice()
+                 : (r.encounter ? [r.encounter] : []);
+    const minZon = (S.world.current || '') + '|' + (S.world.zone || '');
+    PVE.encs = (PVE.encs || []).filter(e => e && (e.region + '|' + e.zone) !== minZon)
+               .concat(iZonen);
     PVE.encPer = Math.max(1, Math.floor(+r.enc_per_zone) || 1);
     PVE.cd = Math.max(0, Math.floor(+r.cooldown_secs) || 0);
     PVE.canSearch = !!r.can_search;
@@ -12436,11 +12506,13 @@ async function netPveReveal(region, zone){
     : {p_character: SRV.charId});
   if (r){
     PVE.enc = r;
-    /* [ANDRAT v5.612.0] Avslojningen ger FORSTA kortet i zonen. Zonen kan halla
-       fler, och de ovriga star i nasta tillstand - darfor hamtas det direkt.
-       Utan raden hade rutan visat ett mote i en sekund och tva i nasta. */
-    PVE.encs = (PVE.encs || []).filter(e => e && e.id !== r.id).concat([r]);
-    try { netPvePull(); } catch (e){}
+    /* [ANDRAT v5.614.0] Kiken ger HELA zonen i ett anrop: forsta kortet ligger
+       overst som forut, zonens ovriga under `others`. Forut hamtades tillstandet
+       en extra gang har for att fa tag i det andra motet - ett anrop per kik som
+       inte behovs nar svaret redan bar bada. */
+    const alla = [r].concat(Array.isArray(r.others) ? r.others : []);
+    const idn = alla.map(e => e && e.id);
+    PVE.encs = (PVE.encs || []).filter(e => e && idn.indexOf(e.id) < 0).concat(alla);
   }
   return r;
 }
@@ -12608,13 +12680,19 @@ function showFightPlayback(enc, r){
           '<div class="pvb-bar"><i id="pvb-php"></i></div></div>' +
         '<div class="pvb-hpp foe"><div class="who">' + esc(enc.name || 'Enemy') + '</div><div class="num" id="pvb-ehn"></div>' +
           '<div class="pvb-bar"><i id="pvb-ehp"></i></div></div>' +
-        '<div class="pvb-verdict" id="pvb-verdict"></div>' +
       '</div>' +
       '<div class="pvb-foot">' +
         '<div class="l">\ud83d\udde1\ufe0f You hit <b id="pvb-dealt">0</b><span class="tag" id="pvb-dt"></span></div>' +
         '<div class="m">Combat resolves automatically</div>' +
         '<div class="r"><span class="tag" id="pvb-tt"></span>' + esc(enc.name || 'Enemy') + ' hit <b id="pvb-took">0</b></div>' +
       '</div>' +
+      /* [FLYTTAD v5.613.0] KVITTOT LAG INNE I ARENAN och fick darfor bara dess
+         hojd - 319 px pa dator, 280 pa telefon. Med en pjas i vinsten ar
+         innehallet 381, sa rubriken och Close-knappen foll utanfor och arenan
+         doljer sitt spill. Nu ligger kvittot over HELA rutan, huvudet och
+         fotraden inrakn'at, och far dryga hundra pixlar mer att rakna pa.
+         Rutan ar redan position:relative, sa flytten kravde ingen ny CSS. */
+      '<div class="pvb-verdict" id="pvb-verdict"></div>' +
     '</div>';
   document.body.appendChild(ov);
 
@@ -12722,7 +12800,14 @@ function showFightPlayback(enc, r){
       const sgt = drops.map(starterGearText).filter(Boolean).join(' \u00b7 ');
       body = '<b>VICTORY</b>' +
         (rwKort.length
-          ? '<div class="rw-cards pvb-rw" style="--rwn:' + Math.min(4, rwKort.length) + '">'
+          /* [ANDRAT v5.613.0] Taket var FYRA spalter. Ger motet fem eller sex
+             saker - hjalparcache och ritning ovanpa de fyra vanliga - lade de
+             sig pa tva rader, och da blev kvittot 87 px for hogt aven over hela
+             rutan. En rad ar alltid lagre an tva, sa taket gar vid sex och raden
+             far vaxa till 680 px nar den behover det. Uppmatt: sex kort pa en
+             rad far plats pa alla sex bredder. */
+          ? '<div class="rw-cards pvb-rw" style="--rwn:' + Math.min(6, rwKort.length) +
+            (rwKort.length > 4 ? ';max-width:min(680px,100%)' : '') + '">'
             + rwKort.join('') + '</div>'
           : '') +
         '<div class="pvb-drops" id="pvb-drops">' +
@@ -15330,8 +15415,13 @@ function achProgress(a){
 }
 async function netPullAchievements(){
   if (!SRV.charId) return false;
-  const rows = await srvSelect('character_achievements',
-    'character_id=eq.' + SRV.charId + '&select=ach_id,seen');
+  /* [ANDRAT v5.616.0] BRAGDERNA BOR PA KONTOT, inte pa karaktaren. Har man tagit
+     en bragd en gang gar den inte att ta igen med en ny karaktar - annars hade
+     nya karaktarer blivit ett satt att skorda samma belaningar om och om igen.
+     Ingen karaktar star i fragan: servern slapper bara igenom det egna kontots
+     rader. `seen` foljde inte med - kolumnen skrevs aldrig av nagon och lastes
+     aldrig har heller. */
+  const rows = await srvSelect('profile_achievements', 'select=ach_id');
   S.ach = S.ach || {done: {}, unseen: 0};
   S.ach.done = {};
   (rows || []).forEach(r => { S.ach.done[r.ach_id] = true; });
@@ -18033,6 +18123,11 @@ const MAT_WEBP = new Set([
   'tin_ingot', 'platinum_ingot', 'voidsteel_ingot'
 ]);
 function stackArtOf(key){
+  /* [TILLAGT v5.618.0] Credits ar ingen stapel i vaskan - de ar ett tal pa
+     karaktaren - men pa auktionen ritas de som vilken vara som helst. Utan den
+     har raden hade varje credit-annons stott med reservtecknet i stallet for
+     myntet som star i sidlisten. Samma fil, ett stalle. */
+  if (key === 'credits') return 'assets/ui/credits.png';
   const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
   if (C && C.art) return artUnlessMissing(C.art);
   /* [TILLAGT v5.48.1] MATERIALEN OCH SKRAPET FAR EGNA BILDER. En fil per nyckel:
@@ -20835,9 +20930,17 @@ function achDone(id){ return !!(S.ach && S.ach.done && S.ach.done[id]); }
    den kan aldrig hamna i otakt med listan.
    [ANDRAT v5.3.0] Procenten la sig pa Data-produktionen. Den lagger sig nu pa
    ARBETET - samma tal, ny mottagare, precis som pa servern. */
+/* [RATTAT v5.620.0] KORTET RAKNADE UR FEL LISTA. Raden gick igenom den INBYGGDA
+   reservlistan, inte den servern skickar - och de tva har glidit isar sedan
+   listan flyttade till servern i v5.248.0. Uppmatt: reservlistan har 11
+   arbetsbragder som summerar 20 %, servern har 12 som summerar 21 %. Bragden
+   "Maker" kunde alltsa aldrig synas i kortet, hur manga ganger man an tog den.
+   Kommentaren som stod har pastod att talet aldrig kunde hamna i otakt med
+   listan. Det var precis vad det gjorde. achList() ar samma lista rutan ritar,
+   och den ger samma form bade uppkopplad och franskopplad. */
 function achWorkPct(){
   let p = 0;
-  ACH.forEach(a => { if (a.r.i && achDone(a.id)) p += a.r.i; });
+  achList().forEach(a => { if (a.kind === 'work' && achDone(a.id)) p += (+a.amt || 0); });
   return p;
 }
 function achMoney(a){ return a.r.G ? GOLD(a.r.G) : a.r.s ? SILVER(a.r.s) : 0; }
@@ -24649,65 +24752,16 @@ function applyLayout(){
   try { localStorage.removeItem('genesis-layout-v1'); } catch(e){}
 }
 
-/* ---------- PREMIUM: OFFLINETAKET ----------
-   Fyra nivåer köpta i ordning med Credits. Priser justerbara. */
-const PREMIUM_OFFLINE = [
-  {h: 12, cost: 200},
-  {h: 16, cost: 350},
-  {h: 20, cost: 500},
-  {h: 24, cost: 750}
-];
-function buildPremiumOffline(){
-  const list = $('premium-offline');
-  if (!list) return;    /* [v4.93.0] rutan finns inte langre - se yrkesrutan */
-  list.innerHTML =
-    '<div class="upgrade-row">' +
-      '<div class="u-ico">🌙</div>' +
-      '<div class="u-body">' +
-        '<div class="u-name">Offline Cap</div>' +
-        '<div class="u-desc" id="prem-off-desc"></div>' +
-        '<div class="pips" id="prem-off-pips">' +
-          '<span class="pip lit" title="6h (base)"></span>' +
-          PREMIUM_OFFLINE.map(p => '<span class="pip" title="' + p.h + 'h"></span>').join('') +
-        '</div>' +
-      '</div>' +
-      '<div class="u-buy prisms" id="prem-off-buy"></div>' +
-    '</div>';
-  $('prem-off-buy').addEventListener('click', () => {
-    const tier = S.premium.offlineHours;
-    if (tier >= PREMIUM_OFFLINE.length) return;
-    const p = PREMIUM_OFFLINE[tier];
-    if (S.credits < p.cost) return;
-    if (NET.on){
-      netBuyOfflineCap(p.h)
-        .then(() => { buildPremiumOffline(); updateUI(true); })
-        .catch(() => spawnFloat({text: 'Could not buy that'}));
-      return;
-    }
-    S.credits -= p.cost;
-    S.premium.offlineHours = tier + 1;
-    updateUI(true);
-  });
-}
-function refreshPremiumOffline(){
-  if (!$('prem-cap')) return;    /* [v4.93.0] rutan finns inte langre */
-  $('prem-cap').textContent = offlineCapHours() + 'h';
-  const tier = S.premium.offlineHours;
-  const pips = $('prem-off-pips').children;
-  for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('lit', i <= tier);
-  const btn = $('prem-off-buy'), desc = $('prem-off-desc');
-  btn.classList.remove('maxed', 'cant');
-  if (tier >= PREMIUM_OFFLINE.length){
-    desc.textContent = 'Offline production cap fully extended.';
-    btn.classList.add('maxed'); btn.textContent = 'Max';
-  } else {
-    const p = PREMIUM_OFFLINE[tier];
-    desc.textContent = 'Extends offline cap: ' + offlineCapHours() + 'h → ' + p.h + 'h';
-    if (S.credits < p.cost) btn.classList.add('cant');
-    btn.textContent = '💳 ' + p.cost;
-  }
-}
-
+/* [BORTTAGET v5.615.0] PREMIUM: OFFLINETAKET. Fyra nivaer for 200 till 750
+   credits, satta nar credits kopets for riktiga pengar. Nu tjanas credits in i
+   spelet och en vaskplats kostar 25 - da var de talen absurda. Kopet ar rivet i
+   BADA andarna: serverns buy_offline_cap ar borttagen i samma leverans, sa det
+   star ingen knapp kvar som anropar nagot som inte finns.
+   `offlineCapHours()` ror jag inte - sjalva taket galler fortfarande, och den
+   nivan en spelare redan kopt ligger kvar. Chris flyttar taket nagon annanstans
+   senare. */
+function buildPremiumOffline(){ /* rivet v5.615.0 - se kommentaren ovan */ }
+function refreshPremiumOffline(){ /* rivet v5.615.0 */ }
 /* ---------- VÄLKOMMEN TILLBAKA ---------- */
 const offlineOverlay = $('offline-overlay');
 function showOffline(o){
@@ -28793,7 +28847,7 @@ function renderPetPanel(){
          i stallet for pa en egen rad, och "MAX" ar utbytt mot sjalva nivan -
          ingen vet vad MAX ar. Bytespilen ar borta; hela kortet ar redan
          klickbart och pilen sa inget nytt. */
-      html += '<div class="ht-card" data-teamslot="' + i + '" data-teampet="' + p.uid + '"' +
+      html += '<div class="ht-card" data-teamslot="' + i + '"' +
               ' title="' + petName(p) + ' \u2014 click to change" style="--hc:' + col + '">' +
         /* [OMBYGGT v5.592.0] BILDEN TAR VANSTRA HALVAN, TEXTEN HOGRA (Chris).
            Namnet, formagan och mataren ligger i en egen spalt nu - utan den
@@ -31173,7 +31227,7 @@ function profPanelCardHTML(p, linked){
          precis den sortens puls de tva andra korten visar. Nu ror sig alla tre
          kort nar nagot hander i dem, och star still nar inget gor det.
          Alla yrken far raden; vad som fyller den avgors i refreshProfCards. */
-      '<div class="jc-cyc" data-cyc="' + p.id + '"><div class="jc-cycfill" style="width:0%"></div></div>' +
+      '<div class="jc-cyc"><div class="jc-cycfill" style="width:0%"></div></div>' +
     '</div>' +
     /* [ANDRAT v5.52.2] COLLECT-KNAPPEN AR BORTTAGEN. Fardiga bestallningar
        ramlar ner i vaskan av sig sjalva nar arbetsklockan tickar - servern
@@ -32292,6 +32346,73 @@ function shopOwned(key){
   (S.inv || []).forEach(r => { if (r && r.key === key) n += (r.qty || 1); });
   return n;
 }
+/* [TILLAGT v5.615.0] INBYTET: MATERIAL IN, CREDITS UT.
+   Handlaren i den region man STAR i koper en eller flera sorter - vilka, hur
+   manga och vad de ger star i SERVERNS tabell. Klienten bar inga egna tal, sa
+   det finns bara ett stalle att andra dem pa. Voxholm koper vanligt skrot,
+   Quarantine tar emot skrapet: nio sorter, en credit styck. */
+let TRADE_CFG = null;
+async function netTradeCfg(){
+  if (TRADE_CFG || !NET.on) return TRADE_CFG;
+  try {
+    TRADE_CFG = await srvSelect('credit_trade_config', 'select=region,mat_key,qty,credits&order=region,mat_key');
+  } catch (e){ TRADE_CFG = null; }
+  return TRADE_CFG;
+}
+function renderTradeIn(){
+  const box = $('trade-list'); if (!box) return;
+  /* [RATTAT v5.620.0] RUTAN SA FEL SAK NAR SERVERN INTE SVARAT. Listan ar tom
+     av tre helt olika skal - ingen uppkoppling, svaret har inte kommit an, eller
+     handlaren koper faktiskt ingenting har - och alla tre fick samma text, den
+     som sager att handlaren vagrar. Franskopplad ar det ett rent osant besked.
+     Samma regel som zonens spelarlista redan foljer: rutan ska saga vad som
+     faktiskt galler i varje lage. */
+  const rader = (TRADE_CFG || []).filter(r => r && r.region === S.world.current);
+  if (!rader.length){
+    const text = !NET.on ? 'Needs a live connection.'
+               : TRADE_CFG === null ? 'Checking\u2026'
+               : 'This vendor does not buy materials.';
+    box.innerHTML = '<div class="shelf-empty">' + text + '</div>';
+    return;
+  }
+  box.innerHTML = rader.map(r => {
+    const namn = (MATERIALS[r.mat_key] && MATERIALS[r.mat_key].name) || r.mat_key;
+    const ico = stackIcoOf(r.mat_key, '\ud83d\udce6');
+    const art = stackArtOf(r.mat_key);
+    const har = shopOwned(r.mat_key);
+    const kan = Math.floor(har / r.qty);
+    return '<div class="shop-row">' +
+      (art ? '<span class="sr-ico art-wrap">' + artWithFallback(art, ico) + '</span>'
+           : '<span class="sr-ico">' + ico + '</span>') +
+      '<span class="sr-body"><b>' + esc(namn) + '</b>' +
+        '<i>' + fmt(r.qty) + ' \u2192 ' + fmt(r.credits) + ' credits</i>' +
+        '<em>You have ' + fmt(har) + '</em></span>' +
+      '<span class="sr-price">' + (kan ? '+' + fmt(kan * r.credits) : '\u2014') + '</span>' +
+      '<button class="sr-buy" data-trade="' + esc(r.mat_key) + '" data-times="1"' +
+        (kan < 1 ? ' disabled' : '') + '>Trade</button>' +
+      (kan > 1 ? '<button class="sr-buy" data-trade="' + esc(r.mat_key) +
+                 '" data-times="' + kan + '">All ' + kan + '</button>' : '') +
+    '</div>';
+  }).join('');
+  /* Knapparna far sina lyssnare HAR, efter ritningen - samma ordning som
+     angerhyllan. Satt de i markupen skulle de forsvinna vid varje omritning. */
+  box.querySelectorAll('[data-trade]').forEach(b => b.addEventListener('click', () => {
+    b.disabled = true;
+    tradeIn(b.dataset.trade, +b.dataset.times || 1);
+  }));
+}
+async function tradeIn(key, times){
+  try {
+    const r = await srvRpc('credit_trade', {p_character: SRV.charId, p_key: key, p_times: times});
+    if (r){
+      if (r.credits != null) S.credits = +r.credits;
+      say('Traded ' + fmt(r.spent) + ' for ' + fmt(r.got) + ' credits.');
+    }
+    await netPullItems(); await netPull();
+  } catch (e){ say(srvErrText(e, 'The vendor refused that.')); }
+  renderTradeIn();
+  updateUI(true);
+}
 function renderShopSupplies(){
   const box = $('shop-supplies');
   if (!box) return;
@@ -32404,10 +32525,14 @@ function setShopTab(t){
   const tabs = $('shop-tabs');
   if (tabs) tabs.querySelectorAll('[data-shoptab]').forEach(x =>
     x.classList.toggle('active', x.dataset.shoptab === t));
-  const buy = $('shop-pane-buy'), back = $('shop-pane-back');
+  const buy = $('shop-pane-buy'), back = $('shop-pane-back'), trade = $('shop-pane-trade');
   if (buy) buy.style.display = t === 'buy' ? '' : 'none';
   if (back) back.style.display = t === 'back' ? '' : 'none';
+  if (trade) trade.style.display = t === 'trade' ? '' : 'none';
   if (t === 'back') netBuyback().then(renderBuyback).catch(() => renderBuyback());
+  /* Rita FORST, hamta sedan - annars star rutan tom tills svaret kommit, och en
+     tom ruta sager ingenting om varfor. */
+  if (t === 'trade'){ renderTradeIn(); netTradeCfg().then(renderTradeIn).catch(() => renderTradeIn()); }
 }
 function openShop(){
   const w = $('shop-overlay');
@@ -33994,6 +34119,10 @@ function achRewardChip(a){
   if (a.kind === 'work') return '+' + a.amt + '% work';
   if (a.kind === 'gold') return a.amt + 'g';
   if (a.kind === 'shards') return a.amt + ' shards';
+  /* [TILLAGT v5.617.0] Stegtopparna ger credits nu. Utan den har raden hade
+     femton credits ritats som "15s" - silver - och kortet hade ljugit om vad
+     man faktiskt far. */
+  if (a.kind === 'credits') return a.amt + ' credits';
   return a.amt + 's';
 }
 function renderAchievements(){
@@ -34296,13 +34425,11 @@ hookDragSource($('pet-grid'), e => {
    vakten kastade sidan ett fel vid start och ALLT efter den raden slutade
    koras. Hjalparstolarna vid maskinerna ar pa vag bort anda - tills de ar det
    halls den har vid liv men rors bara om listan faktiskt finns. */
-hookDragSource($('machine-list') || document.createElement('div'), e => {
-  const slot = e.target.closest && e.target.closest('.m-helper.filled');
-  if (!slot) return null;
-  const p = seatedPet(slot.dataset.helper);
-  if (!p) return null;
-  return {from: 'helperslot', bid: slot.dataset.helper, uid: p.uid, sp: p.sp, rar: p.rar};
-});
+/* [RIVET v5.620.0] Dragkallan hangde pa maskinlistan, som togs bort ur spelet i
+   v5.1.0. Vakten lat raden overleva genom att skapa en slangbar ruta varje gang
+   sidan startade - alltsa en dragkalla pa ett element som aldrig syns, med en
+   sokning efter '.m-helper' som inte heller finns. Det ar ett dott varde som
+   ser levande ut: nasta person hade trott att hjalparstolarna gar att dra i. */
 $('inv-sort').addEventListener('click', invSort);
 /* Forsta trycket oppnar laget, andra trycket stalller fragan. */
 $('inv-sellmode').addEventListener('click', () => {
@@ -36738,7 +36865,7 @@ async function gateShowChars(){
       const col = GATE_CLASS_COLOR[c.class_id] || 'var(--cyan)';
       return '<div class="gate-char" data-id="' + c.id + '" data-name="' + esc(c.name) +
         '" style="--cc:' + col + '">' +
-        '<div class="gc-main" data-enter="1">' +
+        '<div class="gc-main">' +
           '<div class="gch-fig"><img src="' + (gateClassArt(c.class_id) || '') + '" alt="" ' +
             'draggable="false" onerror="this.remove()"></div>' +
           '<b>' + esc(c.name) + '</b>' +
@@ -36747,7 +36874,7 @@ async function gateShowChars(){
             esc(REGIONS[c.region] ? REGIONS[c.region].name : c.region) + '</span>' +
           '<span class="gch-go">Play \u203A</span>' +
         '</div>' +
-        '<button class="gc-del" data-del="1">Delete</button>' +
+        '<button class="gc-del">Delete</button>' +
       '</div>';
     }).join('') || '<div class="gate-note">No characters yet \u2014 make your first one.</div>';
     list.querySelectorAll('.gate-char').forEach(el => {
@@ -37306,6 +37433,15 @@ function ahListingFeeCopper(totalCu){
 }
 /* De fyra talen ritas om pa ETT stalle. Forut stod samma uttryck pa fyra
    rader och det racker att en glommer bort skatten for att rutan ska ljuga. */
+/* [TILLAGT v5.619.0] EN kalla for meningen, sa forsta ritningen och varje
+   omskrivning sager samma sak. Star den pa tva stallen glider de isar. */
+function ahDealText(){
+  const s = AH.sel; if (!s) return '';
+  const antal = Math.max(1, AH.qty || 1);
+  if (antal === 1) return 'Selling 1 ' + s.name + ' for ' + moneyText(AH.price) + '.';
+  return 'Selling ' + antal + ' ' + s.name + ' at ' + moneyText(AH.price) +
+         ' each \u2014 ' + moneyText(antal * AH.price) + ' in total.';
+}
 function ahRefreshMoneyRows(){
   const cu = AH.qty * AH.price;
   const fee = ahListingFeeCopper(cu);
@@ -37315,6 +37451,7 @@ function ahRefreshMoneyRows(){
   set('ah-taxval', moneyText(tax));
   set('ah-payval', moneyText(Math.max(0, Math.floor(cu - tax))));
   const tv = $('ah-totalval'); if (tv) tv.innerHTML = moneyText(cu);
+  set('ah-dealval', ahDealText());
   const btn = $('ah-listbtn');
   if (btn){
     btn.disabled = S.gold < fee;
@@ -37346,7 +37483,12 @@ const AH_CATS = [
   ['gems',        'Gems',          '💎'],
   ['consumables', 'Consumables',   '🧪'],
   ['recipes',     'Recipes',       '📜'],
-  ['misc',        'Miscellaneous', '📦']
+  ['misc',        'Miscellaneous', '📦'],
+  /* [TILLAGT v5.618.0] CREDITS. Fjarde faltet ar en egen bildvag: de andra
+     kategorierna hamtar assets/ui/ahcat/<nyckel>.webp, men credits har redan
+     en ritad bild i sidlisten och ska visa SAMMA mynt har. Tva bilder pa samma
+     sak hinner bli olika. */
+  ['credits',     'Credits',       '🪙', 'assets/ui/credits.png']
 ];
 
 /* ---------- serversamtalen ---------- */
@@ -37385,6 +37527,7 @@ function ahErrText(e){
     bind_on_pickup: 'Bind on Pickup — sell it to a vendor, not to a player',
     item_must_be_in_bag: 'Item must be in your backpack', not_enough_items: 'Not enough in stock',
     bad_price: 'Enter a price of at least 1 gold', bad_duration: 'Pick a duration',
+    not_enough_credits: 'You do not have that many credits',
     offline: 'No connection', not_signed_in: 'Sign in to trade'
   };
   for (const k in map) if (m.indexOf(k) >= 0) return map[k];
@@ -37498,7 +37641,7 @@ function ahRenderCats(){
          kategorins NYCKEL - assets/ui/ahcat/<nyckel>.webp - sa en ny kategori
          far sin bild av att heta ratt. Tecknet i tabellen ar kvar som reserv,
          och de tre sista kategorierna har annu ingen bild och ritar det. */
-      icoBox('ah-cat-ico', 'assets/ui/ahcat/' + c[0] + '.webp', c[2]) +
+      icoBox('ah-cat-ico', c[3] || ('assets/ui/ahcat/' + c[0] + '.webp'), c[2]) +
       '<span class="ah-cat-lbl">' + c[1] + '</span>' +
       '<span class="ah-cat-n">' + fmtLong(n) + '</span></div>';
   }).join('');
@@ -37551,8 +37694,17 @@ function ahRenderTable(){
           '</i></span></span>' +
         '<span class="ah-c-rar" style="color:' + ahRarCol(row.rarity) + '">' + ahRarName(row.rarity) + '</span>' +
         '<span class="ah-c-seller">' + row.seller + '</span>' +
-        '<span class="ah-c-qty">' + row.quantity + '</span>' +
-        '<span class="ah-c-price">' + moneyText(row.total_price) + '</span>' +
+        /* [ANDRAT v5.619.0] ANTALET OCH STYCKPRISET SKA SYNAS UTAN ATT MAN
+           RAKNAR (Chris). Kolumnen visade ett naket tal, och priset var bara
+           summan - vill man veta om 100 credits for 5 guld ar billigt maste man
+           dividera i huvudet. Gangertecknet och raden "styck" star redan i
+           Mina annonser; nu sager de tva listorna samma sak. Styckpriset ritas
+           bara nar antalet ar fler an ett - annars upprepar det summan. */
+        '<span class="ah-c-qty">\u00d7' + row.quantity + '</span>' +
+        '<span class="ah-c-price">' + moneyText(row.total_price) +
+          ((row.quantity > 1 && row.unit_price != null)
+            ? '<i class="ah-unit">' + moneyText(row.unit_price) + ' each</i>' : '') +
+        '</span>' +
         '<span class="ah-c-left">' + ahLeftText(row.ends_in) + '</span>' +
         /* [RATTAT v5.309.0] FRAGAN VISADE ALDRIG PRISET (Chris). Knappen bar
            row.price - ett falt servern inte skickar. Den listar unit_price och
@@ -37645,9 +37797,12 @@ async function ahBuyAsk(id, btn, rad){
     ico: '\u2696\ufe0f', color: 'var(--gold)', yes: 'BUY', no: 'CANCEL'
   });
   if (!ja) return;
-  return ahBuy(id, btn);
+  return ahBuy(id, btn, antal);
 }
-async function ahBuy(id, btn){
+/* [ANDRAT v5.619.0] Beskedet sa "Credits - sent to your inbox" utan ett antal,
+   sa det gick inte att se OM man kopt hundra eller en. Antalet kommer fran
+   raden man tryckte pa; servern skickar inget antal tillbaka. */
+async function ahBuy(id, btn, antal){
   if (AH.busy) return; AH.busy = true;
   if (btn) btn.disabled = true;
   try {
@@ -37655,8 +37810,9 @@ async function ahBuy(id, btn){
     /* [ANDRAT v5.230.0] Varan gar till POSTEN nu, inte rakt i vaskan (Chris
        punkt 6). Da maste beskedet saga vart den tog vagen - annars letar man i
        vaskan efter nagot som ligger i inkorgen. */
-    spawnFloat({text: (res.name || 'Item') + ' \u2014 sent to your inbox'});
-    say('Bought ' + (res.name || 'an item') + ' \u2014 it is waiting in your inbox.');
+    const vad = (antal > 1 ? antal + '\u00d7 ' : '') + (res.name || 'Item');
+    spawnFloat({text: vad + ' \u2014 sent to your inbox'});
+    say('Bought ' + vad + ' \u2014 it is waiting in your inbox.');
     await netPull(); await netPullItems();
     if (typeof netPullMailbox === 'function') await netPullMailbox();
     const c = await netAhCounts(); AH.counts = c;
@@ -37674,6 +37830,16 @@ async function ahBuy(id, btn){
 function ahRenderPicker(){
   const mid = $('ah-mid'); if (!mid) return;
   const rows = [];
+  /* [TILLAGT v5.618.0] CREDITS FORST I LISTAN. De bor inte i vaskan utan som ett
+     tal pa karaktaren, sa slingan nedan kan aldrig hitta dem. Raden byggs darfor
+     for hand - men med SAMMA form som en stapel (kind 'stack', nyckel 'credits'),
+     sa priset, antalet och sandningen till servern gar exakt samma vag som allt
+     annat. En egen vag hade blivit ett andra stalle att halla i takt. */
+  if ((S.credits || 0) > 0){
+    rows.push({kind: 'stack', key: 'credits', rar: null, name: 'Credits',
+      ico: '🪙', art: stackArtOf('credits'), avail: S.credits, row: null,
+      type: 'Currency'});
+  }
   S.inv.forEach(it => {
     if (!it) return;
     if (it.gear && it.gear.sid){
@@ -37703,7 +37869,7 @@ function ahRenderPicker(){
   });
   let h = '<div class="ah-pick-title">Your backpack — pick something to sell</div><div class="ah-rows ah-pick">';
   if (!rows.length){
-    h += '<div class="ah-empty">Nothing tradeable in your backpack.<br>Bind on Pickup materials cannot be traded with other players — the vendor still buys them.</div>';
+    h += '<div class="ah-empty">Nothing tradeable in your backpack, and no credits to sell.<br>Bind on Pickup materials cannot be traded with other players — the vendor still buys them.</div>';
   } else {
     h += rows.map((r, i) =>
       '<div class="ah-row ah-prow" data-i="' + i + '">' +
@@ -37759,7 +37925,11 @@ function ahRenderSellPanel(){
   const feeCu = ahListingFeeCopper(total);
   h +=
     '<div class="ah-sel-card">' +
-      (s.kind === 'item'
+      /* [ANDRAT v5.618.0] Kortet ritade en BILD bara for pjaser; staplar fick
+         sitt tecken aven nar de hade en bild - listan till vanster visade
+         myntet och kortet till hoger en emoji av samma sak. Nu galler samma
+         regel bada: finns en bild ritas den, annars tecknet. */
+      (s.art
         ? '<span class="ah-art big art-wrap">' + artWithFallback(s.art, s.ico) + '</span>'
         : '<span class="ah-art big ah-art-emoji">' + s.ico + '</span>') +
       '<span class="ah-nm"><b style="color:' + ahRarCol(s.rar) + '">' + s.name + '</b>' +
@@ -37781,6 +37951,12 @@ function ahRenderSellPanel(){
       '<span class="ah-pu"><input id="ah-ps" inputmode="numeric" value="' + (ahP().s || '') + '" placeholder="0"><i>s</i></span>' +
       '<span class="ah-pu"><input id="ah-pc" inputmode="numeric" value="' + (ahP().c || '') + '" placeholder="0"><i>c</i></span>' +
       '</div>' +
+    /* [TILLAGT v5.619.0] AFFAREN I EN MENING (Chris). Talen fanns alla tre -
+       antalet i sitt falt, styckpriset i sitt, summan under - men ingenstans
+       stod de ihop, sa man fick multiplicera sjalv for att se vad man faktiskt
+       la ut. Raden skrivs om av samma funktion som halller summan aktuell, sa
+       den kan aldrig sacka efter faltet man just skrivit i. */
+    '<div class="ah-deal" id="ah-dealval">' + ahDealText() + '</div>' +
     /* Avgiften betalas NAR annonsen laggs upp, inte nar nagot saljs. Da maste
        den sta som en kostnad har, inte som ett avdrag langre fram. */
     /* KORT TEXT. Procenten star redan i varaktighetsvaljaren nedanfor, och
@@ -37838,7 +38014,11 @@ async function ahDoList(){
   if (AH.price < 1){ spawnFloat({text: 'Enter a price of at least 1 copper'}); return; }
   AH.busy = true;
   try {
-    await netAhList();
+    /* [ANDRAT v5.618.0] Svaret bar saldot nu. Listar man credits dras de direkt,
+       och utan den har raden hade talet uppe i hornet statt kvar pa det gamla
+       tills nasta hamtning - alltsa sagt att man har credits man last undan. */
+    const svar = await netAhList();
+    if (svar && svar.credits != null) S.credits = Math.max(0, +svar.credits || 0);
     /* [ANDRAT v5.239.0] INGEN FLYTANDE KVITTENS (Chris punkt 3). Avgiften stod
        redan pa knappen man just tryckte pa, sa rutan overst pa skarmen sa om
        det man nyss last. Handelsen ar vard att spara - den gar rakt till
@@ -39069,7 +39249,7 @@ function dailyCellHTML(e, st){
     lbl = v.name; qty = v.qty;
   }
   const mark = st === 'claimed' ? '\u2713' : (st === 'locked' ? '\ud83d\udd12' : '');
-  return '<div class="' + cls + '" data-drday="' + e.day + '" title="Day ' + e.day + ' \u2014 ' + esc(e.label) + '">' +
+  return '<div class="' + cls + '" title="Day ' + e.day + ' \u2014 ' + esc(e.label) + '">' +
     '<span class="dr-num">' + e.day + '</span>' +
     (mark ? '<span class="dr-mark">' + mark + '</span>' : '') +
     icos + '<div class="dr-lbl">' + esc(lbl) + '</div>' +
