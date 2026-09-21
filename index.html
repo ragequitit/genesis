@@ -2875,6 +2875,32 @@ body.dragging *{cursor:grabbing !important}
      hog som listan den star over. */
   .ach-chan{grid-template-columns:repeat(2,1fr)}
 }
+/* [TILLAGT v5.625.0] BRAGDLISTAN FICK 67 PX PA TELEFON.
+   Chris bad om en genomgang av alla blad pa telefon. Uppmatt med den riktiga
+   renderingen: pa 390x664 ar sjalva listan - det rutan finns for - 67 px hog,
+   och 46 px pa 360x640. En rad at gangen. Allt annat i bladet ar korten
+   ovanfor: tre talkort UNDER varandra (ca 170 px), fyra kanalkort i tva rader,
+   mataren, kategoriremsan och foten.
+   Regeln fran v5.253.0 star kvar: EN ruta rullar, listan. Korten, kategorierna
+   och foten star still. Det som andras ar bara att toppen tar mindre plats:
+   tre talkort i EN rad och fyra kanalkort i EN rad, med mindre luft och text.
+   Rubrikerna kapas med ... om de inte far plats, i stallet for att bryta.
+   Emblemet ar dolt pa telefon, sa luften som holls for det (26 px) behovs inte. */
+@media (max-width: 760px){
+  #ach-overlay .modal{padding-top:12px}
+  .ach-top{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:6px}
+  .ach-chan{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:6px}
+  .ach-card{padding:6px 8px}
+  .ach-card-k{font-size:8px;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ach-card-v{font-size:15px;margin-top:1px}
+  .ach-chan .ach-card-v{font-size:13px}
+}
+/* Pa 360 kapades "Total progress" och "Fragments" (uppmatt). Tatare
+   bokstavsavstand och smalare sidoluft racker for att bada ska fa plats. */
+@media (max-width: 380px){
+  .ach-card{padding:6px 6px}
+  .ach-card-k{letter-spacing:.03em}
+}
 /* [BORTTAGET v5.248.0] Stilen for ett avklarat pass pa yrkeskortet. Passen ar
    rivna pa servern; klassen kunde aldrig sattas langre. */
 
@@ -3698,7 +3724,11 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
      Rutnatet ar delen som ska rulla - verktygsraden, vaskfacken och guldraden
      star kvar. min-height:0 behovs for att en flexdel over huvud taget ska fa
      krympa under sitt innehall. */
-  .float-win.open > .modal > .inv-grid{
+  /* [ANDRAT v5.625.0] VALVET HADE SAMMA FEL. Genomgangen av alla blad: valvet
+     ar byggt som vaskan (samma rutor, samma packDims) och hade lika lite nagot
+     som rullade - uppmatt, rutnatet vaxte ut genom bladets underkant. */
+  .float-win.open > .modal > .inv-grid,
+  .float-win.open > .modal > .vault-grid{
     flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
     -webkit-overflow-scrolling:touch; align-content:start;
   }
@@ -6194,6 +6224,31 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   .ah-main{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
     display:block;grid-template-rows:none}
   .ah-main > .ah-side,.ah-main > .ah-mid,.ah-main > .ah-sellp{margin-bottom:10px}
+}
+/* [TILLAGT v5.625.0] AUKTIONSHUSETS FOT GICK INTE ATT LASA PA TELEFON.
+   Genomgangen av alla blad: huset ryms och mitten rullar som den ska sedan
+   v5.303.0 - men foten visade "M.. 0…", "SA… View…" och "MY BA…". Tre
+   delar i bredd, och i varje del rubrik + varde + pil PA SAMMA RAD, med 1,5 px
+   bokstavsavstand. Pa 360 blev varje del runt 100 px, och ellipsregeln ovan
+   kapade allt till nagra tecken.
+   Nu tva vaningar per del: rubriken och pilen overst, vardet under i hela
+   delens bredd och far bryta till tva rader hellre an att kapas. Tre lika breda
+   delar - 1,4-andelen for mittdelen behovs inte nar vardet far bryta. */
+@media (max-width:560px){
+  .ah-bottom{grid-template-columns:repeat(3,minmax(0,1fr));margin:6px 10px 0}
+  .ah-b-sec{display:grid;grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:'lbl arr' 'val val';gap:3px 4px;padding:9px 8px;align-content:center}
+  .ah-b-lbl{grid-area:lbl;font-size:9.5px;letter-spacing:.06em}
+  .ah-b-val{grid-area:val;font-size:10.5px;line-height:1.3;
+    white-space:normal;overflow:visible;text-overflow:clip}
+  .ah-b-arr{grid-area:arr;margin-left:0}
+  .ah-b-sec:last-child{grid-template-columns:minmax(0,1fr);grid-template-areas:'lbl' 'val';
+    justify-items:end;text-align:right}
+}
+/* Pa 360 kapades "Sales History" bredvid sin pil (uppmatt). */
+@media (max-width:380px){
+  .ah-b-sec{padding:9px 6px}
+  .ah-b-lbl{letter-spacing:.02em}
 }
 
 /* ==================== PORTEN / LANDNINGSSIDAN (v0.99.0) ====================
@@ -9164,6 +9219,11 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
      Rutan star nu i sitt blad i stallet for bredvid det. Galler BARA under
      760 px - bordsskarmens placering ar orord. */
   .float-win.open > .profile-modal{position:static;top:auto;max-height:86vh}
+  /* [TILLAGT v5.625.0] UTVECKLARMENYN HADE EXAKT DEN BUGGEN KVAR. Den ar byggd
+     likadant (position:absolute; top:6vh) men kom aldrig med i raden ovan.
+     Uppmatt: pa 390x664 borjade den 704 px ned - helt under skarmen. Den ska
+     bort fore lansering, men den anvands vid provspel pa telefon fram till dess. */
+  .float-win.open > .dev-modal{position:static;top:auto;max-height:86vh}
   .dgc-modal > .profile-body{overflow-y:auto}
   /* [ANDRAT v5.353.0] Telefonen satte radien till noll for att fa bort de
      avskurna hornen. Nu ar de avrundade overallt, sa telefonen far en egen
@@ -9734,7 +9794,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.624.0 — TELEFONEN: RUTORNA OCH VÄSKAN</div>
+        <div class="sn-ver">GENESIS v5.625.0 — ALLA BLADEN PÅ TELEFON</div>
       </div>
     </div>
   </aside>
@@ -11004,7 +11064,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.624.0 — TELEFONEN: RUTORNA OCH VÄSKAN</div>
+            <div class="desc">GENESIS v5.625.0 — ALLA BLADEN PÅ TELEFON</div>
           </div>
         </div>
       </div>
