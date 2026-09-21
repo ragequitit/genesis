@@ -2800,6 +2800,14 @@ body.dragging *{cursor:grabbing !important}
 #ach-overlay .modal{width:min(720px, 94vw);height:min(92vh, 880px);
   overflow:visible;display:flex;flex-direction:column;padding-top:26px}
 .ach-top{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+/* [TILLAGT v5.621.0] De fyra kanalerna som en egen rad under de tre talen.
+   Egen behallare och inte fler kort i .ach-top: sex kort i ett rutnat pa tre
+   hade blivit tva rader dar den andra sag ut som en fortsattning pa den forsta,
+   och pa telefon hade alla sju hamnat under varandra. Talet ar mindre an de
+   tre overst - kanalerna ar en detalj, inte rubriken. */
+.ach-chan{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.ach-chan .ach-card-v{font-size:15px}
+.ach-chan .ach-card-k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ach-card{background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:10px;padding:8px 11px}
 .ach-card-k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);font-weight:900}
 .ach-card-v{font-size:18px;font-weight:900;color:var(--text);margin-top:2px}
@@ -2863,6 +2871,9 @@ body.dragging *{cursor:grabbing !important}
   .ach-cat{flex:0 0 auto}
   .ach-cat-n{display:none}
   .ach-top{grid-template-columns:1fr}
+  /* Tva i bredd pa telefon - fyra under varandra hade gjort toppen dubbelt sa
+     hog som listan den star over. */
+  .ach-chan{grid-template-columns:repeat(2,1fr)}
 }
 /* [BORTTAGET v5.248.0] Stilen for ett avklarat pass pa yrkeskortet. Passen ar
    rivna pa servern; klassen kunde aldrig sattas langre. */
@@ -3353,6 +3364,32 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   background:var(--bg-inset);color:var(--text-dim);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:13px;
 }
+
+/* ===== RUTAN VAXTE UT UR TELEFONEN (v5.622.0) =====
+   Chris pa telefon: offline-rutan gick inte att stanga och inte att rulla.
+   Orsaken var INTE off-body eller offline-rutans eget innehall - den var i
+   basregeln har uppe: .modal hade varken max-height eller overflow. Overlayen
+   centrerar med align-items:center, sa en ruta hogre an skarmen vaxer ut at
+   BADA hallen - huvudet med krysset hamnar ovanfor skarmkanten och knappen
+   nedanfor. Samtidigt laser body.modal-open sidan bakom (overflow:hidden +
+   position:fixed), sa det fanns ingenting kvar att rulla nagonstans.
+   Alla sju .modal-overlay-rutor hade felet; bara profile- och look-modalen
+   hade egna max-height och klarade sig.
+   Klippningen scopas till .modal-overlay > .modal med flit: .float-win-rutorna
+   har ett emblem som sticker ut ovanfor kanten, och overflow dar hade kapat det. */
+.modal-overlay > .modal{
+  max-height:calc(100vh - 40px);
+  max-height:calc(100dvh - 40px);
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+/* Offline-rutan har ett rent huvud + en enda kropp, sa den far det battre
+   bygget: krysset star stilla langst upp och bara kroppen rullar. */
+#offline-overlay > .modal{display:flex;flex-direction:column;overflow:hidden}
+#offline-overlay > .modal > .modal-head{flex:0 0 auto;margin-bottom:10px}
+#offline-overlay .off-body{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
 .settings-row{
   display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:12px;
@@ -3605,6 +3642,39 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
     z-index:1400;
     animation:sheetUp .22s ease-out;
   }
+
+  /* ===== BELÖNINGSRUTAN LÅG UNDER BLADET (v5.623.0) =====
+     Chris pa telefon: trycker man Collect inne i expeditionslistan hamnar
+     belaningsrutan UNDER fonstret - man ser aldrig vad man fick.
+     Uppmatt orsak: raden ovanfor. Ett oppet blad ligger pa 1400 har nere, men
+     .modal-overlay ligger pa 400 överallt. Pa datorn ar bladet 120 och rutan
+     hamnar ratt - darfor syns felet BARA pa telefon.
+     Expeditionerna bor i nodfonstret (#node-overlay), som ar ett blad, sa varje
+     belaning som kvitteras darifran hamnade bakom det. Samma sak galler alla
+     .modal-overlay-rutor som oppnas fran ett blad, inte bara belaningen.
+     UPPMATT VIDARE, och det var storre an Chris fraga: .item-win (420),
+     .ask-back (600), .pet-menu.ctx (460) och .say-at (900) hanger ocksa direkt
+     pa <body> - alltsa syskon till bladet, inte barn. Var och en av dem lag
+     under 1400 och alltsa BAKOM ett oppet blad pa telefon. Att trycka pa ett
+     foremal i vaskbladet oppnade ett kort man inte kunde se.
+     Darfor lyfts hela stegen har nere, inte bara belaningsrutan, och den
+     inbordes ordningen halls exakt som pa datorn:
+       400 -> 1500  .modal-overlay   (belaning, offline, installningar ...)
+       420 -> 1520  .item-win        (foremalskortet)
+       460 -> 1530  .pet-menu.ctx    (hjalparmenyn)
+       600 -> 1540  .ask-back        (bekraftelserutan)
+       900 -> 1560  .say-at          (tipset vid handen)
+     Allt ligger over bladet (1400), chattmenyn (1400) och kartans helskarm
+     (1300), och under aviseringar (9000), gear-tip (9100), pl-tip (9999) och
+     striden (12500). Datorn ror vi inte med en enda rad. */
+  /* body framfor: basreglerna for .item-win och .say-at star LANGRE NED i
+     arket, och med lika tung selektor hade de vunnit pa ordningen allena.
+     Uppmatt: utan body-prefixet blev .item-win kvar pa 420. */
+  body .modal-overlay{z-index:1500}
+  body .item-win{z-index:1520}
+  body .pet-menu.ctx{z-index:1530}
+  body .ask-back{z-index:1540}
+  body .say-at{z-index:1560}
   .float-win.open > .modal{
     width:100% !important; max-width:100% !important;
     margin:0 !important;
@@ -3616,6 +3686,21 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   .float-win.open > .modal > .pets-scroll,
   .float-win.open > .modal > .inv-scroll{
     flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  /* [TILLAGT v5.624.0] VASKAN HADE INGEN RULLANDE DEL ALLS.
+     Raden ovanfor pekar pa .inv-scroll - men det elementet finns inte i
+     markupen, bara i den har regeln. Vaskbladet var alltsa en flexspalt med
+     max-height:86vh och ingenting som kunde krympa, sa innehallet vaxte rakt
+     ut genom bladets underkant. Det marktes inte forut eftersom rutnatet bara
+     var fyra rader hogt; med den ratta rutstorleken blir det atta till nio, och
+     da blir det omedelbart synligt. Uppmatt fore: rutnatet slutade 127 px under
+     skarmkanten pa 360x640.
+     Rutnatet ar delen som ska rulla - verktygsraden, vaskfacken och guldraden
+     star kvar. min-height:0 behovs for att en flexdel over huvud taget ska fa
+     krympa under sitt innehall. */
+  .float-win.open > .modal > .inv-grid{
+    flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch; align-content:start;
   }
   /* Titelraden ar inget draghandtag har - den ar ett grepp for att STANGA. */
   .float-win .inv-titlebar{cursor:default; padding-top:14px; position:relative}
@@ -9649,7 +9734,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.620.0 — ARBETSBONUSEN BÖRJAR GÄLLA</div>
+        <div class="sn-ver">GENESIS v5.624.0 — TELEFONEN: RUTORNA OCH VÄSKAN</div>
       </div>
     </div>
   </aside>
@@ -10919,7 +11004,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.620.0 — ARBETSBONUSEN BÖRJAR GÄLLA</div>
+            <div class="desc">GENESIS v5.624.0 — TELEFONEN: RUTORNA OCH VÄSKAN</div>
           </div>
         </div>
       </div>
@@ -15395,12 +15480,21 @@ async function netLearnRecipe(rid){
    pa servern utan att synas. Nu hamtas listan darifran, tillsammans med de tal
    som avgor dem, sa skylten och regeln ar samma sak. Den inbyggda listan finns
    kvar som reserv for franskopplat lage. */
+/* [TILLAGT v5.621.0] Vilken kanal reservlistans procentrader hor till. Bara tre
+   avviker; allt annat i den listan ar varldsfynd. */
+const ACH_FALL_CH = {gold_1000: 'idle_gold', craft_10: 'idle_gather', level_25: 'idle_frags'};
 let ACH_SRV = null;   /* [{id, g, n, d, stat, threshold, kind, amt}] */
 let ACH_VAL = {};     /* talens varden, for matarna */
 function achList(){
   return (NET.on && ACH_SRV && ACH_SRV.length) ? ACH_SRV : ACH.map(a => ({
     id: a.id, g: a.g, n: a.n, d: a.d, stat: null, threshold: 1,
-    kind: a.r.i ? 'work' : (a.r.g ? 'gold' : 'silver'), amt: a.r.i || a.r.g || a.r.s || 0
+    /* [ANDRAT v5.621.0] Reservlistan kande bara sorten 'work' - ett enda tal for
+       allt noden gor. Kanalerna ar fyra nu, sa de elva raderna med procent maste
+       peka pa VILKEN kanal de tillhor. Tre av dem har en egen; resten ar
+       varldsfynd. Listan anvands bara franskopplad, men en rad som pekar pa en
+       sort servern inte kanner hade ritats som silver. */
+    kind: a.r.i ? (ACH_FALL_CH[a.id] || 'idle_finds')
+                : (a.r.g ? 'gold' : 'silver'), amt: a.r.i || a.r.g || a.r.s || 0
   }));
 }
 /* Tal som ar en GRAD och inte ett antal. De ska aldrig ritas som en matare. */
@@ -20938,13 +21032,29 @@ function achDone(id){ return !!(S.ach && S.ach.done && S.ach.done[id]); }
    Kommentaren som stod har pastod att talet aldrig kunde hamna i otakt med
    listan. Det var precis vad det gjorde. achList() ar samma lista rutan ritar,
    och den ger samma form bade uppkopplad och franskopplad. */
-function achWorkPct(){
+/* [OMBYGGT v5.621.0] FYRA KANALER I STALLET FOR EN (Chris). Forut hojde varje
+   arbetsbragd ALLT noden gor - guld, insamling, fynd och fragment pa en gang,
+   fem saker i ett enda lofte. Nu ger varje bragd EN av dem, sa fyrtio bragder
+   kan bara samma styrka som tolv gjorde och man maste samla ihop dem.
+   Talen kommer ur samma lista rutan ritar, alltsa serverns nar den finns. */
+const ACH_CHANNELS = [
+  ['idle_gold',   'Idle gold'],
+  ['idle_gather', 'Gathering'],
+  ['idle_finds',  'Idle finds'],
+  ['idle_frags',  'Fragments']
+];
+function achIdlePct(kind){
   let p = 0;
-  achList().forEach(a => { if (a.kind === 'work' && achDone(a.id)) p += (+a.amt || 0); });
+  achList().forEach(a => { if (a.kind === kind && achDone(a.id)) p += (+a.amt || 0); });
   return p;
 }
+/* Hur manga av de fyrtio man tagit - talet i kortet overst. */
+function achIdleCount(){
+  const alla = achList().filter(a => a.kind && a.kind.indexOf('idle_') === 0);
+  return {har: alla.filter(a => achDone(a.id)).length, av: alla.length};
+}
 function achMoney(a){ return a.r.G ? GOLD(a.r.G) : a.r.s ? SILVER(a.r.s) : 0; }
-function achRewardText(a){ return a.r.i ? '+' + a.r.i + '% work' : moneyText(achMoney(a)); }
+function achRewardText(a){ return a.r.i ? '+' + a.r.i + '% idle' : moneyText(achMoney(a)); }
 function achCount(){ return achList().filter(a => achDone(a.id)).length; }
 /* Körs ofta men gör nästan aldrig något: villkoren är billiga jämförelser.
    Delar ut allt som är förtjänat, även flera på samma gång. */
@@ -22760,8 +22870,32 @@ function highlightBagSlots(socket, on){
    MIN_ROWS/MAX_ROWS håller höjden lugn: utan dem hoppade rutnätet till nio rader
    höjd så fort en väska råkade göra det talet jämnare. */
 const PACK_MIN_ROWS = 4, PACK_MAX_ROWS = 6;
+/* [TILLAGT v5.624.0] TELEFONEN: BREDDEN BESTAMMER FORMEN, INTE TVARTOM.
+   Chris pa telefon: "slotsen i bagen ar sa sma att nastan bara siffran far
+   plats". Uppmatt: 22x22 px pa 390 och 20x20 px pa 360, mot 52x52 pa datorn.
+   Orsaken var INTE rutans egen stil utan formen har: PACK_MAX_ROWS = 6 haller
+   hojden lugn, och med 52 platser blir det 13 spalter - en form som ar bra pa
+   en 748 px bred ruta och omojlig pa en 358 px bred. Telefonregeln sager
+   dessutom att varje spalt ar en ANDEL av bredden, sa 13 spalter kramas in i
+   358 px i stallet for att spranga rutan. Formen var alltsa aldrig mott mot
+   skarmen den ritas pa.
+   Har raknas i stallet hur manga rutor som ryms innan de blir mindre an en
+   tumme (44 px ar minsta vettiga trafftyta), och hojden far vaxa fritt - bladet
+   rullar anda. Uppmatt efterat: 7 spalter och 46 px pa 390, 6 spalter och 50 px
+   pa 360. Datorn gar genom den gamla vagen precis som forut. */
+function narrowColCap(){
+  if (typeof innerWidth !== 'number' || innerWidth > 760) return 0;
+  const GAP = 6, MIN = 44;                 /* samma gap som .inv-grid */
+  const bredd = Math.max(200, innerWidth - 32);   /* uppmatt: rutnatet ar innerWidth - 32 */
+  return Math.max(3, Math.floor((bredd + GAP) / (MIN + GAP)));
+}
 function packDims(n){
   if (n <= 0) return {cols: 1, rows: 1};
+  const tak = narrowColCap();
+  if (tak > 0){
+    const cols = Math.max(1, Math.min(tak, n));
+    return {cols: cols, rows: Math.ceil(n / cols)};
+  }
   let best = null;
   for (let rows = PACK_MIN_ROWS; rows <= PACK_MAX_ROWS; rows++){
     const cols = Math.ceil(n / rows);
@@ -34116,7 +34250,12 @@ function achGroups(){
   return ut;
 }
 function achRewardChip(a){
-  if (a.kind === 'work') return '+' + a.amt + '% work';
+  /* [ANDRAT v5.621.0] Brickan sager VILKEN kanal bragden ger. "+3 % work" var
+     fem loften i ett och darfor inget lofte alls. */
+  if (a.kind === 'idle_gold')   return '+' + a.amt + '% idle gold';
+  if (a.kind === 'idle_gather') return '+' + a.amt + '% gathering';
+  if (a.kind === 'idle_finds')  return '+' + a.amt + '% idle finds';
+  if (a.kind === 'idle_frags')  return '+' + a.amt + '% fragments';
   if (a.kind === 'gold') return a.amt + 'g';
   if (a.kind === 'shards') return a.amt + ' shards';
   /* [TILLAGT v5.617.0] Stegtopparna ger credits nu. Utan den har raden hade
@@ -34139,8 +34278,15 @@ function renderAchievements(){
       '<div class="ach-card-v">' + klara + ' / ' + alla.length + '</div></div>' +
     '<div class="ach-card"><div class="ach-card-k">Total progress</div>' +
       '<div class="ach-card-v">' + pct + '%</div></div>' +
-    '<div class="ach-card"><div class="ach-card-k">Idle bonus</div>' +
-      '<div class="ach-card-v">+' + achWorkPct() + '%</div></div>' +
+    /* [ANDRAT v5.621.0] Kortet visade EN idle-procent. Den finns inte langre -
+       det finns fyra. Kortet raknar i stallet hur manga av de fyrtio man tagit,
+       och raden under ger procenten per kanal. */
+    '<div class="ach-card"><div class="ach-card-k">Idle bonuses</div>' +
+      '<div class="ach-card-v">' + achIdleCount().har + ' / ' + achIdleCount().av + '</div></div>' +
+    '</div>' +
+    '<div class="ach-chan">' + ACH_CHANNELS.map(c =>
+      '<div class="ach-card"><div class="ach-card-k">' + c[1] + '</div>' +
+      '<div class="ach-card-v">+' + achIdlePct(c[0]) + '%</div></div>').join('') +
     '</div>' +
     '<div class="ach-bar"><i style="width:' + pct + '%"><b>' + pct + '%</b></i></div>';
 
@@ -34184,8 +34330,8 @@ function renderAchievements(){
   /* [RIVET v5.561.0] ach-count och ach-idle (Chris). De rakningarna horde till
      spelet FORE ombyggnaden: rutan hade en egen plats for "12 av 40" och en for
      den idle-bonus prestationer gav. Bada tavlorna togs ned nar rutan gjordes om,
-     men rakningen stod kvar och skrev till element som inte finns. achWorkPct
-     ar KVAR - den anvands av kortet hogst upp i rutan, som lever. */
+     men rakningen stod kvar och skrev till element som inte finns. achIdlePct
+     ar KVAR - den anvands av kanalraden hogst upp i rutan, som lever. */
 }
 function openAchievements(){
   checkAchievements();
