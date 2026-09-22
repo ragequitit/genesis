@@ -4898,6 +4898,24 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
   font-size:10px;color:var(--gold);line-height:1;
 }
 .inv-slot.sell-on{box-shadow:inset 0 0 0 2px var(--gold)}
+/* [TILLAGT v5.628.0] ATERVINNINGSLAGET. Byggt som saljlaget, men i gront - sa
+   man aldrig kan tro att man ar i det ena nar man ar i det andra. */
+.inv-recmode{border-color:rgba(61,255,158,.5);color:var(--green);background:rgba(61,255,158,.07)}
+.inv-recmode.on{background:rgba(61,255,158,.18);color:#c8ffe4}
+.inv-slot .sell-tick.rec{border-color:rgba(61,255,158,.7);color:var(--green)}
+.inv-slot.rec-on{box-shadow:inset 0 0 0 2px var(--green)}
+.sell-total.rec{color:var(--green)}
+.sell-total.rec + .sell-total.rec{margin-top:2px;padding-top:2px;border-top:0}
+/* Tre knappar och raknaren pa en rad. Pa 360 bredd bro ikonen sig ovanfor ordet
+   i varje knapp och "Slots used" delades i tva rader (uppmatt: raden vaxte
+   34 -> 44 px). En knapp bryts aldrig, och under 420 px ar luften tatare. */
+.inv-toolbar .inv-sort,.inv-toolbar .inv-capline{white-space:nowrap}
+@media (max-width:420px){
+  .inv-toolbar{gap:6px}
+  .inv-toolbar .inv-sort{padding:4px 6px;letter-spacing:.04em}
+  .inv-toolbar .inv-capline{font-size:9px;letter-spacing:.05em;gap:5px}
+}
+.rec-flag{color:#ffa63c;font-weight:800;margin-left:6px;white-space:nowrap}
 .sell-line{display:flex;justify-content:space-between;gap:14px;font-size:11.5px;
   color:var(--text-dim);padding:3px 0}
 .sell-total{display:flex;justify-content:space-between;gap:14px;font-size:12.5px;
@@ -9809,7 +9827,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.627.0 — COLLECT DIREKT, EMBLEMET HELT</div>
+        <div class="sn-ver">GENESIS v5.628.0 — RECYCLE I VÄSKAN</div>
       </div>
     </div>
   </aside>
@@ -10463,6 +10481,8 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <!-- SALJ FLERA PA EN GANG. Bara staplar - en pjas ar en sak man tittar
              pa innan man gor sig av med den. -->
         <button class="inv-sort inv-sellmode" id="inv-sellmode" title="Sell several stacks at once"><span id="inv-sellcoin"></span> Sell</button>
+        <!-- [TILLAGT v5.628.0] ATERVINN FLERA PA EN GANG (Chris). Sell-lagets tvilling. -->
+        <button class="inv-sort inv-recmode" id="inv-recmode" title="Recycle several pieces at once">&#x267B; Recycle</button>
         <span class="inv-capline">Slots used <b id="inv-cap">0 / 20</b></span>
       </div>
       <div class="inv-toprow">
@@ -11079,7 +11099,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.627.0 — COLLECT DIREKT, EMBLEMET HELT</div>
+            <div class="desc">GENESIS v5.628.0 — RECYCLE I VÄSKAN</div>
           </div>
         </div>
       </div>
@@ -22087,6 +22107,10 @@ function addInvItem(def){
    spelet inte kopa nagot ska det inte se ut som om det kan. */
 let sellMode = false;
 const sellPick = new Set();
+/* [TILLAGT v5.628.0] Atervinningslaget. Deklareras HAR, bredvid saljlaget, sa
+   setSellMode kan slappa det utan att traffa en let som inte hunnit koras. */
+let recMode = false;
+const recPick = new Set();
 /* UTRUSTNING GAR OCKSA ATT BOCKA FOR (v4.39.0). Regeln var att en pjas ar nagot
    man tittar pa innan man gor sig av med den, sa saljlaget slapp bara in staplar.
    Men har man tio droppar man redan bestamt sig om ar tio kort i rad ren friktion.
@@ -22108,6 +22132,10 @@ function sellRowValue(row){
 function setSellMode(on){
   sellMode = !!on;
   if (!sellMode) sellPick.clear();
+  /* [TILLAGT v5.628.0] Ett lage i taget: en bock som betyder "salj" och en som
+     betyder "atervinn" far aldrig sta i samma ruta. */
+  if (sellMode && recMode){ recMode = false; recPick.clear();
+    const rb = $('inv-recmode'); if (rb) rb.classList.remove('on'); }
   const btn = $('inv-sellmode');
   if (btn) btn.classList.toggle('on', sellMode);
   renderInventory();
@@ -22167,6 +22195,76 @@ async function sellPickedNow(){
      man bekraftade, och da far den inte skrivas ut som om allt gick vagen. */
   if (!broke) say('Sold for ' + moneyText(total) + '.');
   else if (got > 0) say('Sold part of it — ' + moneyText(got) + '.');
+}
+/* ==================== ATERVINN FLERA PA EN GANG (v5.628.0) ====================
+   Chris: "vi borde ha ett recycle-alternativ dar uppe precis som vi har sell".
+   Samma lage som saljlaget: forsta trycket oppnar det, man bockar for, andra
+   trycket stalller fragan. Bara PJASER - staplar gar inte att atervinna - och
+   samma regel som menyns Recycle: allt i vaskan utom vaskor.
+   Fragan visar vad man FAR, summerat per sort, och varje pjas i sin egen farg.
+   God rolls och karaktarsstenar far en orange etikett: det ar sista chansen att
+   se att man rakat bocka for nagot man inte vill bli av med. */
+function recyclableRow(row){
+  if (!row || !row.gear) return false;
+  if (ITEMS[row.gear.t] && ITEMS[row.gear.t].bag) return false;
+  return canSalvage(row.gear);
+}
+function setRecMode(on){
+  recMode = !!on;
+  if (!recMode) recPick.clear();
+  if (recMode && sellMode){ sellMode = false; sellPick.clear();
+    const sb = $('inv-sellmode'); if (sb) sb.classList.remove('on'); }
+  const btn = $('inv-recmode');
+  if (btn) btn.classList.toggle('on', recMode);
+  renderInventory();
+}
+function recPickToggle(idx){
+  if (!recyclableRow(S.inv[idx])) return false;
+  if (recPick.has(idx)) recPick.delete(idx); else recPick.add(idx);
+  renderInventory();
+  return true;
+}
+async function recPickedNow(){
+  const picks = [...recPick].filter(i => recyclableRow(S.inv[i]));
+  if (!picks.length){ setRecMode(false); return; }
+  const rows = picks.map(i => ({idx: i, gear: S.inv[i].gear, pv: salvagePreview(S.inv[i].gear)}));
+  const sum = {};
+  rows.forEach(r => r.pv.rows.forEach(x => { sum[x.key] = (sum[x.key] || 0) + x.qty; }));
+  const list = rows.map(r => {
+    const g = r.gear;
+    const flag = g.god ? '<span class="rec-flag">\u2605 God roll</span>'
+               : isGemItem(g) ? '<span class="rec-flag">Character gem</span>' : '';
+    const ger = r.pv.rows.map(x => x.qty + ' ' + (MATERIALS[x.key] ? MATERIALS[x.key].name : x.key)).join(', ');
+    return '<div class="sell-line"><span><span style="color:' + gearRarCol(g) + '">' +
+      esc(gearName(g)) + '</span>' + flag + '</span><span>' + ger + '</span></div>';
+  }).join('');
+  const tot = Object.keys(sum).map(k => '<div class="sell-total rec"><span>' +
+    (MATERIALS[k] ? MATERIALS[k].ico + ' ' + MATERIALS[k].name : k) + '</span><span>\u00d7' + sum[k] + '</span></div>').join('');
+  const ok = await askConfirm({
+    ico: '\u267b\ufe0f', color: 'var(--green)',
+    title: 'Recycle ' + rows.length + (rows.length === 1 ? ' piece?' : ' pieces?'),
+    body: list + tot + '<div class="sell-line">The pieces are gone for good.</div>',
+    yes: 'YES, RECYCLE', no: 'KEEP THEM'
+  });
+  if (!ok) return;
+  setRecMode(false);
+  let done = 0, broke = false;
+  if (NET.on){
+    /* En pjas i taget till servern, men vaskan hamtas EN gang pa slutet -
+       netSalvage hamtar om den efter varje pjas, och tio pjaser blev da tio
+       hamtningar i rad. */
+    for (const r of rows){
+      try { await srvRpc('salvage_item', {p_character: SRV.charId, p_item: r.gear.sid}); done++; }
+      catch (e){ say(srvErrText(e, 'Could not recycle that.')); broke = true; break; }
+    }
+    try { await netPullItems(); } catch (e){}
+    renderEquip(); renderInventory(); updateUI(true);
+  } else {
+    for (const r of rows){ if (salvageGear(r.idx)) done++; }
+  }
+  /* Sag vad som VERKLIGEN hande, som saljlaget. */
+  if (!broke) say('Recycled ' + done + (done === 1 ? ' piece.' : ' pieces.'));
+  else if (done > 0) say('Recycled ' + done + ' of ' + rows.length + ' \u2014 the rest are still in your backpack.');
 }
 function invSort(){
   /* Tva hyllor sorteras var for sig: samlarvaskan ar inte en del av
@@ -23076,8 +23174,11 @@ function invCellHTML(i, pos){
   if (it && it.gear){
     /* Bocken ritas ocksa pa en pjas nu - annars gick den att valja men syntes inte. */
     const gtick = (sellMode && sellableRow(it))
-      ? '<span class="sell-tick">' + (sellPick.has(i) ? '✓' : '') + '</span>' : '';
+      ? '<span class="sell-tick">' + (sellPick.has(i) ? '✓' : '') + '</span>'
+      : (recMode && recyclableRow(it))          /* [TILLAGT v5.628.0] */
+        ? '<span class="sell-tick rec">' + (recPick.has(i) ? '✓' : '') + '</span>' : '';
     return '<div class="inv-slot filled gear' + gb + (sellPick.has(i) ? ' sell-on' : '') +
+      (recPick.has(i) ? ' rec-on' : '') +
       '" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
       '<div class="iv-img" style="background-image:url(\'' + gearArt(it.gear) + '\')"></div>' + gtick + '</div>';
   }
@@ -33961,6 +34062,8 @@ function hookInvCells(root){
   if (!row) return;
   /* I saljlaget betyder ett klick "bocka for", inget annat. */
   if (sellMode){ sellPickToggle(idx); hideGearTip(); return; }
+  /* [TILLAGT v5.628.0] I atervinningslaget betyder ett klick ocksa bara "bocka for". */
+  if (recMode){ recPickToggle(idx); hideGearTip(); return; }
   /* Shift på en STAPEL: med valvet öppet flyttas den dit; annars händer inget —
      staplar går inte att bära, och ett shift-klick får aldrig råka FÖRBRUKA. */
   if (!row.gear){
@@ -34516,6 +34619,7 @@ function closeInventoryWindow(){
      inte nagot man stallt in - och en bock som ligger kvar och vantar pa ett
      klick man glomt bort att man gjort ar en falla. */
   if (typeof sellMode !== 'undefined' && sellMode) setSellMode(false);
+  if (recMode) setRecMode(false);   /* [TILLAGT v5.628.0] samma skal */
   $('inv-overlay').classList.remove('open');
   /* BARA väskans egna: '.bagwin' träffar även valvets. */
   document.querySelectorAll('.bagwin:not(.vaultbagwin)').forEach(w => w.remove());
@@ -34680,6 +34784,12 @@ $('inv-sellmode').addEventListener('click', () => {
   if (!sellMode){ setSellMode(true); say('Pick what you want to sell, then press Sell again.'); }
   else if (sellPick.size) sellPickedNow();
   else setSellMode(false);
+});
+/* [TILLAGT v5.628.0] Samma tre steg som Sell: oppna, bocka for, fraga. */
+$('inv-recmode').addEventListener('click', () => {
+  if (!recMode){ setRecMode(true); say('Pick the gear you want to recycle, then press Recycle again.'); }
+  else if (recPick.size) recPickedNow();
+  else setRecMode(false);
 });
 $('vault-sort').addEventListener('click', vaultSort);
 document.querySelectorAll('.vt-dot').forEach(dot => {
