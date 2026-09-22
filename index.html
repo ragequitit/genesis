@@ -3582,6 +3582,13 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
 .hrev-modal{--rv:var(--cyan);position:relative;text-align:center;max-width:340px;padding:22px 20px 18px}
 .hrev-x{position:absolute;right:12px;top:12px}
 .hrev-kicker{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-dim);font-weight:800}
+/* [TILLAGT v5.626.0] EN GOD ROLL SKA SYNAS FORST (Chris: "den texten ska vara
+   orange och lite storre, sa man ser att oh my god, det ar en god roll").
+   Rubriken var nio pixlar och gra aven nar det var den sallsyntaste rullningen
+   i spelet - samma som "Helper found". Nu far den stenens och namnets orange,
+   nastan halften storre och ett svagt sken. Bara nar det AR en god roll. */
+.hrev-kicker.god{font-size:13px;letter-spacing:.2em;color:#ffa63c;font-weight:900;
+  text-shadow:0 0 12px rgba(255,166,60,.55)}
 .hrev-stage{position:relative;width:210px;height:210px;margin:8px auto 6px;
   display:flex;align-items:center;justify-content:center}
 .hrev-flare{
@@ -9528,6 +9535,14 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
   .dgc-pane.right .dgc-heal button{font-size:9.5px;padding:6px 0}
 }
 #reward-overlay{overflow-y:auto;padding-top:36px}
+/* [RATTAT v5.626.0] EMBLEMET KAPADES (Chris). Min egen regel fran v5.622.0 gav
+   varje .modal-overlay > .modal en takhojd och overflow:auto, sa att offline-
+   rutan skulle ga att rulla. Men overflow:auto klipper allt utanfor rutans kant,
+   och .rw-hex sitter MED FLIT 26 px ovanfor den. Uppmatt: av de sju rutorna var
+   det bara den har som hade nagot utanfor kanten. Den behover inte regeln
+   heller - overlayen ovan rullar sjalv och rutan centreras med margin:auto, sa
+   den har aldrig kunnat vaxa ut ur skarmen. */
+.modal-overlay > .modal.rw-modal{max-height:none;overflow:visible}
 #reward-overlay .modal{margin:auto}
 
 </style>
@@ -9794,7 +9809,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.625.0 — ALLA BLADEN PÅ TELEFON</div>
+        <div class="sn-ver">GENESIS v5.627.0 — COLLECT DIREKT, EMBLEMET HELT</div>
       </div>
     </div>
   </aside>
@@ -11064,7 +11079,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.625.0 — ALLA BLADEN PÅ TELEFON</div>
+            <div class="desc">GENESIS v5.627.0 — COLLECT DIREKT, EMBLEMET HELT</div>
           </div>
         </div>
       </div>
@@ -15440,6 +15455,27 @@ async function netClaimExpedition(expId){
     if (r.gold != null) S.gold = +r.gold;
   }
   await netPullItems();
+  /* [ANDRAT v5.626.0] RUTAN KOM EFTER ATTA SERVERVARV (Chris: "jag fick trycka
+     collect tva eller tre ganger innan den tog det"). Forsta trycket togs varje
+     gang - men belaningsrutan visades forst nar vaskan, korningarna, receptboken,
+     hjalparna och prestationerna ocksa hamtats hem, ett varv i taget. Uppmatt med
+     spelets egen kod: 1,0 s pa 80 ms per anrop, 1,4 s pa 150 ms och 2,6 s pa
+     mobilnat (300 ms). Under tiden hande ingenting pa skarmen, och tryck tva och
+     tre svaldes tyst av expClaiming. Det sag ut som att knappen inte tog.
+     Rutan behover bara serverns svar och VASKAN (den slar upp pjasen pa serverns
+     id). Resten hamtas nu i bakgrunden, efter att rutan visats.
+     Korningen stryks lokalt direkt, sa ingen Collect-knapp for en redan hamtad
+     expedition kan ritas upp medan bakgrunden jobbar. */
+  if (r && S.exp && Array.isArray(S.exp.runs)){
+    const k = S.exp.runs.findIndex(x => x.id === expId && nu() >= x.endsAt);
+    if (k >= 0) S.exp.runs.splice(k, 1);
+  }
+  netAfterExpClaim(r).catch(() => {});
+  return r;
+}
+/* [TILLAGT v5.626.0] Det som forut stod mellan vaskan och rutan. Samma steg i
+   samma ordning - bara inte langre nagot rutan vantar pa. */
+async function netAfterExpClaim(r){
   /* KORNINGARNA OCKSA: servern har strukit den hamtade, och utan den har raden
      lag expeditionen kvar pa skarmen med sin Claim-knapp - en knapp som bara
      kunde saga nej. */
@@ -15469,7 +15505,6 @@ async function netClaimExpedition(expId){
     { const t = starterGearText(r.starter_gear); if (t) bits.push(t); }
     if (bits.length) spawnFloat({text: bits.join(' · ')});
   }
-  return r;
 }
 
 /* ---------- VALVET ---------- */
@@ -32049,6 +32084,7 @@ function showCacheReveal(o){
   const m = $('hrev-overlay').querySelector('.hrev-modal');
   if (m) m.style.setProperty('--rv', col);
   $('hrev-kicker').textContent = o.kicker;
+  $('hrev-kicker').classList.toggle('god', !!o.god);   /* [TILLAGT v5.626.0] */
   const art = $('hrev-art');
   /* [ANDRAT v5.286.0] Kanten och gloden sattes har och det var gloden som ritade
      fyrkanten bakom fyndet. Stilmallen slar av bada nu, sa raderna var dod kod
@@ -32112,6 +32148,7 @@ function showGearReveal(r, o){
      adelstenens fina rullning. */
   showCacheReveal({
     kicker: god ? '\u2605 GOD ROLL' : 'Gear found',
+    god:    god,
     col:    god ? '#ffa63c' : rarCol(rar),
     art:    itemArtFor(r.item_key, rar),
     letter: D.name[0],
@@ -32138,6 +32175,7 @@ function showGemReveal(r){
   };
   showCacheReveal({
     kicker: fin ? '\u2605 GOD ROLL' : 'Gem Forged',
+    god:    fin,
     col:    fin ? '#ffa63c' : rarCol(3),
     art:    'assets/items/gems/' + encodeURIComponent(key) + '.png',
     letter: (r.name || d.name || 'G')[0],
@@ -42051,7 +42089,9 @@ function wireNodeWin(){
     if (a.indexOf('etab:') === 0){ NODE.etab = a.slice(5); renderNodeWin(); return; }
     /* [BORTTAGET v5.151.0] Genvagen till det gamla fonstret. */
     if (a === 'expclaim'){
-      if (claimExpedition(btn.dataset.e)) btn.disabled = true;
+      /* [ANDRAT v5.626.0] Knappen SAGER att trycket tagits. Forut blev den bara
+         gra, och under de sekunder hamtningen tog sag det ut som att inget hant. */
+      if (claimExpedition(btn.dataset.e)){ btn.disabled = true; btn.textContent = 'Collecting\u2026'; }
       /* Hamtningen ar ett servervarv; rutan ritas om nar svaret kommit. */
       setTimeout(() => { if ($('node-overlay').classList.contains('open')) renderNodeWin(); }, 900);
       return;
