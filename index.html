@@ -9827,7 +9827,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.630.0 — UNDERSÖKT RÄCKER</div>
+        <div class="sn-ver">GENESIS v5.631.0 — INBYTET HOS HANDLAREN</div>
       </div>
     </div>
   </aside>
@@ -10757,7 +10757,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div id="shop-pane-trade" style="display:none">
           <div class="desc" style="margin-bottom:8px">This vendor buys what the region
             produces, and pays in credits. Other regions want other things.</div>
-          <div class="upgrade-list" id="trade-list"></div>
+          <div class="upgrade-list trade-list-box" id="trade-list"></div>
         </div>
         <div id="shop-pane-back" style="display:none">
           <div class="desc" style="margin-bottom:8px">Anything you sold in the last hour —
@@ -11099,7 +11099,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.630.0 — UNDERSÖKT RÄCKER</div>
+            <div class="desc">GENESIS v5.631.0 — INBYTET HOS HANDLAREN</div>
           </div>
         </div>
       </div>
@@ -27739,6 +27739,15 @@ function wireTrader(root, regionId, rita){
       vendorTab = b.dataset.vtab;
       rita();
     }));
+    /* [TILLAGT v5.631.0] Inbytesfliken ritas har, efter att boden star pa
+       skarmen. Rita FORST, hamta sedan - samma ordning som Shop-rutan: annars
+       star listan tom tills serverns svar kommit, och en tom lista sager
+       ingenting om varfor. */
+    const tbox = root.querySelector('.trade-list-box');
+    if (tbox){
+      renderTradeIn(tbox);
+      netTradeCfg().then(() => renderTradeIn()).catch(() => {});
+    }
     const gbtn = root.querySelector('#vendor-gift');
     if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); rita(); });
     if (tbuy) tbuy.addEventListener('click', () => {
@@ -28280,11 +28289,19 @@ function buildTrader(regionId){
     (vendorNote
       ? '<div class="vg-note' + (/standing|full|Not enough/.test(vendorNote) ? ' warn' : '') + '">' + vendorNote + '</div>'
       : '');
-  const tab = vendorTab === 'supplies' ? 'supplies' : 'gear';
+  const tab = vendorTab === 'supplies' ? 'supplies' : vendorTab === 'trade' ? 'trade' : 'gear';
+  /* [TILLAGT v5.631.0] TREDJE FLIKEN: INBYTET. Samma lista och samma tabell som
+     Shop-rutans "Trade in" - regionen man STAR i avgor vad handlaren kopper,
+     precis som servern redan kraver. Rutan fylls av wireTrader efter ritningen,
+     for listan behover sina egna lyssnare. */
+  const trade = '<div class="desc" style="margin:2px 0 8px">This vendor buys what the region ' +
+      'produces, and pays in credits. Other regions want other things.</div>' +
+    '<div class="upgrade-list trade-list-box"></div>';
   return '<div class="vendor-tabs">' +
       '<button class="vendor-tab' + (tab === 'gear' ? ' on' : '') + '" data-vtab="gear">Gear</button>' +
       '<button class="vendor-tab' + (tab === 'supplies' ? ' on' : '') + '" data-vtab="supplies">Supplies</button>' +
-    '</div>' + note + (tab === 'gear' ? gear : sup);
+      '<button class="vendor-tab' + (tab === 'trade' ? ' on' : '') + '" data-vtab="trade">Trade in</button>' +
+    '</div>' + note + (tab === 'gear' ? gear : tab === 'supplies' ? sup : trade);
 }
 let vendorTab = 'gear';    // vilken flik som visas hos handlaren
 /* Priset följer samma rep-rabatt som cellen — en handlare som gillar dig är
@@ -32722,8 +32739,18 @@ async function netTradeCfg(){
   } catch (e){ TRADE_CFG = null; }
   return TRADE_CFG;
 }
-function renderTradeIn(){
-  const box = $('trade-list'); if (!box) return;
+/* [ANDRAT v5.631.0] RITAR VILKEN RUTA SOM HELST (Chris: "jag trodde vi hade
+   byggt in trading hos traders, men hittar inget i Quarantine").
+   Inbytet FANNS - men bara i Shop-rutan i sidlisten, medan handlarens egen ruta
+   hade tva flikar, Gear och Supplies. Man letar rimligen dar handlaren star.
+   Listan ritas nu i BADA rutorna ur samma funktion och samma tabell; utan
+   argument ritas varje ruta som finns pa skarmen, sa ett byte uppdaterar den
+   ruta man har framfor sig oavsett vilken det ar. */
+function renderTradeIn(box){
+  if (!box){
+    document.querySelectorAll('.trade-list-box').forEach(b => renderTradeIn(b));
+    return;
+  }
   /* [RATTAT v5.620.0] RUTAN SA FEL SAK NAR SERVERN INTE SVARAT. Listan ar tom
      av tre helt olika skal - ingen uppkoppling, svaret har inte kommit an, eller
      handlaren koper faktiskt ingenting har - och alla tre fick samma text, den
@@ -32765,14 +32792,24 @@ function renderTradeIn(){
   }));
 }
 async function tradeIn(key, times){
+  /* [RATTAT v5.631.0] "THE VENDOR REFUSED THAT" AVEN NAR BYTET GICK IGENOM.
+     Hamtningen hem av vaskan och karaktaren lag inne i SAMMA forsok som sjalva
+     bytet. Slant natet mellan bytet och hamtningen sa rutan att handlaren
+     vagrade - fast krediterna redan var betalda. Ett byte som lyckats far aldrig
+     rapporteras som ett nej. De tva stegen ar atskilda nu: bytet avgor vad som
+     sags, hamtningen ar bara en uppdatering. */
+  let gick = false;
   try {
     const r = await srvRpc('credit_trade', {p_character: SRV.charId, p_key: key, p_times: times});
+    gick = true;
     if (r){
       if (r.credits != null) S.credits = +r.credits;
       say('Traded ' + fmt(r.spent) + ' for ' + fmt(r.got) + ' credits.');
     }
-    await netPullItems(); await netPull();
   } catch (e){ say(srvErrText(e, 'The vendor refused that.')); }
+  if (gick){
+    try { await netPullItems(); await netPull(); } catch (e){}
+  }
   renderTradeIn();
   updateUI(true);
 }
