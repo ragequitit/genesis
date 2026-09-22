@@ -9827,7 +9827,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.628.0 — RECYCLE I VÄSKAN</div>
+        <div class="sn-ver">GENESIS v5.630.0 — UNDERSÖKT RÄCKER</div>
       </div>
     </div>
   </aside>
@@ -11099,7 +11099,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.628.0 — RECYCLE I VÄSKAN</div>
+            <div class="desc">GENESIS v5.630.0 — UNDERSÖKT RÄCKER</div>
           </div>
         </div>
       </div>
@@ -11596,6 +11596,8 @@ const SRV_ERRORS = {
      faktiskt ar fel: avstandet, inte kunskapen. VARFOR inte "send a drone":
      det hade varit fel rad - dronaren var redan skickad. */
   not_adjacent:             'You cannot reach that region from here — travel to a neighbouring region first.',
+  /* [TILLAGT v5.630.0] Serverns nya besked: undersokt racker, okand gor det inte. */
+  not_surveyed:             'You have not surveyed that region — send a survey drone there, or travel through a neighbour.',
   region_locked:            'That region is not open to you yet.',
   expedition_not_finished:  'That expedition is still out.',
   tank_already_full:        'The tank is already full.',
@@ -26623,6 +26625,27 @@ function skipSurvey(){
 
 function isKnown(id){ return S.world.known.includes(id); }
 function isVisited(id){ return S.world.visited.includes(id); }
+/* [TILLAGT v5.629.0] GAR DEN HAR REGIONEN ATT NA HARIFRAN? (Chris bugg:
+   "forsoker resa fran Voxholm till the Quarantine men far felmeddelande".)
+   Servern slapper igenom tva fall och inget annat: en GRANNE till dar man star,
+   eller en region man REDAN BESOKT. Klienten fragade bara om regionen var KAND -
+   alltsa syntes pa kartan - och erbjod darfor en resa som servern alltid skulle
+   neka. Uppmatt: Hopp star i Voxholm, vars enda granne ar Drakemark, och har
+   sett men aldrig besokt The Quarantine. Knappen lovade en resa; servern sa nej.
+   Samma regel star nu pa bada sidor. */
+function canTravelTo(id){
+  if (!id || id === S.world.current) return false;
+  /* [ANDRAT v5.630.0] UNDERSOKT RACKER (Chris: "har man undersokt med en
+     dronare sa far man hoppa dit, annars finns ingen mening med survey alls").
+     Forsta versionen av den har regeln, i gar kvall, kravde ett BESOK - samma
+     krav som servern hade da. Det var for hart och gjorde dronaren meningslos.
+     S.world.known ar exakt serverns rader i character_regions, och en sadan rad
+     skapas bara av en undersokning, ett besok eller skapandet. Grannar gar
+     fortfarande att resa till oundersokta; det ar sa man utforskar framat. */
+  if (isKnown(id)) return true;
+  const adj = (REGIONS[S.world.current] && REGIONS[S.world.current].adj) || [];
+  return adj.indexOf(id) >= 0;
+}
 function zoneKey(regionId, zone){ return regionId + '|' + zone; }
 function isZoneSeen(regionId, zone){ return S.world.zonesSeen.includes(zoneKey(regionId, zone)); }
 /* ---------- ZONERNAS DIMMA (v4.28.0) ----------
@@ -27640,6 +27663,12 @@ function openRegion(id){
     } else if (S.world.travel){
       action = '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">Traveling…</button></div>';
     } else {
+      /* [BORTTAGET v5.630.0] Har stod en last knapp for regioner man inte kunde
+         na (v5.629.0, byggd mot den gamla serverregeln "besokt"). Med regeln
+         "undersokt racker" kan den aldrig visas: kortet har redan delat sig
+         ovanfor - en OKAND region far dronarkortet, och en KAND gar alltid att
+         resa till. En dod gren som ser levande ut ar varre an ingen alls.
+         Regeln sjalv star kvar i canTravelTo, som startTravel fragar. */
       /* Knappen sa forut "Travel - 25 000 Data" och lastes om man inte hade rad,
          men resan drog aldrig en enda data. Nu star det som faktiskt hander. */
       const fc = costToTravel(id);
@@ -28857,6 +28886,7 @@ function checkResearch(){
 }
 function startTravel(id){
   if (S.world.travel || id === S.world.current || !isKnown(id)) return;
+  if (!canTravelTo(id)) return;   /* [TILLAGT v5.629.0] samma regel som servern */
   if (NET.on){
     /* Servern ager kartan, bransleavdraget och klockan. Vi visar en lokal
        resestapel med SERVERNS sluttid, men det ar arrive() som avgor. */
