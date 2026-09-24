@@ -2,7 +2,14 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- [ANDRAT v5.634.0] NYP-ZOOM AR TILLATEN (Chris: "nar allting blir sa himla
+     litet maste man kunna zooma med fingrarna, annars kommer man inte kunna se
+     nagonting"). Forut stod maximum-scale=1 och user-scalable=no, vilket stanger
+     av bade nyp och dubbeltryck. Nu slapps nypet fram, upp till fem ganger.
+     Dubbeltryck-zoomen ar fortfarande kvavd, men i KODEN i stallet: tva snabba
+     tryck fangas och stoppas. Det ar avsiktligt - karnan halls och trycks
+     snabbt, och den som spammar knappar ska inte zooma av misstag. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
 <title>Project Genesis</title>
 <meta name="description" content="Project Genesis — a cyberpunk idle RPG you play in the browser. Build a character, work the professions, and explore five regions with other players.">
 <!-- [TILLAGT v5.474.0] SIDHUVUDET SA VAD SPELET INTE HETTE (Chris).
@@ -2003,11 +2010,17 @@ body.dragging *{cursor:grabbing !important}
 }
 .core-wrap.core-holding::before{opacity:1;transform:translate(-50%,-50%) scale(1);
   animation:coreHallPuls 2.4s ease-in-out infinite}
+/* [ANDRAT v5.634.0] touch-action:none -> pinch-zoom. none stanger av ALLA
+   webblasargester pa elementet, aven nyp-zoomen - och karnan ligger mitt pa
+   skarmen, sa tva fingrar dar var precis vad som hande nar man forsokte zooma.
+   Uppmatt: med none zoomade en nypning mitt pa skarmen ingenting; en ren sida
+   med samma sidhuvud zoomade fint. pinch-zoom slapper igenom just nypet och
+   behaller allt annat: ett finger som haller karnan ar fortfarande spelets. */
 .core-hex{
-  position:relative;z-index:1;cursor:pointer;touch-action:none;
+  position:relative;z-index:1;cursor:pointer;touch-action:pinch-zoom;
   transition:transform .09s ease-out;
 }
-.core-hex svg{pointer-events:none;touch-action:none;display:block}
+.core-hex svg{pointer-events:none;touch-action:pinch-zoom;display:block}
 /* [TILLAGT v5.587.0] NODBILDEN. Samma 191 px som SVG-prismat hade, sa
    piedestalen under den inte behover flyttas. Bilden ligger OVANPA prismat och
    doljer det; gar filen inte att hamta tas .hasnode bort och prismat syns igen. */
@@ -3875,7 +3888,7 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
 }
 .float-win.open{display:block}
 .float-win .inv-modal{cursor:default}
-.inv-titlebar{cursor:grab;user-select:none;touch-action:none}
+.inv-titlebar{cursor:grab;user-select:none;touch-action:pinch-zoom}   /* [ANDRAT v5.634.0] se karnan */
 .inv-titlebar:active{cursor:grabbing}
 .item-win{
   /* Over panelerna, alltid. Ett kort man just plockat fram med hogerklick ska
@@ -7276,8 +7289,10 @@ div.modal.node-modal{width:min(430px,94vw);max-width:94vw}
 .chat-grip{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
   color:var(--text-dim);cursor:grab;user-select:none;font-size:13px;line-height:1;opacity:.7;
   /* Utan detta tolkar pekskarmen forsta fingerrorelsen som en rullning och
-     avbryter draget innan det borjat. Surfplattan ar bred nog att fa dra. */
-  touch-action:none}
+     avbryter draget innan det borjat. Surfplattan ar bred nog att fa dra.
+     [ANDRAT v5.634.0] pinch-zoom i stallet for none: ett finger ar fortfarande
+     ett drag, men tva fingrar far zooma. */
+  touch-action:pinch-zoom}
 .chat-grip:hover{color:var(--cyan);opacity:1}
 .chat-root.drar .chat-tabs{cursor:grabbing}
 .chat-root.idle .chat-panel{opacity:.35}
@@ -9827,7 +9842,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.632.0 — INBYTET BARA HOS HANDLAREN</div>
+        <div class="sn-ver">GENESIS v5.634.0 — NYP-ZOOM PÅ TELEFON</div>
       </div>
     </div>
   </aside>
@@ -11097,7 +11112,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.632.0 — INBYTET BARA HOS HANDLAREN</div>
+            <div class="desc">GENESIS v5.634.0 — NYP-ZOOM PÅ TELEFON</div>
           </div>
         </div>
       </div>
@@ -25035,6 +25050,53 @@ function fitApp(){
   }
 }
 window.addEventListener('resize', fitApp);
+/* ==================== LIGGANDE TELEFON = DATORVY (v5.633.0) ====================
+   Chris: "vrider man telefonen sa att den blir liggande vill jag att den blir
+   samma vy som en datorskarm".
+   VARFOR DET INTE RACKER ATT VRIDA: hela layouten styrs av CSS-brytpunkter mot
+   FONSTRETS BREDD, och en liggande telefon ar bara omkring 844 punkter bred.
+   Den far alltsa surfplattans layout, inte datorns, hur man an vrider den.
+   LOSNINGEN: sidan far LATSAS vara en datorskarm. Vi skriver om sidhuvudets
+   viewport till en fast bredd, och webblasaren krymper hela sidan optiskt sa
+   att den ryms - samma sak som nar man oppnar en datorsida i en telefon och
+   zoomar ut. Da ser CSS 1822 punkter, alla datorregler slar till, och
+   proportionerna blir skarmens.
+   VARFOR 1822: det ar APP_BASE_W, appens egen naturliga bredd. Bredare an sa
+   ger bara tomma marginaler; smalare ger surfplattans layout igen.
+   RORS INTE: staende telefon (portratt), surfplattor och riktiga datorer. Kravet
+   ar grov pekdon OCH liggande OCH en LAG skarm - en surfplatta i liggande ar
+   768 punkter hog och behover ingenting av det har. */
+const LAND_DESK_W = 1822;          /* bredden sidan latsas ha i liggande lage */
+const LAND_MAX_H  = 560;           /* over den hojden ar det ingen telefon */
+/* [ANDRAT v5.634.0] Bada lagena slapper fram nypet. Staende ar sidan redan
+   byggd for skarmen, men liggande ar den nedkrympt till knappt halva storleken -
+   da ar nypet enda vagen att lasa en siffra. */
+const VP_PORTRATT = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
+/* ⚠️ INGEN initial-scale HAR. Med initial-scale=1 slutar webblasaren krympa
+   sidan till skarmen - uppmatt: skalan blev 1 i stallet for 0,46, alltsa
+   visades bara en fjardedel av datorvyn och nypet kunde inte heller zooma
+   ut igen. Utan talet anpassar webblasaren sjalv bredden till skarmen. */
+const VP_LIGGANDE = 'width=' + LAND_DESK_W + ', maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
+let vpLage = '';
+function landscapeDesktop(){
+  const vp = document.querySelector('meta[name=viewport]');
+  if (!vp) return;
+  let grov = true;
+  try { grov = window.matchMedia('(pointer:coarse)').matches; } catch (e){}
+  /* Hojden mats mot skarmen, inte fonstret: nar viewporten skrivits om ar
+     innerHeight redan raknad i den nya, latsade skalan. */
+  const kortSida = Math.min(screen.width || 0, screen.height || 0);
+  const liggande = (window.innerWidth > window.innerHeight) && kortSida > 0 && kortSida <= LAND_MAX_H;
+  const vill = (grov && liggande) ? 'liggande' : 'portratt';
+  if (vill === vpLage) return;     /* ingen omskrivning i onodan - den kostar en omritning */
+  vpLage = vill;
+  vp.setAttribute('content', vill === 'liggande' ? VP_LIGGANDE : VP_PORTRATT);
+  /* Layouten maste rakna om sig sjalv efter bytet: brytpunkterna ar andra nu. */
+  setTimeout(() => { try { fitApp(); applyLayout(); } catch (e){} }, 60);
+}
+window.addEventListener('resize', landscapeDesktop);
+window.addEventListener('orientationchange', () => setTimeout(landscapeDesktop, 120));
+landscapeDesktop();
 /* Skalan raknas om nagra ganger de forsta sekunderna: rutorna fylls av servern
    och hojden andras medan det sker. */
 (function fitLoop(){
