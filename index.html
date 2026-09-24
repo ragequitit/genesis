@@ -8432,6 +8432,34 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .dr-step.on{color:var(--cyan)}
 .dr-step .mk{width:17px;height:17px;border-radius:50%;border:2px solid currentColor;flex:0 0 auto}
 .dr-steps .bar{flex:1 1 auto;height:1px;background:var(--border-soft);min-width:14px}
+/* ===== STEGEN SAGER VAR I RESAN MAN AR (v5.635.0, Chris) =====
+   KLART: gron neon - ring, fylld prick och ett sken, allt i samma gronton som
+   resten av spelet anvander for "gjort".
+   PAGAR: en ring UTANFOR cirkeln som far pulsera utat, och en prick inne i
+   cirkeln som andas. Ringen ar ett eget skikt (::before) sa den kan vaxa utan
+   att flytta nagot - den ligger i en cirkel som redan har sin plats. */
+.dr-step.klar{color:var(--green)}
+.dr-step.klar .mk{position:relative;border-color:var(--green);
+  box-shadow:0 0 10px rgba(61,255,158,.45), inset 0 0 7px rgba(61,255,158,.28)}
+.dr-step.klar .mk::after{content:'';position:absolute;inset:3px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 8px rgba(61,255,158,.9)}
+.dr-step.pagar{color:var(--cyan)}
+.dr-step.pagar .mk{position:relative;border-color:var(--cyan);
+  box-shadow:0 0 10px rgba(56,232,255,.40)}
+.dr-step.pagar .mk::before{content:'';position:absolute;inset:-5px;border-radius:50%;
+  border:1px solid var(--cyan);animation:drPing 1.9s ease-out infinite}
+.dr-step.pagar .mk::after{content:'';position:absolute;inset:4px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 9px rgba(56,232,255,.95);
+  animation:drPuls 1.5s ease-in-out infinite}
+@keyframes drPing{0%{transform:scale(.72);opacity:.9}70%{transform:scale(1.45);opacity:0}100%{transform:scale(1.45);opacity:0}}
+@keyframes drPuls{0%,100%{opacity:.5;transform:scale(.78)}50%{opacity:1;transform:scale(1.1)}}
+/* Linjen mellan stegen bar samma besked: gron dar man varit, turkos dit man ar
+   pa vag. */
+.dr-steps .bar{background:linear-gradient(90deg,rgba(61,255,158,.75),rgba(56,232,255,.55))}
+@media (prefers-reduced-motion: reduce){
+  .dr-step.pagar .mk::before{animation:none;opacity:.45}
+  .dr-step.pagar .mk::after{animation:none;opacity:1;transform:none}
+}
 .dr-note{font-size:12.5px;color:var(--text-dim)}
 @media (max-width:700px){
   /* Telefonen staplar: bilden overst i full bredd med ett fast forhallande, sa
@@ -9842,7 +9870,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.634.0 — NYP-ZOOM PÅ TELEFON</div>
+        <div class="sn-ver">GENESIS v5.635.0 — DRÖNARENS STEG LEVER</div>
       </div>
     </div>
   </aside>
@@ -11112,7 +11140,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.634.0 — NYP-ZOOM PÅ TELEFON</div>
+            <div class="desc">GENESIS v5.635.0 — DRÖNARENS STEG LEVER</div>
           </div>
         </div>
       </div>
@@ -41792,9 +41820,13 @@ function nodeZoneHTML(){
           '<span>Time remaining</span></div>' +
         '<div class="nd-scanbar"><i id="node-scan-fill" style="width:' + zoneScanPct() + '%"></i></div>' +
         '<div class="dr-steps">' +
-          '<span class="dr-step on"><span class="mk"></span>Launched</span>' +
+          /* [ANDRAT v5.635.0] Tva OLIKA lagen (Chris). Forut bar bada samma
+             klass, sa ett avklarat steg och ett pagaende sag likadana ut - och
+             da sager raden ingenting om var i resan man ar. Launched ar KLART
+             (gron), Scanning PAGAR (pulserande ring och prick). */
+          '<span class="dr-step klar"><span class="mk"></span>Launched</span>' +
           '<span class="bar"></span>' +
-          '<span class="dr-step on"><span class="mk"></span>Scanning</span>' +
+          '<span class="dr-step pagar"><span class="mk"></span>Scanning</span>' +
         '</div>' +
         '<div class="dr-note">Exploring ' + esc(NODE.zone || '') + '\u2026</div>' +
         '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>');
