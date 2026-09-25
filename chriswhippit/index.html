@@ -99,6 +99,7 @@
   [data-social] { transition: transform .4s cubic-bezier(.2,.7,.2,1), box-shadow .4s ease; }
   [data-social]:hover { transform: translateY(-4px); box-shadow: 0 0 0 1px var(--color-accent-600), 0 18px 40px rgba(0,0,0,.5); }
   [data-sponsor] { transition: transform .45s cubic-bezier(.2,.7,.2,1), box-shadow .45s ease; }
+  [data-sponsor]:hover [data-yt] { opacity: 1 !important; }
   [data-sponsor]:hover { transform: scale(1.15); z-index: 3; box-shadow: 0 0 0 1px var(--color-accent-600), 0 26px 60px rgba(0,0,0,.65); }
   [data-stat] { transition: transform .4s cubic-bezier(.2,.7,.2,1); }
   [data-stat]:hover { transform: translateY(-4px); }
@@ -233,11 +234,13 @@
                   <span style="position: absolute; inset: 0; display: grid; place-items: center; transform: {{ s.tf }};">
                     <img src="{{ s.logo }}" alt="" draggable="false" style="-webkit-user-drag: none; max-width: 78%; max-height: 74%; object-fit: contain; display: block;">
                   </span>
+                  <sc-if value="{{ s.hasThumb }}"><img data-yt src="{{ s.thumb }}" alt="" loading="lazy" draggable="false" style="-webkit-user-drag: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s ease;"></sc-if>
                 </div>
               </sc-if>
               <sc-if value="{{ s.noLogo }}" hint-placeholder-val="{{ true }}">
                 <div style="position: relative; height: 150px; border-radius: 8px; border: 1px dashed var(--color-neutral-800); display: grid; place-items: center; overflow: hidden; background: repeating-linear-gradient(135deg, rgba(145,132,217,.06) 0 6px, transparent 6px 12px);">
                   <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .12em; color: var(--color-neutral-600);">sponsorlogo</span>
+                  <sc-if value="{{ s.hasThumb }}"><img data-yt src="{{ s.thumb }}" alt="" loading="lazy" draggable="false" style="-webkit-user-drag: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s ease;"></sc-if>
                 </div>
               </sc-if>
               <div style="font-family: var(--font-heading); font-size: 14px; font-weight: 500; margin-top: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.name }}</div>
@@ -962,7 +965,8 @@ class Component extends DCLogic {
       ...s,
       hasLogo: s.logo ? true : '',
       noLogo: s.logo ? '' : true,
-      tf: 'translate(' + (s.ox || 0) + '%, ' + (s.oy || 0) + '%) scale(' + (s.zoom || 1) + ')'
+      tf: 'translate(' + (s.ox || 0) + '%, ' + (s.oy || 0) + '%) scale(' + (s.zoom || 1) + ')',
+      ...(() => { const m = /(?:[?&]v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})/.exec(s.url || ''); return m ? { hasThumb: true, thumb: 'https://i.ytimg.com/vi/' + m[1] + '/hqdefault.jpg' } : { hasThumb: '', thumb: '' }; })()
     }));
     const loop = marked.concat(marked);
     return {
