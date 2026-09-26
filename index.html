@@ -8754,7 +8754,16 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .zn-cnt.off{cursor:default;opacity:.55}
 .zn-cnt:not(.off):hover{background:rgba(56,232,255,.06)}
 .zn-cnt-ico{font-size:15px;line-height:1;display:inline-flex}
-.zn-cnt-ico .ui-ico{width:16px;height:16px}
+.zn-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px}
+.zn-i .art-img{width:100%;height:100%;object-fit:contain}
+.zn-i .art-fall{display:none;font-style:normal}
+.zn-i.noart .art-fall{display:inline}
+.zn-i.dg{color:#ffb347}
+.zn-i.dg svg{width:18px;height:18px}
+.zn-kick .zn-i{width:14px;height:14px;flex-basis:14px}
+.zn-kick .zn-i.dg svg{width:14px;height:14px}
+.zn-card[data-znph] .zn-art{background:rgba(56,232,255,.06)}
+.zn-card[data-znph] .zn-art .art-img{object-fit:contain;width:56%;height:56%;opacity:.75}
 .zn-cnt-n{font-size:9.5px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--text-dim);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .zn-cnt b{font-family:var(--font-mono);font-size:12px;font-weight:900;color:var(--text);
@@ -8776,7 +8785,7 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
   text-transform:uppercase;color:var(--cyan)}
 .zn-kick .ui-ico{width:14px;height:14px}
 .zn-name{font-size:15px;font-weight:900;color:var(--text);line-height:1.15;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}   /* [ANDRAT v5.652.1] tva rader hellre an ... */
 .zn-chips{display:flex;flex-wrap:wrap;gap:6px}
 .zn-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:900;letter-spacing:.06em;
   text-transform:uppercase;padding:3px 8px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);
@@ -10030,7 +10039,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.652.0 — RECYCLE GER FRAGMENT</div>
+        <div class="sn-ver">GENESIS v5.652.1 — ZONRUTANS RÄKNARE RÄTADE</div>
       </div>
     </div>
   </aside>
@@ -11328,7 +11337,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.652.0 — RECYCLE GER FRAGMENT</div>
+            <div class="desc">GENESIS v5.652.1 — ZONRUTANS RÄKNARE RÄTADE</div>
           </div>
         </div>
       </div>
@@ -13315,6 +13324,14 @@ const DUNGEON_TEASER = {
 };
 /* [TILLAGT v5.651.0] Dungeonens id per zon, for bilden pa zonrutans kort.
    Samma id som pve_dungeon_config och assets/dungeons/<id>.webp. */
+/* [TILLAGT v5.652.1] Zonrutans ikoner: profilens tre bilder och snabbmenyns
+   dungeonport (samma SVG som knappen Dungeon). */
+const ZN_ICO = {
+  quest: '<span class="zn-i art-wrap">' + artWithFallback('assets/ui/profile/quests.webp', '📜') + '</span>',
+  enc:   '<span class="zn-i art-wrap">' + artWithFallback('assets/ui/profile/encounters.webp', '⚔️') + '</span>',
+  exp:   '<span class="zn-i art-wrap">' + artWithFallback('assets/ui/profile/expeditions.webp', '🧭') + '</span>',
+  dg:    '<span class="zn-i dg">' + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V10a8 8 0 0 1 16 0v11"/><path d="M3.2 21h17.6"/><path d="M12 20.4V4.4M8 20.4v-9.8M16 20.4v-9.8"/><path d="M4.2 13.6h15.6M4 17.3h16"/></svg>' + '</span>'
+};
 const DUNGEON_ID = {
   'voxholm|The Deepshaft': 'deepshaft',
   'drakemark|The Dragon Nest': 'dragonnest',
@@ -42477,7 +42494,7 @@ function nodeZoneHTML(){
   const kort = [];
   const chip = (txt, cls) => '<span class="zn-chip' + (cls ? ' ' + cls : '') + '">' + txt + '</span>';
   const card = (go, extra, art, fall, kicker, name, chips, foot) =>
-    '<div class="zn-card nd-what" data-ndgo="' + go + '"' + extra + '>' +
+    '<div class="zn-card" data-ndgo="' + go + '"' + extra + '>' +
       '<div class="zn-art art-wrap">' + (art ? artWithFallback(art, fall) : '<i class="art-fall">' + fall + '</i>') + '</div>' +
       '<div class="zn-body">' +
         '<div class="zn-kick">' + kicker + '</div>' +
@@ -42487,23 +42504,24 @@ function nodeZoneHTML(){
       '</div><span class="zn-go">›</span></div>';
   nodeQuestsAt().forEach(q => {
     kort.push({k: 'quest', h: card('quest', ' data-q="' + esc(q.quest_id) + '"', questArt(q), '📜',
-      uiIco('pin') + ' Contract', esc(q.name), chip('Waiting'), '')});
+      ZN_ICO.quest + ' Contract', esc(q.name), chip('Waiting'), '')});
   });
   const encHar = pveEncsAt(NODE.region, NODE.zone);
   encHar.forEach(e => {
     const rt = PVE_RATING[e.rating] || PVE_RATING.normal;
     kort.push({k: 'enc', h: card('enc', ' data-e="' + esc(e.id) + '"', e.key ? 'assets/foes/' + e.key + '.webp' : '', '⚔️',
-      '⚔️ Encounter', esc(e.name),
+      ZN_ICO.enc + ' Encounter', esc(e.name),
       chip('Level ' + e.level, 'lvl') + chip(rt.name, 'rate') , '')});
   });
   if (!encHar.length && NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone))
-    kort.push({k: 'enc', h: card('enc', '', '', '⚔️', '⚔️ Encounter',
+    /* Inget mote framletat an: svarden i rutan i stallet for en tom ruta. */
+    kort.push({k: 'enc', h: card('enc', ' data-znph="1"', 'assets/ui/profile/encounters.webp', '⚔️', ZN_ICO.enc + ' Encounter',
       'Something waits here', chip(nodeHere() ? 'Search the zone' : 'Travel to see it'), '')});
   const exps = (typeof expDefsForZone === 'function') ? (expDefsForZone(NODE.region, NODE.zone) || []) : [];
   exps.forEach(def => {
     const run = (S.exp.runs || []).find(r => r.id === def.id || r.expId === def.id);
     kort.push({k: 'exp', h: card('exp', '', 'assets/exp/' + def.id + '.webp', '🧭',
-      uiIco('dur') + ' Expedition', esc(def.name),
+      ZN_ICO.exp + ' Expedition', esc(def.name),
       chip('⚡ Level ' + def.lvl, 'lvl') + chip(uiIco('dur') + ' ' + (run ? fmtDur(Math.max(0, Math.round(((run.endsAt || 0) - nu()) / 1000))) : expTimeText(def))),
       expShardRad(Object.assign({region: NODE.region, zone: NODE.zone}, def)))});
   });
@@ -42511,7 +42529,7 @@ function nodeZoneHTML(){
   if (dgNamn){
     const dgId = DUNGEON_ID[NODE.region + '|' + NODE.zone];
     kort.push({k: 'dg', h: card('dg', '', dgId ? dgcArtSrc(dgId, false) : '', '🏰',
-      '🏰 Dungeon', esc(dgNamn), chip('Bosses inside'), '')});
+      ZN_ICO.dg + ' Dungeon', esc(dgNamn), chip('Bosses inside'), '')});
   }
   townsIn(NODE.zone).forEach(k => {
     const t = TOWNS[k];
@@ -42520,17 +42538,20 @@ function nodeZoneHTML(){
       chip(k === 'vendor' ? 'Buys and sells' : 'Store what you keep'), '')});
   });
   const antal = k => kort.filter(c => c.k === k).length;
+  /* [ANDRAT v5.652.1] Raknarna bar klassen nd-what (kant, marginal) - darav
+     strecket och de skeva knapparna (Chris). Egen stil nu, och spelets egna
+     ikoner: profilens quests/encounters/expeditions och snabbmenyns dungeon. */
   const cnt = (k, ikon, namn) => {
     const n = antal(k);
-    return '<div class="zn-cnt' + (n ? ' nd-what' : ' off') + '"' + (n ? ' data-ndgo="' + k + '"' : '') + '>' +
+    return '<div class="zn-cnt' + (n ? '' : ' off') + '"' + (n ? ' data-ndgo="' + k + '"' : '') + '>' +
       '<span class="zn-cnt-ico">' + ikon + '</span><span class="zn-cnt-n">' + namn + '</span>' +
       '<b>' + n + '</b></div>';
   };
   h += '<div class="zn-counts">' +
-    cnt('quest', uiIco('pin'), 'Quests') +
-    cnt('enc', '⚔️', 'Encounters') +
-    cnt('exp', uiIco('dur'), 'Expeditions') +
-    cnt('dg', '🏰', 'Dungeons') +
+    cnt('quest', ZN_ICO.quest, 'Quests') +
+    cnt('enc', ZN_ICO.enc, 'Encounters') +
+    cnt('exp', ZN_ICO.exp, 'Expeditions') +
+    cnt('dg', ZN_ICO.dg, 'Dungeons') +
   '</div>';
   h += '<div class="section-label zn-label">Active in this zone</div>';
   let grid = kort.map(c => c.h).join('');
