@@ -6815,6 +6815,7 @@ button:active:not(:disabled), .zx-btn:active:not(:disabled),
   align-items:center;justify-content:flex-end;height:100%}
 .pvb-body{width:150px;height:82%;min-height:100px;position:relative;display:flex;
   align-items:flex-end;justify-content:center;transform-origin:50% 100%;font-size:64px;line-height:1}
+.pvb-body img.flip{transform:scaleX(-1)}   /* [TILLAGT v5.648.0] se FOE_FACES_RIGHT */
 .pvb-body img{width:100%;height:100%;object-fit:contain;object-position:bottom;display:block;
   -webkit-user-drag:none;user-select:none;filter:drop-shadow(0 8px 16px rgba(0,0,0,.65))}
 .pvb-body::after{content:"";position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
@@ -9943,7 +9944,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.647.0 — DÖD KOD RIVEN</div>
+        <div class="sn-ver">GENESIS v5.648.0 — BRICKORNA FÖRKLARAR SIG</div>
       </div>
     </div>
   </aside>
@@ -11239,7 +11240,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.647.0 — DÖD KOD RIVEN</div>
+            <div class="desc">GENESIS v5.648.0 — BRICKORNA FÖRKLARAR SIG</div>
           </div>
         </div>
       </div>
@@ -12962,6 +12963,17 @@ function buildZoneEncounter(regionId, zone){
    [OMBYGGT v5.465.0] STRIDSVYN (Chris). Se CSS-kommentaren vid .pve-stage for
    bilderna. Loggen bar sedan v5.465.0 pd/pt/ed/et per rad (skada och sort); en
    aldre logg utan dem visas anda - skadan raknas da ur halsan. */
+/* [TILLAGT v5.648.0] STRIDSBILDER RITADE AT HOGER (Chris: alla ska titta at
+   vanster, dar spelaren star). Genomgangna en och en, 174 bilder; de har 23 ar
+   spegelvanda i striden. Ritas en bild om at ratt hall stryks nyckeln har. */
+const FOE_FACES_RIGHT = new Set([
+  'cut_brine_eel', 'cut_cove_runner', 'cut_deck_gunner', 'cut_harpoon_gunner',
+  'cut_jungle_cat', 'cut_moray_eel', 'cut_reef_shark', 'cut_ship_termite', 'cut_woodworm',
+  'dra_glass_serpent', 'dra_road_chief', 'dra_rock_falcon', 'dra_thorn_lion',
+  'nov_breach_gunner', 'nov_plasma_serpent', 'nov_purse_snatcher', 'nov_stall_pickpocket',
+  'qua_blight_snail', 'qua_feral_cyclist', 'qua_patient_crawler', 'qua_raven', 'qua_vent_centipede',
+  'vox_drill_mole'
+]);
 function showFightPlayback(enc, r){
   const old = document.getElementById('pve-overlay');
   if (old) old.remove();
@@ -12996,6 +13008,10 @@ function showFightPlayback(enc, r){
                regioner vars genomskinliga konst inte ar gjord an, och tecknet sist
                om ingen fil finns. Sa ser striden ut nagot aven utan konst. */
             (foeKey ? '<img alt="" draggable="false" src="assets/foes/fight/' + esc(foeKey) + '.webp" ' +
+              /* [TILLAGT v5.648.0] FIENDEN SKA TITTA PA SPELAREN (Chris). Spelaren
+                 star till vanster, sa en bild ritad at hoger speglas. Vilka det
+                 galler star i FOE_FACES_RIGHT - en lista, ingen omritning. */
+              (FOE_FACES_RIGHT.has(foeKey) ? 'class="flip" ' : '') +
               'data-k="' + esc(foeKey) + '" ' +
               'onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\'assets/foes/\'+this.dataset.k+\'.webp\'}' +
               'else{this.parentNode.textContent=\'\\ud83d\\udc7e\'}">' : '\ud83d\udc7e') +
@@ -41705,6 +41721,45 @@ const VENDOR_LINES = {
 function vendorLine(reg){
   return VENDOR_LINES[reg] || 'Look around. I will be here.';
 }
+/* [TILLAGT v5.648.0] Texterna bakom fiendekortets tre brickor. Korta, och
+   alltid om SPELAREN: gor det har nagot for mig? */
+function pveTypeTip(enc){
+  const t = enc.type_name || 'Unknown';
+  const bonus = (typeof classVal === 'function' && enc.ptype) ? classVal('vs_' + enc.ptype) : 0;
+  return t + ' — one of the five kinds of foe.\n' +
+    (bonus > 0
+      ? 'Your class deals +' + bonus + '% damage to ' + t + 's. This fight favours you.'
+      : 'Your class has no bonus against ' + t + 's. Nothing changes for you here.');
+}
+function pveLevelTip(enc){
+  const me = (typeof levelInfo === 'function') ? levelInfo().lvl : 0;
+  const d = (+enc.level || 0) - me;
+  const rel = !me ? '' : d > 0 ? ' It is ' + d + ' above you.' : d < 0 ? ' It is ' + (-d) + ' below you.' : ' Same level as you.';
+  return 'Level ' + enc.level + ' sets its health and attack.' + rel +
+    '\nThe Difficulty rating below already weighs this against your gear.';
+}
+function pveShapeTip(shape){
+  const k = String(shape || '').toLowerCase();
+  if (k === 'glass cannon')
+    return 'Hits hard, dies fast.\nAttack far above normal for its level, health far below. Kill it before it lands many hits — damage and a strong opening strike win this.';
+  if (k === 'armoured')
+    return 'Soaks hits, hits softly.\nHealth far above normal for its level, attack below. A long fight, but a safe one for your health.';
+  if (k === 'heavy')
+    return 'Lots of health AND hard hits.\nThe toughest shape. Trust the Difficulty rating before you go in.';
+  return '';
+}
+
+/* [TILLAGT v5.648.0] Hur lange NODENS zon vilar, i sekunder. Serverns lista
+   bar en sluttid per zon; star man i zonen och listan saknar den galler det
+   gamla beskedet for zonen man star i. Noll = inget vilar, kika. */
+function nodeZoneRestSecs(){
+  try {
+    const t = PVE.rest && PVE.rest[NODE.region + '|' + NODE.zone];
+    if (t) return Math.max(0, Math.ceil((t - Date.now()) / 1000));
+    if (nodeHere()) return Math.max(0, PVE.cd || 0);
+  } catch (e){}
+  return 0;
+}
 function nodeEncounterHTML(){
   const here = nodeHere();
   /* [ANDRAT v5.612.0] VILKET mote noden gallde. Kartan ritar ett marke per mote
@@ -41736,8 +41791,14 @@ function nodeEncounterHTML(){
         '<div class="pve-kicker">Hostile sighted</div>' +
         '<div class="pve-name">' + esc(enc.name) + '</div>' +
         '<div class="pve-tags">' +
-          '<span class="pve-tag">' + esc(enc.type_name) + '</span>' +
-          '<span class="pve-tag lvl">Level ' + enc.level + '</span>' +
+          /* [TILLAGT v5.648.0] VAD BRICKORNA BETYDER (Chris): "paverkar det mig
+             eller inte?" Hall pekaren over (tryck pa telefon) sa star det en rad
+             eller tva. Sorten laser klassens egen bonus ur classVal, samma tal
+             som striden lagger pa - inte ett tal skrivet har. Formen forklaras
+             med samma tre ord servern kan skicka (pve_shape); ett okant ord far
+             ingen text alls. */
+          '<span class="pve-tag" data-pttip="' + esc(pveTypeTip(enc)) + '">' + esc(enc.type_name) + '</span>' +
+          '<span class="pve-tag lvl" data-pttip="' + esc(pveLevelTip(enc)) + '">Level ' + enc.level + '</span>' +
           /* [TILLAGT 2026-09-17] FIENDENS FORM (Chris). Kortet visar 2223 halsa
              och 85 attack, men spelaren vet inte vad som ar NORMALT for niva 20 -
              talen sager alltsa ingenting om hur striden kommer kannas. Ett ord
@@ -41746,7 +41807,7 @@ function nodeEncounterHTML(){
              striden anvander. Klienten hittar aldrig pa det sjalv, sa kortet kan
              inte saga emot striden. Star talen nara 1,00 skickar servern inget
              ord alls och raden uteblir - da finns inget att saga. */
-          (enc.shape ? '<span class="pve-tag form">' + esc(enc.shape) + '</span>' : '') +
+          (enc.shape ? '<span class="pve-tag form" data-pttip="' + esc(pveShapeTip(enc.shape)) + '">' + esc(enc.shape) + '</span>' : '') +
         '</div>' +
         '<div class="pve-blurb">' + esc(enc.blurb) + '</div>' +
         '<div class="pve-diff"><i>Difficulty</i>' +
@@ -41770,9 +41831,16 @@ function nodeEncounterHTML(){
       '<button class="btn-neutral" data-nd="close">Leave</button></div>';
     return h;
   }
-  if (PVE.cd > 0)
+  /* [RATTAT v5.648.0] RUTAN FRAGADE FEL ZONS VILA (Chris). Hopp stod i The
+     Shallows och hade just vunnit bada motena dar - da vilade DEN zonen fem
+     minuter. Oppnade han Port Town sa rutan "the area is quiet ... 5 min" och
+     kikade aldrig dit: PVE.cd ar vilan i zonen man STAR i, inte i den ruta man
+     oppnat. Nu fragar rutan zonens EGEN vila (samma lista kartan doljer marken
+     efter), och kiken gors sa fort zonen inte vilar. */
+  const vilaSek = nodeZoneRestSecs();
+  if (vilaSek > 0)
     return h + '<div class="shelf-empty">The area is quiet. Something may turn up in ~' +
-      Math.max(1, Math.ceil(PVE.cd / 60)) + ' min.</div>' +
+      Math.max(1, Math.ceil(vilaSek / 60)) + ' min.</div>' +
       '<div class="nd-acts"><button class="btn-neutral" data-nd="close">Close</button></div>';
   /* Kiken ar pa vag - rutan ritas om nar svaret kommer. */
   pveKika(NODE.region, NODE.zone);
@@ -42792,7 +42860,12 @@ $('dgc-body').addEventListener('click', ev => {
             /* Valet hamtas om: servern slapper dungeonen nu nar loppet ar borta. */
             return netDungeonChoices().catch(() => null);
           })
-          .then(() => { renderDgChoice(); placeDgcWin(); if (r) showDungeonSummary(r); });
+          /* [ANDRAT v5.648.0] RUTAN STANGS EFTER HAMTNINGEN (Chris). Forut
+             ritades den om och foll tillbaka till svarighetsvalet - och stod man
+             inte vid en dungeon blev det ett stort tomt fonster med "There is
+             no dungeon where you stand". Efter hamtningen finns inget kvar att
+             visa har: kvittot ar en egen ruta och far sta ensamt. */
+          .then(() => { closeDgChoice(); renderDgBadge(); if (r) showDungeonSummary(r); });
       })
       .catch(e => {
         DGC_BUSY = false; say(srvErrText(e));
@@ -42914,7 +42987,15 @@ document.addEventListener('pointerover', e => {
 document.addEventListener('pointermove', e => {
   if (ptTipEl) ptTipMove(e.clientX, e.clientY);
 });
-document.addEventListener('pointerdown', ptTipHide);
+/* [ANDRAT v5.648.0] PA TELEFON VISAR ETT TRYCK TEXTEN (Chris). Forut gomde
+   varje tryck den - och pa pekskarm kommer trycket i samma andetag som
+   pekaren, sa texten hann aldrig synas. Ett tryck pa en bricka med text visar
+   den; ett tryck var som helst annars gommer den, som forut. */
+document.addEventListener('pointerdown', e => {
+  const nod = e.target.closest && e.target.closest('[data-pttip]');
+  if (e.pointerType === 'touch' && nod){ ptTipShow(nod.dataset.pttip, e.clientX, e.clientY); return; }
+  ptTipHide();
+});
 /* [TILLAGT v5.583.0] Sakerhetsventiler for Core Sync-kortet: ett klick var som
    helst utanfor brickan, eller Escape, stanger det. Kortet ska aldrig kunna
    overleva att brickan under det forsvinner. */
