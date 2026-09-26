@@ -9943,7 +9943,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.646.0 — SKRAPET VINKAR</div>
+        <div class="sn-ver">GENESIS v5.647.0 — DÖD KOD RIVEN</div>
       </div>
     </div>
   </aside>
@@ -11239,7 +11239,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.646.0 — SKRAPET VINKAR</div>
+            <div class="desc">GENESIS v5.647.0 — DÖD KOD RIVEN</div>
           </div>
         </div>
       </div>
@@ -13506,75 +13506,8 @@ function placeDgcWinGammal(){
   mitt();
   requestAnimationFrame(mitt);
 }
-/* Ett kort. 'd' ar serverns halva av svaret, inget raknas om har. */
-function dgcCardHTML(dg, d, heroic){
-  const cls = 'dgc-card' + (heroic ? ' heroic' : '') +
-              (heroic && !d.unlocked ? ' locked' : '');
-  const names = DGC && DGC.boss_names ? DGC.boss_names : [];
-  const n = +d.bosses || 0;
-  let bossar = '';
-  for (let i = 1; i <= n; i++){
-    const nm = names[i - 1] || ('Boss ' + i);
-    bossar += '<div class="dgc-bcell' + (i === n ? ' final' : '') + '" title="' + esc(nm) + '">' +
-      '<div class="dgc-boss' + (i === n ? ' final' : '') + '">' +
-        '<img src="' + dgcBossSrc(dg, i) + '" alt="" draggable="false"' +
-        ' onerror="this.closest(\'.dgc-boss\').classList.add(\'noart\')">' +
-        '<span class="ph">' + DGC_ICONS.boss + '</span></div>' +
-      '<span class="dgc-bname">' + esc(nm) + '</span></div>';
-  }
-  /* Vad knappen far gora, och varfor inte. Servern provar samma tre villkor. */
-  let disabled = false, why = '';
-  if (heroic && !d.unlocked){
-    disabled = true; why = 'Clear the normal difficulty first';
-  } else if (heroic && (+d.cooldown_secs > 0)){
-    disabled = true; why = 'Heroic ready in ' + fmtDur(+d.cooldown_secs);
-  }
-  /* [OMBYGGT v5.147.0] ORDNINGEN AR VAND. Overst under bilden star det man
-     kommer FOR - vad korningen kan ge. Siffrorna man laser en gang sitter
-     langst ned, under bossarnas namn.
-     Raderna listar bara det servern FAKTISKT delar ut vid uthamtning: gear i
-     sallsynthetsspannet, bossarnas egna signaturpjaser, skrot, erfarenhet och
-     - bara om man tar sig hela vagen - en ritning. */
-  return '<div class="' + cls + '" data-dgc-card="' + (heroic ? 'heroic' : 'normal') + '">' +
-    '<div class="dgc-kind">' + (heroic ? 'Heroic Dungeon' : 'Dungeon') + '</div>' +
-    '<div class="dgc-title">' + esc((DGC && DGC.name) || 'Dungeon') + '</div>' +
-    '<div class="dgc-art">' +
-      '<img src="' + dgcArtSrc(dg, heroic) + '" alt="" draggable="false"' +
-      ' onerror="this.closest(\'.dgc-art\').classList.add(\'noart\')">' +
-      '<span class="ph">Art pending</span></div>' +
-    '<div class="dgc-facts">' +
-      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.gem + '</i>Gear \u00b7 ' +
-        '<span class="lo">' + esc(d.rar_low) + '</span>\u2014<span class="hi">' + esc(d.rar_high) + '</span></div>' +
-      /* [ANDRAT v5.260.0] Listan sa samma sak tva ganger (Chris): bossarnas
-         signaturpjaser AR gear, och "pa en full genomgang" lovade mer an raden
-         holl. Fyra rader, en sak per rad. */
-      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.boss + '</i>Schematics</div>' +
-      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.live + '</i>Scrap</div>' +
-      '<div class="dgc-fact"><i class="ic">' + DGC_ICONS.live + '</i>XP</div>' +
-      /* [TILLAGT v5.148.0] Heroiskt foljer spelarens niva. Utan raden ser det ut
-         som att en gammal region blir gratis - den blir det inte langre. */
-      /* [BORTTAGET v5.260.0] "Scales to your level" (Chris). Raden fanns bara
-         i den heroiska spalten och gjorde att de tva kortens knappar hamnade pa
-         olika hojd - och spelaren behover inte veta det. */
-    '</div>' +
-    '<div class="dgc-bosses">' + bossar + '</div>' +
-    '<div class="dgc-pills">' +
-      '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.revive + '</i>' +
-        (+d.revives) + (+d.revives === 1 ? ' Revive' : ' Revives') + '</span>' +
-      '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.clock + '</i>' + (+d.minutes) + ' min</span>' +
-      '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.boss + '</i>' + n +
-        (heroic ? ' Heroic Bosses' : ' Bosses') + '</span>' +
-      /* [TILLAGT v5.262.0] SVARIGHETEN (Chris). Servern simulerar hela loppet
-         utan healing och svarar med samma bedomning som ett mote far - sa gront
-         betyder samma sak har som ute i varlden. Klienten raknar aldrig sjalv.
-         Impossible stanger INTE knappen; man far ga in anda. */
-      dgcRatingPill(heroic) +
-    '</div>' +
-    /* [OMBYGGT v5.149.0] Knappraden. Star en korning igang byts valet mot en
-       LAMNA-knapp bredvid, och bada fragar en gang extra innan de gor nagot. */
-    dgcButtonsHTML(heroic, disabled, why) +
-    '</div>';
-}
+/* [BORTTAGET v5.647.0] dgcCardHTML var dod kod - dungeonfonstret ritas av
+   buildDgSetup nedan och ingen anropade den langre. */
 /* Knapparna langst ned i ett kort. Tre lagen:
    - inget lopp igang: ENTER DUNGEON / ENTER HEROIC, med en fraga fore start
    - lopp igang i DEN HAR svarighetsgraden: ENTER slacks och LEAVE DUNGEON star bredvid
