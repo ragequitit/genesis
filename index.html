@@ -10030,7 +10030,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.651.0 — ZONRUTAN SOM KORT</div>
+        <div class="sn-ver">GENESIS v5.652.0 — RECYCLE GER FRAGMENT</div>
       </div>
     </div>
   </aside>
@@ -11328,7 +11328,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.651.0 — ZONRUTAN SOM KORT</div>
+            <div class="desc">GENESIS v5.652.0 — RECYCLE GER FRAGMENT</div>
           </div>
         </div>
       </div>
@@ -15182,6 +15182,7 @@ async function netSell(gear){
 async function netSalvage(gear){
   if (!NET.on || !gear || !gear.sid) return null;
   const r = await srvRpc('salvage_item', {p_character: SRV.charId, p_item: gear.sid});
+  if (r && r.fragments != null) S.frags = +r.fragments;   /* [TILLAGT v5.652.0] fragmenten ur svaret */
   await netPullItems();
   renderEquip(); renderInventory(); updateUI(true);
   return r;
@@ -16413,7 +16414,11 @@ function materialTradeable(key){ const d = MATERIALS[key]; return !!d && !d.bop;
    nagonstans; atervinningen valjer yrke med recycleProfFor. */
 /* Basutbyte per raritet: hur manga material en isarplockning ger totalt. Stiger
    med rariteten - en episk pjas ar mer material an en common. */
-const SALVAGE_YIELD = [2, 2, 3, 4, 5, 6];   // common..mythic
+const SALVAGE_YIELD = [2, 2, 3, 4, 5, 6];   // common..mythic (skrotstegen, anvands inte langre)
+/* [ANDRAT v5.652.0] ATERVINNINGEN GER FRAGMENT (Chris): tva skrot for en ring
+   vard 13 guld var fjantigt. Stegen per sallsynthet, samma tal som serverns
+   salvage_item - tva stallen, EN sanning. */
+const RECYCLE_FRAGS = [2, 3, 5, 8, 12, 18];   // common..mythic
 /* SKROTNINGEN AR BORTTAGEN (spelarens beslut 2026-08-15). Den gav tillbaka
    exakt de material som samlaryrkena plockar, och gjorde darmed samlaren
    overflodig - tva yrken som gjorde samma sak. Utrustning man inte vill ha
@@ -16426,6 +16431,7 @@ const SALVAGE_YIELD = [2, 2, 3, 4, 5, 6];   // common..mythic
    tradens Recycling-procent. Samlarens material ror den aldrig. Talen ar
    samma som serverns salvage_item - tva stallen, EN sanning. */
 function canSalvage(it){ return !!it; }
+/* [OANVAND v5.652.0] atervinningen ger fragment; kvar for offlinelagets historik. */
 function recycleScrapKey(r){ return r <= 1 ? 'scrap' : r <= 3 ? 'reinforced_scrap' : r === 4 ? 'charged_scrap' : 'phase_scrap'; }
 function recycleProfFor(it){
   return [6,8,12,13].indexOf(it.s) >= 0 ? 'jewelcrafter'
@@ -16438,11 +16444,11 @@ function salvagePreview(it){
   /* [ANDRAT v5.50.0] Samma matematik som serverns salvage_item: skrot av
      pjasens rang, bas 2-6 efter raritet, gangat med tradens Recycling. */
   const prof = recycleProfFor(it);
-  const key = recycleScrapKey(it.r);
   const pct = (typeof skillPct === 'function') ? skillPct(prof, 'recycle') : 0;
-  const qty = Math.max(1, Math.round((SALVAGE_YIELD[it.r] || 2) * (1 + pct / 100)));
+  const qty = Math.max(1, Math.round((RECYCLE_FRAGS[it.r] || 2) * (1 + pct / 100)));
   const learned = profLearned(prof);
-  return {rows: [{key: key, qty: qty}], bonus: pct > 0, prof: prof,
+  /* rows behaller sin form; nyckeln 'fragments' ar ingen stapel utan valutan. */
+  return {rows: [{key: 'fragments', qty: qty}], frags: qty, bonus: pct > 0, prof: prof,
           xp: learned ? 3 + it.r * 2 : 0};
 }
 /* Utfor isarplockningen pa vaskraden idx. Ger materialen, ev. komponenten,
@@ -16452,7 +16458,7 @@ function salvageGear(idx){
   if (!row || !row.gear || !canSalvage(row.gear)) return false;
   if (NET.on){ netSalvage(row.gear).catch(e => say(srvErrText(e))); return true; }
   const it = row.gear, pv = salvagePreview(it);
-  pv.rows.forEach(r => giveMaterial(r.key, r.qty));
+  S.frags = (S.frags || 0) + (pv.frags || 0);
   if (pv.xp) grantProfXP(pv.prof, pv.xp);
   S.stats = S.stats || {};
   S.stats.salvaged = (S.stats.salvaged || 0) + 1;
@@ -22536,12 +22542,12 @@ async function recPickedNow(){
     const g = r.gear;
     const flag = g.god ? '<span class="rec-flag">\u2605 God roll</span>'
                : isGemItem(g) ? '<span class="rec-flag">Character gem</span>' : '';
-    const ger = r.pv.rows.map(x => x.qty + ' ' + (MATERIALS[x.key] ? MATERIALS[x.key].name : x.key)).join(', ');
+    const ger = r.pv.rows.map(x => x.qty + ' ' + (x.key === 'fragments' ? 'Fragments' : MATERIALS[x.key] ? MATERIALS[x.key].name : x.key)).join(', ');
     return '<div class="sell-line"><span><span style="color:' + gearRarCol(g) + '">' +
       esc(gearName(g)) + '</span>' + flag + '</span><span>' + ger + '</span></div>';
   }).join('');
   const tot = Object.keys(sum).map(k => '<div class="sell-total rec"><span>' +
-    (MATERIALS[k] ? MATERIALS[k].ico + ' ' + MATERIALS[k].name : k) + '</span><span>\u00d7' + sum[k] + '</span></div>').join('');
+    (k === 'fragments' ? uiIco('frag') + ' Fragments' : MATERIALS[k] ? MATERIALS[k].ico + ' ' + MATERIALS[k].name : k) + '</span><span>\u00d7' + sum[k] + '</span></div>').join('');
   const ok = await askConfirm({
     ico: '\u267b\ufe0f', color: 'var(--green)',
     title: 'Recycle ' + rows.length + (rows.length === 1 ? ' piece?' : ' pieces?'),
@@ -30617,7 +30623,7 @@ function skillEffText(n, ranks){
       case 'station_yield': return '+' + v + '% more units from the station';
       case 'slots': return 'Work Order slots: ' + Math.min(5, 2 + v);
       case 'kits': return v + '% chance to not consume a Crafting Kit';
-      case 'recycle': return '+' + v + '% scrap when recycling gear';
+      case 'recycle': return '+' + v + '% fragments when recycling gear';   /* [ANDRAT v5.652.0] */
       case 'slot_focus': return '-' + v + '% queue time & -' + Math.round(v / 3 * 2) + '% common material cost for its slots';
       case 'ranked_speed': return '-' + v + '% queue time on Rank III\u2013IV recipes';
       case 'reclaim': return v + '% chance to reclaim one common material after a craft';
@@ -34128,7 +34134,7 @@ function salvageSummary(it){
   const pv = salvagePreview(it);
   if (!pv) return '';
   const n = pv.rows.reduce((a, r) => a + r.qty, 0);
-  return n + ' scrap' + (pv.bonus ? ' +' : '');
+  return n + ' fragments' + (pv.bonus ? ' +' : '');
 }
 /* Ritar om ett OPPET kort ur den nya sanningen. Utan detta stod gamla talet
    kvar tills man stangde och oppnade igen - samma familj av bugg som plagat
@@ -34382,7 +34388,8 @@ function openGearMenu(uid, x, y){
        och den sager vad man FAR, inte bara vad man forlorar. */
     if (lage === 'recycle'){
       const pv = salvagePreview(it);
-      const ger = pv.rows.map(r => MATERIALS[r.key].ico + ' ' + r.qty + ' ' + MATERIALS[r.key].name).join(', ');
+      const ger = pv.rows.map(r => r.key === 'fragments' ? uiIco('frag') + ' ' + r.qty + ' Fragments'
+                                  : MATERIALS[r.key].ico + ' ' + r.qty + ' ' + MATERIALS[r.key].name).join(', ');
       m.innerHTML =
         '<div class="pm-note">Recycle ' + esc(gearName(it)) + ' into ' + ger + '?<br>' +
           'The piece is gone for good.' +
