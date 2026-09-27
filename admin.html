@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Genesis Admin Center</title>
+<!-- GENESIS ADMIN CENTER v0.8.0 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+     Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
+     spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
+     Ingen service_role har. Ingen SQL har.
+     v0.2.0: utseende efter Chris mockup (2026-09-27), Cases-sidan, straff och
+     arenden i Player 360, radera chattrad, tvinga namnbyte, ban/unban.
+     v0.3.0: Chat-sidan (las kanaler, sok, radera, GM-tal) och Guilds-sidan
+     (las, ledarbyte, sparka/aterstall medlem, radera gillechattrad, upplos).
+     v0.4.0: Mail & Rewards - enskilt brev med beloning, mallar, tak per roll,
+     forhandsvisning, historik och aterkallelse av ohamtat brev.
+     v0.5.0: Kampanjer - segment med forhandsvisning, torrkorning, godkannande,
+     batchleverans i klienten (100 at gangen tills klart), paus/ateruppta/aterkalla.
+     v0.6.0: Timeline-fliken i Player 360 (allt som hant kontot, filtrerbart),
+     valutajustering, ta bort foremal (Owner), aterta hamtad beloning.
+     v0.7.0: Economy & Content - kassaboken per orsak och dag, storsta
+     transaktionerna, rikaste, auktionsoversikt; alla *_config-tabeller att
+     lasa; nio balansrattar som Owner far andra live (fore/efter i audit).
+     v0.8.0: Larm (manga atgarder pa en timme, stora guldbelopp) pa Overview och
+     i Admin; System-fliken (cron, migrationer, storlekar, installningar);
+     rolleditorn (Owner ger, andrar och tar bort roller); GDPR-export i Player 360. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-page:#070a17;--bg-panel:#0b1024;--bg-panel-2:#0f152d;--bg-inset:#0a0f22;--bg-row:#0e1430;--bg-row-hover:#151c3e;
+  --border:#1e2650;--border-soft:#171d3f;--border-glow:#2f3c7a;
+  --cyan:#38e8ff;--cyan-dim:#1ba8c9;--purple:#a45cff;--violet:#7b6cff;--gold:#ffc542;--green:#3dff9e;--red:#ff4d6d;--orange:#ff9040;
+  --text:#e8ecff;--text-dim:#8a93b8;--text-faint:#565e80;
+  --font-display:'Inter','Segoe UI',system-ui,sans-serif;--font-mono:'Consolas','Roboto Mono',monospace;--font-title:'Orbitron',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg-page);color:var(--text);font-family:var(--font-display);font-size:13px;height:100%}
+body{background:radial-gradient(ellipse at 0% 100%,#141b45 0,transparent 45%),radial-gradient(ellipse at 100% 0%,#1a1040 0,transparent 40%),var(--bg-page)}
+a{color:var(--cyan)}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:13px;color:var(--text);background:var(--bg-inset);border:1px solid var(--border);border-radius:9px;padding:8px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan-dim);box-shadow:0 0 0 2px rgba(56,232,255,.12)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid var(--border-glow);background:var(--bg-panel-2);color:var(--text);font-weight:800;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.btn:hover{border-color:var(--cyan);box-shadow:0 0 12px rgba(56,232,255,.15)}
+.btn.primary{background:linear-gradient(90deg,#1ba8c9,#7b6cff);border-color:transparent;color:#fff}
+.btn.orange{border-color:var(--orange);color:var(--orange)}
+.btn.red{border-color:var(--red);color:var(--red)}
+.btn.sm{padding:5px 9px;font-size:10px}
+.btn:disabled{opacity:.45;cursor:default;box-shadow:none}
+/* ---- porten ---- */
+#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 30% 20%,#141b45 0,#070a17 60%);z-index:50}
+#gate.hidden{display:none}
+.gate-box{width:380px;background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:16px;padding:26px 26px 22px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.gate-title{font-family:var(--font-title);font-weight:900;font-size:18px;letter-spacing:.18em;text-transform:uppercase;color:var(--text);margin:0 0 4px}
+.gate-sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:18px}
+.gate-box label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);font-weight:900;margin:12px 0 5px}
+.gate-box input{width:100%}
+.gate-box .btn{width:100%;justify-content:center;margin-top:16px}
+.gate-err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+.qr{display:flex;justify-content:center;margin:10px 0;background:#fff;border-radius:10px;padding:8px}
+.qr svg{width:180px;height:180px}
+.mono{font-family:var(--font-mono)}
+/* ---- ramen ---- */
+#app{display:none;height:100%;grid-template-columns:236px 1fr;grid-template-rows:64px 1fr}
+#app.on{display:grid}
+#top{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#0e1330,#0a0e24)}
+#top .brand{display:flex;align-items:center;gap:10px;width:218px}
+#top .brand .hex{width:34px;height:34px;flex:0 0 34px;color:var(--gold);filter:drop-shadow(0 0 8px rgba(255,197,66,.5))}
+#top .brand .bt{font-family:var(--font-title);font-weight:900;letter-spacing:.26em;font-size:15px;text-transform:uppercase;line-height:1}
+#top .brand .bs{font-size:8px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-dim);margin-top:3px}
+#env{font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding:6px 12px;border-radius:9px;border:1px solid;display:flex;align-items:center;gap:7px}
+#env::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+#env.prod{color:#ff6b84;background:rgba(255,77,109,.12);border-color:rgba(255,77,109,.5)}
+#env.test{color:var(--green);border-color:rgba(61,255,158,.5);background:rgba(61,255,158,.08)}
+#lat{font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:7px}
+#lat::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+#lat b{color:var(--text);font-family:var(--font-mono)}
+#search{flex:1;max-width:680px;position:relative}
+#search input{width:100%;padding-left:36px;height:38px;background:#080c1d}
+#search .k{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);width:16px;height:16px}
+#search-res{position:absolute;top:44px;left:0;right:0;background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:10px;max-height:380px;overflow:auto;display:none;z-index:20;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+#search-res.on{display:block}
+.sr{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-soft)}
+.sr:hover{background:var(--bg-row-hover)}
+.sr .kind{font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);width:70px}
+.sr .name{font-weight:800}
+.sr .sub{color:var(--text-dim);font-size:11.5px;margin-left:auto}
+#who{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-dim)}
+#who .av{width:34px;height:34px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;color:var(--gold);background:#12172f}
+#who .av svg{width:18px;height:18px}
+#who b{color:var(--text);font-size:13px}
+#who .role{font-size:9.5px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--purple)}
+#nav{border-right:1px solid var(--border);background:linear-gradient(180deg,#0b1024,#080c1c);padding:14px 0;display:flex;flex-direction:column;gap:2px}
+.nv{display:flex;align-items:center;gap:12px;padding:12px 18px;color:var(--text-dim);font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;border-left:3px solid transparent}
+.nv:hover{background:rgba(123,108,255,.08);color:var(--text)}
+.nv.on{color:#fff;border-left-color:var(--cyan);background:linear-gradient(90deg,rgba(123,108,255,.35),rgba(123,108,255,0))}
+.nv.off{opacity:.35;cursor:default}
+.nv .ph{margin-left:auto;font-size:8px;color:var(--text-faint);letter-spacing:.08em;text-transform:uppercase}
+.nv svg{width:20px;height:20px;flex:0 0 20px}
+.nv.on svg{color:var(--cyan)}
+#nav .foot{margin-top:auto;padding:16px 22px;font-family:var(--font-title);font-size:9px;letter-spacing:.3em;color:var(--text-faint);text-transform:uppercase}
+#nav .foot small{display:block;font-family:var(--font-display);letter-spacing:.2em;font-size:8px;margin-top:3px}
+#main{overflow:auto;padding:20px 24px 28px}
+h1.pg{font-family:var(--font-display);font-size:30px;font-weight:900;letter-spacing:-.01em;margin:0;color:var(--text)}
+.pg-sub{color:var(--text-dim);font-size:13px;margin:2px 0 16px}
+.pg-row{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px}
+.pg-row .right{margin-left:auto;text-align:right;color:var(--text-dim);font-size:12px;line-height:1.5}
+.pg-row .right b{color:var(--text)}
+h2.sec{font-size:15px;font-weight:800;margin:0;color:var(--text);display:flex;align-items:center;gap:8px}
+h2.sec svg{width:18px;height:18px}
+.sec-row{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.sec-row .link{margin-left:auto;font-size:12px;color:var(--cyan);cursor:pointer;font-weight:600}
+.sec-row .link:hover{text-decoration:underline}
+/* stora kort */
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.stat{position:relative;display:flex;gap:14px;align-items:center;background:linear-gradient(180deg,#111739,#0b1024);border:1px solid var(--border);border-radius:14px;padding:16px 18px;min-height:128px;overflow:hidden}
+.stat .ico{width:74px;height:74px;flex:0 0 74px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.stat .ico svg{width:42px;height:42px}
+.stat.g{border-color:rgba(61,255,158,.35);box-shadow:inset 0 0 40px rgba(61,255,158,.05)}.stat.g .ico{background:rgba(61,255,158,.1);color:var(--green)}.stat.g .v{color:var(--green)}.stat.g .spark i{background:var(--green)}
+.stat.c{border-color:rgba(56,232,255,.35);box-shadow:inset 0 0 40px rgba(56,232,255,.05)}.stat.c .ico{background:rgba(56,232,255,.1);color:var(--cyan)}.stat.c .v{color:var(--cyan)}.stat.c .spark i{background:var(--cyan)}
+.stat.y{border-color:rgba(255,197,66,.35);box-shadow:inset 0 0 40px rgba(255,197,66,.05)}.stat.y .ico{background:rgba(255,197,66,.1);color:var(--gold)}.stat.y .v{color:var(--gold)}.stat.y .spark i{background:var(--gold)}
+.stat .k{font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.stat .k i{width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.stat .v{font-size:44px;font-weight:900;line-height:1.05;margin:2px 0}
+.stat .s{font-size:11.5px;color:var(--text-dim)}
+.stat .spark{position:absolute;right:16px;bottom:16px;width:40%;display:flex;align-items:flex-end;gap:2px;height:46px}
+.stat .spark i{flex:1;opacity:.75;border-radius:2px 2px 0 0;min-height:2px}
+.stat .win{position:absolute;right:16px;top:14px;font-size:10.5px;color:var(--text-dim)}
+/* uppmarksamhet */
+.att{background:linear-gradient(180deg,#101636,#0b1024);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.att .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.mini{display:flex;align-items:center;gap:12px;background:#0d1230;border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer}
+.mini:hover{border-color:var(--cyan)}
+.mini .ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 40px}
+.mini .ico svg{width:22px;height:22px}
+.mini .k{font-size:12px;font-weight:600;color:var(--text)}
+.mini .v{font-size:26px;font-weight:900;line-height:1.1}
+.mini .arr{margin-left:auto;color:var(--text-faint)}
+.mini.red{border-color:rgba(255,77,109,.45)}.mini.red .ico{background:rgba(255,77,109,.14);color:var(--red)}
+.mini.gold{border-color:rgba(255,197,66,.45)}.mini.gold .ico{background:rgba(255,197,66,.14);color:var(--gold)}
+.mini.purple{border-color:rgba(164,92,255,.45)}.mini.purple .ico{background:rgba(164,92,255,.14);color:var(--purple)}
+.mini.cyan{border-color:rgba(56,232,255,.45)}.mini.cyan .ico{background:rgba(56,232,255,.14);color:var(--cyan)}
+.mini.dim .ico{background:rgba(138,147,184,.14);color:var(--text-dim)}
+.grid-ov{display:grid;grid-template-columns:1.1fr 1.1fr .9fr;gap:14px}
+.box{background:linear-gradient(180deg,#0f1533,#0b1024);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.box h3{margin:0 0 8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.card{background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:12px;padding:12px 14px}
+.card .k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);font-weight:900}
+.card .v{font-size:24px;font-weight:900;font-family:var(--font-mono);margin-top:3px}
+.card .v.green{color:var(--green)}.card .v.cyan{color:var(--cyan)}.card .v.dim{color:var(--text-dim)}.card .v.red{color:var(--red)}.card .v.gold{color:var(--gold)}
+.card .s{font-size:10.5px;color:var(--text-dim);margin-top:4px}
+table.t{width:100%;border-collapse:collapse;font-size:12px}
+table.t th{text-align:left;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);padding:6px 8px;border-bottom:1px solid var(--border)}
+table.t td{padding:7px 8px;border-bottom:1px solid var(--border-soft);vertical-align:top}
+table.t tr:hover td{background:var(--bg-row)}
+table.t td.num{font-family:var(--font-mono);text-align:right;white-space:nowrap}
+table.t td.mono{font-family:var(--font-mono);font-size:11px}
+table.t tr.clk{cursor:pointer}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);margin-right:7px;vertical-align:middle}
+.dot.off{background:var(--text-faint);box-shadow:none}
+.alrt{border:1px solid rgba(255,77,109,.45);background:linear-gradient(180deg,rgba(255,77,109,.10),rgba(255,77,109,.03));border-radius:14px;padding:12px 16px;margin-bottom:14px}
+.alrt .ar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,77,109,.18)}
+.alrt .ar:first-of-type{border-top:0}
+.alrt .ar .m{color:var(--text-dim);font-size:11px}
+.modal .xp{display:flex;gap:10px;align-items:center;margin:6px 0;font-size:12px;color:var(--text);cursor:pointer}
+.modal .xp input{width:auto;margin:0;flex:0 0 auto}
+.set-row{display:grid;grid-template-columns:minmax(0,1fr) 170px auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border-soft)}
+.set-row:first-child{border-top:0}
+.set-row .d{color:var(--text-dim);font-size:11px;margin-top:2px}
+.pill{display:inline-block;font-size:9.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:6px;border:1px solid var(--border);color:var(--text-dim)}
+.pill.green{color:var(--green);border-color:var(--green)}.pill.cyan{color:var(--cyan);border-color:var(--cyan)}.pill.red{color:var(--red);border-color:var(--red)}.pill.gold{color:var(--gold);border-color:var(--gold)}.pill.purple{color:var(--purple);border-color:var(--purple)}.pill.orange{color:var(--orange);border-color:var(--orange)}
+.empty{color:var(--text-faint);padding:14px;text-align:center;border:1px dashed var(--border-soft);border-radius:10px;font-size:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.copy{cursor:pointer;color:var(--text-faint);font-family:var(--font-mono);font-size:10.5px}
+.copy:hover{color:var(--cyan)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:14px 0 12px}
+.tab{padding:8px 12px;font-size:10.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent}
+.tab.on{color:var(--text);border-bottom-color:var(--cyan)}
+.tab .n{margin-left:5px;font-family:var(--font-mono);color:var(--gold)}
+.p360-head{display:flex;gap:16px;align-items:center;background:linear-gradient(180deg,#111739,#0b1024);border:1px solid var(--border-glow);border-radius:14px;padding:14px 16px;margin-bottom:6px}
+.p360-head .hn{font-size:20px;font-weight:900}
+.p360-head .meta{color:var(--text-dim);font-size:11.5px;margin-top:3px}
+.p360-head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px}
+.kv .k{color:var(--text-dim)}
+.kv .v{font-family:var(--font-mono)}
+.note{background:var(--bg-panel-2);border:1px solid var(--border-soft);border-radius:9px;padding:8px 10px;margin-bottom:6px;font-size:12px;white-space:pre-wrap}
+.note .m{color:var(--text-faint);font-size:10.5px;margin-top:3px;white-space:normal}
+.note.sys{border-left:3px solid var(--gold)}
+textarea{width:100%;min-height:64px;resize:vertical}
+.r0{color:#fff}.r1{color:#1eff5a}.r2{color:#38a8ff}.r3{color:#a45cff}.r4{color:#ffc542}.r5{color:#ff3b3b}
+.act{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-soft);font-size:12px;align-items:flex-start}
+.act .ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:0 0 26px;background:rgba(56,232,255,.1);color:var(--cyan)}
+.act .ico svg{width:14px;height:14px}
+.act .w{font-weight:700}.act .t{color:var(--text-dim)}.act .at{margin-left:auto;color:var(--text-faint);font-family:var(--font-mono);font-size:10.5px;white-space:nowrap}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+.qb{display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(90deg,#141b45,#0d1230);font-size:16px;font-weight:800;cursor:pointer}
+.qb:hover{border-color:var(--cyan)}
+.qb svg{width:22px;height:22px;color:var(--cyan)}
+.qb .arr{margin-left:auto;color:var(--text-faint)}
+.qb.p svg{color:var(--purple)}.qb.y svg{color:var(--gold)}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:10px;padding:10px 16px;font-size:12.5px;display:none;z-index:60;box-shadow:0 14px 40px rgba(0,0,0,.6)}
+#toast.on{display:block}
+#toast.err{border-color:var(--red);color:var(--red)}
+.modal-bg{position:fixed;inset:0;background:rgba(3,4,10,.7);display:none;align-items:center;justify-content:center;z-index:55}
+.modal-bg.on{display:flex}
+.modal{width:480px;max-height:90vh;overflow:auto;background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:14px;padding:18px 20px}
+.modal h3{margin:0 0 6px;font-size:15px}
+.modal p{color:var(--text-dim);font-size:12px;margin:0 0 10px}
+.modal label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);font-weight:900;margin:10px 0 4px}
+.modal input,.modal select,.modal textarea{width:100%}
+.modal.red{border-color:var(--red)}.modal.orange{border-color:var(--orange)}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.modal .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sanc{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--border-soft);border-radius:10px;margin-bottom:6px;font-size:12px;background:var(--bg-inset)}
+.sanc.act{border-color:rgba(255,77,109,.4)}
+.sanc .m{color:var(--text-dim);font-size:11px}
+.sanc .pill{white-space:nowrap}
+.sanc .r{margin-left:auto}
+.case-row td .ttl{font-weight:700}
+.case-head{display:flex;gap:16px;align-items:center;background:linear-gradient(180deg,#111739,#0b1024);border:1px solid var(--border-glow);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.case-head .hn{font-size:18px;font-weight:900}
+.case-head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.rep{border:1px solid var(--border-soft);border-radius:10px;padding:9px 11px;margin-bottom:6px;font-size:12px;background:var(--bg-inset)}
+.rep .m{color:var(--text-faint);font-size:10.5px;margin-top:3px}
+.rep .q{color:var(--text-dim);font-style:italic;margin-top:3px}
+.chatrow .del{visibility:hidden}
+.cm{display:flex;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border-soft);font-size:12.5px;align-items:flex-start}
+.cm:hover{background:var(--bg-row)}
+.cm .at{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);width:88px;flex:0 0 88px;padding-top:2px}
+.cm .who{font-weight:800;cursor:pointer;white-space:nowrap}
+.cm .who:hover{color:var(--cyan)}
+.cm .ch{width:60px;flex:0 0 60px}
+.cm .body{flex:1;word-break:break-word}
+.cm.gone .bt{text-decoration:line-through;color:var(--text-faint)}
+.cm.gm .who{color:var(--gold)}
+.cm .del{visibility:hidden;margin-left:auto}
+.cm:hover .del{visibility:visible}
+.gmbox{display:grid;grid-template-columns:150px 120px 1fr auto;gap:8px;align-items:center;margin-top:10px}
+.gmbox input{width:100%}
+.mailgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:14px}
+.fld{margin-bottom:10px}
+.fld label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);font-weight:900;margin-bottom:4px}
+.fld input,.fld select,.fld textarea{width:100%}
+.rw{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rw .fld{margin:0}
+.rw input[type=number]{min-width:0;padding:8px 6px}
+.stk{display:flex;gap:6px;align-items:center;margin-top:6px}
+.stk input{flex:1}
+.stk input.q{flex:0 0 70px}
+.mailprev{background:#0a0d1c;border:1px solid var(--cyan-dim);border-radius:14px;padding:16px;font-family:var(--font-display)}
+.mailprev .mh{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px}
+.mailprev .mh b{font-size:15px}
+.mailprev .mh i{font-style:normal;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+.mailprev .mb{white-space:pre-wrap;font-size:13px;line-height:1.5;color:var(--text);min-height:48px}
+.mailprev .ma{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.mailprev .ma span{border:1px solid var(--border-glow);border-radius:8px;padding:5px 9px;font-size:11.5px;background:var(--bg-panel-2)}
+.mailprev .ma span.g{color:var(--gold)}.mailprev .ma span.f{color:var(--purple)}.mailprev .ma span.c{color:var(--cyan)}
+.cap{font-size:10.5px;color:var(--text-faint);margin-top:4px}
+.bars{display:flex;align-items:flex-end;gap:4px;height:110px;margin:8px 0 12px}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-width:0;height:100%}
+.bars .b .bb{display:flex;align-items:flex-end;gap:1px;flex:1}
+.bars .b i{display:block;flex:1;border-radius:2px 2px 0 0;min-height:1px}
+.bars .b i.in{background:var(--gold)}.bars .b i.out{background:var(--purple)}
+.bars .b span{font-size:9px;color:var(--text-faint);text-align:center;white-space:nowrap;overflow:hidden}
+table.t td.ed{cursor:pointer}
+table.t td.ed:hover{outline:1px solid var(--cyan);border-radius:4px}
+.tbl-wrap{overflow:auto;max-height:62vh}
+.tbl-wrap table.t th{position:sticky;top:0;background:var(--bg-panel)}
+.chatrow:hover .del{visibility:visible}
+@media (max-width:1439px){.grid-ov{grid-template-columns:1fr 1fr}.grid-ov>.box:last-child{grid-column:1/3}.stat .spark{display:none}.stat .win{display:none}}
+@media (max-width:1279px){#app.on{display:none}#narrow{display:flex}}
+#narrow{display:none;position:fixed;inset:0;align-items:center;justify-content:center;color:var(--text-dim);font-size:14px;padding:30px;text-align:center}
+</style>
+</head>
+<body>
+<div id="narrow">Genesis Admin Center is desktop-only. Open it on a screen at least 1280 px wide.</div>
+
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-title">Genesis <span style="color:var(--cyan)">Admin</span></div>
+    <div class="gate-sub" id="gate-step">Staff sign-in</div>
+    <div id="gate-login">
+      <label>Email</label><input id="g-email" type="email" autocomplete="username">
+      <label>Password</label><input id="g-pass" type="password" autocomplete="current-password">
+      <button class="btn primary" id="g-go">Sign in</button>
+    </div>
+    <div id="gate-mfa" style="display:none">
+      <p style="color:var(--text-dim);font-size:12px;margin:0">Enter the 6-digit code from your authenticator app.</p>
+      <label>Code</label><input id="g-code" inputmode="numeric" maxlength="6" class="mono" style="letter-spacing:.3em;font-size:18px;text-align:center">
+      <button class="btn primary" id="g-verify">Verify</button>
+    </div>
+    <div id="gate-enroll" style="display:none">
+      <p style="color:var(--text-dim);font-size:12px;margin:0">Two-factor is required for staff. Scan this with Google Authenticator, 1Password or similar, then enter the code once.</p>
+      <div class="qr" id="g-qr"></div>
+      <div class="mono" style="font-size:10px;color:var(--text-faint);word-break:break-all" id="g-secret"></div>
+      <label>Code</label><input id="g-ecode" inputmode="numeric" maxlength="6" class="mono" style="letter-spacing:.3em;font-size:18px;text-align:center">
+      <button class="btn primary" id="g-enroll">Activate two-factor</button>
+    </div>
+    <div class="gate-err" id="g-err"></div>
+    <button class="btn" id="g-out" style="display:none;margin-top:8px">Sign out</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="top">
+    <div class="brand">
+      <svg class="hex" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l8.5 5v10L12 22l-8.5-5V7z"/><path d="M12 7l4.3 2.5v5L12 17l-4.3-2.5v-5z" fill="currentColor" opacity=".35"/></svg>
+      <div><div class="bt">Genesis</div><div class="bs">Admin Center</div></div>
+    </div>
+    <div id="search"><svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="Search handle, character, guild or id…  ( / )" autocomplete="off"><div id="search-res"></div></div>
+    <span id="env" class="prod">PROD</span>
+    <span id="lat">Server <b id="lat-ms">–</b></span>
+    <div id="who"><div class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg></div><div><b id="who-name">–</b><div class="role" id="who-role">–</div></div><button class="btn sm" id="btn-out">Sign out</button></div>
+  </div>
+  <div id="nav"></div>
+  <div id="main"></div>
+</div>
+
+<div id="toast"></div>
+<div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(() => {
+const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
+const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let ME = null;          /* svaret fran admin_my_perms */
+let PAGE = 'overview';
+let P360 = null;        /* oppnad spelare */
+let P360MOD = null;     /* straff + arenden for oppnad spelare */
+let P360TAB = 'overview';
+let CASE = null;        /* oppnat arende */
+let CHATF = {channel: 'general', q: ''};
+let GUILD = null;       /* oppnat gille */
+let ADM = {tab: 'staff'};  /* Admin-sidans flik */
+let MY_UID = null;
+let MAILTO = null;      /* forvald mottagare {profile, handle, characters} */
+let MAILTAB = 'single';
+let ECO = {tab: 'economy', days: 7, table: null, q: ''};
+let CATALOG = null;
+let CASEFILT = 'open';
+
+/* ---------- ikoner (ett stalle) ---------- */
+const I = {
+  home: 'M3 11l9-8 9 8v10H3z', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 10v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  cases: 'M5 4h14v16H5zM9 9h6M9 13h6M9 17h3', chat: 'M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z', guild: 'M12 3l9 5v8l-9 5-9-5V8z',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6', econ: 'M4 19h16M6 15v-4M10 15V7M14 15v-6M18 15V5', admin: 'M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z',
+  flag: 'M5 21V4h11l-1 4 1 4H5', doc: 'M6 3h9l5 5v13H6zM14 3v6h6M9 13h6M9 17h6', gavel: 'M14 4l6 6-3 3-6-6zM3 21l7-7M12 12l-4 4',
+  ban: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8', clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+  swords: 'M4 4l10 10M20 4L10 14M4 20l4-4M20 20l-4-4M14 14l3 3M10 14l-3 3', coin: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9.5C9 8.1 10.3 7 12 7s3 1.1 3 2.5S13.7 12 12 12s-3 1.1-3 2.5S10.3 17 12 17s3-1.1 3-2.5',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4', warn: 'M12 3l10 18H2zM12 10v4M12 17v1', lift: 'M5 12l5 5L20 7',
+  act: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12l3 3 5-6'
+};
+const ico = (k, cls) => '<svg' + (cls ? ' class="' + cls + '"' : '') + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + I[k] + '"/></svg>';
+
+/* ---------- smaverktyg ---------- */
+function toast(msg, err){ const t = $('toast'); t.textContent = msg; t.className = 'on' + (err ? ' err' : ''); clearTimeout(t._t); t._t = setTimeout(() => t.className = '', 3200); }
+function has(perm){ return !!(ME && ME.perms && ME.perms[perm] !== undefined); }
+function lim(perm, key){ const p = ME && ME.perms && ME.perms[perm]; return p && p[key] != null ? p[key] : null; }
+let LAT = [];
+async function rpc(fn, args){
+  const t0 = performance.now();
+  const {data, error} = await sb.rpc(fn, args || {});
+  LAT.push(performance.now() - t0); if (LAT.length > 5) LAT.shift();
+  try { $('lat-ms').textContent = Math.round(LAT.reduce((a, b) => a + b, 0) / LAT.length) + ' ms'; } catch (e){}
+  if (error){ const m = String(error.message || error); throw new Error(m.replace(/^forbidden: /, 'Forbidden: ')); }
+  return data;
+}
+function ago(ts){
+  if (!ts) return '–'; const d = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (d < 0) return 'in ' + (d > -3600 ? Math.round(-d/60) + 'm' : d > -86400 ? Math.round(-d/3600) + 'h' : Math.round(-d/86400) + 'd');
+  if (d < 60) return Math.round(d) + 's ago'; if (d < 3600) return Math.round(d/60) + 'm ago';
+  if (d < 86400) return Math.round(d/3600) + 'h ago'; return Math.round(d/86400) + 'd ago';
+}
+function when(ts){ return ts ? new Date(ts).toLocaleString('sv-SE') : '–'; }
+function hm(ts){ return ts ? new Date(ts).toLocaleTimeString('sv-SE', {hour: '2-digit', minute: '2-digit'}) : ''; }
+function gold(c){ c = +c || 0; const g = Math.floor(c/10000), s = Math.floor((c%10000)/100), k = c%100; return (g ? g + 'g ' : '') + (s ? s + 's ' : '') + (k || (!g && !s) ? k + 'c' : ''); }
+function copyable(id){ return '<span class="copy" title="Copy" data-copy="' + esc(id) + '">' + esc(String(id).slice(0,8)) + '…</span>'; }
+function levelOf(c){ const x = (c.xp_ledger && c.xp_ledger[0]) ? c.xp_ledger[0].level_after : null; return x != null ? x : '?'; }
+function modalClose(){ $('modal-bg').classList.remove('on'); }
+function confirmBox(opts){
+  return new Promise(res => {
+    const m = $('modal'); m.className = 'modal ' + (opts.tone || '');
+    m.innerHTML = '<h3>' + esc(opts.title) + '</h3><p>' + esc(opts.body || '') + '</p>' +
+      (opts.reason ? '<label>Reason (required)</label><textarea id="m-reason"></textarea>' : '') +
+      (opts.message ? '<label>Message to the player (optional, sent as mail)</label><textarea id="m-msg" placeholder="' + esc(opts.message) + '"></textarea>' : '') +
+      '<div class="acts"><button class="btn" id="m-no">Cancel</button><button class="btn ' + (opts.tone === 'red' ? 'red' : opts.tone === 'orange' ? 'orange' : 'primary') + '" id="m-yes">' + esc(opts.yes || 'Confirm') + '</button></div>';
+    $('modal-bg').classList.add('on');
+    $('m-no').onclick = () => { modalClose(); res(null); };
+    $('m-yes').onclick = () => {
+      const r = opts.reason ? ($('m-reason').value || '').trim() : '';
+      if (opts.reason && !r){ $('m-reason').style.borderColor = 'var(--red)'; return; }
+      modalClose(); res(opts.reason ? {reason: r, message: opts.message ? ($('m-msg').value || '').trim() : ''} : true);
+    };
+  });
+}
+document.addEventListener('click', e => { const c = e.target.closest('[data-copy]'); if (c){ navigator.clipboard.writeText(c.dataset.copy).then(() => toast('Copied ' + c.dataset.copy)); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') modalClose(); });
+
+/* ---------- porten: inloggning + TOTP ---------- */
+function gerr(m){ $('g-err').textContent = m || ''; }
+function gateShow(step){
+  ['gate-login','gate-mfa','gate-enroll'].forEach(id => $(id).style.display = 'none');
+  $(step).style.display = 'block';
+  $('g-out').style.display = step === 'gate-login' ? 'none' : 'block';
+  $('gate-step').textContent = step === 'gate-login' ? 'Staff sign-in' : step === 'gate-mfa' ? 'Two-factor code' : 'Set up two-factor';
+}
+async function afterSession(){
+  gerr('');
+  const {data: aal} = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  const {data: fac} = await sb.auth.mfa.listFactors();
+  const totp = (fac && fac.totp || []).filter(f => f.status === 'verified');
+  if (aal && aal.currentLevel === 'aal2') return enter();
+  if (totp.length){ gateShow('gate-mfa'); $('g-code').focus(); return; }
+  /* Ingen faktor: kolla forst att kontot ar admin, annars ar det meningslost att enrolla. */
+  let me; try { me = await rpc('admin_my_perms'); } catch (e){ me = null; }
+  if (!me || !me.admin){ gerr('This account is not staff.'); gateShow('gate-login'); await sb.auth.signOut(); return; }
+  if (!me.require_mfa) return enter();
+  const {data: en, error} = await sb.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Genesis Admin'});
+  if (error){ gerr(error.message); return; }
+  ENROLL = en; $('g-qr').innerHTML = en.totp.qr_code.startsWith('<svg') ? en.totp.qr_code : '<img src="' + en.totp.qr_code + '" style="width:180px;height:180px">';
+  $('g-secret').textContent = 'Secret: ' + en.totp.secret;
+  gateShow('gate-enroll'); $('g-ecode').focus();
+}
+let ENROLL = null;
+$('g-go').onclick = async () => {
+  gerr(''); $('g-go').disabled = true;
+  const {error} = await sb.auth.signInWithPassword({email: $('g-email').value.trim(), password: $('g-pass').value});
+  $('g-go').disabled = false;
+  if (error){ gerr(error.message); return; }
+  afterSession();
+};
+$('g-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('g-go').click(); });
+$('g-verify').onclick = async () => {
+  gerr('');
+  const {data: fac} = await sb.auth.mfa.listFactors();
+  const f = (fac.totp || []).find(x => x.status === 'verified'); if (!f){ gerr('No factor.'); return; }
+  const {data: ch, error: e1} = await sb.auth.mfa.challenge({factorId: f.id}); if (e1){ gerr(e1.message); return; }
+  const {error: e2} = await sb.auth.mfa.verify({factorId: f.id, challengeId: ch.id, code: $('g-code').value.trim()});
+  if (e2){ gerr('Wrong code.'); $('g-code').value = ''; return; }
+  enter();
+};
+$('g-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('g-verify').click(); });
+$('g-enroll').onclick = async () => {
+  gerr(''); if (!ENROLL) return;
+  const {data: ch, error: e1} = await sb.auth.mfa.challenge({factorId: ENROLL.id}); if (e1){ gerr(e1.message); return; }
+  const {error: e2} = await sb.auth.mfa.verify({factorId: ENROLL.id, challengeId: ch.id, code: $('g-ecode').value.trim()});
+  if (e2){ gerr('Wrong code — try again.'); return; }
+  enter();
+};
+$('g-out').onclick = $('btn-out').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function enter(){
+  let me; try { me = await rpc('admin_my_perms'); } catch (e){ gerr(e.message); return; }
+  if (!me.admin){ gerr('This account is not staff (' + me.why + ').'); gateShow('gate-login'); await sb.auth.signOut(); return; }
+  if (me.is_player){ gerr('Staff accounts must be separate from player accounts.'); await sb.auth.signOut(); gateShow('gate-login'); return; }
+  ME = me;
+  try { MY_UID = (await sb.auth.getUser()).data.user.id; } catch (e){ MY_UID = null; }
+  $('gate').classList.add('hidden'); $('app').classList.add('on');
+  $('who-name').textContent = me.label || (await sb.auth.getUser()).data.user.email;
+  $('who-role').textContent = me.role_name;
+  $('env').className = /127\.0\.0\.1|localhost|test/.test(location.hostname) ? 'test' : 'prod';
+  $('env').textContent = $('env').className === 'prod' ? 'PROD' : 'TEST';
+  buildNav(); go('overview');
+  clearTimeout(IDLE_T); resetIdle();
+}
+/* 30 min utan aktivitet i panelen => ut. */
+let IDLE_T = null;
+function resetIdle(){ clearTimeout(IDLE_T); IDLE_T = setTimeout(async () => { await sb.auth.signOut(); location.reload(); }, 30 * 60 * 1000); }
+['click','keydown','mousemove'].forEach(ev => document.addEventListener(ev, () => { if (ME) resetIdle(); }, {passive: true}));
+
+/* ---------- navigation ---------- */
+const NAV = [
+  ['overview','Overview','home', null], ['players','Players','users', null], ['cases','Cases','cases', null],
+  ['chat','Chat','chat', null], ['guilds','Guilds','guild', null], ['mail','Mail & Rewards','mail', null],
+  ['economy','Economy & Content','econ', null], ['admin','Admin','admin', null]
+];
+function buildNav(){
+  $('nav').innerHTML = NAV.map(n => '<div class="nv' + (n[3] ? ' off' : '') + '" data-page="' + n[0] + '">' + ico(n[2]) + n[1] +
+    (n[3] ? '<span class="ph">' + n[3] + '</span>' : '') + '</div>').join('') +
+    '<div class="foot">Project Genesis<small>A living world</small></div>';
+  $('nav').querySelectorAll('.nv:not(.off)').forEach(el => el.onclick = () => go(el.dataset.page));
+}
+function go(page){
+  PAGE = page; $('nav').querySelectorAll('.nv').forEach(el => el.classList.toggle('on', el.dataset.page === page));
+  if (page === 'overview') renderOverview();
+  else if (page === 'players') renderPlayers();
+  else if (page === 'cases') renderCases();
+  else if (page === 'chat') renderChat();
+  else if (page === 'guilds') renderGuilds();
+  else if (page === 'mail') renderMail();
+  else if (page === 'economy') renderEconomy();
+  else if (page === 'admin') renderAdmin();
+}
+
+/* ---------- global sokning ---------- */
+let QT = null;
+$('q').addEventListener('input', () => { clearTimeout(QT); QT = setTimeout(doSearch, 220); });
+$('q').addEventListener('keydown', e => { if (e.key === 'Escape'){ $('search-res').classList.remove('on'); $('q').blur(); } });
+document.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('q') && ME && !$('modal-bg').classList.contains('on')){ e.preventDefault(); $('q').focus(); } });
+document.addEventListener('click', e => { if (!e.target.closest('#search')) $('search-res').classList.remove('on'); });
+async function doSearch(){
+  const q = $('q').value.trim(); const box = $('search-res');
+  if (q.length < 2){ box.classList.remove('on'); return; }
+  let rows = []; try { rows = await rpc('admin_search', {p_q: q}); } catch (e){ toast(e.message, true); return; }
+  box.innerHTML = rows.length ? rows.map(r => '<div class="sr" data-kind="' + r.kind + '" data-id="' + esc(r.id) + '" data-pid="' + esc(r.profile_id || '') + '">' +
+    '<span class="kind">' + r.kind + '</span><span class="name">' + esc(r.name) + '</span><span class="sub">' + esc(r.sub || '') + '</span></div>').join('')
+    : '<div class="sr"><span class="sub">Nothing found.</span></div>';
+  box.classList.add('on');
+  box.querySelectorAll('.sr[data-pid]').forEach(el => el.onclick = () => {
+    box.classList.remove('on'); $('q').value = '';
+    if (el.dataset.pid) openPlayer(el.dataset.pid); else if (el.dataset.kind === 'guild') openGuild(el.dataset.id); else toast('Nothing to open.');
+  });
+}
+
+/* ---------- OVERVIEW ---------- */
+function statCard(cls, icon, k, v, s, spark, mx){
+  return '<div class="stat ' + cls + '"><div class="ico">' + ico(icon) + '</div><div><div class="k">' + k + ' <i></i></div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>' +
+    '<span class="win">24 h</span><div class="spark">' + spark.map(x => '<i style="height:' + Math.round(100 * x.v / mx) + '%" title="' + when(x.at) + ': ' + x.v + '"></i>').join('') + '</div></div>';
+}
+function actIco(a){
+  return a.startsWith('sanction') ? 'gavel' : a.startsWith('case') ? 'doc' : a.startsWith('account') ? 'ban' : a.startsWith('chat') ? 'chat' : a.startsWith('handle') ? 'users' : 'act';
+}
+function alertText(a){
+  const d = a.detail || {};
+  if (a.kind === 'burst') return '<b>' + esc(a.who || 'staff') + '</b> did ' + d.actions_last_hour + ' actions in one hour (limit ' + d.threshold + '). Last: ' + esc(d.last_action || '');
+  if (a.kind === 'big_gold') return '<b>' + esc(a.who || 'staff') + '</b>: ' + esc(d.action || '') + ' worth ' + gold(d.gold).trim() + ' (limit ' + gold(d.threshold).trim() + ')';
+  return esc(a.kind) + ' ' + esc(JSON.stringify(d));
+}
+function alertRow(a, canSee){
+  return '<div class="ar"><span class="pill ' + (a.kind === 'big_gold' ? 'gold' : 'red') + '">' + (a.kind === 'big_gold' ? 'Big gold' : a.kind === 'burst' ? 'Many actions' : esc(a.kind)) + '</span>' +
+    '<div>' + alertText(a) + '<div class="m">' + when(a.at) + (a.seen_at ? ' · seen by ' + esc(a.seen_by || 'staff') + ' ' + ago(a.seen_at) : '') + '</div></div>' +
+    '<span class="m">' + ago(a.at) + '</span>' + (canSee && !a.seen_at ? '<button class="btn sm" data-seen="' + a.id + '">Mark seen</button>' : '<span></span>') + '</div>';
+}
+function wireSeen(root, after){
+  root.querySelectorAll('[data-seen]').forEach(b => b.onclick = async () => { try { await rpc('admin_alert_seen', {p_id: +b.dataset.seen}); after(); } catch (e){ toast(e.message, true); } });
+}
+async function renderOverview(){
+  const m = $('main'); m.innerHTML = '<h1 class="pg">Overview</h1><div class="pg-sub">Live presence, queues and economy at a glance.</div><div class="empty">Loading…</div>';
+  let pr, ov, oc, al = [];
+  try { [pr, ov, oc, al] = await Promise.all([rpc('admin_presence'), rpc('admin_overview'), rpc('admin_overview_cases'), has('audit.read') ? rpc('admin_alerts_list').catch(() => []) : Promise.resolve([])]); }
+  catch (e){ m.innerHTML = '<h1 class="pg">Overview</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  const sp = (pr.samples || []).slice(-96);
+  const mx = Math.max(1, ...sp.map(s => s.online));
+  const gold24 = (ov.ledger_24h || []).reduce((a, r) => a + (+r.gold || 0), 0);
+  const created = (ov.ledger_24h || []).reduce((a, r) => a + Math.max(0, +r.gold || 0), 0), removed = -(ov.ledger_24h || []).reduce((a, r) => a + Math.min(0, +r.gold || 0), 0);
+  const now = new Date();
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Overview</h1><div class="pg-sub" style="margin-bottom:0">Live presence, queues and economy at a glance.</div></div>' +
+    '<div class="right">New accounts 24 h: <b>' + ov.profiles_24h + '</b> · 7 d: <b>' + ov.profiles_7d + '</b><br>' + now.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'}) + ' ' + hm(now) + '</div></div>' +
+    '<div class="stat3">' +
+      statCard('g', 'users', 'Online', pr.online, 'Heartbeat within 90 sec', sp.map(s => ({at: s.at, v: s.online})), mx) +
+      statCard('c', 'swords', 'Active', pr.active, 'Action within 2 min', sp.map(s => ({at: s.at, v: s.active})), mx) +
+      statCard('y', 'clock', 'Idle', pr.idle, 'Online without recent action', sp.map(s => ({at: s.at, v: Math.max(0, s.online - s.active)})), mx) +
+    '</div>' +
+    (al && al.length ? '<div class="alrt"><div class="sec-row"><h2 class="sec" style="color:var(--red)">' + ico('warn') + ' Staff alerts (' + al.length + ')</h2><span class="link" id="ov-alerts">All alerts →</span></div>' +
+      al.slice(0, 5).map(a => alertRow(a, true)).join('') + (al.length > 5 ? '<div class="m" style="color:var(--text-dim);font-size:11px;margin-top:6px">+' + (al.length - 5) + ' more</div>' : '') + '</div>' : '') +
+    '<div class="att"><div class="sec-row"><h2 class="sec">' + ico('warn') + ' Needs attention</h2><span class="link" data-go="cases">View all cases →</span></div><div class="cards">' +
+      '<div class="mini red" data-go="cases"><div class="ico">' + ico('flag') + '</div><div><div class="k">Player reports 24 h</div><div class="v">' + oc.reports_24h + '</div></div><span class="arr">›</span></div>' +
+      '<div class="mini gold" data-go="cases"><div class="ico">' + ico('doc') + '</div><div><div class="k">Open cases</div><div class="v">' + oc.cases_open + (oc.cases_waiting ? ' <small style="font-size:12px;color:var(--text-dim)">+' + oc.cases_waiting + ' waiting</small>' : '') + '</div></div><span class="arr">›</span></div>' +
+      '<div class="mini purple" data-go="cases"><div class="ico">' + ico('gavel') + '</div><div><div class="k">Active sanctions</div><div class="v">' + oc.sanctions_active + '</div></div><span class="arr">›</span></div>' +
+      '<div class="mini dim"><div class="ico">' + ico('ban') + '</div><div><div class="k">Banned accounts</div><div class="v">' + ov.banned + '</div></div></div>' +
+    '</div>' + ((oc.report_spam || []).length ? '<div style="margin-top:8px;font-size:12px;color:var(--orange)">Report spam: ' + oc.report_spam.map(x => esc(x.handle) + ' (' + x.n + ')').join(', ') + '</div>' : '') + '</div>' +
+    '<div class="grid-ov">' +
+      '<div class="box"><div class="sec-row"><h2 class="sec">' + ico('users') + ' Presence now</h2></div>' +
+        (pr.list.length ? '<table class="t"><tr><th>Handle</th><th>Character</th><th>Location</th><th>Activity</th><th>Seen</th></tr>' +
+          pr.list.slice(0, 12).map(p => '<tr class="clk" data-open="' + p.profile_id + '"><td><span class="dot' + (p.active ? '' : ' off') + '"></span><b>' + esc(p.handle) + '</b></td><td>' + esc(p.character) + '</td><td>' + esc(p.zone) + '</td>' +
+            '<td>' + esc(p.doing) + '</td><td class="num">' + ago(p.seen) + '</td></tr>').join('') + '</table>' +
+          (pr.list.length > 12 ? '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:6px">+' + (pr.list.length - 12) + ' more online</div>' : '')
+        : '<div class="empty">Nobody online right now.</div>') + '</div>' +
+      '<div class="box"><div class="sec-row"><h2 class="sec">' + ico('coin') + ' Economy — last 24 h</h2></div>' +
+        '<div class="cards" style="grid-template-columns:repeat(3,1fr)"><div class="card"><div class="k">Created</div><div class="v gold">' + gold(created) + '</div></div>' +
+        '<div class="card"><div class="k">Removed</div><div class="v purple" style="color:var(--purple)">' + gold(removed) + '</div></div>' +
+        '<div class="card"><div class="k">Net</div><div class="v ' + (gold24 >= 0 ? 'green' : 'red') + '">' + (gold24 >= 0 ? '+' : '−') + gold(Math.abs(gold24)) + '</div></div></div>' +
+        '<div class="kv" style="margin-top:10px"><span class="k">Gold in circulation</span><span class="v">' + gold(ov.circulation.gold) + '</span>' +
+        '<span class="k">Fragments / credits</span><span class="v">' + ov.circulation.frags + ' / ' + ov.circulation.credits + '</span>' +
+        '<span class="k">Running</span><span class="v">' + ov.runs.expeditions + ' expeditions · ' + ov.runs.dungeons + ' dungeons · ' + ov.runs.work_orders + ' crafts</span>' +
+        '<span class="k">Chat 24 h / auctions</span><span class="v">' + ov.chat_24h + ' / ' + ov.auctions_open + '</span></div>' +
+        (ov.ledger_24h.length ? '<table class="t" style="margin-top:10px"><tr><th>Reason</th><th>Gold</th><th>#</th></tr>' +
+          ov.ledger_24h.slice(0, 8).map(r => '<tr><td>' + esc(r.reason) + '</td><td class="num">' + gold(r.gold) + '</td><td class="num">' + r.n + '</td></tr>').join('') + '</table>' : '') +
+      '</div>' +
+      '<div class="box"><div class="sec-row"><h2 class="sec">' + ico('doc') + ' Recent admin activity</h2><span class="link" data-go="admin">View audit →</span></div>' +
+        (ov.audit.length ? ov.audit.slice(0, 9).map(a => '<div class="act"><div class="ico">' + ico(actIco(a.action)) + '</div><div><div class="w">' + esc(a.who) + '</div><div class="t">' + esc(a.action) + ' · ' + esc(a.kind) + ' ' + (a.id ? esc(String(a.id).slice(0, 8)) : '') + '</div></div><span class="at">' + hm(a.at) + '</span></div>').join('') : '<div class="empty">Nothing yet.</div>') +
+        '<div class="s" style="color:var(--text-faint);font-size:10.5px;margin-top:8px">Last migration: ' + esc(ov.last_migration) + '</div></div>' +
+    '</div>' +
+    '<div class="quick"><div class="qb" data-focus="q">' + ico('search') + ' Search player<span class="arr">›</span></div>' +
+      '<div class="qb p" data-go="cases">' + ico('cases') + ' Cases<span class="arr">›</span></div>' +
+      '<div class="qb y" id="ov-newcase">' + ico('doc') + ' New case<span class="arr">›</span></div></div>';
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  m.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  m.querySelectorAll('[data-focus]').forEach(b => b.onclick = () => $('q').focus());
+  $('ov-newcase').onclick = () => newCaseBox(null);
+  if ($('ov-alerts')) $('ov-alerts').onclick = () => { ADM.tab = 'alerts'; go('admin'); };
+  wireSeen(m, renderOverview);
+}
+setInterval(() => { if (ME && PAGE === 'overview') renderOverview(); }, 60 * 1000);
+
+/* ---------- PLAYERS / PLAYER 360 ---------- */
+function renderPlayers(){
+  const m = $('main');
+  if (P360) return renderP360();
+  m.innerHTML = '<h1 class="pg">Players</h1><div class="pg-sub">Find anyone by handle, character, guild or id.</div><div class="empty">Use the search box above (press <span class="mono">/</span>).</div>';
+}
+async function openPlayer(pid, tab){
+  const m = $('main'); go('players'); m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">Loading…</div>';
+  try { [P360, P360MOD] = await Promise.all([rpc('admin_player', {p_profile: pid}), rpc('admin_player_mod', {p_profile: pid})]); }
+  catch (e){ m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  P360TAB = tab || 'overview'; renderP360();
+}
+const KIND_NAME = {warn: 'Warning', mute: 'Chat mute', mail_block: 'Mail block', auction_block: 'Auction block', guild_block: 'Guild block', report_block: 'Report block', pause: 'Account pause', lock: 'Account lock', char_lock: 'Character lock', handle_force: 'Forced name change'};
+function sancRow(s, withLift){
+  return '<div class="sanc' + (s.active ? ' act' : '') + '"><span class="pill ' + (s.active ? 'red' : '') + '">' + esc(KIND_NAME[s.kind] || s.kind) + (s.channel && s.channel !== 'all' ? ' · ' + esc(s.channel) : '') + '</span>' +
+    '<div><div>' + esc(s.reason) + (s.note ? ' <span class="m">— ' + esc(s.note) + '</span>' : '') + '</div><div class="m">' + esc(s.by || 'staff') + ' · ' + when(s.at) +
+    (s.until ? ' · until ' + when(s.until) : s.kind === 'warn' || s.kind === 'handle_force' ? '' : ' · until lifted') + (s.lifted_at ? ' · <b>lifted</b> ' + when(s.lifted_at) + (s.lift_reason ? ' (' + esc(s.lift_reason) + ')' : '') : '') +
+    (s.case_id ? ' · <span class="copy" data-case="' + s.case_id + '" style="color:var(--cyan)">case #' + s.case_id + '</span>' : '') + '</div></div>' +
+    (withLift && s.active && s.kind !== 'warn' && s.kind !== 'handle_force' ? '<button class="btn sm r" data-lift="' + s.id + '">Lift</button>' : '') + '</div>';
+}
+function renderP360(){
+  const d = P360, p = d.profile, m = $('main'), md = P360MOD || {sanctions: [], cases: []};
+  const online = p.seen_at && (Date.now() - new Date(p.seen_at).getTime()) < 90000;
+  const active = md.sanctions.filter(s => s.active);
+  const tabs = [['overview','Overview'],['inventory','Inventory'],['helpers','Helpers'],['economy','Economy'],['progression','Progression'],['social','Social'],['moderation','Moderation', active.length],['timeline','Timeline'],['notes','Notes & audit']];
+  let h = '<div class="row" style="margin-bottom:10px"><button class="btn" id="p-back">‹ Back</button><h1 class="pg" style="font-size:22px">Player 360</h1></div>' +
+    '<div class="p360-head"><div><div class="hn">' + esc(p.handle) + ' ' +
+      (p.banned ? '<span class="pill red">Banned</span>' : online ? '<span class="pill green">Online</span>' : '<span class="pill">Offline</span>') +
+      (p.session_active ? ' <span class="pill cyan">Session</span>' : '') +
+      active.map(s => ' <span class="pill red">' + esc(KIND_NAME[s.kind] || s.kind) + '</span>').join('') + '</div>' +
+      '<div class="meta">profile ' + copyable(p.id) + ' · joined ' + when(p.created_at) + ' · last seen ' + ago(p.last_seen_at) + ' · ' + d.characters.length + ' characters · ' + p.achievements + ' achievements' +
+      (p.handle_prev ? ' · previously <i>' + esc(p.handle_prev) + '</i>' : '') + (p.banned && p.ban_reason ? ' · ban: <i>' + esc(p.ban_reason) + '</i>' : '') + '</div></div>' +
+      '<div class="acts">' +
+        (has('chat.mute') || has('player.restrict') || has('player.pause') || has('player.lock') || has('case.manage') ? '<button class="btn orange" id="p-sanction">' + ico('gavel') + ' Sanction…</button>' : '') +
+        (has('handle.force') ? '<button class="btn" id="p-handle">Force name change</button>' : '') +
+        (has('case.manage') ? '<button class="btn" id="p-case">New case</button>' : '') +
+        (has('mail.single') ? '<button class="btn" id="p-mail">' + ico('mail') + ' Send mail</button>' : '') +
+        (has('currency.adjust') ? '<button class="btn orange" id="p-adjust">' + ico('coin') + ' Adjust currency</button>' : '') +
+        (has('gdpr.export') ? '<button class="btn" id="p-gdpr">' + ico('doc') + ' GDPR export</button>' : '') +
+        (has('player.logout') ? '<button class="btn" id="p-logout"' + (p.session_active ? '' : ' disabled') + '>Log out session</button>' : '') +
+        (has('account.ban') ? (p.banned ? '<button class="btn" id="p-unban">Unban</button>' : '<button class="btn red" id="p-ban">' + ico('ban') + ' Ban account</button>') : '') +
+      '</div></div>' +
+    '<div class="tabs">' + tabs.map(t => '<div class="tab' + (P360TAB === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + (t[2] ? '<span class="n">' + t[2] + '</span>' : '') + '</div>').join('') + '</div>' +
+    '<div id="p-body">' + p360Tab(d) + '</div>';
+  m.innerHTML = h;
+  $('p-back').onclick = () => { P360 = null; renderPlayers(); };
+  m.querySelectorAll('.tab').forEach(t => t.onclick = () => { P360TAB = t.dataset.tab; renderP360(); });
+  const on = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
+  on('p-logout', async () => {
+    const r = await confirmBox({title: 'Log out ' + p.handle + '?', body: 'Clears the session key. The game tab is thrown out to the sign-in screen. Nothing else changes.', reason: true, tone: 'orange', yes: 'Log out'});
+    if (!r) return; try { await rpc('admin_logout', {p_profile: p.id, p_reason: r.reason}); toast('Session cleared.'); openPlayer(p.id, P360TAB); } catch (e){ toast(e.message, true); }
+  });
+  on('p-sanction', () => sanctionBox(p, d.characters, null));
+  on('p-gdpr', async () => {
+    const r = await confirmBox({title: 'GDPR export for ' + p.handle + '?', body: 'Downloads everything the game stores about this account as one JSON file. The export is logged in the audit with your reason. Handle the file as personal data.', reason: true, yes: 'Export'});
+    if (!r) return;
+    try {
+      const x = await rpc('admin_gdpr_export', {p_profile: p.id, p_reason: r.reason});
+      const txt = JSON.stringify(x, null, 2), blob = new Blob([txt], {type: 'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'genesis-gdpr-' + String(p.handle).replace(/[^A-Za-z0-9_-]/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      toast('Exported ' + Math.round(txt.length / 1024) + ' KB.');
+    } catch (e){ toast(e.message, true); }
+  });
+  on('p-case', () => newCaseBox(p));
+  on('p-adjust', () => adjustBox(p, d.characters.filter(c => !c.deleted_at)));
+  m.querySelectorAll('[data-rmitem]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Remove ' + b.dataset.k + ' from ' + b.dataset.c + '?', body: 'The item is deleted. Its full data is kept in the audit and item history, so the Owner can recreate it if this was wrong.', reason: true, tone: 'red', yes: 'Remove item'});
+    if (!r) return; try { await rpc('admin_item_remove', {p_item: b.dataset.rmitem, p_reason: r.reason}); toast('Item removed.'); openPlayer(p.id, 'inventory'); } catch (e){ toast(e.message, true); }
+  });
+  m.querySelectorAll('[data-reclaim]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Reclaim this reward?', body: 'Takes back the gold, fragments, credits and stacks from the letter. Fails visibly if the player no longer has the stacks or the balance.', reason: true, tone: 'red', yes: 'Reclaim'});
+    if (!r) return; try { const x = await rpc('admin_mail_reclaim', {p_delivery: +b.dataset.reclaim, p_reason: r.reason}); toast('Reclaimed ' + gold(x.gold) + ', ' + x.frags + ' frags, ' + x.credits + ' cr.'); openPlayer(p.id, 'timeline'); } catch (e){ toast(e.message, true); }
+  });
+  if (P360TAB === 'timeline') loadTimeline(p.id);
+  on('p-mail', () => { MAILTO = {profile: p.id, handle: p.handle, characters: d.characters.filter(c => !c.deleted_at).map(c => ({id: c.id, name: c.name}))}; go('mail'); });
+  on('p-handle', async () => {
+    const r = await confirmBox({title: 'Force a name change for ' + p.handle + '?', body: 'The handle becomes Runner_xxxxxxxx at once and the old name is reserved for 90 days. The player can pick a new name right away.', reason: true, message: 'Your name broke the naming rules. Please pick a new one in Settings.', tone: 'orange', yes: 'Change name'});
+    if (!r) return; try { const x = await rpc('admin_handle_force', {p_profile: p.id, p_reason: r.reason, p_message: r.message || null}); toast('Renamed to ' + x.handle + '.'); openPlayer(p.id, 'moderation'); } catch (e){ toast(e.message, true); }
+  });
+  on('p-ban', async () => {
+    const r = await confirmBox({title: 'Ban ' + p.handle + '?', body: 'The account is closed at once: thrown out, cannot sign in. Everything stays in the database and can be unbanned.', reason: true, message: 'Your account has been closed for breaking the rules.', tone: 'red', yes: 'Ban account'});
+    if (!r) return; try { await rpc('admin_ban', {p_profile: p.id, p_reason: r.reason, p_message: r.message || null}); toast('Banned.'); openPlayer(p.id, 'moderation'); } catch (e){ toast(e.message, true); }
+  });
+  on('p-unban', async () => {
+    const r = await confirmBox({title: 'Unban ' + p.handle + '?', body: 'The account can sign in again.', reason: true, yes: 'Unban'});
+    if (!r) return; try { await rpc('admin_unban', {p_profile: p.id, p_reason: r.reason}); toast('Unbanned.'); openPlayer(p.id, 'moderation'); } catch (e){ toast(e.message, true); }
+  });
+  on('p-note-add', async () => {
+    const body = $('p-note').value.trim(); if (!body) return;
+    try { await rpc('admin_note_add', {p_profile: p.id, p_body: body}); toast('Note saved.'); openPlayer(p.id, 'notes'); } catch (e){ toast(e.message, true); }
+  });
+  m.querySelectorAll('[data-lift]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Lift this sanction?', body: 'It stops applying at once. The row stays in the history.', reason: true, yes: 'Lift'});
+    if (!r) return; try { await rpc('admin_sanction_lift', {p_id: +b.dataset.lift, p_reason: r.reason}); toast('Lifted.'); openPlayer(p.id, 'moderation'); } catch (e){ toast(e.message, true); }
+  });
+  m.querySelectorAll('[data-case]').forEach(b => b.onclick = () => openCase(+b.dataset.case));
+  m.querySelectorAll('[data-delmsg]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Delete this chat message?', body: '"' + b.dataset.body + '" — hidden from every player at once; staff can still read it for 90 days.', reason: true, tone: 'orange', yes: 'Delete'});
+    if (!r) return; try { await rpc('admin_chat_delete', {p_id: +b.dataset.delmsg, p_reason: r.reason}); toast('Deleted.'); openPlayer(p.id, 'social'); } catch (e){ toast(e.message, true); }
+  });
+}
+function charHead(c){
+  return '<div class="box" style="margin-bottom:10px"><div class="row"><b style="font-size:14px">' + esc(c.name) + '</b>' +
+    (c.deleted_at ? '<span class="pill red">deleted</span>' : '') + '<span class="pill purple">Level ' + levelOf(c) + (c.paragon ? ' · P' + c.paragon : '') + '</span>' +
+    '<span class="pill">' + esc(c.class_id || 'no class') + '</span><span class="pill cyan">' + esc(c.region) + ' · ' + esc(c.zone) + '</span>' +
+    (c.guild ? '<span class="pill gold">[' + esc(c.guild.tag) + '] ' + esc(c.guild.name) + ' · ' + esc(c.guild.role) + '</span>' : '') +
+    '<span class="copy" data-copy="' + c.id + '" style="margin-left:auto">' + c.id.slice(0,8) + '…</span></div>';
+}
+const h3 = t => '<h3 style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin:6px 0">' + t + '</h3>';
+function p360Tab(d){
+  const t = P360TAB, cs = d.characters, md = P360MOD || {sanctions: [], cases: []};
+  if (t === 'overview') return cs.map(c => charHead(c) +
+    '<div class="kv"><span class="k">Gold</span><span class="v">' + gold(c.gold) + '</span><span class="k">Fragments</span><span class="v">' + c.fragments + '</span>' +
+    '<span class="k">Credits</span><span class="v">' + c.credits + '</span><span class="k">Fuel</span><span class="v">' + c.fuel + '</span>' +
+    '<span class="k">Health</span><span class="v">' + Math.round(+c.hp_pct || 0) + '%</span><span class="k">Last action</span><span class="v">' + ago(c.last_seen_at) + '</span>' +
+    '<span class="k">Right now</span><span class="v">' + esc(doingOf(c)) + '</span>' +
+    '<span class="k">Onboarding</span><span class="v">' + (c.onboarding ? (c.onboarding.pieces || 0) + ' picks made' : 'not started') + '</span>' +
+    '<span class="k">Daily</span><span class="v">' + (c.daily ? 'day ' + c.daily.day + ', cycle ' + (c.daily.cycles || 0) + ', last claim ' + (c.daily.last_claim_date || c.daily.claimed_on || '–') : '–') + '</span>' +
+    '<span class="k">Professions</span><span class="v">' + (c.professions.length ? c.professions.map(x => esc(x.prof) + ' (' + Math.round(x.xp) + ' xp)').join(', ') : '–') + '</span>' +
+    '<span class="k">Chat privacy</span><span class="v">' + esc(c.chat_privacy || 'default') + '</span></div></div>').join('') || '<div class="empty">No characters.</div>';
+  if (t === 'inventory') return cs.map(c => charHead(c) + h3('Gear (' + c.items.length + ')') +
+    (c.items.length ? '<table class="t"><tr><th>Item</th><th>Rarity</th><th>Lvl</th><th>Where</th><th>HP</th><th>Pow</th><th>Dmg</th><th>Affixes</th><th>Flags</th><th>Id</th></tr>' +
+      c.items.map(i => '<tr><td class="r' + i.rarity + '"><b>' + esc(i.key) + '</b></td><td>' + i.rarity + '</td><td class="num">' + (i.level ?? '') + '</td><td>' + esc(i.location) + (i.slot != null ? ' #' + i.slot : '') + '</td>' +
+        '<td class="num">' + (i.hp ?? '') + '</td><td class="num">' + (i.power ?? '') + '</td><td class="num">' + (i.damage ?? '') + '</td><td class="mono">' + esc(JSON.stringify(i.affixes || {})) + '</td>' +
+        '<td>' + (i.god ? '<span class="pill gold">god</span> ' : '') + (i.crafted ? '<span class="pill">crafted</span> ' : '') + (i.vendor ? '<span class="pill">vendor</span> ' : '') + (i.tune ? '<span class="pill">tuned ×' + i.tune + '</span>' : '') + '</td>' +
+        '<td>' + copyable(i.id) + (has('item.remove') && i.location !== 'auction' && i.location !== 'mail' ? ' <button class="btn sm red" data-rmitem="' + i.id + '" data-k="' + esc(i.key) + '" data-c="' + esc(c.name) + '">Remove</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">No gear.</div>') +
+    '<div class="grid2" style="margin-top:10px"><div>' + h3('Bag stacks') + stackTable(c.stacks) + '</div><div>' + h3('Vault') + stackTable(c.vault) + '</div></div>' +
+    '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:6px">Bag slots bought: ' + c.bag_slots.length + ' · unclaimed mail: ' + c.mail.filter(x => !x.taken_at && x.items && x.items.length).length + '</div></div>').join('');
+  if (t === 'helpers') return cs.map(c => charHead(c) + (c.pets.length ? '<table class="t"><tr><th>Species</th><th>Rarity</th><th>Nickname</th><th>XP</th><th>Team slot</th><th>Affixes</th></tr>' +
+      c.pets.map(p => '<tr><td>' + esc(p.species) + '</td><td class="r' + p.rarity + '">' + p.rarity + '</td><td>' + esc(p.nickname || '') + '</td><td class="num">' + Math.round(p.xp) + '</td><td>' + (p.team_slot != null ? p.team_slot : '–') + '</td><td class="mono">' + esc(JSON.stringify(p.affixes || {})) + '</td></tr>').join('') + '</table>' : '<div class="empty">No helpers.</div>') + '</div>').join('');
+  if (t === 'economy') return cs.map(c => charHead(c) +
+    '<div class="grid2"><div>' + h3('Ledger (last 100)') +
+    (c.ledger.length ? '<table class="t"><tr><th>When</th><th>Reason</th><th>Gold</th><th>Frags</th><th>Cr</th><th>Gold after</th></tr>' +
+      c.ledger.map(l => '<tr><td class="num">' + ago(l.at) + '</td><td>' + esc(l.reason) + (l.meta ? ' <span class="mono" style="color:var(--text-faint)">' + esc(JSON.stringify(l.meta)) + '</span>' : '') + '</td><td class="num">' + gold(l.gold) + '</td><td class="num">' + (l.frags || '') + '</td><td class="num">' + (l.credits || '') + '</td><td class="num">' + gold(l.gold_after) + '</td></tr>').join('') + '</table>' : '<div class="empty">Empty.</div>') + '</div>' +
+    '<div>' + h3('Auction house (last 50)') +
+    (c.auctions.length ? '<table class="t"><tr><th>Role</th><th>What</th><th>Qty</th><th>Unit</th><th>Status</th><th>When</th></tr>' +
+      c.auctions.map(a => '<tr><td>' + a.role + '</td><td>' + esc(a.stack_key || (a.item_id ? 'item ' + a.item_id.slice(0,8) : '')) + '</td><td class="num">' + a.qty + '</td><td class="num">' + gold(a.unit_price) + '</td><td><span class="pill">' + esc(a.status) + '</span></td><td class="num">' + ago(a.created_at) + '</td></tr>').join('') + '</table>' : '<div class="empty">No listings.</div>') + '</div></div></div>').join('');
+  if (t === 'progression') return cs.map(c => charHead(c) +
+    '<div class="grid2"><div><div class="kv"><span class="k">XP</span><span class="v">' + Math.round(c.xp) + '</span><span class="k">Paragon</span><span class="v">' + (c.paragon || 0) + '</span>' +
+    '<span class="k">Quests</span><span class="v">' + (c.quests.length ? c.quests.map(q => esc(q.template) + ' (' + q.status + ' ' + (q.progress || 0) + '/' + (q.target || '?') + ')').join('<br>') : '–') + '</span>' +
+    '<span class="k">Expeditions</span><span class="v">' + (c.expedition_runs.length ? c.expedition_runs.map(e => esc(e.exp_id) + ' ends ' + ago(e.ends_at).replace(' ago', '')).join('<br>') : '–') + '</span>' +
+    '<span class="k">Dungeon</span><span class="v">' + (c.dungeon_run ? esc(c.dungeon_run.dungeon_id) + (c.dungeon_run.heroic ? ' (heroic)' : '') + ' · ' + esc(c.dungeon_run.state) : '–') + '</span>' +
+    '<span class="k">Crafting</span><span class="v">' + (c.work_orders.length ? c.work_orders.map(w => esc(w.recipe) + ' ' + w.secs_left + 's').join('<br>') : '–') + '</span>' +
+    '<span class="k">Boosts</span><span class="v">' + (c.boosts.length ? c.boosts.map(b => esc(b.boost) + ' +' + b.pct + '% until ' + when(b.until)).join('<br>') : '–') + '</span></div></div>' +
+    '<div>' + h3('XP ledger (last 50)') +
+    (c.xp_ledger.length ? '<table class="t"><tr><th>When</th><th>Reason</th><th>XP</th><th>Level</th></tr>' + c.xp_ledger.map(x => '<tr><td class="num">' + ago(x.at) + '</td><td>' + esc(x.reason) + '</td><td class="num">' + Math.round(x.amount) + '</td><td class="num">' + x.level_after + '</td></tr>').join('') + '</table>' : '<div class="empty">Empty.</div>') + '</div></div></div>').join('');
+  if (t === 'social') return '<div class="box" style="margin-bottom:10px"><div class="kv"><span class="k">Friends</span><span class="v">' + d.profile.friends + '</span><span class="k">Blocked</span><span class="v">' + d.profile.blocks + '</span><span class="k">Friend privacy</span><span class="v">' + esc(d.profile.friend_privacy || 'default') + '</span>' +
+    '<span class="k">Reports</span><span class="v">' + (md.reports_received || 0) + ' received · ' + (md.reports_made || 0) + ' made</span></div></div>' +
+    h3('Chat (last 100, sent or received)') + (d.chat.length ? '<table class="t"><tr><th>When</th><th>Channel</th><th>From</th><th>To</th><th>Message</th><th>Status</th><th></th></tr>' +
+      d.chat.map(x => '<tr class="chatrow"' + (x.mine ? '' : ' style="opacity:.7"') + '><td class="num">' + ago(x.at) + '</td><td><span class="pill">' + esc(x.channel) + '</span></td><td>' + esc(x.from) + '</td><td>' + esc(x.to || '') + '</td><td' + (x.status === 'deleted' ? ' style="text-decoration:line-through;color:var(--text-faint)"' : '') + '>' + esc(x.body) + '</td><td>' + (x.status && x.status !== 'ok' ? '<span class="pill red">' + esc(x.status) + '</span>' : '') + '</td>' +
+        '<td>' + (x.mine && x.status === 'ok' && has('chat.delete') && x.id ? '<button class="btn sm red del" data-delmsg="' + x.id + '" data-body="' + esc(String(x.body).slice(0, 80)) + '">Delete</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">No chat.</div>');
+  if (t === 'moderation') return '<div class="grid2"><div>' + h3('Sanctions (' + md.sanctions.filter(s => s.active).length + ' active)') +
+      (md.sanctions.length ? md.sanctions.map(s => sancRow(s, true)).join('') : '<div class="empty">No sanctions. Clean record.</div>') + '</div>' +
+    '<div>' + h3('Cases') + (md.cases.length ? '<table class="t">' + md.cases.map(c => '<tr class="clk" data-case="' + c.id + '"><td class="num">#' + c.id + '</td><td><span class="pill ' + (c.status === 'open' ? 'red' : c.status === 'waiting' ? 'gold' : '') + '">' + c.status + '</span></td><td>' + esc(c.title) + '</td><td class="num">' + (c.reports ? c.reports + ' rep' : '') + '</td><td class="num">' + ago(c.created_at) + '</td></tr>').join('') + '</table>' : '<div class="empty">No cases.</div>') + '</div></div>';
+  if (t === 'timeline') return '<div class="row" style="margin-bottom:8px" id="tl-filters">' + ['ledger','xp','mail','chat','guild','report','sanction','admin','item','login'].map(s => '<label class="pill" style="cursor:pointer"><input type="checkbox" data-tl="' + s + '"' + (TLF[s] === false ? '' : ' checked') + ' style="margin:0 4px 0 0;vertical-align:middle">' + s + '</label>').join('') + '<span style="margin-left:auto;color:var(--text-faint);font-size:11px">latest 300 events</span></div><div id="tl-body" class="box"><div class="empty">Loading…</div></div>';
+  if (t === 'notes') return '<div class="grid2"><div>' + h3('Internal notes') +
+    (has('player.note') ? '<textarea id="p-note" placeholder="Note for other staff. Never shown to the player."></textarea><div class="row" style="justify-content:flex-end;margin:6px 0 12px"><button class="btn primary" id="p-note-add">Add note</button></div>' : '') +
+    (d.notes.length ? d.notes.map(n => '<div class="note">' + esc(n.body) + '<div class="m">' + esc(n.by || 'staff') + ' · ' + when(n.at) + '</div></div>').join('') : '<div class="empty">No notes.</div>') + '</div>' +
+    '<div>' + h3('Admin actions on this account') + (d.audit.length ? '<table class="t"><tr><th>When</th><th>Who</th><th>Action</th><th>Reason</th></tr>' + d.audit.map(a => '<tr><td class="num">' + ago(a.at) + '</td><td>' + esc(a.who) + '</td><td>' + esc(a.action) + '</td><td>' + esc(a.reason || '') + '</td></tr>').join('') + '</table>' : '<div class="empty">None.</div>') + '</div></div>';
+  return '';
+}
+const TLF = {};
+async function loadTimeline(pid){
+  const box = $('tl-body'); if (!box) return;
+  const on = Object.keys(TLF).length ? ['ledger','xp','mail','chat','guild','report','sanction','admin','item','login'].filter(s => TLF[s] !== false) : null;
+  let rows; try { rows = await rpc('admin_player_timeline', {p_profile: pid, p_limit: 300, p_sources: on}); } catch (e){ box.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; return; }
+  const col = {ledger: 'gold', xp: 'cyan', mail: 'purple', chat: '', guild: 'gold', report: 'orange', sanction: 'red', admin: 'red', item: 'cyan', login: 'green'};
+  box.innerHTML = rows.length ? '<table class="t"><tr><th>When</th><th>Source</th><th>Character</th><th>What</th></tr>' + rows.map(r => '<tr><td class="num">' + when(r.at) + '</td><td><span class="pill ' + (col[r.source] || '') + '">' + esc(r.source) + '</span></td><td>' + esc(r.character || '') + '</td><td>' + esc(r.text) + (r.meta && Object.keys(r.meta).length ? ' <span class="copy" title="' + esc(JSON.stringify(r.meta)) + '">…</span>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">Nothing in this window.</div>';
+  document.querySelectorAll('[data-tl]').forEach(cb => cb.onchange = () => { TLF[cb.dataset.tl] = cb.checked; loadTimeline(pid); });
+}
+function adjustBox(p, chars){
+  const lim = ME.perms['currency.adjust'] || {};
+  const m = $('modal'); m.className = 'modal orange';
+  m.innerHTML = '<h3>Adjust currency for ' + esc(p.handle) + '</h3><p>Plus or minus. Written to the ledger with reason "admin" and your name. Caps: gold ' + (lim.max_gold != null ? gold(lim.max_gold) : '∞') + ', fragments ' + (lim.max_frags != null ? lim.max_frags : '∞') + ', credits ' + (lim.max_credits != null ? lim.max_credits : '∞') + '.</p>' +
+    '<label>Character</label><select id="a-char">' + chars.map(c => '<option value="' + c.id + '">' + esc(c.name) + ' — ' + gold(c.gold) + ', ' + c.fragments + ' frags, ' + c.credits + ' cr</option>').join('') + '</select>' +
+    '<div class="g2"><div><label>Gold (copper, negative to take)</label><input id="a-gold" type="number" value="0"></div><div><label>Fragments</label><input id="a-frags" type="number" value="0"></div></div>' +
+    '<label>Credits</label><input id="a-credits" type="number" value="0"><label>Reason (required)</label><textarea id="a-reason" style="min-height:48px"></textarea>' +
+    '<div class="acts"><button class="btn" id="a-no">Cancel</button><button class="btn orange" id="a-yes">Apply</button></div>';
+  $('modal-bg').classList.add('on'); $('a-no').onclick = modalClose;
+  $('a-yes').onclick = async () => {
+    const reason = $('a-reason').value.trim(); if (reason.length < 3){ $('a-reason').style.borderColor = 'var(--red)'; return; }
+    try { await rpc('admin_currency_adjust', {p_character: $('a-char').value, p_gold: +$('a-gold').value || 0, p_frags: +$('a-frags').value || 0, p_credits: +$('a-credits').value || 0, p_reason: reason}); modalClose(); toast('Adjusted.'); openPlayer(p.id, 'economy'); }
+    catch (e){ toast(e.message, true); }
+  };
+}
+function doingOf(c){
+  if (c.travel_to && new Date(c.travel_ends) > new Date()) return 'travelling to ' + c.travel_to;
+  if (c.scan_ends && new Date(c.scan_ends) > new Date()) return 'drone over ' + c.scan_zone;
+  if (c.dungeon_run) return 'in ' + c.dungeon_run.dungeon_id;
+  if (c.expedition_runs.length) return 'expedition ' + c.expedition_runs.map(e => e.exp_id).join(', ');
+  if (c.work_orders.length) return 'crafting';
+  return 'idle';
+}
+function stackTable(rows){
+  return rows.length ? '<table class="t"><tr><th>Key</th><th>Kind</th><th>Qty</th></tr>' + rows.map(s => '<tr><td>' + esc(s.key) + '</td><td>' + esc(s.kind) + (s.rarity != null ? ' r' + s.rarity : '') + '</td><td class="num">' + s.qty + '</td></tr>').join('') + '</table>' : '<div class="empty">Empty.</div>';
+}
+
+/* ---------- STRAFFGUIDEN (ett stalle for alla straff) ---------- */
+const KINDS = [
+  ['warn', 'Warning (letter only)', 'case.manage', false], ['mute', 'Chat mute', 'chat.mute', true],
+  ['mail_block', 'Mail block', 'player.restrict', true], ['auction_block', 'Auction block', 'player.restrict', true],
+  ['guild_block', 'Guild block', 'player.restrict', true], ['report_block', 'Report block', 'player.restrict', true],
+  ['pause', 'Account pause', 'player.pause', true], ['lock', 'Account lock (until lifted)', 'player.lock', false], ['char_lock', 'Character lock', 'player.lock', true]
+];
+const DEFAULT_MSG = {
+  warn: 'This is a warning from the Genesis team. Please keep to the rules — the next step is a mute or a pause.',
+  mute: 'You have been muted in chat for breaking the chat rules.', mail_block: 'Your mail has been blocked for a while.',
+  auction_block: 'Your access to the auction house has been blocked for a while.', guild_block: 'Your access to guilds has been blocked for a while.',
+  report_block: 'Your reports have been blocked for a while because of misuse.', pause: 'Your account has been paused by the Genesis team.',
+  lock: 'Your account is locked while the team looks into something.', char_lock: 'One of your characters is locked while the team looks into something.'
+};
+function sanctionBox(p, chars, caseId){
+  const kinds = KINDS.filter(k => has(k[2]));
+  if (!kinds.length){ toast('You have no sanction permissions.', true); return; }
+  const m = $('modal'); m.className = 'modal orange';
+  m.innerHTML = '<h3>Sanction ' + esc(p.handle) + '</h3><p>Every sanction is logged with your name, is visible to the player as a mail if you write one, and can be lifted.' + (caseId ? ' Linked to case #' + caseId + '.' : '') + '</p>' +
+    '<label>Kind</label><select id="s-kind">' + kinds.map(k => '<option value="' + k[0] + '">' + k[1] + '</option>').join('') + '</select>' +
+    '<div class="g2"><div id="s-days-w"><label>Days</label><input id="s-days" type="number" min="0.5" step="0.5" value="1"></div>' +
+    '<div id="s-chan-w" style="display:none"><label>Channel</label><select id="s-chan"><option value="all">All channels</option><option value="general">General</option><option value="trade">Trade</option><option value="whisper">Whispers</option><option value="guild">Guild</option></select></div>' +
+    '<div id="s-char-w" style="display:none"><label>Character</label><select id="s-char">' + (chars || []).map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('') + '</select></div></div>' +
+    '<label>Reason (required, internal)</label><textarea id="s-reason" style="min-height:48px"></textarea>' +
+    '<label>Note to staff (optional)</label><input id="s-note">' +
+    '<label>Message to the player (sent as mail; clear it to send nothing)</label><textarea id="s-msg" style="min-height:56px"></textarea>' +
+    '<div class="acts"><button class="btn" id="s-no">Cancel</button><button class="btn orange" id="s-yes">Apply sanction</button></div>';
+  $('modal-bg').classList.add('on');
+  const upd = () => {
+    const k = $('s-kind').value, def = KINDS.find(x => x[0] === k);
+    $('s-days-w').style.display = def[3] ? '' : 'none'; $('s-chan-w').style.display = k === 'mute' ? '' : 'none'; $('s-char-w').style.display = k === 'char_lock' ? '' : 'none';
+    $('s-msg').value = DEFAULT_MSG[k] || '';
+    const mx = lim(def[2], 'max_days'); $('s-days').max = mx || ''; $('s-days').title = mx ? 'Your role allows up to ' + mx + ' days' : '';
+  };
+  $('s-kind').onchange = upd; upd();
+  $('s-no').onclick = modalClose;
+  $('s-yes').onclick = async () => {
+    const k = $('s-kind').value, reason = $('s-reason').value.trim();
+    if (reason.length < 3){ $('s-reason').style.borderColor = 'var(--red)'; return; }
+    $('s-yes').disabled = true;
+    try {
+      await rpc('admin_sanction_add', {p_profile: p.id, p_kind: k, p_days: +$('s-days').value || null, p_reason: reason, p_note: $('s-note').value.trim() || null,
+        p_case_id: caseId, p_message: $('s-msg').value.trim() || null, p_channel: k === 'mute' ? $('s-chan').value : null, p_character: k === 'char_lock' ? $('s-char').value : null});
+      modalClose(); toast('Sanction applied.');
+      if (caseId) openCase(caseId); else openPlayer(p.id, 'moderation');
+    } catch (e){ $('s-yes').disabled = false; toast(e.message, true); }
+  };
+}
+function newCaseBox(p){
+  const m = $('modal'); m.className = 'modal';
+  m.innerHTML = '<h3>New case' + (p ? ' for ' + esc(p.handle) : '') + '</h3><p>A case gathers reports, notes and sanctions about one player in one place.</p>' +
+    (p ? '' : '<label>Player (profile id, or leave empty)</label><input id="c-pid" placeholder="paste a profile id from the search">') +
+    '<label>Kind</label><select id="c-kind"><option value="support">Support</option><option value="report">Report</option><option value="appeal">Appeal</option></select>' +
+    '<label>Title</label><input id="c-title" maxlength="140"><label>First note (optional)</label><textarea id="c-body"></textarea>' +
+    '<div class="acts"><button class="btn" id="c-no">Cancel</button><button class="btn primary" id="c-yes">Open case</button></div>';
+  $('modal-bg').classList.add('on'); $('c-no').onclick = modalClose;
+  $('c-yes').onclick = async () => {
+    const title = $('c-title').value.trim(); if (!title){ $('c-title').style.borderColor = 'var(--red)'; return; }
+    const pid = p ? p.id : ($('c-pid').value.trim() || null);
+    try { const r = await rpc('admin_case_open', {p_profile: pid, p_kind: $('c-kind').value, p_title: title, p_body: $('c-body').value.trim() || null}); modalClose(); toast('Case #' + r.id + ' opened.'); openCase(r.id); }
+    catch (e){ toast(e.message, true); }
+  };
+}
+
+/* ---------- CASES ---------- */
+async function renderCases(){
+  const m = $('main');
+  if (CASE) return renderCase();
+  m.innerHTML = '<h1 class="pg">Cases</h1><div class="pg-sub">Player reports, support and appeals — one thread per player.</div><div class="empty">Loading…</div>';
+  let rows; try { rows = await rpc('admin_cases_list', {p_status: CASEFILT}); } catch (e){ m.innerHTML = '<h1 class="pg">Cases</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Cases</h1><div class="pg-sub" style="margin-bottom:0">Player reports, support and appeals — one thread per player.</div></div>' +
+    '<div class="right"><button class="btn primary" id="cs-new">' + ico('doc') + ' New case</button></div></div>' +
+    '<div class="tabs" style="margin-top:0">' + ['open','waiting','closed','all'].map(s => '<div class="tab' + (CASEFILT === s ? ' on' : '') + '" data-f="' + s + '">' + s + '</div>').join('') + '</div>' +
+    (rows.length ? '<div class="box" style="padding:6px 10px"><table class="t"><tr><th>#</th><th>Status</th><th>Kind</th><th>Title</th><th>Player</th><th>Reports</th><th>Notes</th><th>Assigned</th><th>Updated</th></tr>' +
+      rows.map(c => '<tr class="clk case-row" data-case="' + c.id + '"><td class="num">' + c.id + '</td><td><span class="pill ' + (c.status === 'open' ? 'red' : c.status === 'waiting' ? 'gold' : '') + '">' + c.status + '</span></td><td><span class="pill ' + (c.kind === 'report' ? 'orange' : c.kind === 'appeal' ? 'purple' : 'cyan') + '">' + c.kind + '</span></td>' +
+        '<td><span class="ttl">' + esc(c.title) + '</span></td><td>' + esc(c.handle || '–') + '</td><td class="num">' + (c.reports || '') + '</td><td class="num">' + (c.notes || '') + '</td><td>' + esc(c.assigned || '–') + '</td><td class="num">' + ago(c.updated_at) + '</td></tr>').join('') + '</table></div>'
+      : '<div class="empty">No ' + (CASEFILT === 'all' ? '' : CASEFILT + ' ') + 'cases.</div>');
+  m.querySelectorAll('[data-f]').forEach(t => t.onclick = () => { CASEFILT = t.dataset.f; renderCases(); });
+  m.querySelectorAll('[data-case]').forEach(r => r.onclick = () => openCase(+r.dataset.case));
+  $('cs-new').onclick = () => newCaseBox(null);
+}
+async function openCase(id){
+  go('cases'); const m = $('main'); m.innerHTML = '<h1 class="pg">Cases</h1><div class="empty">Loading…</div>';
+  try { CASE = await rpc('admin_case_get', {p_id: id}); } catch (e){ m.innerHTML = '<h1 class="pg">Cases</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  renderCase();
+}
+function renderCase(){
+  const d = CASE, c = d.case, m = $('main');
+  m.innerHTML = '<div class="row" style="margin-bottom:10px"><button class="btn" id="cs-back">‹ All cases</button><h1 class="pg" style="font-size:22px">Case #' + c.id + '</h1></div>' +
+    '<div class="case-head"><div><div class="hn">' + esc(c.title) + ' <span class="pill ' + (c.status === 'open' ? 'red' : c.status === 'waiting' ? 'gold' : '') + '">' + c.status + '</span> <span class="pill ' + (c.kind === 'report' ? 'orange' : c.kind === 'appeal' ? 'purple' : 'cyan') + '">' + c.kind + '</span></div>' +
+      '<div class="meta" style="color:var(--text-dim);font-size:11.5px;margin-top:3px">' + (c.handle ? 'player <b style="color:var(--cyan);cursor:pointer" data-open="' + c.profile_id + '">' + esc(c.handle) + '</b> · ' : '') + 'opened ' + when(c.created_at) + ' · updated ' + ago(c.updated_at) + ' · assigned to ' + esc(c.assigned || 'nobody') + (c.closed_at ? ' · closed ' + when(c.closed_at) : '') + '</div></div>' +
+      '<div class="acts">' +
+        (c.profile_id ? '<button class="btn orange" id="cs-sanction">' + ico('gavel') + ' Sanction…</button>' : '') +
+        '<button class="btn" id="cs-assign">Assign to me</button>' +
+        (c.status !== 'waiting' ? '<button class="btn" data-st="waiting">Mark waiting</button>' : '') +
+        (c.status !== 'open' ? '<button class="btn" data-st="open">Reopen</button>' : '') +
+        (c.status !== 'closed' ? '<button class="btn red" data-st="closed">Close case</button>' : '') +
+      '</div></div>' +
+    '<div class="grid2">' +
+      '<div><div class="box">' + h3('Timeline') +
+        (d.notes.length ? d.notes.map(n => '<div class="note' + (n.by === 'player report' ? ' sys' : '') + '">' + esc(n.body) + '<div class="m">' + esc(n.by) + ' · ' + when(n.at) + '</div></div>').join('') : '<div class="empty">No notes yet.</div>') +
+        '<textarea id="cs-note" placeholder="Add a note for staff…" style="margin-top:8px"></textarea><div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn primary" id="cs-note-add">Add note</button></div></div></div>' +
+      '<div><div class="box" style="margin-bottom:12px">' + h3('Reports (' + d.reports.length + ')') +
+        (d.reports.length ? d.reports.map(r => '<div class="rep"><span class="pill orange">' + esc(r.reason) + '</span> <span class="pill">' + esc(r.source) + '</span> ' + (r.text ? esc(r.text) : '') +
+          (r.context && r.context.body ? '<div class="q">“' + esc(r.context.body) + '”</div>' : '') + '<div class="m">by ' + esc(r.reporter || '?') + (r.reporter_char ? ' (' + esc(r.reporter_char) + ')' : '') + ' · ' + when(r.at) + (r.context && r.context.zone ? ' · ' + esc(r.context.zone) : '') + '</div></div>').join('') : '<div class="empty">No player reports on this case.</div>') + '</div>' +
+      '<div class="box" style="margin-bottom:12px">' + h3('Sanctions on this player') + (d.sanctions.length ? d.sanctions.map(s => sancRow(Object.assign({active: !s.lifted_at && (!s.until || new Date(s.until) > new Date())}, s), false)).join('') : '<div class="empty">None.</div>') + '</div>' +
+      '<div class="box">' + h3('Recent chat by this player (' + d.recent_chat.length + ')') + (d.recent_chat.length ? '<table class="t">' + d.recent_chat.map(x => '<tr class="chatrow"><td class="num">' + ago(x.at) + '</td><td><span class="pill">' + esc(x.channel) + '</span></td><td' + (x.status === 'deleted' ? ' style="text-decoration:line-through;color:var(--text-faint)"' : '') + '>' + esc(x.body) + '</td>' +
+        '<td>' + (x.status === 'ok' && has('chat.delete') ? '<button class="btn sm red del" data-delmsg="' + x.id + '" data-body="' + esc(String(x.body).slice(0, 80)) + '">Delete</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">No chat.</div>') + '</div></div>' +
+    '</div>';
+  $('cs-back').onclick = () => { CASE = null; renderCases(); };
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  const st = async (s) => { try { await rpc('admin_case_set', {p_id: c.id, p_status: s}); toast('Case ' + s + '.'); openCase(c.id); } catch (e){ toast(e.message, true); } };
+  m.querySelectorAll('[data-st]').forEach(b => b.onclick = () => st(b.dataset.st));
+  $('cs-assign').onclick = async () => { try { await rpc('admin_case_set', {p_id: c.id, p_status: c.status, p_assign_me: true}); toast('Assigned to you.'); openCase(c.id); } catch (e){ toast(e.message, true); } };
+  $('cs-note-add').onclick = async () => { const b = $('cs-note').value.trim(); if (!b) return; try { await rpc('admin_case_note', {p_id: c.id, p_body: b}); openCase(c.id); } catch (e){ toast(e.message, true); } };
+  const sa = $('cs-sanction'); if (sa) sa.onclick = () => sanctionBox({id: c.profile_id, handle: c.handle}, [], c.id);
+  m.querySelectorAll('[data-delmsg]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Delete this chat message?', body: '"' + b.dataset.body + '" — hidden from every player at once; staff can still read it for 90 days.', reason: true, tone: 'orange', yes: 'Delete'});
+    if (!r) return; try { await rpc('admin_chat_delete', {p_id: +b.dataset.delmsg, p_reason: r.reason}); toast('Deleted.'); openCase(c.id); } catch (e){ toast(e.message, true); }
+  });
+}
+
+/* ---------- CHAT ---------- */
+async function renderChat(){
+  const m = $('main');
+  m.innerHTML = '<h1 class="pg">Chat</h1><div class="pg-sub">General, trade and whispers as the server keeps them — deleted rows stay visible here for 90 days.</div><div class="empty">Loading…</div>';
+  let rows; try { rows = await rpc('admin_chat_list', {p_channel: CHATF.channel, p_limit: 150, p_q: CHATF.q || null}); } catch (e){ m.innerHTML = '<h1 class="pg">Chat</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Chat</h1><div class="pg-sub" style="margin-bottom:0">General, trade and whispers as the server keeps them — deleted rows stay visible here for 90 days.</div></div></div>' +
+    '<div class="row" style="margin-bottom:10px"><div class="tabs" style="margin:0;border:0">' + ['general','trade','whisper','all'].map(c => '<div class="tab' + (CHATF.channel === c ? ' on' : '') + '" data-ch="' + c + '">' + c + '</div>').join('') + '</div>' +
+      '<input id="ch-q" placeholder="Filter by text, name or handle…" value="' + esc(CHATF.q) + '" style="width:300px;margin-left:auto"><button class="btn" id="ch-go">Filter</button><button class="btn" id="ch-re">Refresh</button></div>' +
+    '<div class="box" style="padding:4px 6px">' + (rows.length ? rows.map(x => '<div class="cm' + (x.status !== 'ok' ? ' gone' : '') + (x.gm ? ' gm' : '') + '"><span class="at">' + hm(x.created_at) + '<br>' + esc(new Date(x.created_at).toLocaleDateString('sv-SE')) + '</span>' +
+        '<span class="ch"><span class="pill">' + esc(x.channel) + '</span></span>' +
+        '<span class="who"' + (x.gm ? '' : ' data-open="' + esc(x.sender_profile) + '"') + '>' + (x.sender_tag ? '[' + esc(x.sender_tag) + '] ' : '') + esc(x.sender_name) + (x.to_name ? ' <span style="color:var(--text-faint);font-weight:400">→ ' + esc(x.to_name) + '</span>' : '') + '</span>' +
+        '<span class="body"><span class="bt">' + esc(x.body) + '</span>' + (x.attach && x.attach.length ? ' <span class="pill cyan">' + x.attach.length + ' link</span>' : '') +
+          (x.status !== 'ok' ? '<div style="font-size:10.5px;color:var(--text-faint)">deleted by ' + esc(x.deleted_by || 'staff') + ' ' + when(x.deleted_at) + (x.deleted_reason ? ' — ' + esc(x.deleted_reason) : '') + '</div>' : '') + '</span>' +
+        (x.status === 'ok' && has('chat.delete') ? '<button class="btn sm red del" data-delmsg="' + x.id + '" data-body="' + esc(String(x.body).slice(0, 80)) + '">Delete</button>' : '') + '</div>').join('') : '<div class="empty">No messages.</div>') + '</div>' +
+    (has('chat.gm_speak') ? '<div class="box" style="margin-top:12px">' + h3('Speak as the team') + '<div class="gmbox"><select id="gm-sender"><option value="GENESIS TEAM">GENESIS TEAM</option><option value="GameMaster">GameMaster</option><option value="GM">GM ' + esc(ME.label || '') + '</option><option value="SYSTEM">SYSTEM</option></select>' +
+      '<select id="gm-ch"><option value="general">General</option><option value="trade">Trade</option></select><input id="gm-body" maxlength="240" placeholder="Message to everyone in the channel (240 chars max)…"><button class="btn primary" id="gm-send">Send</button></div>' +
+      '<div class="s" style="color:var(--text-faint);font-size:10.5px;margin-top:6px">Sent from a fixed team account with the tag [GM]. Logged in the audit with your name. Whispers cannot be sent from here.</div></div>' : '');
+  m.querySelectorAll('[data-ch]').forEach(t => t.onclick = () => { CHATF.channel = t.dataset.ch; renderChat(); });
+  $('ch-go').onclick = () => { CHATF.q = $('ch-q').value.trim(); renderChat(); };
+  $('ch-q').addEventListener('keydown', e => { if (e.key === 'Enter') $('ch-go').click(); });
+  $('ch-re').onclick = renderChat;
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  m.querySelectorAll('[data-delmsg]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Delete this chat message?', body: '"' + b.dataset.body + '" — hidden from every player at once; staff can still read it for 90 days.', reason: true, tone: 'orange', yes: 'Delete'});
+    if (!r) return; try { await rpc('admin_chat_delete', {p_id: +b.dataset.delmsg, p_reason: r.reason}); toast('Deleted.'); renderChat(); } catch (e){ toast(e.message, true); }
+  });
+  const gs = $('gm-send'); if (gs) gs.onclick = async () => {
+    const body = $('gm-body').value.trim(); if (!body) return;
+    const r = await confirmBox({title: 'Send to ' + $('gm-ch').value + ' as ' + $('gm-sender').options[$('gm-sender').selectedIndex].text + '?', body: '"' + body + '" — every player in the channel sees it at once.', yes: 'Send'});
+    if (!r) return; try { await rpc('admin_chat_gm_send', {p_channel: $('gm-ch').value, p_body: body, p_sender: $('gm-sender').value}); toast('Sent.'); CHATF.channel = $('gm-ch').value; renderChat(); } catch (e){ toast(e.message, true); }
+  };
+}
+
+/* ---------- GUILDS ---------- */
+async function renderGuilds(){
+  const m = $('main');
+  if (GUILD) return renderGuild();
+  m.innerHTML = '<h1 class="pg">Guilds</h1><div class="pg-sub">Every guild, who leads it and how alive it is.</div><div class="empty">Loading…</div>';
+  let rows; try { rows = await rpc('admin_guilds_list', {p_include_disbanded: true}); } catch (e){ m.innerHTML = '<h1 class="pg">Guilds</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Guilds</h1><div class="pg-sub" style="margin-bottom:0">Every guild, who leads it and how alive it is.</div></div></div>' +
+    (rows.length ? '<div class="box" style="padding:6px 10px"><table class="t"><tr><th>Tag</th><th>Name</th><th>Leader</th><th>Members</th><th>Level</th><th>Joining</th><th>Requests</th><th>Last chat</th><th>Created</th><th></th></tr>' +
+      rows.map(g => '<tr class="clk" data-guild="' + g.id + '"' + (g.disbanded_at ? ' style="opacity:.5"' : '') + '><td><span class="pill gold">' + esc(g.tag) + '</span></td><td><b>' + esc(g.name) + '</b></td><td>' + esc(g.leader || '–') + '</td><td class="num">' + g.members + '</td><td class="num">' + g.level + '</td><td>' + esc(g.membership) + '</td><td class="num">' + (g.pending || '') + '</td><td class="num">' + ago(g.last_chat) + '</td><td class="num">' + when(g.created_at) + '</td><td>' + (g.disbanded_at ? '<span class="pill red">disbanded</span>' : '') + '</td></tr>').join('') + '</table></div>'
+      : '<div class="empty">No guilds yet.</div>');
+  m.querySelectorAll('[data-guild]').forEach(r => r.onclick = () => openGuild(r.dataset.guild));
+}
+async function openGuild(id){
+  go('guilds'); const m = $('main'); m.innerHTML = '<h1 class="pg">Guilds</h1><div class="empty">Loading…</div>';
+  try { GUILD = await rpc('admin_guild_get', {p_id: id}); } catch (e){ m.innerHTML = '<h1 class="pg">Guilds</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  renderGuild();
+}
+function renderGuild(){
+  const d = GUILD, g = d.guild, m = $('main'), live = !g.disbanded_at, mg = has('guild.manage') && live;
+  m.innerHTML = '<div class="row" style="margin-bottom:10px"><button class="btn" id="g-back">‹ All guilds</button><h1 class="pg" style="font-size:22px">Guild</h1></div>' +
+    '<div class="case-head"><div><div class="hn"><span class="pill gold" style="font-size:12px">' + esc(g.tag) + '</span> ' + esc(g.name) + (live ? '' : ' <span class="pill red">disbanded ' + when(g.disbanded_at) + '</span>') + '</div>' +
+      '<div class="meta" style="color:var(--text-dim);font-size:11.5px;margin-top:3px">level ' + g.level + ' · ' + g.xp + ' xp · joining: ' + esc(g.membership) + ' · min level ' + g.min_level + ' · ' + esc(g.lang || '') + ' · created ' + when(g.created_at) + ' by ' + esc(g.created_by || '?') + ' · ' + copyable(g.id) + '</div>' +
+      (g.motd ? '<div style="margin-top:6px;font-size:12px"><b>MOTD:</b> ' + esc(g.motd) + '</div>' : '') + (g.pinned ? '<div style="font-size:12px"><b>Pinned:</b> ' + esc(g.pinned) + '</div>' : '') + (g.descr ? '<div style="font-size:12px;color:var(--text-dim)">' + esc(g.descr) + '</div>' : '') + '</div>' +
+      '<div class="acts">' + (has('guild.disband') && live ? '<button class="btn red" id="g-disband">Disband guild</button>' : '') + '</div></div>' +
+    '<div class="grid2">' +
+      '<div><div class="box" style="margin-bottom:12px">' + h3('Members (' + d.members.length + ')') +
+        (d.members.length ? '<table class="t"><tr><th>Character</th><th>Handle</th><th>Role</th><th>Lvl</th><th>Joined</th><th>Seen</th><th></th></tr>' + d.members.map(x => '<tr><td><b>' + esc(x.name) + '</b>' + (x.muted_until ? ' <span class="pill orange">muted</span>' : '') + '</td><td><span style="cursor:pointer;color:var(--cyan)" data-open="' + esc(x.profile_id) + '">' + esc(x.handle || '–') + '</span></td>' +
+          '<td><span class="pill ' + (x.role === 'leader' ? 'gold' : x.role === 'officer' ? 'purple' : '') + '">' + x.role + '</span></td><td class="num">' + x.level + '</td><td class="num">' + when(x.joined_at) + '</td><td class="num">' + ago(x.last_seen_at) + '</td>' +
+          '<td style="white-space:nowrap">' + (mg && x.role !== 'leader' ? '<button class="btn sm" data-lead="' + x.character_id + '" data-n="' + esc(x.name) + '">Make leader</button> <button class="btn sm red" data-kick="' + x.character_id + '" data-n="' + esc(x.name) + '">Remove</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">No members.</div>') + '</div>' +
+        '<div class="box" style="margin-bottom:12px">' + h3('Recently left (30 days)') + (d.former.length ? '<table class="t">' + d.former.map(x => '<tr><td><b>' + esc(x.name) + '</b> <span style="color:var(--text-dim)">' + esc(x.handle || '') + '</span></td><td class="num">' + ago(x.left_at) + '</td><td>' + (mg ? '<button class="btn sm" data-restore="' + x.character_id + '" data-n="' + esc(x.name) + '">Restore</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">Nobody left recently.</div>') +
+          '<div class="s" style="color:var(--text-faint);font-size:10.5px;margin-top:6px">Restore puts the character back as a member and clears the 12-hour rejoin cooldown.</div></div>' +
+        '<div class="box">' + h3('Invites & requests') + (d.invites.length || d.requests.length ? '<table class="t">' + d.invites.map(x => '<tr><td><span class="pill cyan">invite</span></td><td>' + esc(x.character) + '</td><td>by ' + esc(x.by || '?') + '</td><td class="num">' + ago(x.at) + '</td></tr>').join('') + d.requests.map(x => '<tr><td><span class="pill gold">request</span></td><td>' + esc(x.character) + '</td><td></td><td class="num">' + ago(x.at) + '</td></tr>').join('') + '</table>' : '<div class="empty">None open.</div>') + '</div></div>' +
+      '<div><div class="box" style="margin-bottom:12px">' + h3('Guild chat (last 80)') + (d.chat.length ? '<div>' + d.chat.map(x => '<div class="cm' + (x.deleted_at ? ' gone' : '') + '"><span class="at">' + hm(x.at) + '</span><span class="who">' + (x.kind === 'sys' ? '<span class="pill">system</span>' : esc(x.name || '?')) + (x.kind === 'announce' ? ' <span class="pill gold">announce</span>' : '') + '</span><span class="body"><span class="bt">' + esc(x.body || '') + '</span>' + (x.item ? ' <span class="pill cyan">item</span>' : '') +
+          (x.deleted_at ? '<div style="font-size:10.5px;color:var(--text-faint)">deleted by ' + esc(x.deleted_by || '?') + ' ' + when(x.deleted_at) + (x.deleted_reason ? ' — ' + esc(x.deleted_reason) : '') + '</div>' : '') + '</span>' +
+          (!x.deleted_at && x.kind !== 'sys' && has('chat.delete') ? '<button class="btn sm red del" data-gdel="' + x.id + '" data-body="' + esc(String(x.body || '').slice(0, 80)) + '">Delete</button>' : '') + '</div>').join('') + '</div>' : '<div class="empty">No chat.</div>') + '</div>' +
+        '<div class="box" style="margin-bottom:12px">' + h3('Guild log (last 100)') + (d.log.length ? '<table class="t">' + d.log.map(x => '<tr><td class="num">' + when(x.at) + '</td><td>' + esc(x.body) + (x.actor ? ' <span style="color:var(--text-faint)">— ' + esc(x.actor) + '</span>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">Empty.</div>') + '</div>' +
+        '<div class="box">' + h3('Admin actions on this guild') + (d.audit.length ? '<table class="t">' + d.audit.map(a => '<tr><td class="num">' + when(a.at) + '</td><td>' + esc(a.who || 'staff') + '</td><td>' + esc(a.action) + '</td><td>' + esc(a.reason || '') + '</td></tr>').join('') + '</table>' : '<div class="empty">None.</div>') + '</div></div>' +
+    '</div>';
+  $('g-back').onclick = () => { GUILD = null; renderGuilds(); };
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  const act = async (fn, args, title, body, tone, yes) => {
+    const r = await confirmBox({title, body, reason: true, tone, yes}); if (!r) return;
+    try { await rpc(fn, Object.assign({p_guild: g.id, p_reason: r.reason}, args)); toast('Done.'); openGuild(g.id); } catch (e){ toast(e.message, true); }
+  };
+  m.querySelectorAll('[data-lead]').forEach(b => b.onclick = () => act('admin_guild_set_leader', {p_target: b.dataset.lead}, 'Make ' + b.dataset.n + ' the leader?', 'The current leader becomes an officer. The guild sees a system line saying the team did it.', 'orange', 'Move leadership'));
+  m.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => act('admin_guild_kick', {p_target: b.dataset.kick}, 'Remove ' + b.dataset.n + ' from the guild?', 'They get the normal 12-hour rejoin cooldown and can be restored from here.', 'red', 'Remove'));
+  m.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => act('admin_guild_restore', {p_target: b.dataset.restore}, 'Restore ' + b.dataset.n + ' to the guild?', 'Back as a member, cooldown cleared.', '', 'Restore'));
+  const db = $('g-disband'); if (db) db.onclick = () => act('admin_guild_disband', {}, 'Disband ' + g.name + '?', 'Every member is released, invites and requests are dropped, the name and tag are freed. This cannot be undone.', 'red', 'Disband');
+  m.querySelectorAll('[data-gdel]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Delete this guild chat line?', body: '"' + b.dataset.body + '" — hidden from the guild at once; staff can still read it here.', reason: true, tone: 'orange', yes: 'Delete'});
+    if (!r) return; try { await rpc('admin_guild_chat_delete', {p_id: +b.dataset.gdel, p_reason: r.reason}); toast('Deleted.'); openGuild(g.id); } catch (e){ toast(e.message, true); }
+  });
+}
+
+/* ---------- MAIL & REWARDS ---------- */
+const TEMPLATES = {
+  compensation: {subject: 'A small compensation', body: 'Hi {name},\n\nSomething went wrong on our side and it cost you time. We are sorry about that. Please accept the attached as a thank-you for your patience.\n\n— The Genesis team'},
+  outage: {subject: 'About the downtime', body: 'Hi {name},\n\nGenesis was offline for a while today. Everything is back and nothing was lost. The attached is a little thank-you for waiting.\n\n— The Genesis team'},
+  moderation: {subject: 'A note from the Genesis team', body: 'Hi {name},\n\nWe looked at a report about your account. Please keep to the rules of the world — the next step would be a mute or a pause.\n\n— The Genesis team'},
+  welcome: {subject: 'Welcome to Genesis', body: 'Hi {name},\n\nWelcome to the world. Here is a small starter pack to get you going. If anything looks wrong, write to us.\n\n— The Genesis team'},
+  blank: {subject: '', body: ''}
+};
+function goldParse(g, s, c){ return Math.max(0, (+g || 0) * 10000 + (+s || 0) * 100 + (+c || 0)); }
+async function renderMail(){
+  const m = $('main');
+  m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="pg-sub">One letter to one character, with attachments the game rolls itself.</div><div class="empty">Loading…</div>';
+  let hist; try { [CATALOG, hist] = await Promise.all([CATALOG ? Promise.resolve(CATALOG) : rpc('admin_reward_catalog'), rpc('admin_mail_list', {p_limit: 100})]); }
+  catch (e){ m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  const lim = (ME.perms['mail.single']) || null;
+  const can = has('mail.single');
+  const to = MAILTO;
+  if (MAILTAB === 'campaign') return renderCampaigns(hist);
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">One letter to one character, with attachments the game rolls itself.</div></div>' +
+    (lim ? '<div class="right">Your caps: gold <b>' + (lim.max_gold != null ? gold(lim.max_gold) : '∞') + '</b> · fragments <b>' + (lim.max_frags != null ? lim.max_frags : '∞') + '</b> · credits <b>' + (lim.max_credits != null ? lim.max_credits : '∞') + '</b> · cache tickets <b>' + (lim.max_tickets != null ? lim.max_tickets : '∞') + '</b></div>' : '') + '</div>' +
+    mailTabs() +
+    (can ? '<div class="mailgrid"><div class="box">' + h3('New letter') +
+      '<div class="fld"><label>To (handle)</label><div class="row"><input id="ml-handle" placeholder="Search a handle…" value="' + esc(to ? to.handle : '') + '" style="flex:1"><select id="ml-char" style="flex:1">' + (to ? to.characters.map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('') : '<option value="">— pick a player first —</option>') + '</select></div><div id="ml-hits" style="position:relative"></div></div>' +
+      '<div class="rw"><div class="fld"><label>From</label><select id="ml-sender">' + CATALOG.senders.map(x => '<option value="' + x + '">' + (x === 'GM' ? 'GM ' + esc(ME.label || '') : x) + '</option>').join('') + '</select></div>' +
+      '<div class="fld"><label>Template</label><select id="ml-tpl"><option value="blank">— none —</option><option value="compensation">Compensation</option><option value="outage">Downtime</option><option value="moderation">Moderation</option><option value="welcome">Welcome</option></select></div>' +
+      '<div class="fld" style="grid-column:span 2"><label>Subject</label><input id="ml-subject" maxlength="80"></div></div>' +
+      '<div class="fld" style="margin-top:10px"><label>Body</label><textarea id="ml-body" style="min-height:110px"></textarea><div class="cap">{name} becomes the character name.</div></div>' +
+      h3('Attachments') + '<div class="rw"><div class="fld"><label>Gold</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="ml-g" type="number" min="0" placeholder="g"><input id="ml-s" type="number" min="0" max="99" placeholder="s"><input id="ml-c" type="number" min="0" max="99" placeholder="c"></div></div>' +
+      '<div class="fld"><label>Fragments</label><input id="ml-frags" type="number" min="0" value="0"></div><div class="fld"><label>Credits</label><input id="ml-credits" type="number" min="0" value="0"></div>' +
+      '<div class="fld"><label>Cache tickets</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="ml-th" type="number" min="0" value="0" title="Helper Cache"><input id="ml-tg" type="number" min="0" value="0" title="Gear Cache"></div><div class="cap">helper · gear</div></div></div>' +
+      '<div class="fld" style="margin-top:8px"><label>Items & materials</label><div id="ml-stacks"></div><button class="btn sm" id="ml-addstack" style="margin-top:6px">+ Add row</button><datalist id="ml-cat">' + CATALOG.items.concat(CATALOG.materials).map(x => '<option value="' + esc(x.key) + '">' + esc(x.name) + '</option>').join('') + '</datalist></div>' +
+      '<div class="fld"><label>Reason (internal, required)</label><input id="ml-reason"></div>' +
+      '<div class="row" style="justify-content:flex-end"><button class="btn primary" id="ml-send">' + ico('mail') + ' Send letter</button></div></div>' +
+      '<div><div class="box" style="margin-bottom:12px">' + h3('Preview — as the player sees it') + '<div class="mailprev" id="ml-prev"></div></div></div></div>' : '<div class="empty">Your role cannot send mail.</div>') +
+    '<div class="box" style="margin-top:14px">' + h3('Sent letters (latest 100)') + (hist.length ? '<table class="t"><tr><th>When</th><th>To</th><th>From</th><th>Subject</th><th>Attachments</th><th>By</th><th>Status</th><th></th></tr>' +
+      hist.map(x => '<tr><td class="num">' + when(x.at) + '</td><td><b style="cursor:pointer;color:var(--cyan)" data-open="' + esc(x.profile_id) + '">' + esc(x.handle || '?') + '</b> · ' + esc(x.character || '') + '</td><td>' + esc(x.sender) + '</td><td>' + esc(x.subject) + (x.template ? ' <span class="pill">' + esc(x.template) + '</span>' : '') + '</td><td>' + rewardsText(x.rewards) + '</td><td>' + esc(x.by || '') + '</td>' +
+        '<td>' + (x.status === 'revoked' ? '<span class="pill red">revoked</span>' : x.taken_at ? '<span class="pill green">taken</span>' : x.read_at ? '<span class="pill cyan">read</span>' : x.mail_exists ? '<span class="pill">unread</span>' : '<span class="pill">gone</span>') + '</td>' +
+        '<td>' + (x.status === 'sent' && !x.taken_at && x.mail_exists && can ? '<button class="btn sm red" data-revoke="' + x.delivery_id + '">Revoke</button>' : '') + (x.status === 'sent' && x.taken_at && has('currency.adjust') ? '<button class="btn sm red" data-reclaim="' + x.delivery_id + '">Reclaim</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">Nothing sent yet.</div>') + '</div>';
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  m.querySelectorAll('[data-reclaim]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Reclaim this reward?', body: 'Takes back the gold, fragments, credits and stacks from the letter. Fails visibly if the player no longer has the stacks or the balance.', reason: true, tone: 'red', yes: 'Reclaim'});
+    if (!r) return; try { const x = await rpc('admin_mail_reclaim', {p_delivery: +b.dataset.reclaim, p_reason: r.reason}); toast('Reclaimed ' + gold(x.gold) + ', ' + x.frags + ' frags, ' + x.credits + ' cr.'); renderMail(); } catch (e){ toast(e.message, true); }
+  });
+  m.querySelectorAll('[data-revoke]').forEach(b => b.onclick = async () => {
+    const r = await confirmBox({title: 'Revoke this letter?', body: 'It disappears from the inbox with everything attached. Only possible while unclaimed.', reason: true, tone: 'red', yes: 'Revoke'});
+    if (!r) return; try { await rpc('admin_mail_revoke', {p_delivery: +b.dataset.revoke, p_reason: r.reason}); toast('Revoked.'); renderMail(); } catch (e){ toast(e.message, true); }
+  });
+  if (!can) return;
+  /* mottagare: sok handle -> valj karaktar */
+  let HT = null;
+  $('ml-handle').addEventListener('input', () => { clearTimeout(HT); HT = setTimeout(async () => {
+    const q = $('ml-handle').value.trim(); const box = $('ml-hits'); if (q.length < 2){ box.innerHTML = ''; return; }
+    let rows = []; try { rows = (await rpc('admin_search', {p_q: q})).filter(r => r.profile_id); } catch (e){ return; }
+    box.innerHTML = rows.length ? '<div id="search-res" class="on" style="position:absolute;top:0">' + rows.slice(0, 8).map(r => '<div class="sr" data-pid="' + esc(r.profile_id) + '"><span class="kind">' + r.kind + '</span><span class="name">' + esc(r.name) + '</span><span class="sub">' + esc(r.sub || '') + '</span></div>').join('') + '</div>' : '';
+    box.querySelectorAll('.sr').forEach(el => el.onclick = async () => {
+      box.innerHTML = ''; try { const d = await rpc('admin_player', {p_profile: el.dataset.pid}); MAILTO = {profile: d.profile.id, handle: d.profile.handle, characters: d.characters.filter(c => !c.deleted_at).map(c => ({id: c.id, name: c.name}))};
+        $('ml-handle').value = d.profile.handle; $('ml-char').innerHTML = MAILTO.characters.map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join(''); prev(); } catch (e){ toast(e.message, true); }
+    });
+  }, 250); });
+  const addStack = (key, qty) => { const d = document.createElement('div'); d.className = 'stk'; d.innerHTML = '<input list="ml-cat" placeholder="item or material key…" value="' + esc(key || '') + '"><input class="q" type="number" min="1" max="999" value="' + (qty || 1) + '"><button class="btn sm">×</button>'; d.querySelector('button').onclick = () => { d.remove(); prev(); }; d.querySelectorAll('input').forEach(i => i.addEventListener('input', prev)); $('ml-stacks').appendChild(d); };
+  $('ml-addstack').onclick = () => addStack();
+  const rewards = () => ({gold: goldParse($('ml-g').value, $('ml-s').value, $('ml-c').value), frags: +$('ml-frags').value || 0, credits: +$('ml-credits').value || 0,
+    stacks: [].concat(+$('ml-th').value > 0 ? [{key: 'cache_helper', qty: +$('ml-th').value}] : [], +$('ml-tg').value > 0 ? [{key: 'cache_gear', qty: +$('ml-tg').value}] : [],
+      Array.from($('ml-stacks').querySelectorAll('.stk')).map(d => ({key: d.querySelector('input').value.trim(), qty: +d.querySelector('.q').value || 0})).filter(x => x.key && x.qty > 0))});
+  const charName = () => { const o = $('ml-char').options[$('ml-char').selectedIndex]; return o && o.value ? o.text : 'Runner'; };
+  const prev = () => {
+    const r = rewards(), sender = $('ml-sender').value === 'GM' ? 'GM ' + (ME.label || '') : $('ml-sender').value;
+    $('ml-prev').innerHTML = '<div class="mh"><div><b>' + esc($('ml-subject').value || '(no subject)') + '</b><div style="font-size:11px;color:var(--text-dim)">from ' + esc(sender) + '</div></div><i>Inbox</i></div>' +
+      '<div class="mb">' + esc(($('ml-body').value || '').replace(/\{name\}/g, charName())) + '</div>' +
+      '<div class="ma">' + rewardsChips(r) + '</div>';
+  };
+  ['ml-sender','ml-subject','ml-body','ml-g','ml-s','ml-c','ml-frags','ml-credits','ml-th','ml-tg','ml-char'].forEach(id => $(id).addEventListener('input', prev));
+  $('ml-tpl').onchange = () => { const t = TEMPLATES[$('ml-tpl').value]; $('ml-subject').value = t.subject; $('ml-body').value = t.body; prev(); };
+  prev();
+  $('ml-send').onclick = async () => {
+    const cid = $('ml-char').value; if (!cid){ toast('Pick a player and a character first.', true); return; }
+    const subject = $('ml-subject').value.trim(), reason = $('ml-reason').value.trim(); if (subject.length < 2){ toast('Subject is required.', true); return; } if (reason.length < 3){ toast('Reason is required.', true); return; }
+    const r = rewards(), body = ($('ml-body').value || '').replace(/\{name\}/g, charName());
+    const ok = await confirmBox({title: 'Send to ' + charName() + ' (' + (MAILTO ? MAILTO.handle : '?') + ')?', body: 'Subject "' + subject + '". Attachments: ' + (rewardsText(r).replace(/<[^>]+>/g, '') || 'none') + '. Sent at once; unclaimed letters can be revoked.', yes: 'Send'});
+    if (!ok) return; $('ml-send').disabled = true;
+    try { await rpc('admin_mail_send', {p_character: cid, p_sender: $('ml-sender').value, p_subject: subject, p_body: body, p_rewards: r, p_reason: reason, p_template: $('ml-tpl').value === 'blank' ? null : $('ml-tpl').value}); toast('Letter sent.'); renderMail(); }
+    catch (e){ $('ml-send').disabled = false; toast(e.message, true); }
+  };
+}
+function mailTabs(){ return '<div class="tabs" style="margin-top:0"><div class="tab' + (MAILTAB === 'single' ? ' on' : '') + '" data-mt="single">Single letter</div><div class="tab' + (MAILTAB === 'campaign' ? ' on' : '') + '" data-mt="campaign">Campaigns' + (has('mail.campaign') ? '' : ' <span class="n" style="color:var(--text-faint)">no access</span>') + '</div></div>'; }
+document.addEventListener('click', e => { const t = e.target.closest('[data-mt]'); if (t){ MAILTAB = t.dataset.mt; renderMail(); } });
+
+/* ---- kampanjer: segment -> brev -> bilagor -> torrkorning -> godkann -> skicka ---- */
+async function renderCampaigns(){
+  const m = $('main'); const can = has('mail.campaign'); const lim = ME.perms['mail.campaign'] || null;
+  let camps; try { camps = await rpc('admin_campaigns_list', {p_limit: 50}); } catch (e){ m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">Campaigns: one letter to many accounts — one per account, to the character played last.</div></div>' +
+    (lim ? '<div class="right">Your caps: recipients <b>' + (lim.max_recipients != null ? lim.max_recipients : '∞') + '</b> · credits each <b>' + (lim.max_credits_each != null ? lim.max_credits_each : '∞') + '</b>' + (lim.needs_second_over_recipients != null ? '<br>second approver over ' + lim.needs_second_over_recipients + ' recipients or ' + lim.needs_second_over_credits + ' credits (when enabled)' : '') + '</div>' : '') + '</div>' +
+    mailTabs() +
+    (can ? '<div class="mailgrid"><div class="box">' + h3('New campaign') +
+      '<div class="rw"><div class="fld"><label>Recipients</label><select id="cp-kind"><option value="all">Everyone</option><option value="active">Active in the last N days</option><option value="level">Level band</option><option value="region">In a region</option><option value="guild">A guild</option><option value="profiles">A list of profile ids</option></select></div>' +
+      '<div class="fld" id="cp-p1w"><label id="cp-p1l">Days</label><input id="cp-p1" value="7"></div><div class="fld" id="cp-p2w" style="display:none"><label id="cp-p2l">Max level</label><input id="cp-p2"></div>' +
+      '<div class="fld"><label>Skip those who got campaign #</label><input id="cp-excl" type="number" min="1" placeholder="optional"></div></div>' +
+      '<div class="fld" id="cp-idsw" style="display:none"><label>Profile ids (one per line)</label><textarea id="cp-ids" style="min-height:60px"></textarea></div>' +
+      '<div class="row" style="margin-bottom:10px"><button class="btn" id="cp-preview">Preview recipients</button><span id="cp-count" style="color:var(--text-dim);font-size:12px"></span></div>' +
+      '<div class="rw"><div class="fld"><label>From</label><select id="cp-sender">' + (CATALOG ? CATALOG.senders : ['GENESIS TEAM','GameMaster','GM','SYSTEM']).map(x => '<option value="' + x + '">' + (x === 'GM' ? 'GM ' + esc(ME.label || '') : x) + '</option>').join('') + '</select></div>' +
+      '<div class="fld"><label>Template</label><select id="cp-tpl"><option value="blank">— none —</option><option value="compensation">Compensation</option><option value="outage">Downtime</option><option value="welcome">Welcome</option></select></div>' +
+      '<div class="fld" style="grid-column:span 2"><label>Subject</label><input id="cp-subject" maxlength="80"></div></div>' +
+      '<div class="fld" style="margin-top:10px"><label>Body</label><textarea id="cp-body" style="min-height:90px"></textarea><div class="cap">{name} becomes each character\'s name.</div></div>' +
+      h3('Attachments (each recipient gets the same)') + '<div class="rw"><div class="fld"><label>Gold</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="cp-g" type="number" min="0" placeholder="g"><input id="cp-s" type="number" min="0" max="99" placeholder="s"><input id="cp-c" type="number" min="0" max="99" placeholder="c"></div></div>' +
+      '<div class="fld"><label>Fragments</label><input id="cp-frags" type="number" min="0" value="0"></div><div class="fld"><label>Credits</label><input id="cp-credits" type="number" min="0" value="0"></div>' +
+      '<div class="fld"><label>Cache tickets</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="cp-th" type="number" min="0" value="0" title="Helper Cache"><input id="cp-tg" type="number" min="0" value="0" title="Gear Cache"></div><div class="cap">helper · gear</div></div></div>' +
+      '<div class="fld" style="margin-top:8px"><label>Items & materials</label><div id="cp-stacks"></div><button class="btn sm" id="cp-addstack" style="margin-top:6px">+ Add row</button></div>' +
+      '<div class="fld"><label>Reason (internal, required)</label><input id="cp-reason"></div>' +
+      '<div class="row" style="justify-content:flex-end"><button class="btn primary" id="cp-create">Create dry run</button></div>' +
+      '<div class="cap">A dry run writes one delivery row per account and sends nothing. You approve and send from the list on the right.</div></div>' +
+      '<div><div class="box">' + h3('Campaigns (latest 50)') + (camps.length ? camps.map(c => campaignCard(c)).join('') : '<div class="empty">No campaigns yet.</div>') + '</div></div></div>'
+    : '<div class="empty">Your role cannot run campaigns.</div>');
+  if (!can) return;
+  const kindUI = () => { const k = $('cp-kind').value; $('cp-p1w').style.display = ['active','level','region','guild'].includes(k) ? '' : 'none'; $('cp-p2w').style.display = k === 'level' ? '' : 'none'; $('cp-idsw').style.display = k === 'profiles' ? '' : 'none';
+    $('cp-p1l').textContent = k === 'active' ? 'Days' : k === 'level' ? 'Min level' : k === 'region' ? 'Region key' : k === 'guild' ? 'Guild id' : ''; };
+  $('cp-kind').onchange = kindUI; kindUI();
+  const segment = () => { const k = $('cp-kind').value, s = {kind: k}; if (k === 'active') s.days = +$('cp-p1').value || 7; if (k === 'level'){ s.min = +$('cp-p1').value || 1; s.max = +$('cp-p2').value || 999; } if (k === 'region') s.region = $('cp-p1').value.trim(); if (k === 'guild') s.guild_id = $('cp-p1').value.trim();
+    if (k === 'profiles') s.ids = $('cp-ids').value.split(/\s+/).map(x => x.trim()).filter(Boolean); if (+$('cp-excl').value) s.exclude_campaign = +$('cp-excl').value; return s; };
+  $('cp-preview').onclick = async () => { try { const r = await rpc('admin_segment_preview', {p_segment: segment()}); $('cp-count').innerHTML = '<b>' + r.count + '</b> accounts' + (r.sample.length ? ' — ' + r.sample.map(x => esc(x.handle) + ' (' + esc(x.character) + ')').join(', ') + (r.count > 10 ? ', …' : '') : '') + (r.regions ? '<div class="cap">regions: ' + r.regions.map(esc).join(', ') + '</div>' : ''); } catch (e){ toast(e.message, true); } };
+  const addStack = () => { const d = document.createElement('div'); d.className = 'stk'; d.innerHTML = '<input list="ml-cat" placeholder="item or material key…"><input class="q" type="number" min="1" max="999" value="1"><button class="btn sm">×</button>'; d.querySelector('button').onclick = () => d.remove(); $('cp-stacks').appendChild(d); };
+  $('cp-addstack').onclick = addStack;
+  if (!document.getElementById('ml-cat') && CATALOG){ const dl = document.createElement('datalist'); dl.id = 'ml-cat'; dl.innerHTML = CATALOG.items.concat(CATALOG.materials).map(x => '<option value="' + esc(x.key) + '">' + esc(x.name) + '</option>').join(''); m.appendChild(dl); }
+  $('cp-tpl').onchange = () => { const t = TEMPLATES[$('cp-tpl').value]; $('cp-subject').value = t.subject; $('cp-body').value = t.body; };
+  const rewards = () => ({gold: goldParse($('cp-g').value, $('cp-s').value, $('cp-c').value), frags: +$('cp-frags').value || 0, credits: +$('cp-credits').value || 0,
+    stacks: [].concat(+$('cp-th').value > 0 ? [{key: 'cache_helper', qty: +$('cp-th').value}] : [], +$('cp-tg').value > 0 ? [{key: 'cache_gear', qty: +$('cp-tg').value}] : [],
+      Array.from($('cp-stacks').querySelectorAll('.stk')).map(d => ({key: d.querySelector('input').value.trim(), qty: +d.querySelector('.q').value || 0})).filter(x => x.key && x.qty > 0))});
+  $('cp-create').onclick = async () => {
+    const subject = $('cp-subject').value.trim(), reason = $('cp-reason').value.trim(); if (subject.length < 2){ toast('Subject is required.', true); return; } if (reason.length < 3){ toast('Reason is required.', true); return; }
+    try { const r = await rpc('admin_campaign_create', {p_sender: $('cp-sender').value, p_subject: subject, p_body: $('cp-body').value, p_rewards: rewards(), p_segment: segment(), p_reason: reason, p_template: $('cp-tpl').value === 'blank' ? null : $('cp-tpl').value}); toast('Dry run #' + r.id + ' created for ' + r.recipients + ' accounts. Nothing sent yet.'); renderMail(); }
+    catch (e){ toast(e.message, true); }
+  };
+  wireCampaignCards(m);
+}
+function campaignCard(c){
+  const t = c.totals || {}; const st = c.status;
+  return '<div class="rep" style="margin-bottom:8px"><div class="row"><b>#' + c.id + ' ' + esc(c.subject) + '</b><span class="pill ' + (st === 'done' ? 'green' : st === 'dry_run' ? 'gold' : st === 'approved' || st === 'sending' ? 'cyan' : st === 'paused' ? 'orange' : st === 'revoked' ? 'red' : '') + '">' + st.replace('_', ' ') + '</span></div>' +
+    '<div class="m">' + esc(c.sender) + ' · ' + segText(c.segment) + ' · ' + t.recipients + ' accounts · by ' + esc(c.by || '') + ' · ' + when(c.at) + (c.approved ? ' · approved by ' + esc(c.approved) : '') + '</div>' +
+    '<div class="m">each: ' + (rewardsText(c.rewards) || 'no attachments') + (t.recipients ? ' · total: ' + [t.gold_total > 0 ? gold(t.gold_total).trim() : '', t.frags_total > 0 ? t.frags_total + ' frags' : '', t.credits_total > 0 ? t.credits_total + ' cr' : ''].filter(Boolean).join(', ') : '') + '</div>' +
+    '<div class="m">pending ' + c.pending + ' · sent ' + c.sent + ' · taken ' + c.taken + ' · failed ' + c.failed + ' · revoked ' + c.revoked + '</div>' +
+    '<div class="row" style="margin-top:6px">' +
+      (st === 'dry_run' ? '<button class="btn sm primary" data-cp="approve" data-id="' + c.id + '">Approve</button>' : '') +
+      (st === 'approved' || st === 'sending' ? '<button class="btn sm primary" data-cp="run" data-id="' + c.id + '">Send ' + (c.pending || 0) + ' now</button><button class="btn sm orange" data-cp="paused" data-id="' + c.id + '">Pause</button>' : '') +
+      (st === 'paused' ? '<button class="btn sm" data-cp="sending" data-id="' + c.id + '">Resume</button>' : '') +
+      (st !== 'revoked' && (c.sent > c.taken || c.pending > 0) ? '<button class="btn sm red" data-cp="revoked" data-id="' + c.id + '">Revoke unclaimed</button>' : '') + '</div></div>';
+}
+function segText(s){ if (!s) return 'everyone'; const k = s.kind; return k === 'all' ? 'everyone' : k === 'active' ? 'active ' + s.days + ' d' : k === 'level' ? 'level ' + s.min + '–' + s.max : k === 'region' ? 'region ' + esc(s.region) : k === 'guild' ? 'guild ' + esc(String(s.guild_id).slice(0, 8)) : k === 'profiles' ? (s.ids || []).length + ' listed ids' : k; }
+function wireCampaignCards(m){
+  m.querySelectorAll('[data-cp]').forEach(b => b.onclick = async () => {
+    const id = +b.dataset.id, act = b.dataset.cp;
+    try {
+      if (act === 'approve'){ const ok = await confirmBox({title: 'Approve campaign #' + id + '?', body: 'It can then be sent. Nothing goes out until you press Send.', yes: 'Approve'}); if (!ok) return; await rpc('admin_campaign_approve', {p_id: id}); toast('Approved.'); }
+      else if (act === 'run'){ const ok = await confirmBox({title: 'Send campaign #' + id + ' now?', body: 'Letters go out 100 at a time until every pending account has one. You can pause in between.', tone: 'orange', yes: 'Send'}); if (!ok) return;
+        let r, total = 0; b.disabled = true; do { r = await rpc('admin_campaign_run', {p_id: id, p_batch: 100}); total += r.sent; b.textContent = 'Sending… ' + total + ' sent, ' + r.left + ' left'; } while (r.left > 0 && r.status === 'sending');
+        toast('Sent ' + total + ' letters.'); }
+      else if (act === 'revoked'){ const r = await confirmBox({title: 'Revoke unclaimed letters of #' + id + '?', body: 'Unclaimed letters disappear from inboxes; claimed ones stay. Pending rows are cancelled.', reason: true, tone: 'red', yes: 'Revoke'}); if (!r) return; const x = await rpc('admin_campaign_set', {p_id: id, p_status: 'revoked', p_reason: r.reason}); toast('Revoked, ' + x.mails_removed + ' letters removed.'); }
+      else { await rpc('admin_campaign_set', {p_id: id, p_status: act}); toast(act === 'paused' ? 'Paused.' : 'Resumed.'); }
+      renderMail();
+    } catch (e){ b.disabled = false; toast(e.message, true); renderMail(); }
+  });
+}
+function catName(key){ const c = CATALOG ? CATALOG.items.concat(CATALOG.materials).find(x => x.key === key) : null; return c ? c.name : key; }
+function rewardsChips(r){
+  if (!r) return '';
+  let h = ''; if (+r.gold > 0) h += '<span class="g">' + gold(r.gold) + '</span>'; if (+r.frags > 0) h += '<span class="f">' + r.frags + ' fragments</span>'; if (+r.credits > 0) h += '<span class="c">' + r.credits + ' credits</span>';
+  (r.stacks || []).forEach(s => { h += '<span>' + s.qty + ' × ' + esc(catName(s.key)) + '</span>'; }); return h || '<span style="color:var(--text-faint);border-style:dashed">no attachments</span>';
+}
+function rewardsText(r){
+  if (!r) return ''; const p = []; if (+r.gold > 0) p.push(gold(r.gold).trim()); if (+r.frags > 0) p.push(r.frags + ' frags'); if (+r.credits > 0) p.push(r.credits + ' cr'); (r.stacks || []).forEach(s => p.push(s.qty + '× ' + esc(catName(s.key)))); return p.join(', ');
+}
+
+/* ---------- ECONOMY & CONTENT ---------- */
+async function renderEconomy(){
+  const m = $('main');
+  const head = '<div class="pg-row"><div><h1 class="pg">Economy & Content</h1><div class="pg-sub" style="margin-bottom:0">Where gold comes from and goes, what is listed, and every config table the game runs on.</div></div></div>' +
+    '<div class="tabs" style="margin-top:0"><div class="tab' + (ECO.tab === 'economy' ? ' on' : '') + '" data-et="economy">Economy</div><div class="tab' + (ECO.tab === 'auction' ? ' on' : '') + '" data-et="auction">Auction house</div><div class="tab' + (ECO.tab === 'content' ? ' on' : '') + '" data-et="content">Content</div><div class="tab' + (ECO.tab === 'knobs' ? ' on' : '') + '" data-et="knobs">Balance knobs' + (has('content.knobs') ? '' : ' <span class="n" style="color:var(--text-faint)">read only</span>') + '</div></div>';
+  m.innerHTML = head + '<div class="empty">Loading…</div>';
+  const wire = () => { m.querySelectorAll('[data-et]').forEach(t => t.onclick = () => { ECO.tab = t.dataset.et; renderEconomy(); }); m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open)); };
+  try {
+    if (ECO.tab === 'economy' || ECO.tab === 'auction'){
+      const e = await rpc('admin_economy', {p_days: ECO.days});
+      const dayPick = '<div class="row" style="margin-bottom:10px">' + [1, 7, 30, 90].map(d => '<button class="btn sm' + (ECO.days === d ? ' primary' : '') + '" data-days="' + d + '">' + d + ' d</button>').join('') + '</div>';
+      if (ECO.tab === 'economy'){
+        const mx = Math.max(1, ...e.daily.map(d => Math.max(+d.gold_in, +d.gold_out)));
+        const tin = e.by_reason.reduce((a, r) => a + (+r.gold_in), 0), tout = e.by_reason.reduce((a, r) => a + (+r.gold_out), 0);
+        m.innerHTML = head + dayPick +
+          '<div class="cards" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px">' +
+            '<div class="card"><div class="k">Gold in circulation</div><div class="v gold">' + gold(e.circulation.gold) + '</div><div class="s">' + e.circulation.characters + ' characters</div></div>' +
+            '<div class="card"><div class="k">Fragments / credits</div><div class="v">' + e.circulation.frags + ' / ' + e.circulation.credits + '</div></div>' +
+            '<div class="card"><div class="k">Locked in auctions</div><div class="v">' + gold(e.circulation.in_auction) + '</div></div>' +
+            '<div class="card"><div class="k">Gold in unclaimed mail</div><div class="v">' + gold(e.circulation.in_mail_gold) + '</div></div>' +
+            '<div class="card"><div class="k">Created ' + e.days + ' d</div><div class="v green">' + gold(tin) + '</div></div>' +
+            '<div class="card"><div class="k">Removed ' + e.days + ' d</div><div class="v" style="color:var(--purple)">' + gold(tout) + '</div><div class="s">net ' + (tin - tout >= 0 ? '+' : '−') + gold(Math.abs(tin - tout)) + '</div></div></div>' +
+          '<div class="grid2"><div class="box">' + h3('Per day — created (gold) vs removed (purple)') +
+            (e.daily.length ? '<div class="bars">' + e.daily.map(d => '<div class="b" title="' + d.day + ': +' + gold(d.gold_in) + ' / −' + gold(d.gold_out) + ' (' + d.n + ' rows)"><div class="bb"><i class="in" style="height:' + Math.round(100 * d.gold_in / mx) + '%"></i><i class="out" style="height:' + Math.round(100 * d.gold_out / mx) + '%"></i></div><span>' + d.day.slice(5) + '</span></div>').join('') + '</div>' : '<div class="empty">No ledger rows.</div>') +
+            h3('Sources and sinks by reason') + '<table class="t"><tr><th>Reason</th><th>#</th><th>Gold in</th><th>Gold out</th><th>Frags ±</th><th>Credits ±</th></tr>' +
+            e.by_reason.map(r => '<tr><td><b>' + esc(r.reason) + '</b></td><td class="num">' + r.n + '</td><td class="num" style="color:var(--green)">' + (+r.gold_in ? gold(r.gold_in) : '') + '</td><td class="num" style="color:var(--purple)">' + (+r.gold_out ? gold(r.gold_out) : '') + '</td><td class="num">' + (+r.frags_in || +r.frags_out ? '+' + r.frags_in + ' / −' + r.frags_out : '') + '</td><td class="num">' + (+r.credits_in || +r.credits_out ? '+' + r.credits_in + ' / −' + r.credits_out : '') + '</td></tr>').join('') + '</table></div>' +
+          '<div><div class="box" style="margin-bottom:12px">' + h3('Largest transactions') + '<table class="t"><tr><th>When</th><th>Who</th><th>Reason</th><th>Gold</th><th>Frags</th><th>Cr</th></tr>' +
+            e.top.map(t => '<tr><td class="num">' + ago(t.at) + '</td><td><b style="cursor:pointer;color:var(--cyan)" data-open="' + esc(t.profile_id) + '">' + esc(t.handle || '?') + '</b> · ' + esc(t.character) + '</td><td>' + esc(t.reason) + '</td><td class="num" style="color:' + (+t.gold >= 0 ? 'var(--green)' : 'var(--purple)') + '">' + gold(t.gold) + '</td><td class="num">' + (t.frags || '') + '</td><td class="num">' + (t.credits || '') + '</td></tr>').join('') + '</table></div>' +
+          '<div class="box">' + h3('Richest characters') + '<table class="t"><tr><th>Character</th><th>Handle</th><th>Gold</th><th>Frags</th><th>Cr</th></tr>' +
+            e.richest.map(r => '<tr><td><b>' + esc(r.character) + '</b></td><td style="cursor:pointer;color:var(--cyan)" data-open="' + esc(r.profile_id) + '">' + esc(r.handle || '?') + '</td><td class="num">' + gold(r.gold) + '</td><td class="num">' + r.frags + '</td><td class="num">' + r.credits + '</td></tr>').join('') + '</table></div></div></div>';
+      } else {
+        const a = e.auction;
+        m.innerHTML = head + dayPick +
+          '<div class="cards" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px">' +
+            '<div class="card"><div class="k">Open listings</div><div class="v cyan">' + a.open + '</div></div><div class="card"><div class="k">Sold ' + e.days + ' d</div><div class="v green">' + a.sold + '</div></div>' +
+            '<div class="card"><div class="k">Volume</div><div class="v gold">' + gold(a.volume) + '</div></div><div class="card"><div class="k">Tax taken</div><div class="v">' + gold(a.tax) + '</div></div>' +
+            '<div class="card"><div class="k">Expired / cancelled</div><div class="v dim">' + a.expired + ' / ' + a.cancelled + '</div></div><div class="card"><div class="k">All time by status</div><div class="s" style="font-size:11px">' + Object.entries(a.by_status || {}).map(x => esc(x[0]) + ' ' + x[1]).join(' · ') + '</div></div></div>' +
+          '<div class="grid2"><div class="box">' + h3('Most listed goods ' + e.days + ' d') + (a.top_goods.length ? '<table class="t"><tr><th>Goods</th><th>Listings</th><th>Avg unit</th><th>Min</th><th>Max</th></tr>' +
+            a.top_goods.map(g => '<tr><td><b>' + esc(catName(g.key)) + '</b></td><td class="num">' + g.n + '</td><td class="num">' + gold(g.avg_unit) + '</td><td class="num">' + gold(g.min_unit) + '</td><td class="num">' + gold(g.max_unit) + '</td></tr>').join('') + '</table>' : '<div class="empty">Nothing listed in this window.</div>') + '</div>' +
+          '<div class="box">' + h3('Top sellers ' + e.days + ' d') + (a.top_sellers.length ? '<table class="t"><tr><th>Seller</th><th>Sold</th><th>Volume</th></tr>' +
+            a.top_sellers.map(s => '<tr><td><b>' + esc(s.character) + '</b> <span style="cursor:pointer;color:var(--cyan)" data-open="' + esc(s.profile_id) + '">' + esc(s.handle || '') + '</span></td><td class="num">' + s.sold + '</td><td class="num">' + gold(s.volume) + '</td></tr>').join('') + '</table>' : '<div class="empty">No sales in this window.</div>') + '</div></div>';
+      }
+      wire(); m.querySelectorAll('[data-days]').forEach(b => b.onclick = () => { ECO.days = +b.dataset.days; renderEconomy(); });
+    } else {
+      const tables = await rpc('admin_content_tables');
+      const list = ECO.tab === 'knobs' ? tables.filter(t => t.knob) : tables;
+      if (!ECO.table || !list.find(t => t.table === ECO.table)) ECO.table = list[0] ? list[0].table : null;
+      const rows = ECO.table ? await rpc('admin_content_rows', {p_table: ECO.table, p_limit: 1000, p_q: ECO.q || null}) : [];
+      const cur = list.find(t => t.table === ECO.table) || {cols: []};
+      const canEdit = ECO.tab === 'knobs' && has('content.knobs');
+      const pkcols = cur.cols.length ? [cur.cols[0]] : []; /* raden identifieras av forsta kolumnen; servern kollar riktig nyckel */
+      m.innerHTML = head + '<div class="mailgrid" style="grid-template-columns:260px minmax(0,1fr)"><div class="box" style="padding:8px"><div class="tbl-wrap"><table class="t">' +
+          list.map(t => '<tr class="clk" data-tbl="' + t.table + '"' + (t.table === ECO.table ? ' style="background:var(--bg-row-hover)"' : '') + '><td><b>' + esc(t.table) + '</b>' + (t.knob && ECO.tab === 'content' ? ' <span class="pill gold">knob</span>' : '') + '</td><td class="num">' + t.rows + '</td></tr>').join('') + '</table></div></div>' +
+        '<div class="box"><div class="row" style="margin-bottom:8px"><b style="font-size:14px">' + esc(ECO.table || '') + '</b><span class="pill">' + rows.length + ' rows</span>' + (canEdit ? '<span class="pill gold">click a value to change it</span>' : '<span class="pill">read only — other tables change through migrations</span>') +
+          '<input id="ct-q" placeholder="filter…" value="' + esc(ECO.q) + '" style="margin-left:auto;width:200px"></div>' +
+          (rows.length ? '<div class="tbl-wrap"><table class="t"><tr>' + cur.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>' +
+            rows.map((r, i) => '<tr>' + cur.cols.map(c => { const v = r[c]; const txt = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); const ed = canEdit && !pkcols.includes(c);
+              return '<td class="' + (typeof v === 'number' ? 'num' : 'mono') + (ed ? ' ed' : '') + '"' + (ed ? ' data-row="' + i + '" data-col="' + esc(c) + '" title="Click to change"' : '') + '>' + esc(txt.length > 120 ? txt.slice(0, 120) + '…' : txt) + '</td>'; }).join('') + '</tr>').join('') + '</table></div>' : '<div class="empty">No rows' + (ECO.q ? ' match' : '') + '.</div>') + '</div></div>';
+      wire(); m.querySelectorAll('[data-tbl]').forEach(t => t.onclick = () => { ECO.table = t.dataset.tbl; ECO.q = ''; renderEconomy(); });
+      $('ct-q').addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ECO.q = $('ct-q').value.trim(); renderEconomy(); } });
+      m.querySelectorAll('td.ed').forEach(td => td.onclick = () => knobBox(ECO.table, rows[+td.dataset.row], td.dataset.col, pkcols));
+    }
+  } catch (e){ m.innerHTML = head + '<div class="empty">' + esc(e.message) + '</div>'; wire(); }
+}
+function knobBox(table, row, col, pkcols){
+  const cur = row[col]; const isObj = cur !== null && typeof cur === 'object';
+  const m = $('modal'); m.className = 'modal orange';
+  m.innerHTML = '<h3>Change ' + esc(table) + ' · ' + esc(col) + '</h3><p>Row: ' + pkcols.map(k => esc(k) + ' = <b>' + esc(String(row[k])) + '</b>').join(', ') + '. Takes effect at once for every player. Before and after are written to the audit.</p>' +
+    '<label>Current</label><div class="mono" style="font-size:12px;color:var(--text-dim);word-break:break-all">' + esc(isObj ? JSON.stringify(cur) : String(cur)) + '</div>' +
+    '<label>New value' + (isObj ? ' (JSON)' : '') + '</label>' + (isObj ? '<textarea id="k-val" style="min-height:80px">' + esc(JSON.stringify(cur, null, 1)) + '</textarea>' : '<input id="k-val" value="' + esc(cur == null ? '' : String(cur)) + '">') +
+    '<label>Reason (required)</label><input id="k-reason"><div class="acts"><button class="btn" id="k-no">Cancel</button><button class="btn orange" id="k-yes">Change</button></div>';
+  $('modal-bg').classList.add('on'); $('k-no').onclick = modalClose;
+  $('k-yes').onclick = async () => {
+    const reason = $('k-reason').value.trim(); if (reason.length < 3){ $('k-reason').style.borderColor = 'var(--red)'; return; }
+    let val = $('k-val').value; if (isObj){ try { val = JSON.parse(val); } catch (e){ toast('Not valid JSON.', true); return; } } else if (typeof cur === 'number'){ val = val === '' ? null : +val; if (val !== null && isNaN(val)){ toast('Not a number.', true); return; } } else if (typeof cur === 'boolean'){ val = val === 'true'; }
+    const pk = {}; pkcols.forEach(k => pk[k] = row[k]); const ch = {}; ch[col] = val;
+    try { await rpc('admin_knob_set', {p_table: table, p_pk: pk, p_changes: ch, p_reason: reason}); modalClose(); toast('Changed.'); renderEconomy(); } catch (e){ toast(e.message, true); }
+  };
+}
+
+/* ---------- ADMIN ---------- */
+const EXTRA_PERMS = [['player.restrict', 'Restrict (mail / auction / guild / report blocks)'], ['player.pause', 'Pause account'], ['run.abort', 'Abort a stuck run']];
+const SETTING_INFO = {
+  require_mfa: ['Two-factor required', 'Staff must sign in with an authenticator code. Turn off only for testing.', 'bool'],
+  second_approval: ['Second approval', 'Big campaigns need a second admin to approve before sending.', 'bool'],
+  alert_actions_per_hour: ['Alert: actions per hour', 'Raise an alert when one admin does this many actions within an hour.', 'num'],
+  alert_gold_over: ['Alert: gold over (copper)', 'Raise an alert when one adjustment, letter or campaign moves more gold than this.', 'num']
+};
+function fmtBytes(b){ b = +b || 0; return b > 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : b > 1024 ? Math.round(b / 1024) + ' KB' : b + ' B'; }
+async function renderAdmin(){
+  const m = $('main');
+  const tabs = [['staff', 'Staff & roles'], ['alerts', 'Alerts'], ['system', 'System'], ['audit', 'Audit log']];
+  const head = '<h1 class="pg">Admin</h1><div class="pg-sub">Staff, roles, alerts, the system and the audit log.</div>' +
+    '<div class="tabs" style="margin-top:0">' + tabs.map(t => '<div class="tab' + (ADM.tab === t[0] ? ' on' : '') + '" data-at="' + t[0] + '">' + t[1] + '</div>').join('') + '</div>';
+  m.innerHTML = head + '<div class="empty">Loading…</div>';
+  const wire = () => m.querySelectorAll('[data-at]').forEach(t => t.onclick = () => { ADM.tab = t.dataset.at; renderAdmin(); });
+  try {
+    if (ADM.tab === 'staff'){
+      const st = await rpc('admin_staff_list'); const can = has('roles.manage');
+      m.innerHTML = head +
+        '<div class="box" style="margin-bottom:12px"><div class="sec-row">' + h3('Staff') + (can ? '<button class="btn sm primary" id="st-add" style="margin-left:auto">+ Add staff</button>' : '') + '</div>' +
+        '<table class="t"><tr><th>Label</th><th>Role</th><th>Extra permissions</th><th>Since</th><th>Until</th><th>Uid</th>' + (can ? '<th></th>' : '') + '</tr>' +
+        st.members.map(x => '<tr><td><b>' + esc(x.label || '–') + '</b>' + (x.uid === MY_UID ? ' <span class="pill cyan">you</span>' : '') + '</td><td><span class="pill purple">' + esc(x.role_name) + '</span></td><td>' + (x.extra.length ? x.extra.map(esc).join(', ') : '–') + '</td><td class="num">' + when(x.granted_at) + '</td><td class="num">' + (x.until ? when(x.until) : 'open-ended') + '</td><td>' + copyable(x.uid) + '</td>' +
+          (can ? '<td style="white-space:nowrap">' + (x.uid === MY_UID ? '<span class="m" style="color:var(--text-faint);font-size:11px">not your own</span>' : '<button class="btn sm" data-sedit="' + x.uid + '">Edit</button> <button class="btn sm r" data-srm="' + x.uid + '">Remove</button>') + '</td>' : '') + '</tr>').join('') + '</table>' +
+        '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:6px">A staff account must be its own sign-in, never a player account. Nobody can change their own role. Two-factor required: <b>' + (st.require_mfa ? 'yes' : 'no') + '</b>.</div></div>' +
+        '<div class="box">' + h3('Roles') + '<div class="cards">' + st.roles.map(r => '<div class="card"><div class="k">' + esc(r.name) + '</div><div class="s" style="line-height:1.6">' + r.perms.map(p => '<span class="pill" style="margin:1px 2px 1px 0">' + esc(p) + '</span>').join('') + '</div></div>').join('') + '</div></div>';
+      wire();
+      if ($('st-add')) $('st-add').onclick = () => staffBox(null, st.roles);
+      m.querySelectorAll('[data-sedit]').forEach(b => b.onclick = () => staffBox(st.members.find(x => x.uid === b.dataset.sedit), st.roles));
+      m.querySelectorAll('[data-srm]').forEach(b => b.onclick = async () => {
+        const x = st.members.find(y => y.uid === b.dataset.srm);
+        const r = await confirmBox({title: 'Remove ' + (x.label || 'this account') + ' from staff?', body: 'The account can no longer open the Admin Center. Its past actions stay in the audit.', reason: true, tone: 'red', yes: 'Remove'});
+        if (!r) return; try { await rpc('admin_staff_remove', {p_uid: x.uid, p_reason: r.reason}); toast('Removed.'); renderAdmin(); } catch (e){ toast(e.message, true); }
+      });
+    } else if (ADM.tab === 'alerts'){
+      const al = await rpc('admin_alerts_list', {p_all: true}); const open = al.filter(a => !a.seen_at).length;
+      m.innerHTML = head + '<div class="alrt" style="border-color:var(--border);background:linear-gradient(180deg,#0f1533,#0b1024)"><div class="sec-row"><h2 class="sec">' + ico('warn') + ' Alerts — ' + open + ' open, ' + al.length + ' total</h2></div>' +
+        (al.length ? al.map(a => alertRow(a, true)).join('') : '<div class="empty">No alerts. They appear when one admin does many actions in an hour, or moves a lot of gold at once.</div>') + '</div>';
+      wire(); wireSeen(m, renderAdmin);
+    } else if (ADM.tab === 'system'){
+      const sy = await rpc('admin_system'); const can = has('system.manage'); const c = sy.counts;
+      m.innerHTML = head +
+        '<div class="cards" style="margin-bottom:12px">' +
+          [['Database', fmtBytes(sy.db_bytes)], ['Profiles', c.profiles], ['Characters', c.characters], ['Items', c.items], ['Chat rows', c.chat], ['Mail', c.mail], ['Audit rows', c.audit], ['Open alerts', c.alerts_open], ['Tables / functions', c.tables + ' / ' + c.functions]]
+          .map(x => '<div class="card"><div class="k">' + x[0] + '</div><div class="v" style="font-size:18px">' + esc(String(x[1])) + '</div></div>').join('') + '</div>' +
+        '<div class="grid2" style="margin-bottom:12px">' +
+          '<div class="box">' + h3('Settings' + (can ? '' : ' (read only)')) +
+            Object.keys(SETTING_INFO).map(k => { const inf = SETTING_INFO[k], v = sy.settings[k];
+              return '<div class="set-row"><div><b>' + inf[0] + '</b><div class="d">' + inf[1] + (inf[2] === 'num' && k === 'alert_gold_over' ? ' Now ' + gold(v).trim() + '.' : '') + '</div></div>' +
+                (inf[2] === 'bool' ? '<select id="set-' + k + '"' + (can ? '' : ' disabled') + '><option value="true"' + (v === 'true' ? ' selected' : '') + '>On</option><option value="false"' + (v === 'false' ? ' selected' : '') + '>Off</option></select>'
+                  : '<input id="set-' + k + '" inputmode="numeric" value="' + esc(v || '') + '"' + (can ? '' : ' disabled') + '>') +
+                (can ? '<button class="btn sm" data-setk="' + k + '">Save</button>' : '<span></span>') + '</div>'; }).join('') + '</div>' +
+          '<div class="box">' + h3('Scheduled jobs (cron)') + (sy.cron.length ? '<table class="t"><tr><th>Job</th><th>Schedule</th><th>Last run</th><th>24 h</th></tr>' +
+            sy.cron.map(j => '<tr><td><b>' + esc(j.name) + '</b>' + (j.active ? '' : ' <span class="pill">off</span>') + '</td><td class="mono">' + esc(j.schedule) + '</td>' +
+              '<td>' + (j.last ? '<span class="pill ' + (j.last.status === 'succeeded' ? 'green' : 'red') + '">' + esc(j.last.status) + '</span> ' + ago(j.last.start) + (j.last.status !== 'succeeded' && j.last.msg ? '<div class="mono" style="font-size:10px;color:var(--red)">' + esc(j.last.msg) + '</div>' : '') : '–') + '</td>' +
+              '<td class="num">' + j.runs_24h + (j.failed_24h ? ' <b style="color:var(--red)">' + j.failed_24h + ' failed</b>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">No jobs.</div>') + '</div>' +
+        '</div>' +
+        '<div class="grid2">' +
+          '<div class="box">' + h3('Largest tables') + '<table class="t"><tr><th>Table</th><th>Rows (est.)</th><th>Size</th></tr>' +
+            sy.sizes.map(t => '<tr><td class="mono">' + esc(t.table) + '</td><td class="num">' + t.rows + '</td><td class="num">' + fmtBytes(t.bytes) + '</td></tr>').join('') + '</table></div>' +
+          '<div class="box">' + h3('Latest migrations') + '<table class="t"><tr><th>Version</th><th>Name</th></tr>' +
+            sy.migrations.map(x => '<tr><td class="mono">' + esc(x.version) + '</td><td>' + esc(x.name) + '</td></tr>').join('') + '</table></div>' +
+        '</div>';
+      wire();
+      m.querySelectorAll('[data-setk]').forEach(b => b.onclick = async () => {
+        const k = b.dataset.setk, v = String($('set-' + k).value).trim(), inf = SETTING_INFO[k];
+        if (v === sy.settings[k]){ toast('No change.'); return; }
+        if (!(await confirmBox({title: 'Change ' + inf[0] + '?', body: 'From ' + sy.settings[k] + ' to ' + v + '. Takes effect at once for every admin. Logged in the audit.', tone: k === 'require_mfa' && v === 'false' ? 'red' : 'orange', yes: 'Change'}))) return;
+        try { await rpc('admin_setting_set', {p_key: k, p_val: v}); toast('Saved.'); renderAdmin(); } catch (e){ toast(e.message, true); }
+      });
+    } else {
+      const au = await rpc('admin_audit_list', {p_limit: 200});
+      m.innerHTML = head + '<div class="box">' + h3('Audit log (latest 200)') + (au.length ? '<table class="t"><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Reason</th><th>Before → after</th></tr>' +
+        au.map(a => '<tr><td class="num">' + when(a.at) + '</td><td>' + esc(a.who) + '</td><td>' + esc(a.action) + '</td><td class="mono">' + esc(a.kind || '') + ' ' + (a.id_t ? copyable(a.id_t) : '') + '</td><td>' + esc(a.reason || '') + '</td><td class="mono" style="font-size:10px;color:var(--text-dim)">' + esc(JSON.stringify(a.before || null)) + ' → ' + esc(JSON.stringify(a.after || null)) + '</td></tr>').join('') + '</table>' : '<div class="empty">No actions logged yet.</div>') + '</div>';
+      wire();
+    }
+  } catch (e){ m.innerHTML = head + '<div class="empty">' + esc(e.message) + '</div>'; wire(); }
+}
+async function staffBox(x, roles){
+  let cands = [];
+  if (!x){ try { cands = (await rpc('admin_staff_candidates')).filter(c => !c.is_staff); } catch (e){ toast(e.message, true); return; } }
+  const md = $('modal'); md.className = 'modal';
+  const ex = x ? x.extra : [];
+  md.innerHTML = '<h3>' + (x ? 'Edit ' + esc(x.label || 'staff') : 'Add staff') + '</h3>' +
+    (x ? '<p>Account ' + esc(x.uid) + '</p>' :
+      (cands.length ? '<label>Account (sign-ins without a player profile)</label><select id="sf-uid">' + cands.map(c => '<option value="' + c.uid + '">' + esc(c.email || c.uid) + ' · created ' + new Date(c.created_at).toLocaleDateString('sv-SE') + '</option>').join('') + '</select>'
+        : '<p style="color:var(--orange)">No free accounts. Create a new sign-in (its own e-mail, never a player account) in Supabase first, then come back.</p>')) +
+    '<label>Role</label><select id="sf-role">' + roles.map(r => '<option value="' + r.id + '"' + ((x ? x.role === r.id : r.id === 'gm') ? ' selected' : '') + '>' + esc(r.name) + '</option>').join('') + '</select>' +
+    '<label>Label (shown in the audit and to other staff)</label><input id="sf-label" maxlength="40" value="' + esc(x ? x.label || '' : '') + '">' +
+    '<label>Until (optional — leave empty for open-ended)</label><input id="sf-until" type="date" value="' + (x && x.until ? String(x.until).slice(0, 10) : '') + '">' +
+    '<label>Extra permissions on top of the role</label>' + EXTRA_PERMS.map(p => '<div class="xp"><input type="checkbox" id="xp-' + p[0] + '" data-xp="' + p[0] + '"' + (ex.includes(p[0]) ? ' checked' : '') + '><span>' + esc(p[1]) + '</span></div>').join('') +
+    '<div class="acts"><button class="btn" id="sf-no">Cancel</button><button class="btn primary" id="sf-yes"' + (!x && !cands.length ? ' disabled' : '') + '>' + (x ? 'Save' : 'Add') + '</button></div>';
+  $('modal-bg').classList.add('on');
+  $('sf-no').onclick = modalClose;
+  md.querySelectorAll('.xp span').forEach(sp => sp.onclick = () => { const c = sp.previousElementSibling; c.checked = !c.checked; });
+  $('sf-yes').onclick = async () => {
+    const uid = x ? x.uid : $('sf-uid').value, label = $('sf-label').value.trim();
+    if (label.length < 2){ $('sf-label').style.borderColor = 'var(--red)'; return; }
+    const u = $('sf-until').value; const extra = [...md.querySelectorAll('[data-xp]')].filter(c => c.checked).map(c => c.dataset.xp);
+    try { await rpc('admin_staff_set', {p_uid: uid, p_role: $('sf-role').value, p_label: label, p_until: u ? new Date(u + 'T23:59:59').toISOString() : null, p_extra: extra}); modalClose(); toast(x ? 'Saved.' : 'Added.'); renderAdmin(); }
+    catch (e){ toast(e.message, true); }
+  };
+}
+
+/* ---------- start ---------- */
+(async () => {
+  gateShow('gate-login');
+  const {data} = await sb.auth.getSession();
+  if (data && data.session) afterSession();
+})();
+})();
+</script>
+</body>
+</html>
