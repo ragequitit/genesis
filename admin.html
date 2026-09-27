@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.10.1 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.11.0 — fas 0-10 (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -33,7 +33,9 @@
      v0.9.1: triangeln vid Needs attention lyser rod (pulserar) nar rapporter, oppna arenden eller olasta larm finns.
      v0.9.2: rapportens foljdsvar (var/nar/vad, klient v5.657.0) visas som brickor under rapporten i arendet.
      v0.10.0: "Remember this device for 30 days" - las (bara losenord) i stallet for utloggning efter 30 min stilla.
-     v0.10.1: losenordsbytet skickar nuvarande losenord (Supabase kraver det). -->
+     v0.10.1: losenordsbytet skickar nuvarande losenord (Supabase kraver det).
+     v0.11.0 (fas 10): utrustning som bilaga (266 delar, sallsynthet + niva), Templates-fliken
+     (sparade mallar for brev och kampanj), Resend i historiken. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -274,6 +276,8 @@ textarea{width:100%;min-height:64px;resize:vertical}
 .stk{display:flex;gap:6px;align-items:center;margin-top:6px}
 .stk input{flex:1}
 .stk input.q{flex:0 0 70px}
+.stk.gear input.k{flex:1}.stk.gear select.r{flex:0 0 120px}.stk.gear input.l{flex:0 0 64px}
+.ma .ge{border-color:var(--purple);color:var(--purple)}
 .mailprev{background:#0a0d1c;border:1px solid var(--cyan-dim);border-radius:14px;padding:16px;font-family:var(--font-display)}
 .mailprev .mh{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px}
 .mailprev .mh b{font-size:15px}
@@ -378,6 +382,9 @@ let ADM = {tab: 'staff'};  /* Admin-sidans flik */
 let MY_UID = null;
 let MAILTO = null;      /* forvald mottagare {profile, handle, characters} */
 let MAILTAB = 'single';
+let MAILFILL = null;   /* forifyllning av brevet (Resend / mall) */
+let TPLS = null;       /* sparade mallar */
+let TPL_EDIT = null;   /* mall som redigeras (null = ny) */
 let ECO = {tab: 'economy', days: 7, table: null, q: ''};
 let CATALOG = null;
 let CASEFILT = 'open';
@@ -1111,35 +1118,99 @@ const TEMPLATES = {
   blank: {subject: '', body: ''}
 };
 function goldParse(g, s, c){ return Math.max(0, (+g || 0) * 10000 + (+s || 0) * 100 + (+c || 0)); }
+/* [v0.11.0] EN bilagebyggsten for brev, kampanj och mall. attachUI ritar, attachWire kopplar,
+   attachRead laser ut {gold, frags, credits, stacks, gear}, attachFill fyller i fran en sparad. */
+function attachUI(pre){
+  return '<div class="rw"><div class="fld"><label>Gold</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="' + pre + '-g" type="number" min="0" placeholder="g"><input id="' + pre + '-s" type="number" min="0" max="99" placeholder="s"><input id="' + pre + '-c" type="number" min="0" max="99" placeholder="c"></div></div>' +
+    '<div class="fld"><label>Fragments</label><input id="' + pre + '-frags" type="number" min="0" value="0"></div><div class="fld"><label>Credits</label><input id="' + pre + '-credits" type="number" min="0" value="0"></div>' +
+    '<div class="fld"><label>Cache tickets</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="' + pre + '-th" type="number" min="0" value="0" title="Helper Cache"><input id="' + pre + '-tg" type="number" min="0" value="0" title="Gear Cache"></div><div class="cap">helper · gear</div></div></div>' +
+    '<div class="fld" style="margin-top:8px"><label>Items & materials</label><div id="' + pre + '-stacks"></div><button class="btn sm" id="' + pre + '-addstack" style="margin-top:6px">+ Add item</button></div>' +
+    '<div class="fld" style="margin-top:8px"><label>Gear (the game rolls the piece at the level and rarity you set)</label><div id="' + pre + '-gear"></div><button class="btn sm" id="' + pre + '-addgear" style="margin-top:6px">+ Add gear</button></div>';
+}
+function catDatalists(root){
+  if (!CATALOG) return;
+  if (!document.getElementById('ml-cat')){ const dl = document.createElement('datalist'); dl.id = 'ml-cat'; dl.innerHTML = CATALOG.items.concat(CATALOG.materials).map(x => '<option value="' + esc(x.key) + '">' + esc(x.name) + '</option>').join(''); (root || document.body).appendChild(dl); }
+  if (!document.getElementById('ml-gcat')){ const dl = document.createElement('datalist'); dl.id = 'ml-gcat'; dl.innerHTML = (CATALOG.gear || []).map(x => '<option value="' + esc(x.key) + '">' + esc(x.name) + ' · ' + esc(x.slot || '') + '</option>').join(''); (root || document.body).appendChild(dl); }
+}
+function attachWire(pre, onChange){
+  const fire = () => { if (onChange) onChange(); };
+  const addStack = (key, qty) => { const d = document.createElement('div'); d.className = 'stk'; d.innerHTML = '<input list="ml-cat" placeholder="item or material key…" value="' + esc(key || '') + '"><input class="q" type="number" min="1" max="999" value="' + (qty || 1) + '"><button class="btn sm">×</button>'; d.querySelector('button').onclick = () => { d.remove(); fire(); }; d.querySelectorAll('input').forEach(i => i.addEventListener('input', fire)); $(pre + '-stacks').appendChild(d); };
+  const addGear = (key, rar, lvl) => {
+    const d = document.createElement('div'); d.className = 'stk gear';
+    const rars = (CATALOG.rarities || []).map(r => '<option value="' + r.idx + '"' + ((rar | 0) === r.idx ? ' selected' : '') + '>' + esc(r.name) + '</option>').join('');
+    d.innerHTML = '<input class="k" list="ml-gcat" placeholder="gear key… (type a name)" value="' + esc(key || '') + '"><select class="r">' + rars + '</select><input class="l" type="number" min="1" max="50" value="' + (lvl || 1) + '" title="Item level"><button class="btn sm">×</button>';
+    d.querySelector('button').onclick = () => { d.remove(); fire(); };
+    /* Sallsyntheter som pjasen inte kan ha slacks nar nyckeln ar vald. */
+    const k = d.querySelector('.k'), rs = d.querySelector('.r');
+    const limit = () => { const g = (CATALOG.gear || []).find(x => x.key === k.value.trim()); [...rs.options].forEach(o => { o.disabled = !!(g && g.rarities && !g.rarities.includes(+o.value)); }); if (rs.selectedOptions[0] && rs.selectedOptions[0].disabled){ const f = [...rs.options].find(o => !o.disabled); if (f) rs.value = f.value; } };
+    k.addEventListener('input', () => { limit(); fire(); }); rs.addEventListener('change', fire); d.querySelector('.l').addEventListener('input', fire); limit();
+    $(pre + '-gear').appendChild(d);
+  };
+  $(pre + '-addstack').onclick = () => addStack();
+  $(pre + '-addgear').onclick = () => addGear();
+  ['g','s','c','frags','credits','th','tg'].forEach(k => $(pre + '-' + k).addEventListener('input', fire));
+  return {addStack, addGear};
+}
+function attachRead(pre){
+  return {gold: goldParse($(pre + '-g').value, $(pre + '-s').value, $(pre + '-c').value), frags: +$(pre + '-frags').value || 0, credits: +$(pre + '-credits').value || 0,
+    stacks: [].concat(+$(pre + '-th').value > 0 ? [{key: 'cache_helper', qty: +$(pre + '-th').value}] : [], +$(pre + '-tg').value > 0 ? [{key: 'cache_gear', qty: +$(pre + '-tg').value}] : [],
+      Array.from($(pre + '-stacks').querySelectorAll('.stk')).map(d => ({key: d.querySelector('input').value.trim(), qty: +d.querySelector('.q').value || 0})).filter(x => x.key && x.qty > 0)),
+    gear: Array.from($(pre + '-gear').querySelectorAll('.stk.gear')).map(d => ({key: d.querySelector('.k').value.trim(), rarity: +d.querySelector('.r').value || 0, lvl: Math.max(1, Math.min(50, +d.querySelector('.l').value || 1))})).filter(x => x.key)};
+}
+function attachFill(pre, r, w){
+  r = r || {}; const g = +r.gold || 0;
+  $(pre + '-g').value = Math.floor(g / 10000) || ''; $(pre + '-s').value = Math.floor(g % 10000 / 100) || ''; $(pre + '-c').value = g % 100 || '';
+  $(pre + '-frags').value = +r.frags || 0; $(pre + '-credits').value = +r.credits || 0;
+  const st = (r.stacks || []); $(pre + '-th').value = (st.find(x => x.key === 'cache_helper') || {}).qty || 0; $(pre + '-tg').value = (st.find(x => x.key === 'cache_gear') || {}).qty || 0;
+  $(pre + '-stacks').innerHTML = ''; st.filter(x => x.key !== 'cache_helper' && x.key !== 'cache_gear').forEach(x => w.addStack(x.key, x.qty));
+  $(pre + '-gear').innerHTML = ''; (r.gear || []).forEach(x => w.addGear(x.key, x.rarity, x.lvl));
+}
+/* Mallval: inbyggda fyra + de sparade. */
+function tplOptions(scope){
+  const built = Object.keys(TEMPLATES).filter(k => k !== 'blank').map(k => '<option value="b:' + k + '">' + k[0].toUpperCase() + k.slice(1) + ' (built-in)</option>').join('');
+  const saved = (TPLS || []).filter(t => t.scope === 'both' || t.scope === scope).map(t => '<option value="t:' + t.id + '">' + esc(t.name) + '</option>').join('');
+  return '<option value="blank">— none —</option>' + (saved ? '<optgroup label="Saved">' + saved + '</optgroup>' : '') + '<optgroup label="Built-in">' + built + '</optgroup>';
+}
+function tplPick(v){
+  if (!v || v === 'blank') return {subject: '', body: '', name: null};
+  if (v.startsWith('b:')) return Object.assign({name: v.slice(2)}, TEMPLATES[v.slice(2)]);
+  const t = (TPLS || []).find(x => String(x.id) === v.slice(2)); return t ? {name: t.name, sender: t.sender, subject: t.subject || '', body: t.body || '', rewards: t.rewards, segment: t.segment} : {subject: '', body: '', name: null};
+}
 async function renderMail(){
   const m = $('main');
   m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="pg-sub">One letter to one character, with attachments the game rolls itself.</div><div class="empty">Loading…</div>';
-  let hist; try { [CATALOG, hist] = await Promise.all([CATALOG ? Promise.resolve(CATALOG) : rpc('admin_reward_catalog'), rpc('admin_mail_list', {p_limit: 100})]); }
+  let hist; try { [CATALOG, hist, TPLS] = await Promise.all([CATALOG ? Promise.resolve(CATALOG) : rpc('admin_reward_catalog'), rpc('admin_mail_list', {p_limit: 100}), rpc('admin_template_list').catch(() => [])]); }
   catch (e){ m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
   const lim = (ME.perms['mail.single']) || null;
   const can = has('mail.single');
   const to = MAILTO;
   if (MAILTAB === 'campaign') return renderCampaigns(hist);
+  if (MAILTAB === 'templates') return renderTemplates();
   m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">One letter to one character, with attachments the game rolls itself.</div></div>' +
     (lim ? '<div class="right">Your caps: gold <b>' + (lim.max_gold != null ? gold(lim.max_gold) : '∞') + '</b> · fragments <b>' + (lim.max_frags != null ? lim.max_frags : '∞') + '</b> · credits <b>' + (lim.max_credits != null ? lim.max_credits : '∞') + '</b> · cache tickets <b>' + (lim.max_tickets != null ? lim.max_tickets : '∞') + '</b></div>' : '') + '</div>' +
     mailTabs() +
     (can ? '<div class="mailgrid"><div class="box">' + h3('New letter') +
       '<div class="fld"><label>To (handle)</label><div class="row"><input id="ml-handle" placeholder="Search a handle…" value="' + esc(to ? to.handle : '') + '" style="flex:1"><select id="ml-char" style="flex:1">' + (to ? to.characters.map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('') : '<option value="">— pick a player first —</option>') + '</select></div><div id="ml-hits" style="position:relative"></div></div>' +
       '<div class="rw"><div class="fld"><label>From</label><select id="ml-sender">' + CATALOG.senders.map(x => '<option value="' + x + '">' + (x === 'GM' ? 'GM ' + esc(ME.label || '') : x) + '</option>').join('') + '</select></div>' +
-      '<div class="fld"><label>Template</label><select id="ml-tpl"><option value="blank">— none —</option><option value="compensation">Compensation</option><option value="outage">Downtime</option><option value="moderation">Moderation</option><option value="welcome">Welcome</option></select></div>' +
+      '<div class="fld"><label>Template</label><select id="ml-tpl">' + tplOptions('single') + '</select></div>' +
       '<div class="fld" style="grid-column:span 2"><label>Subject</label><input id="ml-subject" maxlength="80"></div></div>' +
       '<div class="fld" style="margin-top:10px"><label>Body</label><textarea id="ml-body" style="min-height:110px"></textarea><div class="cap">{name} becomes the character name.</div></div>' +
-      h3('Attachments') + '<div class="rw"><div class="fld"><label>Gold</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="ml-g" type="number" min="0" placeholder="g"><input id="ml-s" type="number" min="0" max="99" placeholder="s"><input id="ml-c" type="number" min="0" max="99" placeholder="c"></div></div>' +
-      '<div class="fld"><label>Fragments</label><input id="ml-frags" type="number" min="0" value="0"></div><div class="fld"><label>Credits</label><input id="ml-credits" type="number" min="0" value="0"></div>' +
-      '<div class="fld"><label>Cache tickets</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="ml-th" type="number" min="0" value="0" title="Helper Cache"><input id="ml-tg" type="number" min="0" value="0" title="Gear Cache"></div><div class="cap">helper · gear</div></div></div>' +
-      '<div class="fld" style="margin-top:8px"><label>Items & materials</label><div id="ml-stacks"></div><button class="btn sm" id="ml-addstack" style="margin-top:6px">+ Add row</button><datalist id="ml-cat">' + CATALOG.items.concat(CATALOG.materials).map(x => '<option value="' + esc(x.key) + '">' + esc(x.name) + '</option>').join('') + '</datalist></div>' +
+      h3('Attachments') + attachUI('ml') +
       '<div class="fld"><label>Reason (internal, required)</label><input id="ml-reason"></div>' +
       '<div class="row" style="justify-content:flex-end"><button class="btn primary" id="ml-send">' + ico('mail') + ' Send letter</button></div></div>' +
       '<div><div class="box" style="margin-bottom:12px">' + h3('Preview — as the player sees it') + '<div class="mailprev" id="ml-prev"></div></div></div></div>' : '<div class="empty">Your role cannot send mail.</div>') +
     '<div class="box" style="margin-top:14px">' + h3('Sent letters (latest 100)') + (hist.length ? '<table class="t"><tr><th>When</th><th>To</th><th>From</th><th>Subject</th><th>Attachments</th><th>By</th><th>Status</th><th></th></tr>' +
       hist.map(x => '<tr><td class="num">' + when(x.at) + '</td><td><b style="cursor:pointer;color:var(--cyan)" data-open="' + esc(x.profile_id) + '">' + esc(x.handle || '?') + '</b> · ' + esc(x.character || '') + '</td><td>' + esc(x.sender) + '</td><td>' + esc(x.subject) + (x.template ? ' <span class="pill">' + esc(x.template) + '</span>' : '') + '</td><td>' + rewardsText(x.rewards) + '</td><td>' + esc(x.by || '') + '</td>' +
         '<td>' + (x.status === 'revoked' ? '<span class="pill red">revoked</span>' : x.taken_at ? '<span class="pill green">taken</span>' : x.read_at ? '<span class="pill cyan">read</span>' : x.mail_exists ? '<span class="pill">unread</span>' : '<span class="pill">gone</span>') + '</td>' +
-        '<td>' + (x.status === 'sent' && !x.taken_at && x.mail_exists && can ? '<button class="btn sm red" data-revoke="' + x.delivery_id + '">Revoke</button>' : '') + (x.status === 'sent' && x.taken_at && has('currency.adjust') ? '<button class="btn sm red" data-reclaim="' + x.delivery_id + '">Reclaim</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">Nothing sent yet.</div>') + '</div>';
+        '<td style="white-space:nowrap">' + (can ? '<button class="btn sm" data-resend="' + x.delivery_id + '">Resend</button> ' : '') + (x.status === 'sent' && !x.taken_at && x.mail_exists && can ? '<button class="btn sm red" data-revoke="' + x.delivery_id + '">Revoke</button>' : '') + (x.status === 'sent' && x.taken_at && has('currency.adjust') ? '<button class="btn sm red" data-reclaim="' + x.delivery_id + '">Reclaim</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">Nothing sent yet.</div>') + '</div>';
+  catDatalists(m);
+  /* [v0.11.0] RESEND (Chris): fyller brevet med samma mottagare, avsandare, amne, text och bilagor. Skickas forst nar man trycker Send. */
+  m.querySelectorAll('[data-resend]').forEach(b => b.onclick = async () => {
+    const x = hist.find(h => String(h.delivery_id) === b.dataset.resend); if (!x) return;
+    try { const d = await rpc('admin_player', {p_profile: x.profile_id}); MAILTO = {profile: d.profile.id, handle: d.profile.handle, characters: d.characters.filter(c => !c.deleted_at).map(c => ({id: c.id, name: c.name}))};
+      MAILFILL = {sender: x.sender, subject: x.subject, body: x.body, rewards: x.rewards, character: x.character}; MAILTAB = 'single'; renderMail(); toast('Letter filled in — check it and press Send.'); }
+    catch (e){ toast(e.message, true); }
+  });
   m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
   m.querySelectorAll('[data-reclaim]').forEach(b => b.onclick = async () => {
     const r = await confirmBox({title: 'Reclaim this reward?', body: 'Takes back the gold, fragments, credits and stacks from the letter. Fails visibly if the player no longer has the stacks or the balance.', reason: true, tone: 'red', yes: 'Reclaim'});
@@ -1161,11 +1232,8 @@ async function renderMail(){
         $('ml-handle').value = d.profile.handle; $('ml-char').innerHTML = MAILTO.characters.map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join(''); prev(); } catch (e){ toast(e.message, true); }
     });
   }, 250); });
-  const addStack = (key, qty) => { const d = document.createElement('div'); d.className = 'stk'; d.innerHTML = '<input list="ml-cat" placeholder="item or material key…" value="' + esc(key || '') + '"><input class="q" type="number" min="1" max="999" value="' + (qty || 1) + '"><button class="btn sm">×</button>'; d.querySelector('button').onclick = () => { d.remove(); prev(); }; d.querySelectorAll('input').forEach(i => i.addEventListener('input', prev)); $('ml-stacks').appendChild(d); };
-  $('ml-addstack').onclick = () => addStack();
-  const rewards = () => ({gold: goldParse($('ml-g').value, $('ml-s').value, $('ml-c').value), frags: +$('ml-frags').value || 0, credits: +$('ml-credits').value || 0,
-    stacks: [].concat(+$('ml-th').value > 0 ? [{key: 'cache_helper', qty: +$('ml-th').value}] : [], +$('ml-tg').value > 0 ? [{key: 'cache_gear', qty: +$('ml-tg').value}] : [],
-      Array.from($('ml-stacks').querySelectorAll('.stk')).map(d => ({key: d.querySelector('input').value.trim(), qty: +d.querySelector('.q').value || 0})).filter(x => x.key && x.qty > 0))});
+  const W = attachWire('ml', () => prev());
+  const rewards = () => attachRead('ml');
   const charName = () => { const o = $('ml-char').options[$('ml-char').selectedIndex]; return o && o.value ? o.text : 'Runner'; };
   const prev = () => {
     const r = rewards(), sender = $('ml-sender').value === 'GM' ? 'GM ' + (ME.label || '') : $('ml-sender').value;
@@ -1173,8 +1241,14 @@ async function renderMail(){
       '<div class="mb">' + esc(($('ml-body').value || '').replace(/\{name\}/g, charName())) + '</div>' +
       '<div class="ma">' + rewardsChips(r) + '</div>';
   };
-  ['ml-sender','ml-subject','ml-body','ml-g','ml-s','ml-c','ml-frags','ml-credits','ml-th','ml-tg','ml-char'].forEach(id => $(id).addEventListener('input', prev));
-  $('ml-tpl').onchange = () => { const t = TEMPLATES[$('ml-tpl').value]; $('ml-subject').value = t.subject; $('ml-body').value = t.body; prev(); };
+  ['ml-sender','ml-subject','ml-body','ml-char'].forEach(id => $(id).addEventListener('input', prev));
+  $('ml-tpl').onchange = () => { const t = tplPick($('ml-tpl').value); $('ml-subject').value = t.subject || ''; $('ml-body').value = t.body || ''; if (t.sender && [...$('ml-sender').options].some(o => o.value === t.sender)) $('ml-sender').value = t.sender; if (t.rewards) attachFill('ml', t.rewards, W); prev(); };
+  if (MAILFILL){
+    const f = MAILFILL; MAILFILL = null;
+    const sv = f.sender && f.sender.startsWith('GM ') ? 'GM' : f.sender; if (sv && [...$('ml-sender').options].some(o => o.value === sv)) $('ml-sender').value = sv;
+    $('ml-subject').value = f.subject || ''; $('ml-body').value = f.body || ''; attachFill('ml', f.rewards, W);
+    if (f.character){ const o = [...$('ml-char').options].find(o => o.text === f.character); if (o) $('ml-char').value = o.value; }
+  }
   prev();
   $('ml-send').onclick = async () => {
     const cid = $('ml-char').value; if (!cid){ toast('Pick a player and a character first.', true); return; }
@@ -1182,13 +1256,48 @@ async function renderMail(){
     const r = rewards(), body = ($('ml-body').value || '').replace(/\{name\}/g, charName());
     const ok = await confirmBox({title: 'Send to ' + charName() + ' (' + (MAILTO ? MAILTO.handle : '?') + ')?', body: 'Subject "' + subject + '". Attachments: ' + (rewardsText(r).replace(/<[^>]+>/g, '') || 'none') + '. Sent at once; unclaimed letters can be revoked.', yes: 'Send'});
     if (!ok) return; $('ml-send').disabled = true;
-    try { await rpc('admin_mail_send', {p_character: cid, p_sender: $('ml-sender').value, p_subject: subject, p_body: body, p_rewards: r, p_reason: reason, p_template: $('ml-tpl').value === 'blank' ? null : $('ml-tpl').value}); toast('Letter sent.'); renderMail(); }
+    try { await rpc('admin_mail_send', {p_character: cid, p_sender: $('ml-sender').value, p_subject: subject, p_body: body, p_rewards: r, p_reason: reason, p_template: tplPick($('ml-tpl').value).name}); toast('Letter sent.'); renderMail(); }
     catch (e){ $('ml-send').disabled = false; toast(e.message, true); }
   };
 }
-function mailTabs(){ return '<div class="tabs" style="margin-top:0"><div class="tab' + (MAILTAB === 'single' ? ' on' : '') + '" data-mt="single">Single letter</div><div class="tab' + (MAILTAB === 'campaign' ? ' on' : '') + '" data-mt="campaign">Campaigns' + (has('mail.campaign') ? '' : ' <span class="n" style="color:var(--text-faint)">no access</span>') + '</div></div>'; }
+function mailTabs(){ return '<div class="tabs" style="margin-top:0"><div class="tab' + (MAILTAB === 'single' ? ' on' : '') + '" data-mt="single">Single letter</div><div class="tab' + (MAILTAB === 'campaign' ? ' on' : '') + '" data-mt="campaign">Campaigns' + (has('mail.campaign') ? '' : ' <span class="n" style="color:var(--text-faint)">no access</span>') + '</div><div class="tab' + (MAILTAB === 'templates' ? ' on' : '') + '" data-mt="templates">Templates' + (TPLS && TPLS.length ? '<span class="n">' + TPLS.length + '</span>' : '') + '</div></div>'; }
 document.addEventListener('click', e => { const t = e.target.closest('[data-mt]'); if (t){ MAILTAB = t.dataset.mt; renderMail(); } });
 
+/* ---- mallar (v0.11.0, Chris): spara det man skickar ofta, till en eller till manga ---- */
+async function renderTemplates(){
+  const m = $('main'); const can = has('mail.single');
+  const t = TPL_EDIT || {};
+  m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">Templates: letters you send often. Pick one in Single letter or Campaigns and everything fills in.</div></div></div>' + mailTabs() +
+    '<div class="mailgrid"><div class="box">' + h3(t.id ? 'Edit template' : 'New template') +
+      (can ? '<div class="rw"><div class="fld" style="grid-column:span 2"><label>Name</label><input id="tp-name" maxlength="60" value="' + esc(t.name || '') + '"></div>' +
+      '<div class="fld"><label>Used for</label><select id="tp-scope"><option value="both"' + (t.scope === 'both' || !t.scope ? ' selected' : '') + '>Both</option><option value="single"' + (t.scope === 'single' ? ' selected' : '') + '>Single letter</option><option value="campaign"' + (t.scope === 'campaign' ? ' selected' : '') + '>Campaigns</option></select></div>' +
+      '<div class="fld"><label>From</label><select id="tp-sender">' + CATALOG.senders.map(x => '<option value="' + x + '"' + (t.sender === x ? ' selected' : '') + '>' + (x === 'GM' ? 'GM (the sender\'s name)' : x) + '</option>').join('') + '</select></div></div>' +
+      '<div class="fld" style="margin-top:10px"><label>Subject</label><input id="tp-subject" maxlength="80" value="' + esc(t.subject || '') + '"></div>' +
+      '<div class="fld"><label>Body</label><textarea id="tp-body" style="min-height:110px">' + esc(t.body || '') + '</textarea><div class="cap">{name} becomes the character name.</div></div>' +
+      h3('Attachments') + attachUI('tp') +
+      '<div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px">' + (t.id ? '<button class="btn" id="tp-cancel">Cancel</button>' : '') + '<button class="btn primary" id="tp-save">' + (t.id ? 'Save changes' : 'Save template') + '</button></div>'
+      : '<div class="empty">Your role cannot make templates.</div>') + '</div>' +
+    '<div><div class="box">' + h3('Saved templates (' + (TPLS || []).length + ')') + ((TPLS || []).length ? (TPLS || []).map(x => '<div class="rep" style="margin-bottom:8px"><div class="row"><b>' + esc(x.name) + '</b><span class="pill">' + (x.scope === 'both' ? 'letter + campaign' : x.scope === 'single' ? 'letter' : 'campaign') + '</span></div>' +
+        '<div class="m">' + esc(x.sender || '–') + ' · "' + esc(x.subject || '') + '" · ' + (rewardsText(x.rewards) || 'no attachments') + '</div><div class="m">by ' + esc(x.by || '?') + ' · ' + when(x.updated_at) + '</div>' +
+        '<div class="row" style="margin-top:6px">' + (x.scope !== 'campaign' && has('mail.single') ? '<button class="btn sm primary" data-tuse="single" data-id="' + x.id + '">Use for a letter</button>' : '') + (x.scope !== 'single' && has('mail.campaign') ? '<button class="btn sm primary" data-tuse="campaign" data-id="' + x.id + '">Use for a campaign</button>' : '') +
+        (can ? '<button class="btn sm" data-tedit="' + x.id + '">Edit</button><button class="btn sm r" data-tdel="' + x.id + '">Delete</button>' : '') + '</div></div>').join('') : '<div class="empty">No saved templates yet. The four built-in ones (Compensation, Downtime, Moderation, Welcome) are always in the list.</div>') + '</div></div></div>';
+  catDatalists(m);
+  m.querySelectorAll('[data-tuse]').forEach(b => b.onclick = () => { const x = TPLS.find(y => String(y.id) === b.dataset.id); if (!x) return; MAILTAB = b.dataset.tuse; MAILFILL = {sender: x.sender, subject: x.subject, body: x.body, rewards: x.rewards, tplId: x.id}; renderMail(); });
+  m.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { TPL_EDIT = TPLS.find(y => String(y.id) === b.dataset.tedit) || null; renderTemplates(); });
+  m.querySelectorAll('[data-tdel]').forEach(b => b.onclick = async () => {
+    const x = TPLS.find(y => String(y.id) === b.dataset.tdel);
+    if (!(await confirmBox({title: 'Delete template "' + x.name + '"?', body: 'Letters already sent with it are not affected.', tone: 'red', yes: 'Delete'}))) return;
+    try { await rpc('admin_template_delete', {p_id: x.id}); TPLS = await rpc('admin_template_list'); if (TPL_EDIT && TPL_EDIT.id === x.id) TPL_EDIT = null; toast('Deleted.'); renderTemplates(); } catch (e){ toast(e.message, true); }
+  });
+  if (!can) return;
+  const W = attachWire('tp'); attachFill('tp', t.rewards || {}, W);
+  if ($('tp-cancel')) $('tp-cancel').onclick = () => { TPL_EDIT = null; renderTemplates(); };
+  $('tp-save').onclick = async () => {
+    const name = $('tp-name').value.trim(); if (name.length < 2){ toast('Give the template a name.', true); return; }
+    try { await rpc('admin_template_save', {p_id: t.id || null, p_name: name, p_scope: $('tp-scope').value, p_sender: $('tp-sender').value, p_subject: $('tp-subject').value.trim(), p_body: $('tp-body').value, p_rewards: attachRead('tp'), p_segment: null});
+      TPLS = await rpc('admin_template_list'); TPL_EDIT = null; toast('Template saved.'); renderTemplates(); } catch (e){ toast(e.message, true); }
+  };
+}
 /* ---- kampanjer: segment -> brev -> bilagor -> torrkorning -> godkann -> skicka ---- */
 async function renderCampaigns(){
   const m = $('main'); const can = has('mail.campaign'); const lim = ME.perms['mail.campaign'] || null;
@@ -1203,13 +1312,10 @@ async function renderCampaigns(){
       '<div class="fld" id="cp-idsw" style="display:none"><label>Profile ids (one per line)</label><textarea id="cp-ids" style="min-height:60px"></textarea></div>' +
       '<div class="row" style="margin-bottom:10px"><button class="btn" id="cp-preview">Preview recipients</button><span id="cp-count" style="color:var(--text-dim);font-size:12px"></span></div>' +
       '<div class="rw"><div class="fld"><label>From</label><select id="cp-sender">' + (CATALOG ? CATALOG.senders : ['GENESIS TEAM','GameMaster','GM','SYSTEM']).map(x => '<option value="' + x + '">' + (x === 'GM' ? 'GM ' + esc(ME.label || '') : x) + '</option>').join('') + '</select></div>' +
-      '<div class="fld"><label>Template</label><select id="cp-tpl"><option value="blank">— none —</option><option value="compensation">Compensation</option><option value="outage">Downtime</option><option value="welcome">Welcome</option></select></div>' +
+      '<div class="fld"><label>Template</label><select id="cp-tpl">' + tplOptions('campaign') + '</select></div>' +
       '<div class="fld" style="grid-column:span 2"><label>Subject</label><input id="cp-subject" maxlength="80"></div></div>' +
       '<div class="fld" style="margin-top:10px"><label>Body</label><textarea id="cp-body" style="min-height:90px"></textarea><div class="cap">{name} becomes each character\'s name.</div></div>' +
-      h3('Attachments (each recipient gets the same)') + '<div class="rw"><div class="fld"><label>Gold</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="cp-g" type="number" min="0" placeholder="g"><input id="cp-s" type="number" min="0" max="99" placeholder="s"><input id="cp-c" type="number" min="0" max="99" placeholder="c"></div></div>' +
-      '<div class="fld"><label>Fragments</label><input id="cp-frags" type="number" min="0" value="0"></div><div class="fld"><label>Credits</label><input id="cp-credits" type="number" min="0" value="0"></div>' +
-      '<div class="fld"><label>Cache tickets</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input id="cp-th" type="number" min="0" value="0" title="Helper Cache"><input id="cp-tg" type="number" min="0" value="0" title="Gear Cache"></div><div class="cap">helper · gear</div></div></div>' +
-      '<div class="fld" style="margin-top:8px"><label>Items & materials</label><div id="cp-stacks"></div><button class="btn sm" id="cp-addstack" style="margin-top:6px">+ Add row</button></div>' +
+      h3('Attachments (each recipient gets the same)') + attachUI('cp') +
       '<div class="fld"><label>Reason (internal, required)</label><input id="cp-reason"></div>' +
       '<div class="row" style="justify-content:flex-end"><button class="btn primary" id="cp-create">Create dry run</button></div>' +
       '<div class="cap">A dry run writes one delivery row per account and sends nothing. You approve and send from the list on the right.</div></div>' +
@@ -1221,17 +1327,16 @@ async function renderCampaigns(){
   $('cp-kind').onchange = kindUI; kindUI();
   const segment = () => { const k = $('cp-kind').value, s = {kind: k}; if (k === 'active') s.days = +$('cp-p1').value || 7; if (k === 'level'){ s.min = +$('cp-p1').value || 1; s.max = +$('cp-p2').value || 999; } if (k === 'region') s.region = $('cp-p1').value.trim(); if (k === 'guild') s.guild_id = $('cp-p1').value.trim();
     if (k === 'profiles') s.ids = $('cp-ids').value.split(/\s+/).map(x => x.trim()).filter(Boolean); if (+$('cp-excl').value) s.exclude_campaign = +$('cp-excl').value; return s; };
+  if (MAILFILL){ const f = MAILFILL; MAILFILL = null; const sv = f.sender && f.sender.startsWith('GM ') ? 'GM' : f.sender; if (sv && [...$('cp-sender').options].some(o => o.value === sv)) $('cp-sender').value = sv; $('cp-subject').value = f.subject || ''; $('cp-body').value = f.body || ''; if (f.tplId) $('cp-tpl').value = 't:' + f.tplId; setTimeout(() => attachFill('cp', f.rewards, W), 0); }
   $('cp-preview').onclick = async () => { try { const r = await rpc('admin_segment_preview', {p_segment: segment()}); $('cp-count').innerHTML = '<b>' + r.count + '</b> accounts' + (r.sample.length ? ' — ' + r.sample.map(x => esc(x.handle) + ' (' + esc(x.character) + ')').join(', ') + (r.count > 10 ? ', …' : '') : '') + (r.regions ? '<div class="cap">regions: ' + r.regions.map(esc).join(', ') + '</div>' : ''); } catch (e){ toast(e.message, true); } };
-  const addStack = () => { const d = document.createElement('div'); d.className = 'stk'; d.innerHTML = '<input list="ml-cat" placeholder="item or material key…"><input class="q" type="number" min="1" max="999" value="1"><button class="btn sm">×</button>'; d.querySelector('button').onclick = () => d.remove(); $('cp-stacks').appendChild(d); };
-  $('cp-addstack').onclick = addStack;
-  if (!document.getElementById('ml-cat') && CATALOG){ const dl = document.createElement('datalist'); dl.id = 'ml-cat'; dl.innerHTML = CATALOG.items.concat(CATALOG.materials).map(x => '<option value="' + esc(x.key) + '">' + esc(x.name) + '</option>').join(''); m.appendChild(dl); }
-  $('cp-tpl').onchange = () => { const t = TEMPLATES[$('cp-tpl').value]; $('cp-subject').value = t.subject; $('cp-body').value = t.body; };
-  const rewards = () => ({gold: goldParse($('cp-g').value, $('cp-s').value, $('cp-c').value), frags: +$('cp-frags').value || 0, credits: +$('cp-credits').value || 0,
-    stacks: [].concat(+$('cp-th').value > 0 ? [{key: 'cache_helper', qty: +$('cp-th').value}] : [], +$('cp-tg').value > 0 ? [{key: 'cache_gear', qty: +$('cp-tg').value}] : [],
-      Array.from($('cp-stacks').querySelectorAll('.stk')).map(d => ({key: d.querySelector('input').value.trim(), qty: +d.querySelector('.q').value || 0})).filter(x => x.key && x.qty > 0))});
+  catDatalists(m);
+  const W = attachWire('cp');
+  $('cp-tpl').onchange = () => { const t = tplPick($('cp-tpl').value); $('cp-subject').value = t.subject || ''; $('cp-body').value = t.body || ''; if (t.sender && [...$('cp-sender').options].some(o => o.value === t.sender)) $('cp-sender').value = t.sender; if (t.rewards) attachFill('cp', t.rewards, W);
+    if (t.segment && t.segment.kind){ $('cp-kind').value = t.segment.kind; kindUI(); const sg = t.segment; $('cp-p1').value = sg.days || sg.min || sg.region || sg.guild_id || ''; $('cp-p2').value = sg.max || ''; if (sg.ids) $('cp-ids').value = sg.ids.join('\n'); } };
+  const rewards = () => attachRead('cp');
   $('cp-create').onclick = async () => {
     const subject = $('cp-subject').value.trim(), reason = $('cp-reason').value.trim(); if (subject.length < 2){ toast('Subject is required.', true); return; } if (reason.length < 3){ toast('Reason is required.', true); return; }
-    try { const r = await rpc('admin_campaign_create', {p_sender: $('cp-sender').value, p_subject: subject, p_body: $('cp-body').value, p_rewards: rewards(), p_segment: segment(), p_reason: reason, p_template: $('cp-tpl').value === 'blank' ? null : $('cp-tpl').value}); toast('Dry run #' + r.id + ' created for ' + r.recipients + ' accounts. Nothing sent yet.'); renderMail(); }
+    try { const r = await rpc('admin_campaign_create', {p_sender: $('cp-sender').value, p_subject: subject, p_body: $('cp-body').value, p_rewards: rewards(), p_segment: segment(), p_reason: reason, p_template: tplPick($('cp-tpl').value).name}); toast('Dry run #' + r.id + ' created for ' + r.recipients + ' accounts. Nothing sent yet.'); renderMail(); }
     catch (e){ toast(e.message, true); }
   };
   wireCampaignCards(m);
@@ -1264,13 +1369,17 @@ function wireCampaignCards(m){
   });
 }
 function catName(key){ const c = CATALOG ? CATALOG.items.concat(CATALOG.materials).find(x => x.key === key) : null; return c ? c.name : key; }
+function gearName(key){ const g = CATALOG && CATALOG.gear ? CATALOG.gear.find(x => x.key === key) : null; return g ? g.name : key; }
+function rarName(i){ const r = CATALOG && CATALOG.rarities ? CATALOG.rarities.find(x => x.idx === (i | 0)) : null; return r ? r.name : 'r' + i; }
+function gearText(x){ return gearName(x.key) + ' (' + rarName(x.rarity) + ', L' + (x.lvl || 1) + ')'; }
 function rewardsChips(r){
   if (!r) return '';
   let h = ''; if (+r.gold > 0) h += '<span class="g">' + gold(r.gold) + '</span>'; if (+r.frags > 0) h += '<span class="f">' + r.frags + ' fragments</span>'; if (+r.credits > 0) h += '<span class="c">' + r.credits + ' credits</span>';
-  (r.stacks || []).forEach(s => { h += '<span>' + s.qty + ' × ' + esc(catName(s.key)) + '</span>'; }); return h || '<span style="color:var(--text-faint);border-style:dashed">no attachments</span>';
+  (r.stacks || []).forEach(s => { h += '<span>' + s.qty + ' × ' + esc(catName(s.key)) + '</span>'; });
+  (r.gear || []).forEach(x => { h += '<span class="ge">' + esc(gearText(x)) + '</span>'; }); return h || '<span style="color:var(--text-faint);border-style:dashed">no attachments</span>';
 }
 function rewardsText(r){
-  if (!r) return ''; const p = []; if (+r.gold > 0) p.push(gold(r.gold).trim()); if (+r.frags > 0) p.push(r.frags + ' frags'); if (+r.credits > 0) p.push(r.credits + ' cr'); (r.stacks || []).forEach(s => p.push(s.qty + '× ' + esc(catName(s.key)))); return p.join(', ');
+  if (!r) return ''; const p = []; if (+r.gold > 0) p.push(gold(r.gold).trim()); if (+r.frags > 0) p.push(r.frags + ' frags'); if (+r.credits > 0) p.push(r.credits + ' cr'); (r.stacks || []).forEach(s => p.push(s.qty + '× ' + esc(catName(s.key)))); (r.gear || []).forEach(x => p.push(esc(gearText(x)))); return p.join(', ');
 }
 
 /* ---------- ECONOMY & CONTENT ---------- */
