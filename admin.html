@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.8.3 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.9.0 — fas 0-9 (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -28,7 +28,8 @@
      v0.8.1: bugsvep - Player 360 tal saknade listor; servern: anon kan inte langre
      anropa admin_*-funktioner (revoke public/anon).
      v0.8.2: QR-koden vid tvafaktor ritas som inline-svg (data-url brot img-taggen).
-     v0.8.3: rollerna visas som en tabell - en rad per rattighet med klarsprak, bock per roll. -->
+     v0.8.3: rollerna visas som en tabell - en rad per rattighet med klarsprak, bock per roll.
+     v0.9.0: My account (klicka pa namnet): byt losenord, gor om tvafaktor, se konto och roll. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -95,6 +96,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--cyan-dim);box-shadow:
 #who .av{width:34px;height:34px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;color:var(--gold);background:#12172f}
 #who .av svg{width:18px;height:18px}
 #who b{color:var(--text);font-size:13px}
+#who .btn{margin-left:4px}
+#main .mef label{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin:8px 0 4px}
 #who .role{font-size:9.5px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--purple)}
 #nav{border-right:1px solid var(--border);background:linear-gradient(180deg,#0b1024,#080c1c);padding:14px 0;display:flex;flex-direction:column;gap:2px}
 .nv{display:flex;align-items:center;gap:12px;padding:12px 18px;color:var(--text-dim);font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;border-left:3px solid transparent}
@@ -320,7 +323,7 @@ table.t td.ed:hover{outline:1px solid var(--cyan);border-radius:4px}
     <div id="search"><svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="Search handle, character, guild or id…  ( / )" autocomplete="off"><div id="search-res"></div></div>
     <span id="env" class="prod">PROD</span>
     <span id="lat">Server <b id="lat-ms">–</b></span>
-    <div id="who"><div class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg></div><div><b id="who-name">–</b><div class="role" id="who-role">–</div></div><button class="btn sm" id="btn-out">Sign out</button></div>
+    <div id="who"><div class="av" id="who-av" title="My account" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg></div><div id="who-txt" style="cursor:pointer" title="My account"><b id="who-name">–</b><div class="role" id="who-role">–</div></div><button class="btn sm" id="btn-me">My account</button><button class="btn sm" id="btn-out">Sign out</button></div>
   </div>
   <div id="nav"></div>
   <div id="main"></div>
@@ -519,7 +522,9 @@ function go(page){
   else if (page === 'mail') renderMail();
   else if (page === 'economy') renderEconomy();
   else if (page === 'admin') renderAdmin();
+  else if (page === 'me') renderMe();
 }
+$('btn-me').onclick = $('who-av').onclick = $('who-txt').onclick = () => { if (ME) go('me'); };
 
 /* ---------- global sokning ---------- */
 let QT = null;
@@ -1426,6 +1431,51 @@ async function staffBox(x, roles){
     const u = $('sf-until').value; const extra = [...md.querySelectorAll('[data-xp]')].filter(c => c.checked).map(c => c.dataset.xp);
     try { await rpc('admin_staff_set', {p_uid: uid, p_role: $('sf-role').value, p_label: label, p_until: u ? new Date(u + 'T23:59:59').toISOString() : null, p_extra: extra}); modalClose(); toast(x ? 'Saved.' : 'Added.'); renderAdmin(); }
     catch (e){ toast(e.message, true); }
+  };
+}
+
+/* ---------- MY ACCOUNT ---------- */
+async function renderMe(){
+  const m = $('main');
+  let user = null, factors = [];
+  try { user = (await sb.auth.getUser()).data.user; const f = await sb.auth.mfa.listFactors(); factors = (f.data && f.data.totp) || []; } catch (e){}
+  const verified = factors.filter(f => f.status === 'verified'), stale = factors.filter(f => f.status !== 'verified');
+  m.innerHTML = '<h1 class="pg">My account</h1><div class="pg-sub">Your own staff sign-in. Nothing here touches players or other staff.</div>' +
+    '<div class="grid2">' +
+      '<div class="box">' + h3('Who you are') + '<div class="kv">' +
+        '<span class="k">E-mail</span><span class="v">' + esc(user ? user.email : '–') + '</span>' +
+        '<span class="k">Label</span><span class="v">' + esc(ME.label || '–') + '</span>' +
+        '<span class="k">Role</span><span class="v">' + esc(ME.role_name || '–') + '</span>' +
+        '<span class="k">Account id</span><span class="v">' + (user ? copyable(user.id) : '–') + '</span>' +
+        '<span class="k">Last sign-in</span><span class="v">' + (user && user.last_sign_in_at ? when(user.last_sign_in_at) : '–') + '</span>' +
+        '<span class="k">Two-factor</span><span class="v">' + (verified.length ? '<span class="pill green">on</span>' : '<span class="pill red">off</span>') + (stale.length ? ' <span class="pill" title="Unfinished set-ups that never got verified">' + stale.length + ' unfinished</span>' : '') + '</span>' +
+      '</div><div class="s" style="color:var(--text-faint);font-size:11px;margin-top:10px">Label and role are set by the Owner in Admin → Staff & roles. You cannot change your own role.</div></div>' +
+      '<div class="box mef">' + h3('Change password') +
+        '<label>New password (at least 12 characters)</label><input type="password" id="me-pw1" autocomplete="new-password">' +
+        '<label>Repeat it</label><input type="password" id="me-pw2" autocomplete="new-password">' +
+        '<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn primary" id="me-pw">Change password</button></div>' +
+        '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:10px">You stay signed in here. Other devices are signed out.</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="box" style="margin-top:12px">' + h3('Two-factor') +
+      '<p style="margin:0 0 10px;color:var(--text-dim)">Lost your phone or want a fresh code? This removes the current authenticator' + (stale.length ? ' (and the ' + stale.length + ' unfinished set-up' + (stale.length > 1 ? 's' : '') + ')' : '') + ' and signs you out. Next sign-in shows a new QR code.</p>' +
+      '<button class="btn orange" id="me-mfa"' + (factors.length ? '' : ' disabled') + '>Reset two-factor</button>' +
+    '</div>';
+  m.querySelectorAll('input').forEach(i => { i.style.width = '100%'; i.style.marginBottom = '6px'; });
+  $('me-pw').onclick = async () => {
+    const a = $('me-pw1').value, b2 = $('me-pw2').value;
+    if (a.length < 12){ toast('At least 12 characters.', true); return; }
+    if (a !== b2){ toast('The two passwords differ.', true); return; }
+    $('me-pw').disabled = true;
+    const {error} = await sb.auth.updateUser({password: a});
+    $('me-pw').disabled = false;
+    if (error){ toast(error.message, true); return; }
+    $('me-pw1').value = $('me-pw2').value = ''; toast('Password changed.');
+  };
+  $('me-mfa').onclick = async () => {
+    if (!(await confirmBox({title: 'Reset two-factor?', body: 'Your authenticator entry stops working and you are signed out. Sign in again with your password to set up a new one.', tone: 'orange', yes: 'Reset and sign out'}))) return;
+    for (const f of factors){ const {error} = await sb.auth.mfa.unenroll({factorId: f.id}); if (error){ toast(error.message, true); return; } }
+    await sb.auth.signOut(); location.reload();
   };
 }
 
