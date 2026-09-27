@@ -4403,6 +4403,23 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
   font-size:11.5px;font-weight:700;color:var(--text);background:none;border:0;
   padding:7px 8px;border-radius:7px;cursor:pointer}
 .pl-menu button:hover{background:rgba(56,232,255,.14)}
+.chat-msg .who.gm{color:#ffc542;cursor:default}
+.pl-menu button.plm-warn{color:#ff8a8a;border-top:1px solid var(--border-soft);margin-top:3px;border-radius:0 0 7px 7px}
+/* [TILLAGT v5.654.0] Rapportdialogen. */
+.rp-wrap{position:fixed;inset:0;z-index:10000;background:rgba(3,8,16,.72);display:flex;align-items:center;justify-content:center;padding:16px}
+.rp-box{width:min(420px,100%);background:var(--bg-inset,#0d1420);border:1px solid var(--cyan-dim);border-radius:12px;padding:16px;box-shadow:0 14px 40px rgba(0,0,0,.7)}
+.rp-head{font-size:15px;font-weight:900;color:var(--cyan)}
+.rp-sub{font-size:11px;color:var(--text-dim);margin:4px 0 10px}
+.rp-reasons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rp-r{display:flex;gap:7px;align-items:center;font-size:12px;font-weight:700;padding:7px 9px;border:1px solid var(--border-soft);border-radius:8px;cursor:pointer}
+.rp-r:has(input:checked){border-color:var(--cyan);background:rgba(56,232,255,.08)}
+.rp-r input{margin:0}
+.rp-quote{margin-top:10px;font-size:12px;color:var(--text-dim);font-style:italic;border-left:2px solid var(--cyan-dim);padding-left:8px}
+.rp-text{display:block;width:100%;box-sizing:border-box;min-height:64px;margin-top:10px;font-family:inherit;font-size:12px;color:var(--text);background:rgba(0,0,0,.25);border:1px solid var(--border-soft);border-radius:8px;padding:8px;resize:vertical}
+.rp-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.ah-c-seller.ah-sel{cursor:context-menu;text-decoration:underline dotted}
+.nd-insp .nd-rep{margin-left:auto;font-size:11px;padding:5px 10px}
+@media (max-width:480px){.rp-reasons{grid-template-columns:1fr}}
 .boost-chip .bc-ico.art-wrap{padding:0}
 .boost-chip .bc-ico.art-wrap .art-img{width:20px;height:20px}
 .boost-chip .bc-time{
@@ -4450,6 +4467,9 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
   animation:achpop 3.4s ease forwards;
 }
 .ach-toast .at-ico{font-size:19px}
+.ach-cat-emo{display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+.ach-when{font-size:10px;font-family:var(--font-mono);color:#7bffb0;white-space:nowrap;margin:0 8px}
+.ach-grp{font-style:normal;font-weight:400;font-size:9.5px;color:var(--text-dim);margin-left:6px}
 .ach-toast .at-n{font-size:11px;font-weight:800;color:#7bffb0}
 .ach-toast .at-d{font-size:9px;color:var(--text-dim)}
 .ach-toast .at-r{font-size:10px;font-family:var(--font-mono);color:var(--gold);margin-left:6px}
@@ -10039,7 +10059,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.652.1 — ZONRUTANS RÄKNARE RÄTADE</div>
+        <div class="sn-ver">GENESIS v5.656.0 — INGEN BRAGDRUTA VID INLOGGNING</div>
       </div>
     </div>
   </aside>
@@ -11337,7 +11357,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.652.1 — ZONRUTANS RÄKNARE RÄTADE</div>
+            <div class="desc">GENESIS v5.656.0 — INGEN BRAGDRUTA VID INLOGGNING</div>
           </div>
         </div>
       </div>
@@ -11756,6 +11776,10 @@ async function srvRpc(fn, args){
       say('You are signed out \u2014 sign in again.');
       try { $('gate').classList.remove('done'); gateShowAuth(); } catch (er){}
     }
+    /* [TILLAGT v5.654.0] Paus/las fran Admin Center: sags EN gang med tiden. */
+    if (m.indexOf('account_paused') >= 0 || m.indexOf('account_locked') >= 0 || m.indexOf('character_locked') >= 0){
+      sanctionHalt(m, e && e.details);
+    }
     throw e;
   }
 }
@@ -11936,6 +11960,20 @@ const SRV_ERRORS = {
   chat_too_long:            'Messages are 240 characters at most.',
   chat_empty:               'Nothing to send.',
   chat_trade_locked:        'Trade chat unlocks at level 5.',
+  /* [TILLAGT v5.654.0] ADMINSTRAFF (Admin Center fas 3). Servern stoppar
+     chatt, post, auktion och gille for straffade konton; detaljen bar tiden. */
+  chat_muted:               'You are muted in this channel.',
+  mail_blocked:             'You cannot send mail right now.',
+  auction_blocked:          'You cannot use the auction house right now.',
+  guild_blocked:            'You cannot join or run guilds right now.',
+  report_blocked:           'You cannot send reports right now.',
+  account_paused:           'This account is paused by the Genesis team.',
+  account_locked:           'This account is locked while the team looks into it.',
+  character_locked:         'This character is locked while the team looks into it.',
+  report_limit:             'You have sent five reports today \u2014 try again tomorrow.',
+  report_duplicate:         'You already reported that player today.',
+  report_self:              'You cannot report yourself.',
+  report_no_target:         'That player could not be found.',
   chat_blocked:             'You cannot message that player.',
   chat_whisper_refused:     'That player is not accepting whispers from you.',
   chat_self:                'Talking to yourself?',
@@ -12233,6 +12271,9 @@ async function netPull(){
 
   NET.predictedAt = Date.now();
   NET.on = true;
+  /* [TILLAGT v5.656.0] Forsta hjartslaget DIREKT - annars star man osynlig i
+     Admin Center i en minut efter inloggningen. Tyst vid fel. */
+  srvRpc('session_ping', {p_character: SRV.charId}).catch(() => {});
   return true;
 }
 
@@ -15940,10 +15981,12 @@ async function netPullAchievements(){
      Ingen karaktar star i fragan: servern slapper bara igenom det egna kontots
      rader. `seen` foljde inte med - kolumnen skrevs aldrig av nagon och lastes
      aldrig har heller. */
-  const rows = await srvSelect('profile_achievements', 'select=ach_id');
+  /* [TILLAGT v5.656.0] NAR bragden togs foljer med (done_at) - det ar det
+     "Recent"-fliken i rutan sorterar pa. */
+  const rows = await srvSelect('profile_achievements', 'select=ach_id,done_at');
   S.ach = S.ach || {done: {}, unseen: 0};
-  S.ach.done = {};
-  (rows || []).forEach(r => { S.ach.done[r.ach_id] = true; });
+  S.ach.done = {}; S.ach.when = {};
+  (rows || []).forEach(r => { S.ach.done[r.ach_id] = true; if (r.done_at) S.ach.when[r.ach_id] = new Date(r.done_at).getTime(); });
   /* Katalogen och talen. Faller nagon av dem bort ritas rutan pa den inbyggda
      listan i stallet for att sta tom. */
   try {
@@ -19860,6 +19903,7 @@ function load(){
              spöka kvar och betala ut procent för något som inte existerar. */
           ACH.forEach(a => { if (d.ach.done[a.id]) S.ach.done[a.id] = true; });
         }
+        if (d.ach.when && typeof d.ach.when === 'object') S.ach.when = Object.assign({}, d.ach.when);
       }
       if (d.stats && typeof d.stats === 'object'){
         ['expDone', 'sold', 'bought'].forEach(k => {
@@ -21502,6 +21546,12 @@ function checkAchievements(silent){
   /* SERVERLAGE: servern avgor vad som ar upplast och betalar ut. Kordes detta
      har lyste gamla prestationer upp fran den lokala filen. */
   if (NET.on) return 0;
+  /* [RATTAT v5.656.0] VETERAN-RUTAN VID VARJE INLOGGNING. Under "Resuming your
+     session" satts karaktarens niva fran servern INNAN NET.on blir sant, och
+     spelklockan tickar under tiden. Da sag den har kollen "niva 25, Veteran
+     inte tagen lokalt" och visade rutan - varje gang, for servern skriver
+     sedan over listan. Finns en serversession alls ar bragderna serverns sak. */
+  if (SRV.token || SRV.charId) return 0;
   let got = [];
   ACH.forEach(a => {
     if (achDone(a.id)) return;
@@ -21509,6 +21559,7 @@ function checkAchievements(silent){
     try { ok = !!a.t(); } catch(e){ ok = false; }
     if (!ok) return;
     S.ach.done[a.id] = true;
+    (S.ach.when = S.ach.when || {})[a.id] = Date.now();
     const m = achMoney(a);
     if (m) S.gold += m;
     got.push(a);
@@ -35059,6 +35110,12 @@ function renderAchBadge(){
   b.textContent = n > 99 ? '99+' : n;
   b.style.display = n > 0 ? '' : 'none';
 }
+function achAgo(t){
+  const d = Math.max(0, (Date.now() - t) / 1000);
+  if (d < 60) return 'just now'; if (d < 3600) return Math.round(d / 60) + ' min ago';
+  if (d < 86400) return Math.round(d / 3600) + ' h ago'; if (d < 86400 * 30) return Math.round(d / 86400) + ' d ago';
+  return new Date(t).toLocaleDateString('sv-SE');
+}
 function achToast(a){
   const el2 = document.createElement('div');
   el2.className = 'ach-toast';
@@ -35150,7 +35207,15 @@ function renderAchievements(){
   if (!box) return;
   const alla = achList();
   const grupper = achGroups();
-  if (!achTab || !grupper.includes(achTab)) achTab = grupper[0] || null;
+  /* [TILLAGT v5.656.0] "RECENT" (Chris): notisen sager att man klarat nagot, men
+     rutan visade inte VILKET. Fliken listar de senast tagna, nyast overst, med
+     hur lange sedan. Oppnas rutan med olasta bragder borjar den har. */
+  const WHEN = (S.ach && S.ach.when) || {};
+  const recent = alla.filter(a => achDone(a.id) && WHEN[a.id]).sort((x, y) => WHEN[y.id] - WHEN[x.id]).slice(0, 15);
+  const ACH_RECENT = 'Recent';
+  if (achTab === null && recent.length) achTab = ACH_RECENT;
+  if (!achTab || (achTab !== ACH_RECENT && !grupper.includes(achTab))) achTab = grupper[0] || null;
+  if (achTab === ACH_RECENT && !recent.length) achTab = grupper[0] || null;
   const klara = alla.filter(a => achDone(a.id)).length;
   const pct = alla.length ? Math.round(klara / alla.length * 100) : 0;
   const idle = achIdleCount();
@@ -35171,6 +35236,11 @@ function renderAchievements(){
     '</div></div>';
 
   h += '<div class="ach-split"><div class="ach-cats">';
+  if (recent.length){
+    h += '<button class="ach-cat' + (achTab === ACH_RECENT ? ' on' : '') + '" data-achtab="' + ACH_RECENT + '">' +
+      '<span class="ach-cat-ico ach-cat-emo">🏆</span><span class="ach-cat-n">Recent</span>' +
+      '<span class="ach-cat-c">' + recent.length + '</span>' + achBar(recent.length, recent.length, '#7bffb0') + '</button>';
+  }
   grupper.forEach((g, gi) => {
     const lista = alla.filter(a => a.g === g);
     const k = lista.filter(a => achDone(a.id)).length;
@@ -35182,17 +35252,24 @@ function renderAchievements(){
   });
   h += '</div><div class="ach-pane">';
 
-  const lista = alla.filter(a => a.g === achTab)
+  const isRecent = achTab === ACH_RECENT;
+  const lista = isRecent ? recent : alla.filter(a => a.g === achTab)
     .sort((x, y) => (achDone(x.id) ? 1 : 0) - (achDone(y.id) ? 1 : 0));
   const k = lista.filter(a => achDone(a.id)).length;
   const gi = Math.max(0, grupper.indexOf(achTab));
   h += '<div class="ach-pane-head">' +
-    '<span class="ach-pane-ico qi qi-ach-' + (ACH_ICONS[achTab] || 'world') + '"></span>' +
+    (isRecent ? '<span class="ach-pane-ico ach-cat-emo">🏆</span>' : '<span class="ach-pane-ico qi qi-ach-' + (ACH_ICONS[achTab] || 'world') + '"></span>') +
     '<span class="ach-pane-n">' + esc(achTab || '') + '</span>' +
-    '<span class="ach-pane-c">' + k + ' / ' + lista.length + ' complete</span>' +
-    achBar(k, lista.length, ACH_CAT_COL[gi % ACH_CAT_COL.length]) + '</div>';
+    (isRecent ? '<span class="ach-pane-c">latest ' + lista.length + ' completed</span>' + achBar(1, 1, '#7bffb0')
+              : '<span class="ach-pane-c">' + k + ' / ' + lista.length + ' complete</span>' + achBar(k, lista.length, ACH_CAT_COL[gi % ACH_CAT_COL.length])) + '</div>';
   h += lista.map(a => {
     const done = achDone(a.id), pr = achProgress(a);
+    if (isRecent){
+      return '<div class="ach-row done"><span class="ach-tick">✓</span>' +
+        '<span class="ach-txt"><div class="ach-n">' + esc(a.n) + ' <i class="ach-grp">' + esc(a.g) + '</i></div>' +
+        '<div class="ach-d">' + esc(a.d) + '</div></span>' +
+        '<span class="ach-when">' + achAgo(WHEN[a.id]) + '</span>' + achRewardHTML(a) + '</div>';
+    }
     /* En GRAD (sallsynthet, rykte) ar ingen matare - kryssrutan racker.
        Antalsbragderna far stapel och tal; en klar rad behover ingen stapel. */
     const mat = (achGrade(a) || done) ? '' :
@@ -37673,6 +37750,8 @@ const GATE_ERRORS = {
   'name_characters': 'Letters, numbers, spaces, - and _ only.',
   'character_limit_reached': 'You already have three characters.',
   'account_banned': 'This account is suspended.',
+  'account_paused': 'This account is paused by the Genesis team.',
+  'account_locked': 'This account is locked while the team looks into it.',
   'not_at_vault': 'You have to be standing at the vault house to use the vault.',
   'offline': 'No connection to the server.',
   'timeout': 'The server did not answer in time. Try again.',
@@ -38760,7 +38839,9 @@ function ahRenderTable(){
                             ((row.damage || 0) > 0 ? ' · ' + row.damage + ' Damage' : '') : '') +
           '</i></span></span>' +
         '<span class="ah-c-rar" style="color:' + ahRarCol(row.rarity) + '">' + ahRarName(row.rarity) + '</span>' +
-        '<span class="ah-c-seller">' + row.seller + '</span>' +
+        '<span class="ah-c-seller' + (row.seller_character && !row.mine ? ' ah-sel' : '') + '"' +
+          (row.seller_character && !row.mine ? ' data-ahseller="' + esc(String(row.seller_character)) + '" data-ahsn="' + esc(String(row.seller)) + '" title="Right-click to report"' : '') +
+          '>' + row.seller + '</span>' +
         /* [ANDRAT v5.619.0] ANTALET OCH STYCKPRISET SKA SYNAS UTAN ATT MAN
            RAKNAR (Chris). Kolumnen visade ett naket tal, och priset var bara
            summan - vill man veta om 100 credits for 5 guld ar billigt maste man
@@ -40503,6 +40584,11 @@ $('daily-overlay').addEventListener('click', e => { if (e.target === $('daily-ov
 /* Etta pa knappen aven nar rutan ar stangd: laget fragas var femte minut, sa
    gransen vid midnatt (UTC) tander knappen utan omladdning. */
 setInterval(() => { if (NET.on && SRV.charId && !dailyBusy) netDailyState().catch(() => {}); }, 5 * 60 * 1000);
+/* [TILLAGT v5.653.0] HJARTSLAG TILL ADMIN CENTER. Var 60:e sekund sager fliken
+   "jag ar oppen" (session_ping skriver profiles.seen_at). Utan det vet servern
+   bara nar noden tickade - inte om nagon faktiskt sitter dar. Overview i
+   admin.html raknar Online/Aktiva/Idlar ur den har stampeln. Tyst vid fel. */
+setInterval(() => { if (NET.on && SRV.charId) srvRpc('session_ping', {p_character: SRV.charId}).catch(() => {}); }, 60 * 1000);
 
 /* ================= CHATTEN v1 (v5.180.0) =================
    Fyra kanaler. General/Trade/Whispers bor i en egen tabell pa servern; Guild
@@ -40604,10 +40690,13 @@ function chatRowHTML(m, chan){
   const who = esc(m.sender_name || m.name || m.handle || '?');
   const handle = esc(m.sender_handle || m.handle || '');
   const tag = m.sender_tag ? '<span class="tag">[' + esc(m.sender_tag) + ']</span>' : '';
+  /* [TILLAGT v5.655.0] Lagets rader (Admin Center, taggen GM) har inget konto
+     bakom sig - ingen att viska till, blocka eller anmala. Namnet ar bara text. */
+  const gm = m.sender_tag === 'GM';
   const at = m.created_at ? new Date(m.created_at).getTime() : (m.at_secs != null ? Date.now() - m.at_secs * 1000 : Date.now());
   return '<div class="' + cls + '" data-cid="' + (m.id || '') + '" data-csrc="' + (chan === 'guild' ? 'guild' : 'chat') + '">' +
     (CHAT_CFG.stamps ? '<span class="when">' + chatStamp(at) + '</span>' : '') +
-    '<span class="who" data-cwho="' + who + '" data-chandle="' + handle + '" data-cchar="' + esc(m.sender_char || m.cid || '') + '">' +
+    '<span class="who' + (gm ? ' gm' : '') + '"' + (gm ? '' : ' data-cwho="' + who + '" data-chandle="' + handle + '" data-cchar="' + esc(m.sender_char || m.cid || '') + '"') + '>' +
     (m.kind === 'announce' ? '\ud83d\udce3 ' : '') + who + tag + ':</span>' +
     '<span class="txt">' + chatFmtBody(m) + '</span></div>';
 }
@@ -41206,6 +41295,7 @@ function chatMenuOpen(el, x, y){
   const name = el.dataset.cwho, handle = el.dataset.chandle, cid = el.dataset.cchar;
   const row = el.closest('.chat-msg'); const mid = row ? row.dataset.cid : null, src = row ? row.dataset.csrc : 'chat';
   const me = cid && cid === SRV.charId;
+  const quote = row ? ((row.querySelector('.txt') || row).textContent || '').trim().slice(0, 140) : '';
   let h = '<div class="hd">' + esc(name) + '</div>';
   if (!me){
     if (cid) h += '<button data-cm="whisper">Whisper</button>';
@@ -41229,7 +41319,8 @@ function chatMenuOpen(el, x, y){
     }
     else if (act === 'duel'){ try { openDuelChallenge(cid, name); } catch (e){} }
     else if (act === 'block'){ if (confirm('Block ' + name + '? You will not see each other\'s messages.')) socialDo('block_player', {p_handle: handle}, 'Blocked.').then(chatSync); }
-    else if (act === 'report'){ const why = prompt('Report this message \u2014 why?', ''); if (why != null) srvRpc('chat_report', {p_character: SRV.charId, p_source: src, p_message_id: +mid, p_reason: why}).then(() => say('Reported. Thank you.')).catch(e => say(srvErrText(e, 'Could not report.'))); }
+    /* [ANDRAT v5.654.0] Samma rapportdialog som overallt annars; raden foljer med. */
+    else if (act === 'report'){ reportOpen({msg: mid, msgSource: src, name: name, quote: quote}); }
   });
 }
 /* [TILLAGT v5.180.3] UTKAST PER FLIK. Byter man flik och kommer tillbaka star
@@ -42215,7 +42306,10 @@ function nodeInspectHTML(){
       esc(d.name || d.handle || '?') + '</div>' +
     '<div class="nd-ins">' + (d.level != null ? 'Level ' + esc(String(d.level)) : '') +
       (d.paragon ? ' \u00b7 Paragon ' + esc(String(d.paragon)) : '') +
-      (d.online ? ' \u00b7 Online' : '') + '</div></div></div>';
+      (d.online ? ' \u00b7 Online' : '') + '</div></div>' +
+    (d.char_id && d.char_id !== SRV.charId
+      ? '<button class="btn-neutral nd-rep" data-insprep="' + esc(String(d.char_id)) + '" data-insprn="' + esc(d.name || d.handle || '?') + '">Report</button>' : '') +
+    '</div>';
   h += '<div class="nd-doll"><div class="char-layout">' +
     kol(INSP_COLS.vanster) +
     '<div class="char-mid"><div class="char-portrait">' +
@@ -42274,14 +42368,16 @@ function plMenuOpen(btn){
    Inspect och vanforfragan visas. Samma kropp, samma handlingar. */
 function plMenuOpenFor(sp, r, opts){
   plMenuClose();
-  const cid = sp.id, h = sp.handle, nm = sp.name || '?', gm = !!(opts && opts.guild);
+  const cid = sp.id, h = sp.handle, nm = sp.name || '?', gm = !!(opts && opts.guild), au = !!(opts && opts.auction);
   const el = document.createElement('div');
   el.className = 'pl-menu';
   el.innerHTML = '<div class="plm-head">' + esc(nm) + '</div>' +
-    '<button data-plact="view">Inspect</button>' +
+    (au ? '' : '<button data-plact="view">Inspect</button>') +
     (gm ? '' : '<button data-plact="whisper">Whisper</button>') +
-    '<button data-plact="friend">Send friend request</button>' +
-    (gm ? '' : '<button data-plact="ginvite">Invite to guild</button>');
+    (au ? '' : '<button data-plact="friend">Send friend request</button>') +
+    (gm || au ? '' : '<button data-plact="ginvite">Invite to guild</button>') +
+    /* [TILLAGT v5.654.0] Rapport till Admin Center (fas 3). */
+    '<button data-plact="report" class="plm-warn">Report player</button>';
   document.body.appendChild(el);
   el.style.left = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, r.left)) + 'px';
   el.style.top  = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, r.bottom + 6)) + 'px';
@@ -42302,7 +42398,66 @@ function plMenuOpenFor(sp, r, opts){
     if (act === 'whisper') { if (cid) chatOpenConv(cid, nm); return; }
     if (act === 'friend')  { socialDo('friend_request', {p_handle: h}, 'Request sent.'); return; }
     if (act === 'ginvite') { guildDo('guild_invite', {p_target: cid}, 'Invitation sent to ' + nm + '.'); return; }
+    if (act === 'report')  { reportOpen({char: cid, name: nm, source: au ? 'auction' : gm ? 'guild' : 'zone'}); return; }
   });
+}
+/* [TILLAGT v5.654.0] RAPPORTERA SPELARE (Admin Center fas 3). EN dialog for
+   alla stallen: zonlistan, gillets medlemmar, auktionssaljaren, chattraden och
+   inspektionskortet. Anledning valjs ur en fast lista (servern kraver samma
+   ord), text ar frivillig. Chattrader gar till chat_report (raden bifogas),
+   allt annat till report_player. Servern: hogst fem om dagen, en per spelare
+   och dag, aldrig sig sjalv. */
+const REPORT_REASONS = [
+  ['harassment', 'Harassment or hate'], ['spam', 'Spam or advertising'],
+  ['cheating', 'Cheating'], ['name', 'Offensive name'],
+  ['scam', 'Scam'], ['other', 'Something else']];
+let REPORTBOX = null;
+function reportClose(){ if (REPORTBOX){ REPORTBOX.remove(); REPORTBOX = null; } }
+function reportOpen(o){
+  reportClose(); plMenuClose();
+  if (!o.char && !o.msg){ say('That player could not be identified.'); return; }
+  const el = document.createElement('div');
+  el.className = 'rp-wrap';
+  el.innerHTML = '<div class="rp-box">' +
+    '<div class="rp-head">Report ' + esc(o.name || 'player') + '</div>' +
+    '<div class="rp-sub">The Genesis team reads every report. False reports count against you.</div>' +
+    '<div class="rp-reasons">' + REPORT_REASONS.map((r, i) =>
+      '<label class="rp-r"><input type="radio" name="rp-r" value="' + r[0] + '"' + (i === 0 ? ' checked' : '') + '><span>' + r[1] + '</span></label>').join('') + '</div>' +
+    (o.quote ? '<div class="rp-quote">\u201c' + esc(o.quote) + '\u201d</div>' : '') +
+    '<textarea class="rp-text" maxlength="300" placeholder="Anything the team should know? (optional)"></textarea>' +
+    '<div class="rp-acts"><button class="btn-neutral" data-rp="cancel">Cancel</button>' +
+    '<button class="btn-danger" data-rp="send">Send report</button></div></div>';
+  document.body.appendChild(el);
+  REPORTBOX = el;
+  el.addEventListener('click', e => {
+    if (e.target === el || e.target.closest('[data-rp="cancel"]')){ reportClose(); return; }
+    const b = e.target.closest('[data-rp="send"]'); if (!b) return;
+    const reason = (el.querySelector('input[name="rp-r"]:checked') || {}).value || 'other';
+    const text = (el.querySelector('.rp-text').value || '').trim();
+    b.disabled = true;
+    const label = (REPORT_REASONS.find(r => r[0] === reason) || ['', reason])[1];
+    const p = o.msg
+      ? srvRpc('chat_report', {p_character: SRV.charId, p_source: o.msgSource || 'chat', p_message_id: +o.msg,
+                               p_reason: label + (text ? ': ' + text : '')})
+      : srvRpc('report_player', {p_character: SRV.charId, p_target_char: o.char, p_source: o.source || 'zone',
+                                 p_reason: reason, p_text: text || null, p_context: o.context || null});
+    p.then(() => { reportClose(); say('Report sent. Thank you.'); })
+     .catch(er => { b.disabled = false; say(srvErrText(er, 'Could not send the report.')); });
+  });
+}
+/* Paus eller las fran Admin Center: spelet stoppas och porten oppnas med
+   beskedet, sa man inte sitter och trycker pa doda knappar. */
+let SANCTION_SAID = false;
+function sanctionHalt(m, detail){
+  if (SANCTION_SAID) return; SANCTION_SAID = true;
+  let txt = m.indexOf('account_paused') >= 0 ? 'This account is paused by the Genesis team'
+          : m.indexOf('account_locked') >= 0 ? 'This account is locked while the team looks into it'
+          : 'This character is locked while the team looks into it';
+  const d = String(detail || '');
+  if (/^\d{4}-\d{2}-\d{2}/.test(d)){ try { txt += ' until ' + new Date(d).toLocaleString(); } catch (e){} }
+  say(txt + '.');
+  try { NET.on = false; $('gate').classList.remove('done'); gateShowAuth(); } catch (e){}
+  try { const g = $('gate-msg') || $('auth-msg'); if (g) g.textContent = txt + '.'; } catch (e){}
 }
 /* Kartan viker ihop spelare som star pa varandra till EN bricka. Da far man
    valja vem innan handlingarna - annars hade brickan tyst pekat pa den forsta. */
@@ -42378,6 +42533,17 @@ document.addEventListener('contextmenu', e => {
   if (!b) return;
   e.preventDefault(); e.stopPropagation();
   plTipHide(); plMenuOpen(b);
+});
+/* [TILLAGT v5.654.0] Auktionssaljare (hogerklick/langtryck) och Report-knappen
+   pa inspektionskortet gar till samma rapportdialog. */
+document.addEventListener('contextmenu', e => {
+  const s = e.target.closest('[data-ahseller]'); if (!s) return;
+  e.preventDefault(); e.stopPropagation();
+  plMenuOpenFor({id: s.dataset.ahseller, handle: null, name: s.dataset.ahsn}, s.getBoundingClientRect(), {auction: true});
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-insprep]'); if (!b) return;
+  reportOpen({char: b.dataset.insprep, name: b.dataset.insprn, source: 'inspect'});
 });
 function nodeZoneHTML(){
   const R = REGIONS[NODE.region];
