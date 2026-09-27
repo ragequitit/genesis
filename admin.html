@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.8.2 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.8.3 — fas 0-9 (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -27,7 +27,8 @@
      rolleditorn (Owner ger, andrar och tar bort roller); GDPR-export i Player 360.
      v0.8.1: bugsvep - Player 360 tal saknade listor; servern: anon kan inte langre
      anropa admin_*-funktioner (revoke public/anon).
-     v0.8.2: QR-koden vid tvafaktor ritas som inline-svg (data-url brot img-taggen). -->
+     v0.8.2: QR-koden vid tvafaktor ritas som inline-svg (data-url brot img-taggen).
+     v0.8.3: rollerna visas som en tabell - en rad per rattighet med klarsprak, bock per roll. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -170,6 +171,7 @@ table.t tr.clk{cursor:pointer}
 .alrt .ar .m{color:var(--text-dim);font-size:11px}
 .modal .xp{display:flex;gap:10px;align-items:center;margin:6px 0;font-size:12px;color:var(--text);cursor:pointer}
 .modal .xp input{width:auto;margin:0;flex:0 0 auto}
+.t.perm td.c,.t.perm th.c{text-align:center;width:84px}.t.perm .tick{color:var(--green);font-weight:900;font-size:14px}.t.perm .notick{color:var(--text-faint)}
 .set-row{display:grid;grid-template-columns:minmax(0,1fr) 170px auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border-soft)}
 .set-row:first-child{border-top:0}
 .set-row .d{color:var(--text-dim);font-size:11px;margin-top:2px}
@@ -1286,6 +1288,39 @@ function knobBox(table, row, col, pkcols){
 }
 
 /* ---------- ADMIN ---------- */
+/* Klarsprak for varje rattighet. Ordningen ar den som visas. */
+const PERM_ORDER = ['player.read','player.note','player.logout','chat.read','chat.delete','chat.mute','chat.gm_speak','case.manage','player.restrict','player.pause','player.lock','handle.force','account.ban','mail.single','mail.campaign','currency.adjust','item.remove','xp.grant','daily.reset','run.abort','guild.manage','guild.disband','economy.read','content.read','content.knobs','audit.read','gdpr.export','roles.manage','system.manage'];
+const PERM_INFO = {
+  'player.read': ['See players', 'Open any player and see everything about the account: characters, bag, gold, history.'],
+  'player.note': ['Write notes', 'Leave internal notes on a player. The player never sees them.'],
+  'player.logout': ['Log out a player', 'Throw the player out of the game. They can log in again right away.'],
+  'chat.read': ['Read chat', 'Read every chat channel, including whispers and guild chat.'],
+  'chat.delete': ['Delete chat', 'Remove a chat message. It is hidden for everyone and kept in the log.'],
+  'chat.mute': ['Mute', 'Stop a player from chatting for a number of days (limit depends on role).'],
+  'chat.gm_speak': ['Speak as [GM]', 'Post a message in chat as the team, with the gold [GM] tag.'],
+  'case.manage': ['Handle cases', 'Open, assign, comment on and close cases (reports and support).'],
+  'player.restrict': ['Restrict', 'Block mail, auction house, guilds or reporting for a player, for a number of days.'],
+  'player.pause': ['Pause account', 'Freeze the whole account for a number of days. The player cannot play.'],
+  'player.lock': ['Lock', 'Lock an account or a single character until someone lifts it.'],
+  'handle.force': ['Force name change', 'Rename a player to Runner_xxxx and make them pick a new name.'],
+  'account.ban': ['Ban', 'Ban or unban an account for good.'],
+  'mail.single': ['Send mail', 'Send a letter with rewards (gold, fragments, credits, items) to one character. Limits per role.'],
+  'mail.campaign': ['Campaigns', 'Send a letter with rewards to many players at once, by segment.'],
+  'currency.adjust': ['Adjust currency', 'Add or remove gold, fragments or credits on a character. Limits per role.'],
+  'item.remove': ['Remove items', 'Delete an item from a player. The item is saved in the log so it can be recreated.'],
+  'xp.grant': ['Grant XP', 'Give XP to a character. (Not built in the panel yet.)'],
+  'daily.reset': ['Reset daily', 'Reset a player\'s daily reward streak or cooldown. (Not built in the panel yet.)'],
+  'run.abort': ['Abort a run', 'Stop a stuck expedition, dungeon or craft for a player. (Not built in the panel yet.)'],
+  'guild.manage': ['Manage guilds', 'Change guild leader, kick or restore members, delete guild chat.'],
+  'guild.disband': ['Disband guild', 'Dissolve a whole guild.'],
+  'economy.read': ['See economy', 'See the economy reports: where gold comes from and goes, auction house, richest players.'],
+  'content.read': ['See content tables', 'Read every config table the game runs on (zones, quests, drops, prices).'],
+  'content.knobs': ['Balance knobs', 'Change live game values in nine config tables. Before/after is logged.'],
+  'audit.read': ['See the audit log', 'See what every admin has done, staff list, alerts and the System tab.'],
+  'gdpr.export': ['GDPR export', 'Download everything the game stores about one account as a file.'],
+  'roles.manage': ['Manage staff', 'Add, change and remove admin roles (never your own).'],
+  'system.manage': ['Change settings', 'Change two-factor requirement, second approval and the alert limits.']
+};
 const EXTRA_PERMS = [['player.restrict', 'Restrict (mail / auction / guild / report blocks)'], ['player.pause', 'Pause account'], ['run.abort', 'Abort a stuck run']];
 const SETTING_INFO = {
   require_mfa: ['Two-factor required', 'Staff must sign in with an authenticator code. Turn off only for testing.', 'bool'],
@@ -1310,7 +1345,12 @@ async function renderAdmin(){
         st.members.map(x => '<tr><td><b>' + esc(x.label || '–') + '</b>' + (x.uid === MY_UID ? ' <span class="pill cyan">you</span>' : '') + '</td><td><span class="pill purple">' + esc(x.role_name) + '</span></td><td>' + (x.extra.length ? x.extra.map(esc).join(', ') : '–') + '</td><td class="num">' + when(x.granted_at) + '</td><td class="num">' + (x.until ? when(x.until) : 'open-ended') + '</td><td>' + copyable(x.uid) + '</td>' +
           (can ? '<td style="white-space:nowrap">' + (x.uid === MY_UID ? '<span class="m" style="color:var(--text-faint);font-size:11px">not your own</span>' : '<button class="btn sm" data-sedit="' + x.uid + '">Edit</button> <button class="btn sm r" data-srm="' + x.uid + '">Remove</button>') + '</td>' : '') + '</tr>').join('') + '</table>' +
         '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:6px">A staff account must be its own sign-in, never a player account. Nobody can change their own role. Two-factor required: <b>' + (st.require_mfa ? 'yes' : 'no') + '</b>.</div></div>' +
-        '<div class="box">' + h3('Roles') + '<div class="cards">' + st.roles.map(r => '<div class="card"><div class="k">' + esc(r.name) + '</div><div class="s" style="line-height:1.6">' + r.perms.map(p => '<span class="pill" style="margin:1px 2px 1px 0">' + esc(p) + '</span>').join('') + '</div></div>').join('') + '</div></div>';
+        '<div class="box">' + h3('What each role may do') + '<div class="s" style="color:var(--text-dim);font-size:11.5px;margin-bottom:8px">One row per permission. A tick means the role has it. Extra permissions (Restrict, Pause, Abort run) can be added per person in the staff list.</div>' +
+          '<table class="t perm"><tr><th>Permission</th><th>What it allows</th>' + st.roles.map(r => '<th class="c">' + esc(r.name) + '</th>').join('') + '</tr>' +
+          PERM_ORDER.filter(k => st.roles.some(r => r.perms.includes(k))).concat(st.roles.flatMap(r => r.perms).filter((k, i, a) => !PERM_ORDER.includes(k) && a.indexOf(k) === i)).map(k => {
+            const inf = PERM_INFO[k] || [k, ''];
+            return '<tr><td><b>' + esc(inf[0]) + '</b><div class="mono" style="font-size:10px;color:var(--text-faint)">' + esc(k) + '</div></td><td style="white-space:normal;color:var(--text-dim)">' + esc(inf[1]) + '</td>' +
+              st.roles.map(r => '<td class="c">' + (r.perms.includes(k) ? '<span class="tick">✓</span>' : '<span class="notick">–</span>') + '</td>').join('') + '</tr>'; }).join('') + '</table></div>';
       wire();
       if ($('st-add')) $('st-add').onclick = () => staffBox(null, st.roles);
       m.querySelectorAll('[data-sedit]').forEach(b => b.onclick = () => staffBox(st.members.find(x => x.uid === b.dataset.sedit), st.roles));
