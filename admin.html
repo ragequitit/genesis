@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.8.1 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.8.2 — fas 0-9 (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -26,7 +26,8 @@
      i Admin; System-fliken (cron, migrationer, storlekar, installningar);
      rolleditorn (Owner ger, andrar och tar bort roller); GDPR-export i Player 360.
      v0.8.1: bugsvep - Player 360 tal saknade listor; servern: anon kan inte langre
-     anropa admin_*-funktioner (revoke public/anon). -->
+     anropa admin_*-funktioner (revoke public/anon).
+     v0.8.2: QR-koden vid tvafaktor ritas som inline-svg (data-url brot img-taggen). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -428,9 +429,24 @@ async function afterSession(){
   if (!me.require_mfa) return enter();
   const {data: en, error} = await sb.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Genesis Admin'});
   if (error){ gerr(error.message); return; }
-  ENROLL = en; $('g-qr').innerHTML = en.totp.qr_code.startsWith('<svg') ? en.totp.qr_code : '<img src="' + en.totp.qr_code + '" style="width:180px;height:180px">';
+  ENROLL = en; $('g-qr').innerHTML = qrMarkup(en.totp.qr_code);
   $('g-secret').textContent = 'Secret: ' + en.totp.secret;
   gateShow('gate-enroll'); $('g-ecode').focus();
+}
+/* Supabase skickar QR-koden som data:image/svg+xml;utf-8,<svg ...> - med citattecken och # som
+   bryter en img-tagg. Plocka ut svg:n och rita den direkt i sidan. */
+function qrMarkup(q){
+  q = String(q || '');
+  if (q.startsWith('<svg')) return q;
+  const m = q.match(/^data:image\/svg\+xml(;[^,]*)?,(.*)$/s);
+  if (m){
+    let body = m[2];
+    if (/;base64/.test(m[1] || '')) { try { body = atob(body); } catch (e){} }
+    else { try { body = decodeURIComponent(body); } catch (e){} }
+    if (body.trim().startsWith('<svg')) return body;
+  }
+  const img = document.createElement('img'); img.src = q; img.style.width = '180px'; img.style.height = '180px';
+  return img.outerHTML;
 }
 let ENROLL = null;
 $('g-go').onclick = async () => {
