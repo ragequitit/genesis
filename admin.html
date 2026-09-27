@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.10.0 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.10.1 — fas 0-9 (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -32,7 +32,8 @@
      v0.9.0: My account (klicka pa namnet): byt losenord, gor om tvafaktor, se konto och roll.
      v0.9.1: triangeln vid Needs attention lyser rod (pulserar) nar rapporter, oppna arenden eller olasta larm finns.
      v0.9.2: rapportens foljdsvar (var/nar/vad, klient v5.657.0) visas som brickor under rapporten i arendet.
-     v0.10.0: "Remember this device for 30 days" - las (bara losenord) i stallet for utloggning efter 30 min stilla. -->
+     v0.10.0: "Remember this device for 30 days" - las (bara losenord) i stallet for utloggning efter 30 min stilla.
+     v0.10.1: losenordsbytet skickar nuvarande losenord (Supabase kraver det). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -1512,6 +1513,7 @@ async function renderMe(){
         '<span class="k">This device</span><span class="v">' + (remembered() ? 'remembered until ' + when(remUntil()) + ' <button class="btn sm" id="me-forget">Forget</button>' : 'not remembered — code asked at each sign-in') + '</span>' +
       '</div><div class="s" style="color:var(--text-faint);font-size:11px;margin-top:10px">Label and role are set by the Owner in Admin → Staff & roles. You cannot change your own role.</div></div>' +
       '<div class="box mef">' + h3('Change password') +
+        '<label>Current password</label><input type="password" id="me-pw0" autocomplete="current-password">' +
         '<label>New password (at least 12 characters)</label><input type="password" id="me-pw1" autocomplete="new-password">' +
         '<label>Repeat it</label><input type="password" id="me-pw2" autocomplete="new-password">' +
         '<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn primary" id="me-pw">Change password</button></div>' +
@@ -1525,14 +1527,17 @@ async function renderMe(){
   m.querySelectorAll('input').forEach(i => { i.style.width = '100%'; i.style.marginBottom = '6px'; });
   if ($('me-forget')) $('me-forget').onclick = () => { remSet(false); toast('This device is forgotten. Next pause signs you out.'); renderMe(); };
   $('me-pw').onclick = async () => {
-    const a = $('me-pw1').value, b2 = $('me-pw2').value;
+    const cur = $('me-pw0').value, a = $('me-pw1').value, b2 = $('me-pw2').value;
+    if (!cur){ toast('Enter your current password.', true); return; }
     if (a.length < 12){ toast('At least 12 characters.', true); return; }
+    if (a === cur){ toast('The new password is the same as the old one.', true); return; }
     if (a !== b2){ toast('The two passwords differ.', true); return; }
     $('me-pw').disabled = true;
-    const {error} = await sb.auth.updateUser({password: a});
+    /* Supabase ar installt att krava nuvarande losenord vid byte (current_password). */
+    const {error} = await sb.auth.updateUser({password: a, current_password: cur});
     $('me-pw').disabled = false;
-    if (error){ toast(error.message, true); return; }
-    $('me-pw1').value = $('me-pw2').value = ''; toast('Password changed.');
+    if (error){ toast(/current password|incorrect|invalid/i.test(error.message) ? 'Wrong current password.' : error.message, true); return; }
+    $('me-pw0').value = $('me-pw1').value = $('me-pw2').value = ''; toast('Password changed.');
   };
   $('me-mfa').onclick = async () => {
     if (!(await confirmBox({title: 'Reset two-factor?', body: 'Your authenticator entry stops working and you are signed out. Sign in again with your password to set up a new one.', tone: 'orange', yes: 'Reset and sign out'}))) return;
