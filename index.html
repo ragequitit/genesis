@@ -13014,7 +13014,7 @@ function pveKika(region, zone){
   if (pveEncsAt(region, zone).length) return;
   pveKikar = nyckel;
   netPveReveal(region, zone)
-    .then(() => { if (NODE.kind === 'encounter') renderNodeWin(); })
+    .then(() => { if (NODE.kind === 'encounter' || NODE.kind === 'zone') renderNodeWin(); })
     .catch(() => {})
     .then(() => { pveKikar = null; });
 }
@@ -42847,10 +42847,16 @@ function nodeZoneHTML(){
       ZN_ICO.enc + ' Encounter', esc(e.name),
       chip('Level ' + e.level, 'lvl') + chip(rt.name, 'rate') , '')});
   });
-  if (!encHar.length && NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone))
-    /* Inget mote framletat an: svarden i rutan i stallet for en tom ruta. */
+  if (!encHar.length && NODE.zone !== TRADE_ZONE && !pveZoneResting(NODE.region, NODE.zone)){
+    /* [RATTAT v5.658.0] KIKEN GJORDES ALDRIG FRAN ZONRUTAN (Chris). Regeln sedan
+       v5.493.0 ar att mota visas sa fort man oppnar en zon, utan att resa - men
+       kiken satt bara i motesnodens ruta, inte i zonrutans kortvy (v5.651.0). Sa
+       kortet sa "Travel to see it" fast servern hade svarat pa direkten. Nu
+       kikar zonrutan sjalv och ritas om nar svaret kommer. */
+    pveKika(NODE.region, NODE.zone);
     kort.push({k: 'enc', h: card('enc', ' data-znph="1"', 'assets/ui/profile/encounters.webp', '⚔️', ZN_ICO.enc + ' Encounter',
-      'Something waits here', chip(nodeHere() ? 'Search the zone' : 'Travel to see it'), '')});
+      'Something waits here', chip(NET.on ? 'Looking around\u2026' : 'Needs a live connection'), '')});
+  }
   const exps = (typeof expDefsForZone === 'function') ? (expDefsForZone(NODE.region, NODE.zone) || []) : [];
   exps.forEach(def => {
     const run = (S.exp.runs || []).find(r => r.id === def.id || r.expId === def.id);
