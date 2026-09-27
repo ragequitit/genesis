@@ -4223,12 +4223,21 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 }
 .mail-item:hover{border-color:var(--cyan)}
 .mail-item .mi-art{width:26px;height:26px;background:center/contain no-repeat;flex:0 0 auto}
+.cache-multi{width:min(360px,calc(100vw - 16px))}
+.cm-sub{font-size:11px;color:var(--text-dim);margin:0 0 8px}
+.cm-list{max-height:min(52vh,420px);overflow:auto;display:flex;flex-direction:column;gap:6px}
+.cm-row{display:flex;gap:10px;align-items:center;padding:6px 8px;border:1px solid var(--rc,var(--border-soft));border-radius:9px;background:rgba(0,0,0,.25)}
+.cm-art{width:34px;height:34px;flex:0 0 auto}.cm-art img{width:100%;height:100%;object-fit:contain}.cm-art .art-fall{font-size:22px;line-height:34px;display:block;text-align:center}
+.cm-txt{display:flex;flex-direction:column;min-width:0}.cm-txt b{font-size:12px}.cm-txt i{font-style:normal;font-size:10.5px;color:var(--text-dim)}
+.mail-item .mi-art img{width:100%;height:100%;object-fit:contain}.mail-item .mi-art .art-fall{font-size:18px;line-height:26px;display:block;text-align:center}
 .mail-item .mi-ico{font-size:17px;width:26px;text-align:center;flex:0 0 auto}
 .mail-item .mi-name{flex:1;font-size:11.5px;color:var(--text)}
 .mail-item .mi-take{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--cyan);text-transform:uppercase}
 .mail-row{cursor:pointer}
 .mail-row:hover{border-color:var(--cyan-dim)}
 .mail-foot{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:6px}
+.mail-hasitems i{font-style:normal;font-weight:400;opacity:.65;font-size:10px;margin-left:4px}
+.mi-parcel{display:inline-flex;width:16px;height:16px;vertical-align:-3px;margin-right:2px}.mi-parcel img{width:100%;height:100%;object-fit:contain}
 .mail-hasitems{font-size:10px;font-weight:800;color:var(--cyan);letter-spacing:.06em}
 .mail-hasitems.empty{color:var(--text-dim);font-weight:600;text-transform:uppercase}
 .mail-ttl{font-size:9.5px;font-family:var(--font-mono);color:var(--text-dim)}
@@ -4417,6 +4426,17 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .rp-quote{margin-top:10px;font-size:12px;color:var(--text-dim);font-style:italic;border-left:2px solid var(--cyan-dim);padding-left:8px}
 .rp-text{display:block;width:100%;box-sizing:border-box;min-height:64px;margin-top:10px;font-family:inherit;font-size:12px;color:var(--text);background:rgba(0,0,0,.25);border:1px solid var(--border-soft);border-radius:8px;padding:8px;resize:vertical}
 .rp-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.rp-box{max-height:calc(100vh - 32px);overflow:auto}
+.rp-ql{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin:12px 0 6px}
+.rp-q .rp-ql{margin-top:10px}
+.rp-opts{display:flex;flex-wrap:wrap;gap:6px}
+.rp-o{font-size:12px;font-weight:700;padding:5px 10px;border:1px solid var(--border-soft);border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.rp-o input{position:absolute;opacity:0;width:0;height:0}
+.rp-o:has(input:checked){border-color:var(--cyan);background:rgba(56,232,255,.12);color:var(--cyan)}
+.rp-count{font-size:10px;color:var(--text-faint);text-align:right;margin-top:3px}
+.rp-ok{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:var(--text-dim);margin-top:12px;cursor:pointer}
+.rp-ok input{margin:2px 0 0}
+.btn-danger:disabled{opacity:.45;cursor:not-allowed}
 .ah-c-seller.ah-sel{cursor:context-menu;text-decoration:underline dotted}
 .nd-insp .nd-rep{margin-left:auto;font-size:11px;padding:5px 10px}
 @media (max-width:480px){.rp-reasons{grid-template-columns:1fr}}
@@ -10059,7 +10079,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.656.0 — INGEN BRAGDRUTA VID INLOGGNING</div>
+        <div class="sn-ver">GENESIS v5.658.0 — BREVETS PAKET HAR NAMN</div>
       </div>
     </div>
   </aside>
@@ -11357,7 +11377,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.656.0 — INGEN BRAGDRUTA VID INLOGGNING</div>
+            <div class="desc">GENESIS v5.658.0 — BREVETS PAKET HAR NAMN</div>
           </div>
         </div>
       </div>
@@ -16943,6 +16963,9 @@ function schemNeeds(row){
   if (!r) return '';
   const namn = PROF_BY[r.prof] ? PROF_BY[r.prof].name : r.prof;
   if (!profLearned(r.prof)) return 'You need ' + namn + ' to read this.';
+  /* [TILLAGT v5.658.0] REDAN KANT (Chris): mataren gick, servern sa nej efterat,
+     och man fick ingenting. Kan man receptet redan star det har - fore mataren. */
+  if (recipeKnown(sc.recipe)) return 'You already know this recipe.';
   return '';
 }
 function useRecipeItem(idx){
@@ -16965,7 +16988,10 @@ function useRecipeItem(idx){
        fortfarande; det har ar bara att slippa vantan. */
     const brist = schemNeeds(row);
     if (brist){ say(brist); return true; }
-    const key = row.schematic, nm = row.name || 'Schematic';
+    /* [RATTAT v5.658.0] "Reading sch_ou_settlers" (Chris). Raden bar nyckeln,
+       inte namnet. Namnet tas ur ritningslistan. */
+    const key = row.schematic, SCn = SCHEMATICS[key];
+    const nm = (SCn && SCn.name) || (row.name && row.name.indexOf('sch_') !== 0 ? row.name : 'the schematic');
     castThen('Reading ' + nm, CAST_SECS.schematic, () => {
     srvRpc('learn_schematic', {p_character: SRV.charId, p_key: key})
       .then(r => {
@@ -21063,20 +21089,40 @@ function mailAgeText(at){
 /* Rubriken pa ett brev ar VAD det galler - varan, om det ligger nagon i det.
    Ligger det inget i brevet ar amnet det basta man har. */
 function mailTitleOf(m){
+  /* [ANDRAT v5.658.0] Amnet forst. Forut tog forsta bilagans namn over - ett
+     valkomstbrev med guld overst hette "2g 24s 15c". */
   const it = m.items && m.items[0];
-  return (it && (it.name || it.key)) || m.subject || 'Message';
+  return m.subject || (it && (it.name || it.key)) || 'Message';
 }
 function mailItemNorm(it){
   if (!it || typeof it !== 'object') return it;
   if (it.gear) return it;
+  /* [RATTAT v5.658.0] VALUTAN HADE INGET NAMN (Chris). Admin Centers brev bar
+     guld, fragment och credits som egna rader ({gold}, {frags}, {credits}) -
+     raderna fanns inte i den har oversattningen, sa de fick tom text och
+     paketikonen. Nu: belopp, namn och samma bild som i sidlisten. */
+  if (it.gold != null && !it.stack_key && !it.item_key)
+    return {key: 'gold', name: moneyPlain(+it.gold || 0), ico: '\ud83e\ude99', art: artUnlessMissing('assets/ui/money.png'), qty: 1};
+  if (it.frags != null && !it.stack_key && !it.item_key)
+    return {key: 'frags', name: (+it.frags || 0) + ' Fragment' + (+it.frags === 1 ? '' : 's'), ico: '\ud83d\udc8e', art: artUnlessMissing('assets/ui/fragments.png'), qty: 1};
+  if (it.credits != null && !it.stack_key && !it.item_key)
+    return {key: 'credits', name: (+it.credits || 0) + ' Credit' + (+it.credits === 1 ? '' : 's'), ico: '\ud83c\udf9f\ufe0f', art: artUnlessMissing('assets/ui/credits.png'), qty: 1};
   const key = it.stack_key || it.item_key || it.key || '';
+  /* [RATTAT v5.658.0] KONSTIGA NAMN (Chris): cache_helper, sch_ou_settlers...
+     Namnet letades bara i material, flaskor och ITEMS - cacher, ritningar och
+     skrap bor i andra tabeller. Nu fragas alla, i samma ordning som vaskan,
+     och bilden tas ur samma stallen som vaskan (stackArtOf). */
   const mat = MATERIALS[key], fl = FLASKS[key], D = ITEMS[key];
-  const name = it.name || (mat && mat.name) || (fl && fl.name) || (D && D.name) ||
-               (key.indexOf('recipe_') === 0 ? recipeItemName(key.replace(/^recipe_/, '')) : key);
-  const ico = (mat && mat.ico) || (fl && fl.ico) ||
-              (key.indexOf('recipe_') === 0 ? '📜' : (key === 'fuelcell' ? '⛽' : '📦'));
+  const C = (typeof ITEM_DEFS !== 'undefined' && ITEM_DEFS[key]) || null;
+  const SC = (typeof SCHEMATICS !== 'undefined' && SCHEMATICS[key]) || null;
+  const J = (typeof JUNK !== 'undefined' && JUNK[key]) || null;
+  const name = it.name || (mat && mat.name) || (fl && fl.name) || (D && D.name) || (C && C.name) || (SC && SC.name) || (J && J.name) ||
+               (key.indexOf('recipe_') === 0 ? recipeItemName(key.replace(/^recipe_/, '')) : key.replace(/_/g, ' '));
+  const ico = (mat && mat.ico) || (fl && fl.ico) || (C && C.ico) || (J && J.ico) ||
+              (SC ? '\ud83d\udcdc' : key.indexOf('recipe_') === 0 ? '📜' : (key === 'fuelcell' ? '⛽' : '📦'));
+  let art = ''; try { art = stackArtOf(key) || ''; } catch (e){ art = ''; }
   return {
-    key: key, name: name, ico: ico,
+    key: key, name: name, ico: ico, art: art,
     qty: Math.max(1, +it.qty || 1),
     rar: it.rarity == null ? undefined : (it.rarity | 0),
     itemKey: it.item_key || undefined,
@@ -21095,6 +21141,7 @@ function mailItemHTML(it, mid, i){
   }
   const art = it.itemKey && ITEMS[it.itemKey]
     ? '<span class="mi-art" style="background-image:url(\'' + itemArtFor(it.itemKey, it.rar || 0) + '\')"></span>'
+    : it.art ? '<span class="mi-art art-wrap">' + artWithFallback(it.art, it.ico || '📦') + '</span>'
     : '<span class="mi-ico">' + (it.ico || '📦') + '</span>';
   return '<div class="mail-item">' + art +
     '<span class="mi-name">' + (it.name || it.key) + (it.qty > 1 ? ' ×' + it.qty : '') + '</span></div>';
@@ -21105,6 +21152,10 @@ function mailItemHTML(it, mid, i){
    de inte vara samma teckning i tva storlekar.
    Rubrikens fil ar densamma som knappen i sidlisten anvander, sa inkorgen ser
    likadan ut var man an moter den. Tecknet star kvar som reserv i bada. */
+function mailParcelIco(){
+  const src = artUnlessMissing('assets/ui/parcel.webp');
+  return '<span class="mi-parcel art-wrap">' + (src ? artWithFallback(src, '\ud83c\udf81') : '\ud83c\udf81') + '</span>';
+}
 function mailIcoHTML(stor){
   const vag = stor ? 'assets/ui/inbox_empty.webp' : 'assets/ui/inbox.webp';
   const src = artUnlessMissing(vag);
@@ -21153,7 +21204,10 @@ function renderMail(){
       '</div>' +
       '<div class="mail-subject">' + mailTitleOf(m) + '</div>' +
       '<div class="mail-foot">' +
-        (m.items.length ? '<span class="mail-hasitems">📦 ' + m.items.length + '</span>' : '<span class="mail-hasitems empty">read</span>') +
+        /* [ANDRAT v5.658.0] "1 package" (Chris): raden sager att ett paket
+           ligger i brevet - vad som ar i det ser man nar man oppnar. Bilden ar
+           assets/ui/parcel.webp nar den finns, annars presenten. */
+        (m.items.length ? '<span class="mail-hasitems">' + mailParcelIco() + ' Package <i>' + m.items.length + (m.items.length === 1 ? ' item' : ' items') + '</i></span>' : '<span class="mail-hasitems empty">read</span>') +
         '<span class="mail-ttl' + (soon ? ' soon' : '') + '">expires in ' + fmtDur(left / 1000) + '</span>' +
       '</div>' +
     '</div>';
@@ -34395,7 +34449,10 @@ function stackWinActions(win, key){
       (full ? 'Tank is full' : 'Use') + '<span>+' + FUEL_CELL_RESTORE + ' fuel</span></button>';
   }
   if (isCacheTicket(key)){
-    h += '<button class="ia-equip" data-act="use">Open<span>' + (key === 'cache_gear' ? 'one piece of gear' : 'one helper') + '</span></button>';
+    /* [ANDRAT v5.658.0] OPPNA EN / OPPNA ALLA (Chris). En stapel cacher gav
+       forut bara "Open" - en i taget, en ruta i taget. */
+    h += '<button class="ia-equip" data-act="use">Open one<span>' + (key === 'cache_gear' ? 'one piece of gear' : 'one helper') + '</span></button>';
+    if (row.qty > 1) h += '<button class="ia-equip" data-act="useall">Open all ' + row.qty + '<span>every result in one list</span></button>';
   }
   if (row.recipe && RECIPE_BY[row.recipe]){
     const already = recipeKnown(row.recipe);
@@ -34603,7 +34660,8 @@ function openStackMenu(key, x, y){
         (full ? 'Tank is full' : 'Use \u00b7 +' + FUEL_CELL_RESTORE + ' fuel') + '</button>';
     }
     if (isCacheTicket(key)){
-      h += '<button class="pm-item" data-act="use">Open the cache</button>';
+      h += '<button class="pm-item" data-act="use">Open one</button>';
+      if (r.qty > 1) h += '<button class="pm-item" data-act="useall">Open all ' + r.qty + '</button>';
     }
     /* [TILLAGT v5.33.0] Lakevarorna far sin Use-rad. Pa full halsa star skalet
        pa knappen i stallet for att den forsvinner - samma satt som tanken. */
@@ -34659,6 +34717,7 @@ function openStackMenu(key, x, y){
     const act = b.dataset.act;
     if (act === 'melon'){ openMelon(at); closeStackMenu(); }
     else if (act === 'use'){ useInvItem(at); closeStackMenu(); }
+    else if (act === 'useall'){ useCacheTicketAll(key); closeStackMenu(); }
     else if (act === 'drink'){ if (drinkFlask(at)) say('Boost active!'); closeStackMenu(); }
     /* Samma vag som vansterklicket - matare, yrkeskoll och allt. */
     else if (act === 'useschem'){ useRecipeItem(at); closeStackMenu(); }
@@ -34697,6 +34756,7 @@ function spawnStackWin(key, nearX, nearY){
     const at = findStackIdx(key);
     if (at < 0){ stackWinActions(win, key); return; }
     if (btn.dataset.act === 'use') useInvItem(at);
+    else if (btn.dataset.act === 'useall'){ useCacheTicketAll(key); win.remove(); return; }
     else if (btn.dataset.act === 'drink'){ if (drinkFlask(at)) spawnFloat({text: 'Boost active!'}); }
     else if (btn.dataset.act === 'learn'){
       const res = useRecipeItem(at);
@@ -40577,6 +40637,59 @@ function useCacheTicket(key){
       .catch(e => say(srvErrText(e, 'Could not open that cache.')));
   });
 }
+/* [TILLAGT v5.658.0] OPPNA ALLA (Chris). En kastbalk, sedan cacherna en och
+   en mot servern (samma anrop som "open one" - servern gor exakt samma sak N
+   ganger, ingen ny servervag). Stannar vid forsta felet (t.ex. full vaska) och
+   visar det som hann oppnas. Alla fynd i EN ruta, med bild, namn och
+   sallsynthet, nyast underst. */
+function useCacheTicketAll(key){
+  if (!NET.on){ say('Caches need a live connection.'); return; }
+  const at = findStackIdx(key); const row = at >= 0 ? S.inv[at] : null;
+  const n = Math.max(1, (row && row.qty) | 0);
+  if (n <= 1){ useCacheTicket(key); return; }
+  const gear = key === 'cache_gear';
+  castThen('Opening ' + n + ' ' + (gear ? 'gear caches' : 'helper caches'), CAST_SECS.cache, async () => {
+    const got = []; let fel = '';
+    for (let i = 0; i < n; i++){
+      try { got.push(await srvRpc('use_cache_item', {p_character: SRV.charId, p_key: key})); }
+      catch (e){ fel = srvErrText(e, 'Could not open that cache.'); break; }
+    }
+    try { await netPullItems(); if (!gear){ await netPullPets(); renderPets(); renderPetPanel(); } } catch (e){}
+    renderInventory(); updateUI(true);
+    if (!got.length){ say(fel || 'Nothing opened.'); return; }
+    showCacheMulti(gear, got, fel);
+  });
+}
+function showCacheMulti(gear, got, fel){
+  document.querySelectorAll('.cache-multi').forEach(x => x.remove());
+  const rows = got.map(r => {
+    if (gear){
+      const D = ITEMS[r && r.item_key], rar = (r && r.rarity) | 0, R = GEAR_RAR[rar];
+      return {art: D ? itemArtFor(r.item_key, rar) : '', name: D ? D.name : 'A piece of gear', sub: (R ? R.name : '') + (D && GEAR_SLOTS[D.slot] ? ' · ' + GEAR_SLOTS[D.slot].name : ''), col: rarCol(rar), sid: r && r.item};
+    }
+    const p = petBySid(r && r.pet);
+    if (p) return {art: petArt(p.sp), name: petName(p), sub: RARITIES[p.rar].name + (petEffLines(p)[0] ? ' · ' + petEffLines(p)[0] : ''), col: rarCol(p.rar)};
+    const sp = (typeof PETS !== 'undefined') && PETS[r && r.species];
+    return {art: '', name: sp ? sp.name : 'A new helper', sub: 'joined you', col: 'var(--text)'};
+  });
+  const best = rows.reduce((a, x) => x, null);
+  const win = document.createElement('div');
+  win.className = 'item-win cache-multi';
+  win.innerHTML = '<div class="iw-head"><span class="iw-title">' + (gear ? 'Gear caches' : 'Helper caches') + ' · ' + got.length + ' opened</span><button class="iw-x">✕</button></div>' +
+    '<div class="cm-sub">' + (gear ? 'Everything is in your backpack.' : 'They have joined your helpers.') + (fel ? ' <b style="color:var(--red)">Stopped: ' + esc(fel) + '</b>' : '') + '</div>' +
+    '<div class="cm-list">' + rows.map(x => '<div class="cm-row" style="--rc:' + x.col + '">' +
+      '<span class="cm-art art-wrap">' + (x.art ? artWithFallback(x.art, gear ? '🧰' : '🤖') : '<i class="art-fall">' + (gear ? '🧰' : '🤖') + '</i>') + '</span>' +
+      '<span class="cm-txt"><b style="color:' + x.col + '">' + esc(x.name) + '</b><i>' + esc(x.sub) + '</i></span></div>').join('') + '</div>' +
+    '<button class="gate-go small cm-ok" style="width:100%;margin-top:8px">Nice</button>';
+  document.body.appendChild(win);
+  win.style.left = Math.max(8, (window.innerWidth - win.offsetWidth) / 2) + 'px';
+  win.style.top = Math.max(8, (window.innerHeight - win.offsetHeight) / 2) + 'px';
+  bringToFront(win);
+  makeDraggable(win, win.querySelector('.iw-head'));
+  win.querySelector('.iw-x').addEventListener('click', () => win.remove());
+  win.querySelector('.cm-ok').addEventListener('click', () => win.remove());
+  Sound.play('ding');
+}
 $('nav-daily').addEventListener('click', () => toggleWindow('daily-overlay', openDaily, closeDaily));
 $('daily-close').addEventListener('click', closeDaily);
 $('dr-claim').addEventListener('click', dailyClaim);
@@ -42411,6 +42524,31 @@ const REPORT_REASONS = [
   ['harassment', 'Harassment or hate'], ['spam', 'Spam or advertising'],
   ['cheating', 'Cheating'], ['name', 'Offensive name'],
   ['scam', 'Scam'], ['other', 'Something else']];
+/* [OMBYGGT v5.657.0] RAPPORTEN STALLER FRAGOR (Chris). Forut: valj anledning,
+   skriv om du vill, skicka. Da kom rapporter for ingenting. Nu foljer varje
+   anledning upp med sina egna fragor, beskrivningen ar OBLIGATORISK (minst 20
+   tecken) utom for "Offensive name", man maste intyga att man forstar att
+   falska rapporter raknas emot en, och knappen ar dod tills allt ar ifyllt.
+   Svaren pa foljdfragorna gar i p_context (jsonb) sa laget syns i Admin
+   Center under rapporten; texten ar kvar i p_text (servern klipper vid 300). */
+const REPORT_FLOW = {
+  harassment: {q: [['where', 'Where did it happen?', ['Zone chat', 'Whisper', 'Guild chat', 'Mail', 'Somewhere else']],
+                   ['when', 'When?', ['Just now', 'Today', 'This week', 'Earlier']]],
+               ask: 'What was said or done? Quote the exact words if you can.', min: 20},
+  spam:       {q: [['where', 'Where did it happen?', ['Zone chat', 'Whisper', 'Guild chat', 'Mail', 'Auction house']],
+                   ['how', 'How often?', ['Once', 'A few times', 'Non-stop']]],
+               ask: 'What are they posting or selling?', min: 20},
+  cheating:   {q: [['what', 'What kind of cheating?', ['Impossible progress', 'Bot / automation', 'Exploiting a bug', 'Not sure']],
+                   ['when', 'When did you notice?', ['Just now', 'Today', 'This week', 'Earlier']]],
+               ask: 'Describe exactly what you saw. Numbers, times and places help the team check it.', min: 30},
+  name:       {q: [['which', 'Which name?', ['Character name', 'Account handle', 'Guild name']]],
+               ask: 'Anything to add? (optional)', min: 0},
+  scam:       {q: [['where', 'Where did it happen?', ['Trade / mail', 'Auction house', 'Chat', 'Guild']],
+                   ['lost', 'Did you lose anything?', ['Nothing yet', 'Gold', 'Items', 'Both']]],
+               ask: 'What did they promise, and what happened instead?', min: 30},
+  other:      {q: [['where', 'Where did it happen?', ['In the zone', 'Chat', 'Guild', 'Auction house', 'Elsewhere']]],
+               ask: 'Tell the team what happened, in your own words.', min: 30}
+};
 let REPORTBOX = null;
 function reportClose(){ if (REPORTBOX){ REPORTBOX.remove(); REPORTBOX = null; } }
 function reportOpen(o){
@@ -42418,30 +42556,60 @@ function reportOpen(o){
   if (!o.char && !o.msg){ say('That player could not be identified.'); return; }
   const el = document.createElement('div');
   el.className = 'rp-wrap';
+  const opts = (key, arr) => arr.map(v => '<label class="rp-o"><input type="radio" name="rp-q-' + key + '" value="' + esc(v) + '"><span>' + esc(v) + '</span></label>').join('');
+  const followup = reason => {
+    const f = REPORT_FLOW[reason] || REPORT_FLOW.other;
+    return f.q.map(q => '<div class="rp-q"><div class="rp-ql">' + q[1] + '</div><div class="rp-opts">' + opts(q[0], q[2]) + '</div></div>').join('') +
+      '<div class="rp-ql">' + f.ask + '</div>' +
+      '<textarea class="rp-text" maxlength="300" placeholder="' + (f.min ? 'At least ' + f.min + ' characters.' : 'Optional.') + '"></textarea>' +
+      '<div class="rp-count"><span class="rp-n">0</span> / 300</div>';
+  };
   el.innerHTML = '<div class="rp-box">' +
     '<div class="rp-head">Report ' + esc(o.name || 'player') + '</div>' +
-    '<div class="rp-sub">The Genesis team reads every report. False reports count against you.</div>' +
-    '<div class="rp-reasons">' + REPORT_REASONS.map((r, i) =>
-      '<label class="rp-r"><input type="radio" name="rp-r" value="' + r[0] + '"' + (i === 0 ? ' checked' : '') + '><span>' + r[1] + '</span></label>').join('') + '</div>' +
-    (o.quote ? '<div class="rp-quote">\u201c' + esc(o.quote) + '\u201d</div>' : '') +
-    '<textarea class="rp-text" maxlength="300" placeholder="Anything the team should know? (optional)"></textarea>' +
+    '<div class="rp-sub">The Genesis team reads every report. Be specific — a report the team cannot check is thrown away, and false reports count against you.</div>' +
+    '<div class="rp-ql">What happened?</div>' +
+    '<div class="rp-reasons">' + REPORT_REASONS.map(r =>
+      '<label class="rp-r"><input type="radio" name="rp-r" value="' + r[0] + '"><span>' + r[1] + '</span></label>').join('') + '</div>' +
+    (o.quote ? '<div class="rp-quote">“' + esc(o.quote) + '”</div>' : '') +
+    '<div class="rp-follow"></div>' +
+    '<label class="rp-ok"><input type="checkbox" class="rp-agree"><span>I understand that false or careless reports count against my own account.</span></label>' +
     '<div class="rp-acts"><button class="btn-neutral" data-rp="cancel">Cancel</button>' +
-    '<button class="btn-danger" data-rp="send">Send report</button></div></div>';
+    '<button class="btn-danger" data-rp="send" disabled>Send report</button></div></div>';
   document.body.appendChild(el);
   REPORTBOX = el;
+  const box = el.querySelector('.rp-box'), fol = el.querySelector('.rp-follow'), send = el.querySelector('[data-rp="send"]');
+  const reasonOf = () => (el.querySelector('input[name="rp-r"]:checked') || {}).value || '';
+  const valid = () => {
+    const reason = reasonOf(); if (!reason) return false;
+    const f = REPORT_FLOW[reason] || REPORT_FLOW.other;
+    if (f.q.some(q => !el.querySelector('input[name="rp-q-' + q[0] + '"]:checked'))) return false;
+    const ta = el.querySelector('.rp-text'); if (!ta || (ta.value || '').trim().length < f.min) return false;
+    return !!el.querySelector('.rp-agree').checked;
+  };
+  const refresh = () => { send.disabled = !valid(); const ta = el.querySelector('.rp-text'), n = el.querySelector('.rp-n'); if (ta && n) n.textContent = ta.value.length; };
+  el.addEventListener('change', e => {
+    if (e.target.name === 'rp-r'){ fol.innerHTML = followup(e.target.value); }
+    refresh();
+  });
+  el.addEventListener('input', refresh);
   el.addEventListener('click', e => {
     if (e.target === el || e.target.closest('[data-rp="cancel"]')){ reportClose(); return; }
-    const b = e.target.closest('[data-rp="send"]'); if (!b) return;
-    const reason = (el.querySelector('input[name="rp-r"]:checked') || {}).value || 'other';
+    const b = e.target.closest('[data-rp="send"]'); if (!b || !valid()) return;
+    const reason = reasonOf();
+    const f = REPORT_FLOW[reason] || REPORT_FLOW.other;
     const text = (el.querySelector('.rp-text').value || '').trim();
+    const answers = {};
+    f.q.forEach(q => { const c = el.querySelector('input[name="rp-q-' + q[0] + '"]:checked'); if (c) answers[q[0]] = c.value; });
     b.disabled = true;
     const label = (REPORT_REASONS.find(r => r[0] === reason) || ['', reason])[1];
+    const detail = Object.keys(answers).map(k => answers[k]).join(', ');
     const p = o.msg
       ? srvRpc('chat_report', {p_character: SRV.charId, p_source: o.msgSource || 'chat', p_message_id: +o.msg,
-                               p_reason: label + (text ? ': ' + text : '')})
+                               p_reason: label + (detail ? ' (' + detail + ')' : '') + (text ? ': ' + text : '')})
       : srvRpc('report_player', {p_character: SRV.charId, p_target_char: o.char, p_source: o.source || 'zone',
-                                 p_reason: reason, p_text: text || null, p_context: o.context || null});
-    p.then(() => { reportClose(); say('Report sent. Thank you.'); })
+                                 p_reason: reason, p_text: text || null,
+                                 p_context: Object.assign({}, o.context || {}, {answers: answers})});
+    p.then(() => { reportClose(); say('Report sent. Thank you — the team will look at it.'); })
      .catch(er => { b.disabled = false; say(srvErrText(er, 'Could not send the report.')); });
   });
 }
