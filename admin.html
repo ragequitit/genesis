@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.8.0 — fas 0-9 (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.8.1 — fas 0-9 (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -24,7 +24,9 @@
      lasa; nio balansrattar som Owner far andra live (fore/efter i audit).
      v0.8.0: Larm (manga atgarder pa en timme, stora guldbelopp) pa Overview och
      i Admin; System-fliken (cron, migrationer, storlekar, installningar);
-     rolleditorn (Owner ger, andrar och tar bort roller); GDPR-export i Player 360. -->
+     rolleditorn (Owner ger, andrar och tar bort roller); GDPR-export i Player 360.
+     v0.8.1: bugsvep - Player 360 tal saknade listor; servern: anon kan inte langre
+     anropa admin_*-funktioner (revoke public/anon). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -611,6 +613,13 @@ function renderPlayers(){
 async function openPlayer(pid, tab){
   const m = $('main'); go('players'); m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">Loading…</div>';
   try { [P360, P360MOD] = await Promise.all([rpc('admin_player', {p_profile: pid}), rpc('admin_player_mod', {p_profile: pid})]); }
+  catch (e){ m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  /* Talighet: saknas en lista (skulle inte handa) blir den tom i stallet for att krascha sidan. */
+  try {
+    P360.profile = P360.profile || {}; ['characters','chat','reports','notes','audit'].forEach(k => P360[k] = P360[k] || []);
+    P360.characters.forEach(c => ['professions','expedition_runs','work_orders','boosts','quests','items','stacks','vault','bag_slots','pets','mail','ledger','xp_ledger','auctions'].forEach(k => c[k] = c[k] || []));
+    P360MOD = P360MOD || {}; P360MOD.sanctions = P360MOD.sanctions || []; P360MOD.cases = P360MOD.cases || [];
+  }
   catch (e){ m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
   P360TAB = tab || 'overview'; renderP360();
 }
