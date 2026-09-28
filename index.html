@@ -4212,7 +4212,7 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .mail-row.unread{border-color:var(--cyan-dim);background:rgba(56,232,255,.06)}
 .mail-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:3px}
 .mail-from{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);font-weight:800}
-.mail-age{font-size:9.5px;color:var(--text-dim);font-family:var(--font-mono)}
+.mail-age{font-size:10.5px;font-weight:700;color:var(--text-dim);font-family:var(--font-mono)}
 .mail-subject{font-size:12.5px;font-weight:800;color:var(--text);margin-bottom:3px}
 .mail-body{font-size:11px;color:var(--text-dim);line-height:1.5}
 .mail-items{display:flex;flex-direction:column;gap:5px;margin-top:8px}
@@ -4237,10 +4237,27 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .mail-row:hover{border-color:var(--cyan-dim)}
 .mail-foot{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:6px}
 .mail-hasitems i{font-style:normal;font-weight:400;opacity:.65;font-size:10px;margin-left:4px}
-.mi-parcel{display:inline-flex;width:16px;height:16px;vertical-align:-3px;margin-right:2px}.mi-parcel img{width:100%;height:100%;object-fit:contain}
 .mail-hasitems{font-size:10px;font-weight:800;color:var(--cyan);letter-spacing:.06em}
 .mail-hasitems.empty{color:var(--text-dim);font-weight:600;text-transform:uppercase}
-.mail-ttl{font-size:9.5px;font-family:var(--font-mono);color:var(--text-dim)}
+.mail-ttl{font-size:10.5px;font-weight:700;font-family:var(--font-mono);color:var(--text-dim)}
+/* [v5.659.0] RADEN VISAR VAD SOM KOMMER (Chris). En stor ruta till vanster, lika hog som
+   raden: kuvertet om brevet bara ar text, sakens egen bild om det ligger EN sak i det
+   (guld, byxor, en cache), paketet om det ligger flera. Bilden tas ur samma byggsten som
+   raderna i det oppnade brevet (mailArtHTML), sa listan och brevet visar samma bild. */
+.mail-row.mr2{display:flex;gap:11px;align-items:stretch;padding:9px 11px 9px 9px}
+.mail-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.mail-big{flex:0 0 auto;width:62px;min-height:62px;border-radius:10px;background:var(--bg-panel);
+  border:1px solid var(--rc,var(--border-soft));display:flex;align-items:center;justify-content:center;
+  padding:6px;box-sizing:border-box;overflow:hidden}
+.mail-big .mi-art,.mail-big .art-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.mail-big .mi-art{background-size:contain}
+.mail-big img{width:100%;height:100%;object-fit:contain}
+.mail-big .mi-ico,.mail-big .art-fall{font-size:30px;line-height:1;width:auto}
+.mail-big .mb-qty{position:absolute;right:3px;bottom:2px;font-size:10px;font-weight:800;font-family:var(--font-mono);
+  color:var(--text);text-shadow:0 1px 2px #000,0 0 4px #000}
+.mail-big{position:relative}
+.mail-subject{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:480px){.mail-big{width:52px;min-height:52px;padding:5px}}
 .mail-ttl.soon{color:#ff6b74}
 /* Lappen — ett meddelande i sin helhet. */
 .mail-note{width:330px}
@@ -10079,7 +10096,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.658.0 — BREVETS PAKET HAR NAMN</div>
+        <div class="sn-ver">GENESIS v5.659.0 — INKORGEN VISAR VAD SOM KOMMER</div>
       </div>
     </div>
   </aside>
@@ -11377,7 +11394,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.658.0 — BREVETS PAKET HAR NAMN</div>
+            <div class="desc">GENESIS v5.659.0 — INKORGEN VISAR VAD SOM KOMMER</div>
           </div>
         </div>
       </div>
@@ -21129,20 +21146,43 @@ function mailItemNorm(it){
     itemId: it.item_id || undefined
   };
 }
+/* [v5.659.0] EN byggsten for bilden av en bilaga - brevets rader och inkorgens stora ruta. */
+function mailArtHTML(it){
+  if (it.gear) return '<span class="mi-art" style="background-image:url(\'' + gearArt(it.gear) + '\')"></span>';
+  return it.itemKey && ITEMS[it.itemKey]
+    ? '<span class="mi-art" style="background-image:url(\'' + itemArtFor(it.itemKey, it.rar || 0) + '\')"></span>'
+    : it.art ? '<span class="mi-art art-wrap">' + artWithFallback(it.art, it.ico || '📦') + '</span>'
+    : '<span class="mi-ico">' + (it.ico || '📦') + '</span>';
+}
+function mailArtCol(it){
+  try {
+    if (it.gear) return gearRarCol(it.gear);
+    if (it.rar != null && RARITIES[it.rar]) return rarCol(it.rar);
+  } catch (e){}
+  return '';
+}
+/* Radens stora ruta: kuvert (ingen bilaga), sakens bild (en bilaga), paket (flera). */
+function mailBigHTML(m){
+  const its = m.items || [];
+  if (!its.length) return '<span class="mail-big art-wrap">' + mailIcoHTML() + '</span>';
+  if (its.length === 1){
+    const it = its[0], col = mailArtCol(it);
+    return '<span class="mail-big"' + (col ? ' style="--rc:' + col + '"' : '') + '>' + mailArtHTML(it) +
+      (it.qty > 1 ? '<b class="mb-qty">×' + it.qty + '</b>' : '') + '</span>';
+  }
+  const src = artUnlessMissing('assets/ui/parcel.webp');
+  return '<span class="mail-big art-wrap">' + (src ? artWithFallback(src, '\ud83c\udf81') : '<i class="art-fall" style="display:block">\ud83c\udf81</i>') + '</span>';
+}
 function mailItemHTML(it, mid, i){
   /* [ANDRAT v5.122.0] Brevet toms i ETT svep pa servern, sa raderna visar bara
      vad som ligger i kuvertet - EN knapp langst ner hamtar allt. Forut fanns en
      Take-knapp per rad, men forsta trycket tog hela brevet och stangde det, sa
      de ovriga knapparna var vilseledande. */
   if (it.gear){
-    return '<div class="mail-item" style="--rc:' + gearRarCol(it.gear) + '">' +
-      '<span class="mi-art" style="background-image:url(\'' + gearArt(it.gear) + '\')"></span>' +
+    return '<div class="mail-item" style="--rc:' + gearRarCol(it.gear) + '">' + mailArtHTML(it) +
       '<span class="mi-name">' + gearName(it.gear) + '</span></div>';
   }
-  const art = it.itemKey && ITEMS[it.itemKey]
-    ? '<span class="mi-art" style="background-image:url(\'' + itemArtFor(it.itemKey, it.rar || 0) + '\')"></span>'
-    : it.art ? '<span class="mi-art art-wrap">' + artWithFallback(it.art, it.ico || '📦') + '</span>'
-    : '<span class="mi-ico">' + (it.ico || '📦') + '</span>';
+  const art = mailArtHTML(it);
   return '<div class="mail-item">' + art +
     '<span class="mi-name">' + (it.name || it.key) + (it.qty > 1 ? ' ×' + it.qty : '') + '</span></div>';
 }
@@ -21152,10 +21192,6 @@ function mailItemHTML(it, mid, i){
    de inte vara samma teckning i tva storlekar.
    Rubrikens fil ar densamma som knappen i sidlisten anvander, sa inkorgen ser
    likadan ut var man an moter den. Tecknet star kvar som reserv i bada. */
-function mailParcelIco(){
-  const src = artUnlessMissing('assets/ui/parcel.webp');
-  return '<span class="mi-parcel art-wrap">' + (src ? artWithFallback(src, '\ud83c\udf81') : '\ud83c\udf81') + '</span>';
-}
 function mailIcoHTML(stor){
   const vag = stor ? 'assets/ui/inbox_empty.webp' : 'assets/ui/inbox.webp';
   const src = artUnlessMissing(vag);
@@ -21197,7 +21233,10 @@ function renderMail(){
   list.innerHTML = S.mail.map(m => {
     const left = mailLeftMs(m);
     const soon = left < 86400000;
-    return '<div class="mail-row' + (m.read ? '' : ' unread') + '" data-open="' + m.id + '">' +
+    const one = m.items.length === 1 ? m.items[0] : null;
+    const oneName = one ? (one.gear ? gearName(one.gear) : (one.name || one.key)) + (one.qty > 1 ? ' \u00d7' + one.qty : '') : '';
+    return '<div class="mail-row mr2' + (m.read ? '' : ' unread') + '" data-open="' + m.id + '">' + mailBigHTML(m) +
+      '<div class="mail-main">' +
       '<div class="mail-head">' +
         '<span class="mail-from">' + m.from + '</span>' +
         '<span class="mail-age">' + mailAgeText(m.at) + '</span>' +
@@ -21207,8 +21246,13 @@ function renderMail(){
         /* [ANDRAT v5.658.0] "1 package" (Chris): raden sager att ett paket
            ligger i brevet - vad som ar i det ser man nar man oppnar. Bilden ar
            assets/ui/parcel.webp nar den finns, annars presenten. */
-        (m.items.length ? '<span class="mail-hasitems">' + mailParcelIco() + ' Package <i>' + m.items.length + (m.items.length === 1 ? ' item' : ' items') + '</i></span>' : '<span class="mail-hasitems empty">read</span>') +
+        /* [v5.659.0] Den stora rutan visar bilden; texten sager vad det ar. En sak: dess namn.
+           Flera: "Package · 7 items". Tomt brev: "read". */
+        (m.items.length > 1 ? '<span class="mail-hasitems">Package <i>' + m.items.length + ' items</i></span>'
+          : one ? '<span class="mail-hasitems">' + oneName + '</span>'
+          : '<span class="mail-hasitems empty">read</span>') +
         '<span class="mail-ttl' + (soon ? ' soon' : '') + '">expires in ' + fmtDur(left / 1000) + '</span>' +
+      '</div>' +
       '</div>' +
     '</div>';
   }).join('');
