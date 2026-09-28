@@ -9848,11 +9848,18 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
   padding:12px 14px;border-radius:14px;background:linear-gradient(160deg,#101a33,#0a0f22);border:1px solid rgba(56,232,255,.55);
   box-shadow:0 18px 44px rgba(0,0,0,.7),0 0 22px -6px rgba(56,232,255,.5);color:var(--text);font-size:13px;line-height:1.45;
   transition:left .18s,top .18s}
-#gd-box .gd-art{flex:0 0 96px;width:96px;height:120px;margin:-26px 0 -12px -6px;display:flex;align-items:flex-end;justify-content:center}
-#gd-box .gd-art img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6))}
+#gd-box{align-items:stretch;padding:0 14px 0 0;overflow:hidden}
+#gd-box .gd-art{flex:0 0 112px;width:112px;margin:0;display:flex;align-items:flex-end;justify-content:center;align-self:stretch}
+#gd-box .gd-txt{padding:12px 0 12px 12px}
+#gd-box .gd-name{color:var(--cyan);font-weight:900}
+#gd-frame.low{z-index:1;box-shadow:0 0 18px 2px rgba(56,232,255,.7),inset 0 0 14px rgba(56,232,255,.35);animation:gd-pulse-low 1.6s ease-in-out infinite}
+@keyframes gd-pulse-low{0%,100%{box-shadow:0 0 14px 1px rgba(56,232,255,.55),inset 0 0 10px rgba(56,232,255,.25)}50%{box-shadow:0 0 26px 5px rgba(56,232,255,.95),inset 0 0 18px rgba(56,232,255,.5)}}
+#gd-prog .gdp-show{color:var(--cyan);font-weight:800}
+#gd-prog.hid{border-color:var(--cyan)}
+#gd-box .gd-art img{width:100%;height:100%;max-height:170px;object-fit:contain;object-position:bottom;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6))}
 #gd-box .gd-art.fb{opacity:.85}
 #gd-box .gd-txt{flex:1 1 auto;min-width:0}
-#gd-box .gd-who{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:900;color:var(--cyan);margin-bottom:3px}
+#gd-box .gd-who{font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:900;color:var(--cyan);margin-bottom:4px}
 #gd-box .gd-say{font-weight:500}
 #gd-box .gd-min{float:right;cursor:pointer;color:var(--text-dim);font-weight:900;padding:0 4px;letter-spacing:0}
 #gd-box .gd-min:hover{color:var(--text)}
@@ -9865,7 +9872,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 #gd-box .gd-skip:hover{color:var(--text)}
 #gd-box.sheet{left:8px !important;right:8px;bottom:8px;top:auto !important;width:auto;max-width:none}
 #gd-box.sheet.top{bottom:auto;top:56px !important}
-#gd-prog{position:fixed;z-index:1579;right:10px;bottom:10px;display:none;min-width:150px;padding:7px 10px;border-radius:11px;
+#gd-prog{position:fixed;z-index:1579;display:none;min-width:150px;padding:7px 10px;border-radius:11px;
   background:rgba(10,15,34,.94);border:1px solid rgba(56,232,255,.35);color:var(--text);font-size:11.5px;cursor:pointer;
   box-shadow:0 8px 24px rgba(0,0,0,.55)}
 #gd-prog .gdp-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -10139,7 +10146,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.663.0 — NIXIE VISAR VAGEN</div>
+        <div class="sn-ver">GENESIS v5.664.0 — NIXIE, ANDRA VARVET</div>
       </div>
     </div>
   </aside>
@@ -11447,7 +11454,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.663.0 — NIXIE VISAR VAGEN</div>
+            <div class="desc">GENESIS v5.664.0 — NIXIE, ANDRA VARVET</div>
           </div>
         </div>
       </div>
@@ -13128,7 +13135,7 @@ const PVE_RATING = {
    form som nodeQuestsAt har for kontrakten. Ritningen fragar har - den letar
    aldrig sjalv i listan. */
 function pveEncsAt(regionId, zone){
-  return (PVE.encs || []).filter(e => e && e.region === regionId && e.zone === zone);
+  return guideEncCut((PVE.encs || []).filter(e => e && e.region === regionId && e.zone === zone));
 }
 function pveEncById(id){
   return (PVE.encs || []).find(e => e && e.id === id) || null;
@@ -27754,8 +27761,7 @@ function gmQuestNodes(){
   const st = QUESTS.state;
   if (!st || !st.offers) return [];
   const out = [];
-  st.offers.forEach(o => {
-    if (!o || o.status !== 'offered' || !o.quest_id) return;
+  guideQuestCut(st.offers.filter(o => o && o.status === 'offered' && o.quest_id)).forEach(o => {
     if (!o.region || !o.zone) return;
     /* Kartan ritar bara zoner den kanner till. Ett kontrakt i en zon som inte
        star i varldsboken skulle bli en nod utan mark under. */
@@ -32182,6 +32188,8 @@ function bonusFindPool(){
 }
 function spawnBonusFind(){
   if (document.visibilityState !== 'visible') return;
+  /* [TILLAGT v5.664.0] Inte forran spelaren hallit inne noden (guidens steg 2 klart). */
+  if (typeof GUIDE !== 'undefined' && GUIDE.on && GUIDE.state && !GUIDE.state.done && GUIDE.step <= 2) return;
   const pool = bonusFindPool();
   if (!pool.length) return;
   const kind = pool[Math.floor(Math.random() * pool.length)];
@@ -37526,7 +37534,7 @@ function renderQuests(){
      de ar regionens tre platser - det man hittar genom att sta i en zon. Utan
      fliken gick det inte att se vad som vantade i en region man inte stod i, och
      nedrakningen till nasta kontrakt fanns ingenstans. Tillbaka. */
-  const offers = st ? (st.offers || []).filter(o => o.quest_id && o.status === 'offered') : [];
+  const offers = st ? guideQuestCut((st.offers || []).filter(o => o.quest_id && o.status === 'offered')) : [];
   const cds = st ? (st.offers || []).filter(o => !o.quest_id && o.cooldown_until &&
     new Date(o.cooldown_until).getTime() > Date.now()) : [];
   const flik = (id, txt, tal) =>
@@ -42392,8 +42400,8 @@ function nodeEncounterHTML(){
 /* Alla erbjudna kontrakt i nodens zon, i serverns ordning. */
 function nodeQuestsAt(){
   const st = QUESTS.state; if (!st) return [];
-  return (st.offers || []).filter(o => o.quest_id && o.status === 'offered' &&
-    o.region === NODE.region && o.zone === NODE.zone);
+  return guideQuestCut((st.offers || []).filter(o => o.quest_id && o.status === 'offered' &&
+    o.region === NODE.region && o.zone === NODE.zone));
 }
 /* [ANDRAT v5.157.0] Det kontrakt noden faktiskt gallde. Tryckte man pa den
    andra av tva noder i samma zon fick man forut det forsta - funktionen tog
@@ -43800,10 +43808,23 @@ function gdRuns(){ return (S.exp && S.exp.runs) || []; }
 function gdProfCount(){ return S.prof && S.prof.known ? Object.keys(S.prof.known).length : 0; }
 function gdQuestsActive(){ return ((QUESTS.state && QUESTS.state.active) || []).length; }
 const GD_MAP = ['#panel-network-map'];
+/* [TILLAGT v5.664.0] BARA EN SAK I ZONEN UNDER GUIDEN (Chris). Tre kontrakt, tva moten och en
+   expedition pa en gang ar for mycket for den som just kommit. Tills forsta striden ar vunnen
+   syns ETT mote och inga kontrakt; vid kontraktssteget syns ETT kontrakt. Sedan allt. Galler
+   kartan, zonrutan och kontraktslistan - alla gar genom de har tva. */
+function guideEncCut(list){
+  if (!GUIDE.on || !GUIDE.state || GUIDE.state.done) return list;
+  return GUIDE.step <= 5 ? list.slice(0, 1) : list;
+}
+function guideQuestCut(list){
+  if (!GUIDE.on || !GUIDE.state || GUIDE.state.done) return list;
+  if (GUIDE.step < 12) return [];
+  return GUIDE.step === 12 ? list.slice(0, 1) : list;
+}
 /* ---- DEL 1 ---- */
 const GD_STEPS = [
   {n: 1, art: 'n01_welcome', ok: 'Let’s go', skip: true,
-   text: 'Hey, you made it! I’m Nixie — I’ll show you around Genesis until you find your feet.',
+   text: 'Hey, you made it! I’m <b class="gd-name">Nixie</b> — I’ll show you around Genesis until you find your feet.',
    vet: 'Welcome back! Want the tour again, or do you know your way around?'},
   {n: 2, art: 'n02_core', targets: ['#core-hex'],
    text: 'Hold the node to sync your core. While it burns everything works at full speed — let it go dark and you earn just a fifth.',
@@ -43827,15 +43848,15 @@ const GD_STEPS = [
   {n: 8, art: null, text: 'Put your new helper in your team.',
    targets: ['#pet-team-grid .ht-card.empty[data-teamslot]', '#pet-team-grid [data-teamslot]'],
    done: () => gdTeamHas()},
-  {n: 9, art: 'n05_expedition', text: 'Helpers run expeditions while you’re away — and starting one tops up your core too. Send them out!',
+  {n: 9, art: 'n05_expedition', text: 'Helpers run expeditions while you’re away — one expedition per helper. Starting one tops up your core too. Send them out!',
    targets: ['#node-overlay.open [data-nd="expstart"]', '#node-overlay.open [data-nd="exptravelstart"]', '#qa-expeditions'],
    done: () => gdRuns().length > 0},
   {n: 10, art: 'n06_daily', text: 'Your daily Transmission is glowing. Grab it — it’s gold!',
    targets: ['#daily-overlay.open #dr-claim', '#nav-daily'],
-   done: () => !!(DAILY && (DAILY.claimable === false || DAILY.completed))},
+   done: () => !!(DAILY && (DAILY.claimable === false || DAILY.completed)), after: () => { try { closeDaily(); } catch (e){} }},
   {n: 11, art: 'n07_profession', text: 'Now you can afford a profession. Gatherers find materials, crafters turn them into gear.',
    targets: ['#prof-overlay.open [data-learn]:not([disabled])', '#prof-overlay.open [data-learn]', '[data-pickprof]'],
-   done: () => gdProfCount() > 0},
+   done: () => gdProfCount() > 0, after: () => { try { $('prof-overlay').classList.remove('open'); } catch (e){} }},
   {n: 12, art: null, text: 'The quest giver has something for you.',
    targets: ['[data-qaccept]', '#node-overlay.open .zn-card[data-ndgo="quest"]', '#node-overlay.open .zn-cnt[data-ndgo="quest"]', '#qa-quests', ...GD_MAP],
    done: () => gdQuestsActive() > 0},
@@ -43892,7 +43913,11 @@ function gdEls(){
     f = document.createElement('div'); f.id = 'gd-frame'; document.body.appendChild(f);
     b = document.createElement('div'); b.id = 'gd-box'; document.body.appendChild(b);
     p = document.createElement('div'); p.id = 'gd-prog'; document.body.appendChild(p);
-    p.addEventListener('click', e => { if (e.target.closest('.gdp-hide')){ GUIDE.hidden = !GUIDE.hidden; gdRender(); return; } GUIDE.listOpen = !GUIDE.listOpen; gdRenderProg(); });
+    p.addEventListener('click', e => {
+      if (GUIDE.hidden){ GUIDE.hidden = false; GUIDE.listOpen = false; gdRender(); return; }
+      if (e.target.closest('.gdp-hide')){ GUIDE.hidden = true; GUIDE.listOpen = false; gdRender(); return; }
+      GUIDE.listOpen = !GUIDE.listOpen; gdRenderProg();
+    });
   }
   return {f, b, p};
 }
@@ -43915,8 +43940,9 @@ function gdPlaceBox(b, r){
   const W = b.offsetWidth || 320, H = b.offsetHeight || 120, g = 14;
   let x, y;
   if (!r){ x = innerWidth / 2 - W / 2; y = innerHeight * 0.58 - H / 2; }
-  else if (r.right + g + W <= innerWidth){ x = r.right + g; y = r.top + r.height / 2 - H / 2; }
+  else if (r.bottom + g + H <= innerHeight && r.width < innerWidth * .6){ x = r.left + r.width / 2 - W / 2; y = r.bottom + g; }
   else if (r.left - g - W >= 0){ x = r.left - g - W; y = r.top + r.height / 2 - H / 2; }
+  else if (r.right + g + W <= innerWidth){ x = r.right + g; y = r.top + r.height / 2 - H / 2; }
   else if (r.bottom + g + H <= innerHeight){ x = r.left + r.width / 2 - W / 2; y = r.bottom + g; }
   else { x = r.left + r.width / 2 - W / 2; y = r.top - g - H; }
   x = Math.max(8, Math.min(innerWidth - W - 8, x)); y = Math.max(8, Math.min(innerHeight - H - 8, y));
@@ -43938,6 +43964,8 @@ function gdRender(){
   if (el){
     const r = el.getBoundingClientRect(), pad = 6;
     f.style.display = 'block';
+    /* Noden skjuter ut mynt och fynd (z 6 i sin scen). Dar ligger ramen UNDER dem, utan morker. */
+    f.classList.toggle('low', el.id === 'core-hex');
     f.style.left = (r.left - pad) + 'px'; f.style.top = (r.top - pad) + 'px';
     f.style.width = (r.width + pad * 2) + 'px'; f.style.height = (r.height + pad * 2) + 'px';
     f.style.borderRadius = (parseFloat(getComputedStyle(el).borderRadius) || 10) + pad + 'px';
@@ -43958,7 +43986,9 @@ function gdRender(){
   }
   b.style.display = 'flex';
   b.classList.toggle('tip', !!tip && !st);
-  gdPlaceBox(b, el ? el.getBoundingClientRect() : null);
+  /* Vid noden: rutan utanfor hela nodpanelen, sa den inte tacker mynten som flyger ut. */
+  const pan = el && el.id === 'core-hex' ? el.closest('.panel') : null;
+  gdPlaceBox(b, el ? (pan || el).getBoundingClientRect() : null);
   gdRenderProg();
 }
 function gdRenderProg(){
@@ -43967,9 +43997,17 @@ function gdRenderProg(){
   const boxShown = $('gd-box') && $('gd-box').style.display !== 'none';
   if (!st || (isNarrowScreen() && boxShown)){ p.style.display = 'none'; return; }
   p.style.display = 'block';
+  /* Uppe till hoger pa kartan, sa den syns hela tiden (Chris). Pa telefon nere till hoger. */
+  if (!isNarrowScreen()){
+    const map = document.getElementById('panel-network-map');
+    const mr = map ? map.getBoundingClientRect() : null;
+    if (mr && mr.width){ p.style.left = Math.round(mr.right - p.offsetWidth - 10) + 'px'; p.style.top = Math.round(Math.max(8, mr.top + 10)) + 'px'; p.style.right = 'auto'; p.style.bottom = 'auto'; }
+    else { p.style.left = 'auto'; p.style.top = 'auto'; p.style.right = '10px'; p.style.bottom = '10px'; }
+  } else { p.style.left = 'auto'; p.style.top = 'auto'; p.style.right = '8px'; p.style.bottom = '8px'; }
+  p.classList.toggle('hid', !!GUIDE.hidden);
   const doneN = st.n - 1;
   let h = '<div class="gdp-head"><span>First steps <b>' + doneN + '/' + GD_LAST + '</b></span>' +
-    '<span class="gdp-hide" title="' + (GUIDE.hidden ? 'Show Nixie' : 'Hide Nixie for now') + '">' + (GUIDE.hidden ? '▸' : '–') + '</span></div>';
+    (GUIDE.hidden ? '<span class="gdp-show">Show Nixie</span>' : '<span class="gdp-hide" title="Hide Nixie for now">–</span>') + '</div>';
   if (GUIDE.listOpen){
     const names = ['Meet Nixie', 'Sync your core', 'Find the encounter', 'Begin the fight', 'Pick your reward', 'Wear it', 'Open the Helper Cache',
       'Add the helper to your team', 'Start an expedition', 'Claim the Transmission', 'Learn a profession', 'Take a quest', 'Ready'];
@@ -44010,7 +44048,7 @@ function gdTick(){
     if ((st.n === 3 || st.n === 4 || st.n === 5) && !gdChoicePending() && Date.now() - gdStateAt > 3000){
       gdStateAt = Date.now(); gdSave('guide_state');
     }
-    if (st.done && !GUIDE.busy && st.done()){ gdAdvance(st.n >= GD_LAST ? 100 : st.n + 1); return; }
+    if (st.done && !GUIDE.busy && st.done()){ if (st.after) st.after(); gdAdvance(st.n >= GD_LAST ? 100 : st.n + 1); return; }
     gdRender(); return;
   }
   /* Del 2 - bara nar del 1 ar klar eller overhoppad, och inte avstangda. */
