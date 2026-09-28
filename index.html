@@ -10096,7 +10096,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.660.0 — BARA VARA EGNA BILDER I BREVET</div>
+        <div class="sn-ver">GENESIS v5.661.0 — RINGARNA BYTER PLATS DIREKT</div>
       </div>
     </div>
   </aside>
@@ -11394,7 +11394,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.660.0 — BARA VARA EGNA BILDER I BREVET</div>
+            <div class="desc">GENESIS v5.661.0 — RINGARNA BYTER PLATS DIREKT</div>
           </div>
         </div>
       </div>
@@ -15229,9 +15229,10 @@ async function netEquip(gear, slot){
     throw e;
   }
 }
-async function netUnequip(gear){
+async function netUnequip(gear, toIdx){
   if (!NET.on || !gear || !gear.sid) return null;
-  applyUnequipLocal(gear);
+  if (typeof toIdx === 'number' && toIdx >= 0) invOrderPlace('i:' + gear.sid, toIdx);
+  applyUnequipLocal(gear, toIdx);
   renderEquip(); renderInventory(); updateUI(true);
   try {
     const r = await srvRpc('unequip_item', {p_character: SRV.charId, p_item: gear.sid});
@@ -15258,10 +15259,10 @@ function applyEquipLocal(gear, want){
   S.equip[dest] = it;
   S.inv[idx] = old ? {gear: old} : null;
 }
-function applyUnequipLocal(gear){
+function applyUnequipLocal(gear, toIdx){
   const slot = Object.keys(S.equip).find(k => S.equip[k] && S.equip[k].uid === gear.uid);
   if (slot == null) return;
-  const free = invFirstFree();
+  const free = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx]) ? toIdx : invFirstFree();
   if (free < 0) return;
   S.inv[free] = {gear: S.equip[slot]};
   delete S.equip[slot];
@@ -23337,12 +23338,34 @@ function equipGear(idx, want){
   S.inv[idx] = old ? {gear: old} : null;
   renderEquip(); renderInventory(); updateUI(true); save();
 }
+/* [TILLAGT v5.661.0] Flytta en buren pjas till en annan kroppsplats den passar. Sitter
+   det nagot dar byter de tva plats. Bara ringarna har tva platser i dag. */
+function equipMove(fromSlot, toSlot){
+  const it = S.equip[fromSlot];
+  if (!it || fromSlot === toSlot || slotsForGear(it).indexOf(toSlot) < 0) return false;
+  const other = S.equip[toSlot];
+  if (other) S.equip[fromSlot] = other; else delete S.equip[fromSlot];
+  S.equip[toSlot] = it;
+  renderEquip(); renderInventory(); updateUI(true);
+  if (!NET.on){ save(); return true; }
+  srvRpc('move_equipped', {p_character: SRV.charId, p_item: it.sid, p_slot: toSlot})
+    .catch(e => say(srvErrText(e)))
+    .then(() => netPullItems())
+    .then(() => { renderEquip(); renderInventory(); updateUI(true); })
+    .catch(() => {});
+  return true;
+}
 function unequipGear(slotIdx, toIdx){
   const it = S.equip[slotIdx];
   if (!it) return false;
-  if (NET.on){ netUnequip(it).catch(e => say(srvErrText(e))); return true; }
+  /* [RATTAT v5.661.0] PJASEN HOPPADE TILL FORSTA LEDIGA RUTA (Chris bugg). I serverlage
+     skickades rutan man slappte pa aldrig vidare: avtagningen lade pjasen forst i
+     vaskan, och hamtningen efterat byggde om rutnatet utan nagot sparat val for den.
+     Nu skrivs rutan in i vaskans ordning innan servern svarar - samma satt som ett
+     uttag ur valvet gor - och pjasen ritas dar direkt. */
   const at = (typeof toIdx === 'number' && toIdx >= 0 && toIdx < invSlots() && !S.inv[toIdx])
     ? toIdx : invFirstFree();
+  if (NET.on){ netUnequip(it, at).catch(e => say(srvErrText(e))); return true; }
   if (at < 0) return false;
   delete S.equip[slotIdx];
   S.inv[at] = {gear: it};
@@ -35706,7 +35729,12 @@ function dragTargetsFor(d){
   }
   if (d.from === 'equip'){
     /* En buren pjas dras av till vaskan - varje ledig ruta ar ett mal. */
-    return invCells();
+    /* [TILLAGT v5.661.0] OCH DE ANDRA KROPPSPLATSER DEN PASSAR (Chris bugg). En ring
+       i Ring I gick inte att slappa pa Ring II - man fick mellanlanda den i vaskan. */
+    const t = invCells();
+    if (d.gear) slotsForGear(d.gear).forEach(sl => { if (sl !== d.slot)
+      document.querySelectorAll('#panel-character [data-slot="' + sl + '"]').forEach(s => t.push(s)); });
+    return t;
   }
   if (d.from === 'vault'){
     /* Ur valvet: valvets egna rutor och hela vaskan. */
@@ -36008,6 +36036,13 @@ function endDrag(d, x, y){
     else if (inVaultArea(under)) unequipVaultBagToVault(d.socket);
     else if (cell) unequipVaultBag(d.socket, +cell.dataset.inv);
     else if (inInvArea(under)) unequipVaultBag(d.socket);
+    return;
+  }
+  /* [TILLAGT v5.661.0] Buren pjas slappt pa en ANNAN kroppsplats den passar (Ring I
+     -> Ring II): den flyttar dit direkt, och sitter det nagot dar byter de plats. */
+  const eslot = under.closest('#panel-character [data-slot]');
+  if (eslot && d.gear && +eslot.dataset.slot !== d.slot && slotsForGear(d.gear).indexOf(+eslot.dataset.slot) >= 0){
+    equipMove(d.slot, +eslot.dataset.slot);
     return;
   }
   /* Buren pjäs släppt på en BESTÄMD ruta hamnar just där, om den är ledig. */
