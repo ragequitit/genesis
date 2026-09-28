@@ -8711,6 +8711,13 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
 .pve-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
 #node-overlay .pve-name{font-size:26px;font-weight:900;letter-spacing:.02em;line-height:1.1;color:var(--text)}
 .pve-tags{display:flex;gap:7px;flex-wrap:wrap}
+/* [v5.665.0] ELITE: gul-orange bricka, och talen i samma farg sa man ser att det ar ett annat slags mote. */
+.pve-tag.elite{color:#ffb347;border-color:#ffb347;background:rgba(255,179,71,.12);box-shadow:0 0 12px -4px #ffb347}
+.pve-stats.elite .pve-stat{border-color:rgba(255,179,71,.55);background:rgba(255,179,71,.07)}
+.pve-stats.elite .pve-stat b{color:#ffb347;text-shadow:0 0 8px rgba(255,179,71,.5)}
+.pve-rate.elite-note{color:#ffb347;border-color:#ffb347}
+.pvb-chip.elite{color:#ffb347;border-color:#ffb347}
+.pvb-elite-won{display:block;font-size:11px;letter-spacing:.14em;color:#ffb347;font-weight:800;margin-top:-2px}
 .pve-tag{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
   padding:5px 10px;border-radius:8px;border:1px solid var(--border-glow);background:var(--bg-row);color:var(--text-dim)}
 .pve-tag.lvl{border-color:var(--purple);color:var(--purple)}
@@ -10184,7 +10191,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.665.0 — NIXIE, TREDJE VARVET</div>
+        <div class="sn-ver">GENESIS v5.666.0 — ELITE OCH CACHER I SHOPPEN</div>
       </div>
     </div>
   </aside>
@@ -11499,7 +11506,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.665.0 — NIXIE, TREDJE VARVET</div>
+            <div class="desc">GENESIS v5.666.0 — ELITE OCH CACHER I SHOPPEN</div>
           </div>
         </div>
       </div>
@@ -11931,6 +11938,9 @@ async function srvRpc(fn, args){
    varst: servern VET varfor, och den kunskapen kastades bort pa sju stallen.
    Ordlistan ar ett stalle, sa samma kod aldrig kan fa tva olika texter. */
 const SRV_ERRORS = {
+  /* [TILLAGT v5.665.0] */
+  guild_leader:         'You lead a guild with members in it \u2014 hand over leadership (or disband) before deleting this character.',
+  not_enough_fragments: 'Not enough fragments.',
   /* [TILLAGT v5.637.0] Onboardingens val nar vaskan ar full - valet ligger kvar. */
   bag_full:          'Your backpack is full \u2014 make room, then pick your reward again.',
   no_such_choice:    'That reward was already taken.',
@@ -13277,6 +13287,7 @@ function showFightPlayback(enc, r){
       '<div class="pvb-head">' +
         '<div><div class="pvb-eyebrow">PVE ENCOUNTER</div>' +
           '<div class="pvb-foe">' + esc(enc.name || 'Enemy') + '</div>' +
+          (enc.elite ? '<span class="pvb-chip elite">\u2605 ELITE</span> ' : '') +
           (enc.type_name ? '<span class="pvb-chip">' + esc(enc.type_name) + '</span>' : '') + '</div>' +
         '<div class="pvb-round" id="pvb-round">Round 0</div>' +
         '<div class="pvb-auto"><i></i>AUTO COMBAT</div>' +
@@ -13434,7 +13445,7 @@ function showFightPlayback(enc, r){
       if (rw.choice) onbOffer(rw.choice);
       const drops = [rw.gear].filter(Boolean);
       const sgt = drops.map(gearDropText).filter(Boolean).join(' \u00b7 ');
-      body = '<b>VICTORY</b>' +
+      body = '<b>VICTORY</b>' + (r.elite ? '<span class="pvb-elite-won">\u2605 ELITE \u2014 rewards x3</span>' : '') +
         (rwKort.length
           /* [ANDRAT v5.613.0] Taket var FYRA spalter. Ger motet fem eller sex
              saker - hjalparcache och ritning ovanpa de fyra vanliga - lade de
@@ -33678,7 +33689,10 @@ const SHOP_LIST = [
      9g och 11g, sa golvet pa 125 % av aterkopet - 11g 25s och 13g 75s - ligger
      kvar langt under det nya priset aven med full ryktesrabatt. */
   {key: 'boost_expspd',  price: 240000},
-  {key: 'boost_luck',    price: 290000}
+  {key: 'boost_luck',    price: 290000},
+  /* [TILLAGT v5.665.0] Cacherna kostar FRAGMENT, inte guld - samma tal som knapparna vid raknaren. */
+  {key: 'cache_gear',    frags: 25, desc: 'One sealed piece of gear, rolled for your level. Open it from your backpack.'},
+  {key: 'cache_helper',  frags: 10, desc: 'One sealed helper from your current region. Open it from your backpack.'}
 ];
 function shopOwned(key){
   if (MATERIALS[key]) return matCount(key);
@@ -33789,8 +33803,8 @@ function renderShopSupplies(){
     const icoHTML = art
       ? '<span class="sr-ico art-wrap">' + artWithFallback(art, ico) + '</span>'
       : '<span class="sr-ico">' + ico + '</span>';
-    const desc = (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].desc) ||
-                 (it.key === 'crafting_kit' ? 'Used by crafting recipes.' : '');
+    const desc = it.desc || (ITEM_DEFS[it.key] && ITEM_DEFS[it.key].desc) ||
+                 (it.key === 'crafting_kit' ? 'Used by crafting recipes.' : '');   /* [v5.665.0] shoppens egen rad vinner */
     /* En kontraktsvara koper man EN av. Servern vagrar mer, sa knappen ska
        inte lova nagot annat. */
     const harAn = shopOwned(it.key) > 0;
@@ -33798,7 +33812,7 @@ function renderShopSupplies(){
       icoHTML +
       '<span class="sr-body"><b>' + name + '</b><i>' + desc + '</i>' +
         '<em>' + (it.quest ? 'Quest item \u00b7 one at a time' : 'Owned: ' + shopOwned(it.key)) + '</em></span>' +
-      '<span class="sr-price">' + moneyText(it.price) + '</span>' +
+      '<span class="sr-price">' + (it.frags ? uiIco('frag') + ' ' + it.frags + ' fragments' : moneyText(it.price)) + '</span>' +
       (it.quest
         ? '<button class="sr-buy" data-shopbuy="' + it.key + '" data-qty="1"' +
           (harAn ? ' disabled' : '') + '>' + (harAn ? 'In bag' : 'Buy') + '</button>'
@@ -33813,16 +33827,22 @@ async function shopBuy(key, qty){
   const it = SHOP_LIST.find(x => x.key === key)
           || SHOP_QUEST_ITEMS.find(x => x.key === key);
   if (!it) return;
-  const cost = it.price * qty;
-  if (S.gold < cost){ say('Not enough money \u2014 you need ' + moneyText(cost - S.gold) + ' more.'); return; }
+  /* [TILLAGT v5.665.0] Cacherna betalas i fragment. */
+  if (it.frags){
+    const fc = it.frags * qty;
+    if ((S.frags || 0) < fc){ say('Not enough fragments \u2014 you need ' + (fc - (S.frags || 0)) + ' more.'); return; }
+  }
+  const cost = (it.price || 0) * qty;
+  if (!it.frags && S.gold < cost){ say('Not enough money \u2014 you need ' + moneyText(cost - S.gold) + ' more.'); return; }
   if (NET.on){
     try {
       const r = await srvRpc('shop_buy', {p_character: SRV.charId, p_key: key, p_qty: qty});
       if (r && r.gold != null) S.gold = +r.gold;
+      if (r && r.fragments != null) S.frags = +r.fragments;
       await netPullItems();
     } catch (e){ say(srvErrText(e, 'The trade was refused.')); return; }
   } else {
-    S.gold -= cost;
+    if (it.frags) S.frags = (S.frags || 0) - it.frags * qty; else S.gold -= cost;
     if (MATERIALS[key]) giveMaterial(key, qty);
     else addInvItem({key: key, name: (ITEM_DEFS[key] || {}).name || key,
                      ico: stackIcoOf(key, '\ud83d\udce6'), qty: qty, stack: true});
@@ -42516,6 +42536,7 @@ function nodeEncounterHTML(){
              som striden lagger pa - inte ett tal skrivet har. Formen forklaras
              med samma tre ord servern kan skicka (pve_shape); ett okant ord far
              ingen text alls. */
+          (enc.elite ? '<span class="pve-tag elite" data-pttip="Elite: three times the health and attack of a normal foe \u2014 and three times the XP, reputation, scrap and fragments when you win.">\u2605 ELITE</span>' : '') +
           '<span class="pve-tag" data-pttip="' + esc(pveTypeTip(enc)) + '">' + esc(enc.type_name) + '</span>' +
           '<span class="pve-tag lvl" data-pttip="' + esc(pveLevelTip(enc)) + '">Level ' + enc.level + '</span>' +
           /* [TILLAGT 2026-09-17] FIENDENS FORM (Chris). Kortet visar 2223 halsa
@@ -42529,10 +42550,10 @@ function nodeEncounterHTML(){
           (enc.shape ? '<span class="pve-tag form" data-pttip="' + esc(pveShapeTip(enc.shape)) + '">' + esc(enc.shape) + '</span>' : '') +
         '</div>' +
         '<div class="pve-blurb">' + esc(enc.blurb) + '</div>' +
-        '<div class="pve-diff"><i>Difficulty</i>' +
+        '<div class="pve-diff' + (enc.elite ? ' elite' : '') + '"><i>Difficulty</i>' +
           '<span class="pve-rate" style="color:' + rt.col + ';border-color:' + rt.col + '">' +
-          rt.name + '</span></div>' +
-        '<div class="pve-stats">' +
+          rt.name + '</span>' + (enc.elite ? '<span class="pve-rate elite-note">\u2605 x3</span>' : '') + '</div>' +
+        '<div class="pve-stats' + (enc.elite ? ' elite' : '') + '">' +
           '<div class="pve-stat"><span class="ps-ico">\ud83d\udee1\ufe0f</span>' +
             '<b>' + enc.enemy_hp + '</b><i>Health</i></div>' +
           '<div class="pve-stat"><span class="ps-ico">\u2694\ufe0f</span>' +
