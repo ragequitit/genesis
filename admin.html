@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.13.0 — fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.14.0 — analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -325,6 +325,17 @@ table.t td.macts .btn{margin:2px 0;white-space:normal;text-align:center;justify-
 @media (max-width:1439px){.grid-ov{grid-template-columns:1fr 1fr}.grid-ov>.box:last-child{grid-column:1/3}.stat .spark{display:none}.stat .win{display:none}}
 @media (max-width:1279px){#app.on{display:none}#narrow{display:flex}}
 #narrow{display:none;position:fixed;inset:0;align-items:center;justify-content:center;color:var(--text-dim);font-size:14px;padding:30px;text-align:center}
+/* ---- analytics (v0.14.0) ---- */
+.ana-ret td.c{text-align:center;font-family:var(--font-mono);font-size:11px}
+.ana-ret td.c i{display:inline-block;min-width:44px;padding:3px 6px;border-radius:6px;font-style:normal;background:rgba(56,232,255,calc(var(--p) * .55 + .04));color:var(--text)}
+.ana-ret td.c.na i{background:transparent;color:var(--text-faint)}
+.hbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:3px 0}
+.hbar b{flex:0 0 130px;font-weight:600;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar i{flex:1;height:8px;background:var(--bg-inset);border-radius:4px;overflow:hidden;font-style:normal}
+.hbar i::before{content:'';display:block;height:100%;width:var(--w);background:var(--cyan);border-radius:4px}
+.hbar span{flex:0 0 60px;text-align:right;font-family:var(--font-mono);color:var(--text)}
+.hbar.gold i::before{background:var(--gold)}.hbar.purple i::before{background:var(--purple)}.hbar.green i::before{background:var(--green)}
+.ana-note{font-size:10.5px;color:var(--text-faint);margin-top:6px}
 </style>
 </head>
 <body>
@@ -478,7 +489,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.13.0';
+const ADMIN_VERSION = 'v0.14.0';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -500,6 +511,7 @@ let MAILFILL = null;   /* forifyllning av brevet (Resend / mall) */
 let TPLS = null;       /* sparade mallar */
 let TPL_EDIT = null;   /* mall som redigeras (null = ny) */
 let ECO = {tab: 'economy', days: 7, table: null, q: ''};
+let ANA = {days: 30, data: null};
 let CATALOG = null;
 let CASEFILT = 'open';
 
@@ -507,7 +519,7 @@ let CASEFILT = 'open';
 const I = {
   home: 'M3 11l9-8 9 8v10H3z', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 10v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
   cases: 'M5 4h14v16H5zM9 9h6M9 13h6M9 17h3', chat: 'M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z', guild: 'M12 3l9 5v8l-9 5-9-5V8z',
-  mail: 'M3 6h18v12H3zM3 7l9 6 9-6', econ: 'M4 19h16M6 15v-4M10 15V7M14 15v-6M18 15V5', admin: 'M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6', stats: 'M3 3v18h18M7 14l4-4 4 3 5-6', econ: 'M4 19h16M6 15v-4M10 15V7M14 15v-6M18 15V5', admin: 'M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z',
   flag: 'M5 21V4h11l-1 4 1 4H5', doc: 'M6 3h9l5 5v13H6zM14 3v6h6M9 13h6M9 17h6', gavel: 'M14 4l6 6-3 3-6-6zM3 21l7-7M12 12l-4 4',
   ban: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8', clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
   swords: 'M4 4l10 10M20 4L10 14M4 20l4-4M20 20l-4-4M14 14l3 3M10 14l-3 3', coin: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9.5C9 8.1 10.3 7 12 7s3 1.1 3 2.5S13.7 12 12 12s-3 1.1-3 2.5S10.3 17 12 17s3-1.1 3-2.5',
@@ -689,7 +701,7 @@ $('lock-out').onclick = async () => { remSet(false); await sb.auth.signOut(); lo
 const NAV = [
   ['overview','Overview','home', null], ['players','Players','users', null], ['cases','Cases','cases', null],
   ['chat','Chat','chat', null], ['guilds','Guilds','guild', null], ['mail','Mail & Rewards','mail', null],
-  ['economy','Economy & Content','econ', null], ['admin','Admin','admin', null]
+  ['economy','Economy & Content','econ', null], ['analytics','Analytics','stats', null], ['admin','Admin','admin', null]
 ];
 function buildNav(){
   $('nav').innerHTML = NAV.map(n => '<div class="nv' + (n[3] ? ' off' : '') + '" data-page="' + n[0] + '">' + ico(n[2]) + n[1] +
@@ -706,6 +718,7 @@ function go(page){
   else if (page === 'guilds') renderGuilds();
   else if (page === 'mail') renderMail();
   else if (page === 'economy') renderEconomy();
+  else if (page === 'analytics') renderAnalytics();
   else if (page === 'admin') renderAdmin();
   else if (page === 'me') renderMe();
 }
@@ -1661,6 +1674,94 @@ function knobBox(table, row, col, pkcols){
     try { await rpc('admin_knob_set', {p_table: table, p_pk: pk, p_changes: ch, p_reason: reason}); modalClose(); toast('Changed.'); renderEconomy(); } catch (e){ toast(e.message, true); }
   };
 }
+
+/* ---------- ANALYTICS (v0.14.0) ---------- */
+function pct(a, b){ return b > 0 ? Math.round(100 * a / b) + '%' : '–'; }
+function hbar(label, v, mx, cls, txt){ return '<div class="hbar ' + (cls || '') + '"><b title="' + esc(label) + '">' + esc(label) + '</b><i style="--w:' + (mx > 0 ? Math.round(100 * v / mx) : 0) + '%"></i><span>' + (txt != null ? txt : v) + '</span></div>'; }
+function hbars(rows, keyF, valF, cls, txtF){ const mx = Math.max(1, ...rows.map(valF)); return rows.length ? rows.map(r => hbar(keyF(r), valF(r), mx, cls, txtF ? txtF(r) : null)).join('') : '<div class="empty">Nothing yet.</div>'; }
+function minTxt(m){ m = +m || 0; return m >= 120 ? (m / 60).toFixed(1) + ' h' : Math.round(m) + ' min'; }
+async function renderAnalytics(){
+  const m = $('main');
+  const head = '<div class="pg-row"><div><h1 class="pg">Analytics</h1><div class="pg-sub" style="margin-bottom:0">Who plays, how long they stay, where they stop, and what they do. Days are UTC. Sessions are counted from ' + 'v5.669.0 onwards (the client started reporting on 2026-09-29).</div></div></div>' +
+    '<div class="row" style="margin-bottom:10px">' + [7, 14, 30, 90].map(d => '<button class="btn sm' + (ANA.days === d ? ' primary' : '') + '" data-days="' + d + '">' + d + ' d</button>').join('') + '<button class="btn sm" id="ana-refresh" style="margin-left:auto">Refresh</button></div>';
+  m.innerHTML = head + '<div class="empty">Loading…</div>';
+  const wire = () => { m.querySelectorAll('[data-days]').forEach(b => b.onclick = () => { ANA.days = +b.dataset.days; renderAnalytics(); }); const r = $('ana-refresh'); if (r) r.onclick = renderAnalytics; m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open)); };
+  let a;
+  try { a = await rpc('admin_analytics', {p_days: ANA.days}); ANA.data = a; } catch (e){ m.innerHTML = head + '<div class="empty">' + esc(e.message) + '</div>'; wire(); return; }
+  const H = a.headline, S = a.sessions, P = a.progression, F = a.funnel, A = a.activity, C = a.clients, PL = a.players, D = a.daily || [], R = a.retention || [], RT = a.retention_total || {};
+  const card = (k, v, s, cls) => '<div class="card"><div class="k">' + k + '</div><div class="v ' + (cls || '') + '">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
+  const stick = H.mau > 0 ? Math.round(100 * H.dau / H.mau) + '%' : '–';
+  /* Dagsstaplar: tva serier per dag. */
+  const bars2 = (k1, k2, c1, c2, label) => { const mx = Math.max(1, ...D.map(d => Math.max(+d[k1] || 0, +d[k2] || 0)));
+    return '<div class="bars">' + D.map(d => '<div class="b" title="' + d.day + ': ' + k1 + ' ' + d[k1] + (k2 ? ' · ' + k2 + ' ' + d[k2] : '') + '"><div class="bb"><i style="height:' + Math.round(100 * (+d[k1] || 0) / mx) + '%;background:' + c1 + '"></i>' + (k2 ? '<i style="height:' + Math.round(100 * (+d[k2] || 0) / mx) + '%;background:' + c2 + '"></i>' : '') + '</div><span>' + (D.length > 40 ? '' : d.day.slice(5)) + '</span></div>').join('') + '</div>' + (label ? '<div class="ana-note">' + label + '</div>' : ''); };
+  const retCell = (d, e, n) => e ? '<td class="c"><i style="--p:' + (n > 0 ? (d / n).toFixed(2) : 0) + '">' + pct(d, n) + '</i></td>' : '<td class="c na"><i>–</i></td>';
+  const guideSteps = ['Meet Nixie','Sync core','Find encounter','Begin fight','Pick reward','Wear it','Open Helper Cache','Helper to team','Start expedition','Claim Transmission','Learn profession','Take quest','Ready'];
+  const msName = {pve_wins: 'Won a fight', gear_equipped: 'Wore gear', first_helper_cache: 'Opened Helper Cache', exp_done: 'Finished an expedition', daily_claims: 'Claimed a Transmission', prof_learns: 'Learned a profession', quests_done: 'Finished a quest', crafted: 'Crafted something', gear_sold: 'Sold gear', caches: 'Opened a cache', dungeon_runs: 'Ran a dungeon', regions_seen: 'Saw a region'};
+  const dows = ['', 'Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  m.innerHTML = head +
+    /* 1. Rubriktal */
+    '<div class="cards" style="grid-template-columns:repeat(8,1fr);margin-bottom:14px">' +
+      card('Online now', H.online_now, 'seen in the last 90 s', 'green') +
+      card('DAU today', H.dau, 'yesterday ' + H.dau_yesterday, 'cyan') +
+      card('WAU / MAU', H.wau + ' / ' + H.mau, 'stickiness ' + stick) +
+      card('Accounts', H.accounts, '+' + H.accounts_new + ' in ' + a.days + ' d' + (H.banned ? ' · ' + H.banned + ' banned' : '')) +
+      card('Characters', H.characters, '+' + H.characters_new + ' new · ' + H.characters_deleted + ' deleted') +
+      card('Sessions ' + a.days + ' d', H.sessions, 'avg ' + minTxt(S.avg_min) + ' · median ' + minTxt(S.median_min)) +
+      card('Playtime ' + a.days + ' d', minTxt(H.playtime_min), S.per_user_day + ' sessions / player / day', 'gold') +
+      '<div class="card"><div class="k">Retention D1 / D7 / D30</div><div class="v" style="font-size:17px;white-space:nowrap">' + pct(RT.d1, RT.e1) + ' / ' + pct(RT.d7, RT.e7) + ' / ' + pct(RT.d30, RT.e30) + '</div><div class="s">of ' + RT.e1 + ' / ' + RT.e7 + ' / ' + RT.e30 + ' who had the chance</div></div>' +
+    '</div>' +
+    /* 2. Dag for dag */
+    '<div class="grid2" style="margin-bottom:12px">' +
+      '<div class="box">' + h3('Daily active players (cyan) and new accounts (gold)') + bars2('dau', 'new_accounts', 'var(--cyan)', 'var(--gold)') +
+        h3('Sessions (purple) and playtime in minutes (green)') + bars2('sessions', 'playtime_min', 'var(--purple)', 'var(--green)') + '</div>' +
+      '<div class="box">' + h3('Fights won (cyan) and quests finished (gold)') + bars2('fights', 'quests', 'var(--cyan)', 'var(--gold)') +
+        h3('Peak concurrent (green) and chat messages (purple)') + bars2('peak_online', 'chat', 'var(--green)', 'var(--purple)') + '</div>' +
+    '</div>' +
+    /* 3. Retention per signup-dag */
+    '<div class="box" style="margin-bottom:12px">' + h3('Retention by signup day — share of that day’s new accounts seen again on day 1, days 2–3, 4–7, 8–14, 15–30') +
+      (R.length ? '<div class="tbl-wrap"><table class="t ana-ret"><tr><th>Signed up</th><th>New</th><th>D1</th><th>D3</th><th>D7</th><th>D14</th><th>D30</th></tr>' +
+        R.map(r => '<tr><td>' + r.signup + '</td><td class="num">' + r.n + '</td>' + retCell(r.d1, r.e1, r.n) + retCell(r.d3, r.e3, r.n) + retCell(r.d7, r.e7, r.n) + retCell(r.d14, r.e14, r.n) + retCell(r.d30, r.e30, r.n) + '</tr>').join('') + '</table></div>' : '<div class="empty">No signups in the last 60 days.</div>') +
+      '<div class="ana-note">– means that cohort has not reached the day yet. A day counts as “seen” if the account logged in, had a session, or was seen by the server that day.</div></div>' +
+    /* 4. Sessioner + klienter */
+    '<div class="grid2" style="margin-bottom:12px">' +
+      '<div class="box">' + h3('When people play (Stockholm time, sessions started per hour)') + hbars(S.by_hour || [], x => (x.h < 10 ? '0' : '') + x.h + ':00', x => +x.n, 'cyan') +
+        h3('Weekday') + hbars(S.by_dow || [], x => dows[x.d], x => +x.n, 'purple') + '</div>' +
+      '<div class="box">' + h3('Session length') + hbars([['under 2 min', S.length_buckets.lt2], ['2–10 min', S.length_buckets.m2_10], ['10–30 min', S.length_buckets.m10_30], ['30–60 min', S.length_buckets.m30_60], ['over an hour', S.length_buckets.gt60]], x => x[0], x => +x[1], 'green') +
+        h3('Client versions') + hbars(C.versions || [], x => x.v, x => +x.n, 'gold') +
+        h3('Device') + hbars([['Desktop', C.desktop], ['Mobile', C.mobile], ['Unknown (old client)', C.unknown]], x => x[0], x => +x[1]) +
+        h3('Screen widths') + hbars(C.widths || [], x => x.w + ' px', x => +x.n, 'purple') + '</div>' +
+    '</div>' +
+    /* 5. Progression + tratt */
+    '<div class="grid2" style="margin-bottom:12px">' +
+      '<div class="box">' + h3('Level spread (' + H.characters + ' characters · avg ' + P.avg_level + ' · max ' + P.max_level + (P.paragon_chars ? ' · ' + P.paragon_chars + ' in paragon' : '') + ')') + hbars(P.levels || [], x => 'Level ' + x.b, x => +x.n, 'cyan') +
+        h3('Time to reach a level (median hours from character creation)') + hbars(P.time_to_level || [], x => 'Level ' + x.lvl + ' (' + x.n + ')', x => +x.median_h || 0, 'gold', x => x.median_h == null ? '–' : x.median_h + ' h') +
+        h3('Where they stand') + hbars(P.regions || [], x => x.k, x => +x.n, 'purple') +
+        h3('Classes') + hbars(P.classes || [], x => x.k, x => +x.n) +
+        h3('Professions learned') + hbars(P.professions || [], x => x.k, x => +x.n, 'green') + '</div>' +
+      '<div class="box">' + h3('Nixie — first steps: ' + F.guide.done + ' finished · ' + F.guide.skipped + ' skipped · ' + F.guide.in_progress + ' in progress · ' + F.guide.tips_off + ' turned tips off') +
+        ((F.guide.steps || []).length ? hbars(F.guide.steps, x => 'Stuck at ' + x.step + ' · ' + (guideSteps[x.step - 1] || ''), x => +x.n, 'purple') : '<div class="ana-note">Nobody is in the middle of the tour right now.</div>') +
+        h3('Milestones — characters who did it at least once (of ' + F.characters_total + ')') + hbars(F.milestones || [], x => msName[x.k] || x.k, x => +x.n, 'cyan', x => x.n + ' · ' + pct(x.n, F.characters_total)) +
+        h3('Tips Nixie has shown') + hbars(F.guide.tips || [], x => x.k, x => +x.n, 'gold') + '</div>' +
+    '</div>' +
+    /* 6. Aktivitet */
+    '<div class="box" style="margin-bottom:12px">' + h3('What happened in the last ' + a.days + ' days') +
+      '<div class="cards" style="grid-template-columns:repeat(8,1fr)">' +
+        card('Fights', A.fights, A.fights_won + ' won' + (A.elite_won ? ' · ' + A.elite_won + ' elite' : '')) + card('Dungeon runs', A.dungeon_runs, A.dungeon_deaths + ' deaths') +
+        card('Expeditions', A.expeditions, A.expeditions_claimed + ' claimed') + card('Quests', A.quests_accepted, A.quests_claimed + ' finished') +
+        card('Auction', A.auction_listed, A.auction_sold + ' sold') + card('Chat', A.chat, (A.chat_by_channel || []).map(x => x.k + ' ' + x.n).join(' · ')) +
+        card('Guilds', A.guilds, A.guild_members + ' members · ' + A.friend_links + ' friendships') + card('Achievements', A.achievements, A.pets + ' helpers · ' + A.items + ' items in the world') + '</div>' +
+      '<div class="grid2" style="margin-top:10px"><div>' + h3('Money moves by reason (ledger rows)') + hbars(A.ledger_by_reason || [], x => x.k, x => +x.n, 'gold') + '</div>' +
+        '<div>' + h3('Where XP comes from (idle presence excluded)') + hbars(A.xp_by_reason || [], x => x.k, x => +x.xp, 'cyan', x => fmtBig(x.xp)) + '</div></div></div>' +
+    /* 7. Spelare */
+    '<div class="grid2">' +
+      '<div class="box">' + h3('Most playtime ' + a.days + ' d') + ((PL.top_playtime || []).length ? '<table class="t"><tr><th>Handle</th><th>Playtime</th><th>Sessions</th></tr>' +
+        PL.top_playtime.map(x => '<tr><td><b style="cursor:pointer;color:var(--cyan)" data-open="' + esc(x.profile_id) + '">' + esc(x.handle || '?') + '</b></td><td class="num">' + minTxt(x.min) + '</td><td class="num">' + x.sessions + '</td></tr>').join('') + '</table>' : '<div class="empty">No sessions recorded yet — they start with client v5.669.0.</div>') + '</div>' +
+      '<div class="box">' + h3('Slipping away — seen 3–14 days ago (' + PL.churned + ' gone for 14+ days · ' + PL.never_played + ' never made a character)') + ((PL.at_risk || []).length ? '<table class="t"><tr><th>Handle</th><th>Last seen</th></tr>' +
+        PL.at_risk.map(x => '<tr><td><b style="cursor:pointer;color:var(--cyan)" data-open="' + esc(x.profile_id) + '">' + esc(x.handle || '?') + '</b></td><td class="num">' + ago(x.last) + '</td></tr>').join('') + '</table>' : '<div class="empty">Nobody in the 3–14 day window.</div>') + '</div>' +
+    '</div>';
+  wire();
+}
+function fmtBig(n){ n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : String(Math.round(n)); }
 
 /* ---------- ADMIN ---------- */
 /* Klarsprak for varje rattighet. Ordningen ar den som visas. */

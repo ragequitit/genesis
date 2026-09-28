@@ -10214,7 +10214,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.668.0 — SKROTET FÖLJER REGIONEN</div>
+        <div class="sn-ver">GENESIS v5.669.0 — ANALYTICS</div>
       </div>
     </div>
   </aside>
@@ -11529,7 +11529,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.668.0 — SKROTET FÖLJER REGIONEN</div>
+            <div class="desc">GENESIS v5.669.0 — ANALYTICS</div>
           </div>
         </div>
       </div>
@@ -12459,7 +12459,7 @@ async function netPull(){
   NET.on = true;
   /* [TILLAGT v5.656.0] Forsta hjartslaget DIREKT - annars star man osynlig i
      Admin Center i en minut efter inloggningen. Tyst vid fel. */
-  srvRpc('session_ping', {p_character: SRV.charId}).catch(() => {});
+  srvRpc('session_ping', {p_character: SRV.charId, p_meta: pingMeta()}).catch(() => {});
   return true;
 }
 
@@ -41107,7 +41107,12 @@ setInterval(() => { if (NET.on && SRV.charId && !dailyBusy) netDailyState().catc
    "jag ar oppen" (session_ping skriver profiles.seen_at). Utan det vet servern
    bara nar noden tickade - inte om nagon faktiskt sitter dar. Overview i
    admin.html raknar Online/Aktiva/Idlar ur den har stampeln. Tyst vid fel. */
-setInterval(() => { if (NET.on && SRV.charId) srvRpc('session_ping', {p_character: SRV.charId}).catch(() => {}); }, 60 * 1000);
+/* [TILLAGT v5.669.0] Vad pingen berattar om klienten (analytics i admin). */
+function pingMeta(){
+  let v = '?'; try { v = ((document.querySelector('.sn-ver') || {}).textContent || '').match(/v\d+\.\d+\.\d+/)[0]; } catch (e){}
+  return {v: v, w: innerWidth, h: innerHeight, mob: isNarrowScreen() || /Mobi|Android/i.test(navigator.userAgent), vis: document.visibilityState === 'visible'};
+}
+setInterval(() => { if (NET.on && SRV.charId) srvRpc('session_ping', {p_character: SRV.charId, p_meta: pingMeta()}).catch(() => {}); }, 60 * 1000);
 
 /* ================= CHATTEN v1 (v5.180.0) =================
    Fyra kanaler. General/Trade/Whispers bor i en egen tabell pa servern; Guild
