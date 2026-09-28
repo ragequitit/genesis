@@ -1672,6 +1672,9 @@ body.dragging *{cursor:grabbing !important}
    rutnatet packar sa manga som far plats i stallet for att lasa antalet till
    fyra. Sidoyrkena behaller sin egen rubrik och rad. */
 #prof-overlay .prof-modal{width:min(1600px,96vw);max-width:96vw}
+#ptree-overlay .ptree-modal{width:min(760px,96vw);max-width:96vw}
+#ptree-overlay .ptree-scroll{max-height:calc(100vh - 90px);overflow-y:auto;overscroll-behavior:contain}
+#ptree-overlay #pt-player .pt-grid{min-height:0}
 .pf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .pf-grid.four{grid-template-columns:repeat(4,1fr)}
 .pf-grid.auto{grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px}
@@ -3577,6 +3580,10 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
    formsprak som belaningsrutans kort, men hela kortet ar knappen. */
 .onb-modal{width:430px;max-width:calc(100vw - 24px)}
 .onb-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.onb-cards.one{grid-template-columns:minmax(0,1fr);max-width:230px;margin-left:auto;margin-right:auto}
+.onb-card{position:relative}
+.onb-info{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:50%;border:1px solid var(--border-glow);background:rgba(10,15,34,.85);color:var(--cyan);font:900 11px/18px var(--font-mono);text-align:center;cursor:help}
+.onb-info:hover{border-color:var(--cyan)}
 .onb-card{
   --rc:var(--cyan);
   display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;
@@ -3608,6 +3615,8 @@ body.modal-open{overflow:hidden;position:fixed;left:0;right:0;width:100%}
   filter:drop-shadow(0 0 14px rgba(139,92,246,.8));
 }
 .rw-x{position:absolute;right:12px;top:12px}
+.onb-hexart{width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+.onb-hexart img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
 .rw-title{text-align:center;font-size:16px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
 .rw-sub{text-align:center;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px}
 /* [ANDRAT v5.533.0] minmax(0,1fr) i stallet for 1fr. VARFOR: med 1fr far en
@@ -9217,6 +9226,21 @@ div.modal.node-modal.expwin{width:min(800px,96vw);max-width:96vw}
    Heroiskt byter EN variabel - lila i stallet for cyan - sa de tva lagena inte
    ar tva uppsattningar regler som kan glida isar. */
 .dgc-frame{--dgc:var(--cyan);--dgc-dim:var(--cyan-dim)}
+.dgw-card{display:flex;gap:12px;align-items:stretch;border:1px solid var(--border-soft);border-radius:12px;background:var(--bg-inset);overflow:hidden;min-width:0}
+.dgw-card.big{border-color:var(--cyan-dim);margin:4px 0 12px}
+.dgw-art{flex:0 0 120px;min-height:96px;background:#0a0d1c;display:flex;align-items:center;justify-content:center;font-size:34px}
+.dgw-card.big .dgw-art{flex-basis:220px;min-height:150px}
+.dgw-art img{width:100%;height:100%;object-fit:cover;display:block}
+.dgw-body{flex:1 1 auto;min-width:0;padding:10px 12px;display:flex;flex-direction:column;gap:4px;justify-content:center}
+.dgw-kick{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);font-weight:800}
+.dgw-name{font-size:15px;font-weight:900}
+.dgw-card:not(.big) .dgw-name{font-size:12px}
+.dgw-need{font-size:11.5px;color:var(--text-dim);line-height:1.4}
+.dgw-card:not(.big) .dgw-need{font-size:10.5px}
+.dgw-go{align-self:flex-start;margin-top:6px;width:auto;padding-left:22px;padding-right:22px}
+.dgw-sub{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-faint);font-weight:900;margin:2px 0 8px}
+.dgw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:760px){.dgw-grid{grid-template-columns:minmax(0,1fr)}.dgw-card.big{flex-direction:column}.dgw-card.big .dgw-art{flex-basis:auto;height:140px}.dgw-art{flex-basis:88px}}
 .dgc-frame.heroic{--dgc:#c06cff;--dgc-dim:rgba(192,108,255,.45)}
 /* [TILLAGT v5.608.0] ZONRUTANS LOPPVY lanar fonstrets ram men INTE dess kant:
    bladet ritar redan en ram runt kortet, sa utan det har hade det blivit en ram
@@ -10240,9 +10264,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         </div>
         </div>
         </div>
-        <div class="ct-pane" data-ctpane="skills" hidden>
-          <div class="ct-scroll" id="pt-player"></div>
-        </div>
+        <div class="ct-pane" data-ctpane="skills" hidden></div>
         <div class="ct-pane" data-ctpane="paragon" hidden>
           <div class="ct-scroll" id="pg-box"></div>
         </div>
@@ -11098,6 +11120,15 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
     </div>
   </div>
 
+  <div class="float-win" id="ptree-overlay">
+    <div class="modal inv-modal ptree-modal">
+      <div class="inv-titlebar">
+        <span class="inv-title">Skill Tree</span>
+        <button class="inv-x" id="ptree-close" title="Close">✕</button>
+      </div>
+      <div class="ptree-scroll"><div id="pt-player"></div></div>
+    </div>
+  </div>
   <div class="float-win" id="prof-overlay">
     <div class="modal inv-modal prof-modal">
       <div class="inv-emblem"><span class="qi qi-professions"></span></div>
@@ -11225,7 +11256,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
        först bekräftelserutan, som namnger pjäsen, låser valet. -->
   <div class="modal-overlay" id="onb-overlay">
     <div class="modal rw-modal onb-modal">
-      <div class="rw-hex">🎁</div>
+      <div class="rw-hex"><span class="ui-ico art-wrap onb-hexart"><img src="assets/ui/gear.png" alt="" draggable="false" onerror="this.parentNode.innerHTML='🎁'"></span></div>
       <div class="rw-title">Reward — choose one</div>
       <div class="rw-sub" id="onb-sub">Starter gear</div>
       <div class="onb-cards" id="onb-cards"></div>
@@ -12175,9 +12206,20 @@ function myClass(){ return (CLASS_DEFS && S.classId) ? CLASS_DEFS[S.classId] : n
 let SURVEY_COST = null;
 async function netSurveyCosts(){
   if (SURVEY_COST) return;
-  const rows = await srvSelect('survey_cost_config', 'select=region,step,cost_copper');
-  SURVEY_COST = {};
-  (rows || []).forEach(r => { SURVEY_COST[r.region + ':' + r.step] = Number(r.cost_copper) || 0; });
+  const rows = await srvSelect('survey_cost_config', 'select=region,step,cost_copper,secs');
+  SURVEY_COST = {}; SURVEY_SECS = {};
+  (rows || []).forEach(r => { SURVEY_COST[r.region + ':' + r.step] = Number(r.cost_copper) || 0; SURVEY_SECS[r.region + ':' + r.step] = Number(r.secs) || 30; });
+}
+let SURVEY_SECS = null;
+/* Hur lange NASTA dronare i regionen flyger. */
+function zoneScanSecs(regionId){
+  const step = Math.max(1, Math.min(5, zonesChartedIn(regionId || S.world.current)));
+  return (SURVEY_SECS && SURVEY_SECS[(regionId || S.world.current) + ':' + step]) || ZONE_SCAN_TIME;
+}
+/* Hur lange den dronare som AR ute flyger - svaret fran servern, annars tabellen. */
+function zoneScanTotal(){
+  if (S.zoneScan && S.zoneScan.secs) return S.zoneScan.secs;
+  return zoneScanSecs(S.zoneScan ? S.zoneScan.region : S.world.current);
 }
 function surveyCostCopper(regionId, step){
   return (SURVEY_COST && SURVEY_COST[regionId + ':' + step]) || 0;
@@ -12934,7 +12976,7 @@ async function netUseStackItem(key){
 async function netScanZone(zone){
   if (!NET.on) return null;
   const r = await srvRpc('scan_zone', {p_character: SRV.charId, p_zone: zone});
-  if (r && r.ends) S.zoneScan = {region: r.region, zone: r.zone, eta: new Date(r.ends).getTime()};
+  if (r && r.ends) S.zoneScan = {region: r.region, zone: r.zone, eta: new Date(r.ends).getTime(), secs: +r.secs || 0};
   return r;
 }
 async function netScanZoneClaim(){
@@ -14077,6 +14119,31 @@ function dgcRunHTML(run){
       : '') +
   '</div>';
 }
+/* Vagen till dungeonen nar man inte star i den. */
+function dgcWhereHTML(){
+  const reg = S.world.current, R = REGIONS[reg];
+  const mine = Object.keys(DUNGEON_ID).find(k => k.split('|')[0] === reg);
+  const card = (k, big) => {
+    const [r, z] = k.split('|'), id = DUNGEON_ID[k], RR = REGIONS[r];
+    const charted = (typeof isZoneCharted === 'function') ? isZoneCharted(r, z) : true;
+    const here = r === reg;
+    let need;
+    if (!here) need = 'In ' + (RR ? RR.name : r) + ' \u2014 travel there first.';
+    else if (!charted) need = 'Send a survey drone to ' + z + ' first, then travel there.';
+    else need = 'Travel to ' + z + ' to enter.';
+    return '<div class="dgw-card' + (big ? ' big' : '') + '">' +
+      '<div class="dgw-art art-wrap">' + artWithFallback(dgcArtSrc(id), '\ud83c\udff0') + '</div>' +
+      '<div class="dgw-body"><div class="dgw-kick">' + esc(RR ? RR.name : r) + ' \u00b7 ' + esc(z) + '</div>' +
+      '<div class="dgw-name">' + esc(DUNGEON_TEASER[k] || z) + '</div>' +
+      '<div class="dgw-need">' + esc(need) + '</div>' +
+      (big && here ? '<button class="btn-primary dgw-go" data-dgzone="' + esc(k) + '">' + (charted ? 'Show the zone' : 'Send a drone') + '</button>' : '') +
+      '</div></div>';
+  };
+  const others = Object.keys(DUNGEON_ID).filter(k => k !== mine);
+  return '<div class="dgc-frame"><div class="dgc-head">' + (mine ? 'This region\u2019s dungeon' : 'Dungeons') + '</div>' +
+    (mine ? card(mine, true) : '<div class="shelf-empty">No dungeon in ' + esc(R ? R.name : 'this region') + '.</div>') +
+    '<div class="dgw-sub">Other dungeons</div><div class="dgw-grid">' + others.map(k => card(k, false)).join('') + '</div></div>';
+}
 function renderDgChoice(){
   const box = $('dgc-body'); if (!box) return;
   const tomt = (txt) =>
@@ -14107,9 +14174,11 @@ function renderDgChoice(){
   if (!DGC.here){
     /* [ANDRAT v5.407.0] Fragade vi om en ANNAN plats ar "where you stand" fel
        ord - da pekade spelaren nagon annanstans. */
-    const at = (DGC_AT && DGC_AT.zone) ? DGC_AT.zone : null;
-    box.innerHTML = tomt(at ? 'There is no dungeon in ' + esc(at) + '.'
-                            : 'There is no dungeon where you stand.');
+    box.innerHTML = dgcWhereHTML();
+    if (dgModal) dgModal.classList.add('claiming');   /* kortet ar lagt - ingen tom yta under */
+    box.querySelectorAll('[data-dgzone]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.dgzone.split('|'); closeDgChoice(); openNodeWin('zone', k[0], k[1]);
+    }));
     return;
   }
   /* Vaxeln har bara TVA lagen nu. 'prep' var telefonens tredje kort och finns
@@ -15073,6 +15142,19 @@ function renderPlayerTree(){
   if (!box) return;
   box.innerHTML = ppTreeHTML('player');
 }
+function openPlayerTree(){
+  const w = $('ptree-overlay'); if (!w) return;
+  const wasOpen = w.classList.contains('open');
+  w.classList.add('open'); bringToFront(w);
+  renderPlayerTree();
+  if (!wasOpen){
+    const m = w.querySelector('.modal');
+    const ww = m.offsetWidth || 720, hh = m.offsetHeight || 600;
+    w.style.left = Math.max(8, Math.round(innerWidth / 2 - ww / 2)) + 'px';
+    w.style.top = Math.max(8, Math.round(Math.min(winTop(40), innerHeight - hh - 8))) + 'px';
+  }
+}
+function closePlayerTree(){ const w = $('ptree-overlay'); if (w) w.classList.remove('open'); }
 let PG = {state: null, busy: false};
 async function netParagonState(){
   if (!NET.on) return null;
@@ -15239,6 +15321,7 @@ document.addEventListener('click', e => {
   /* [ANDRAT v5.520.0] Loadout ar inte en sida utan en LUCKA. Den byter darfor
      inte ruta: karaktaren star kvar under och luckan fals ned over den. Ett
      andra tryck fäller upp den igen. */
+  if (vald === 'skills'){ openPlayerTree(); return; }
   if (vald === 'load'){
     const oppen = drop && !drop.hidden;
     if (drop) drop.hidden = oppen;
@@ -15863,22 +15946,32 @@ function onbCard(ch, i){
           art: itemArtFor(o.item, ch.rarity) || '', col: rarCol(ch.rarity),
           rar: (GEAR_RAR[ch.rarity] || {}).name || ''};
 }
+function onbGear(ch, i){
+  /* Pjasen som servern rullat i forvag - samma falt som en rad ur items. */
+  const o = (ch.options || [])[i]; if (!o || o.hp == null) return null;
+  return netGearFromRow(Object.assign({id: 'onb-' + ch.n + '-' + i}, o));
+}
 function onbRender(){
   const ch = ONB.queue[0]; if (!ch) return;
-  $('onb-sub').textContent = 'Starter gear · ' + ch.n + ' of 5';
-  $('onb-cards').innerHTML = [0, 1].map(i => {
+  const n = (ch.options || []).length || 2;
+  $('onb-sub').textContent = 'Starter gear · ' + ch.n + ' of 6';
+  document.querySelector('#onb-overlay .rw-title').textContent = n === 1 ? 'Reward — yours to keep' : 'Reward — choose one';
+  document.querySelector('#onb-overlay .onb-note').textContent = n === 1 ? 'Hover the card to see its stats. Click it to take it.' : 'Pick the piece you want. The other one is gone. Hover a card to see its stats.';
+  $('onb-cards').classList.toggle('one', n === 1);
+  $('onb-cards').innerHTML = Array.from({length: n}, (_, i) => i).map(i => {
     const c = onbCard(ch, i);
     return '<button class="onb-card" data-onbpick="' + i + '" style="--rc:' + c.col + '">' +
       '<span class="onb-art" style="background-image:url(\'' + c.art + '\')"></span>' +
       '<b class="onb-name">' + esc(c.name) + '</b>' +
       '<span class="onb-slot">' + esc(c.slot) + ' · Level ' + (+ch.lvl || 1) + '</span>' +
-      '<i class="onb-rar">' + esc(c.rar) + '</i></button>';
+      '<i class="onb-rar">' + esc(c.rar) + '</i>' +
+      (onbGear(ch, i) ? '<span class="onb-info" data-onbinfo="1" title="Stats">i</span>' : '') + '</button>';
   }).join('');
 }
 function onbAsk(i){
   const ch = ONB.queue[0]; if (!ch) return;
   ONB.pick = i;
-  const c = onbCard(ch, i), other = onbCard(ch, 1 - i);
+  const c = onbCard(ch, i), other = (ch.options || []).length > 1 ? onbCard(ch, 1 - i) : null;
   $('onbask-head').textContent = 'Take ' + c.name + '?';
   $('onbask-body').innerHTML =
     '<div class="onbask-card" style="--rc:' + c.col + '">' +
@@ -15886,7 +15979,7 @@ function onbAsk(i){
       '<span class="rwg-txt" style="text-align:left"><b>' + esc(c.name) + '</b>' +
       '<i style="font-style:normal;font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--rc)">' +
         esc(c.slot) + ' · Level ' + (+ch.lvl || 1) + '</i></span></div>' +
-    '<div class="onbask-sub">' + esc(other.name) + ' will be gone.</div>';
+    (other ? '<div class="onbask-sub">' + esc(other.name) + ' will be gone.</div>' : '');
   $('onbask-overlay').classList.add('open');
 }
 async function onbTake(){
@@ -27465,11 +27558,11 @@ function zoneScanLeft(){
 }
 /* Gangen tiden och andelen, raknade ur sluttiden och den kanda kartlaggningstiden. */
 function zoneScanGone(){
-  return S.zoneScan ? Math.max(0, ZONE_SCAN_TIME - zoneScanLeft()) : 0;
+  return S.zoneScan ? Math.max(0, zoneScanTotal() - zoneScanLeft()) : 0;
 }
 function zoneScanPct(){
-  if (!S.zoneScan || !ZONE_SCAN_TIME) return 0;
-  return Math.max(0, Math.min(100, Math.round(100 * zoneScanGone() / ZONE_SCAN_TIME)));
+  if (!S.zoneScan || !zoneScanTotal()) return 0;
+  return Math.max(0, Math.min(100, Math.round(100 * zoneScanGone() / zoneScanTotal())));
 }
 /* [BORTTAGET v5.583.0] zoneScanTimeText - den lilla raden "0m 21s elapsed -
    0m 9s left" ar borta ur dronarrutan, och ingen annan lasare fanns. */
@@ -27536,7 +27629,7 @@ function startZoneScan(regionId, zone){
       .then(() => {
         /* Sag att den ar ute. Utan detta hande allt tyst: knappen bytte text
            en halv sekund senare och det gick inte att se om trycket tagit. */
-        say('Drone sent to ' + zone + ' \u2014 charting takes ' + ZONE_SCAN_TIME + 's.');
+        say('Drone sent to ' + zone + ' \u2014 charting takes ' + fmtDur(zoneScanTotal()) + '.');
         redrawZone(); refreshRegionUI(); renderMap(); updateUI(true);
         /* Star nodrutan oppen ar det HAR den ska bytas ut - forst nu vet vi att
            dronaren ar ute, och forst nu finns det en tid att rakna ned. */
@@ -27553,7 +27646,7 @@ function startZoneScan(regionId, zone){
       });
     return true;
   }
-  S.zoneScan = {region: regionId, zone: zone, eta: Date.now() + ZONE_SCAN_TIME * 1000};
+  S.zoneScan = {region: regionId, zone: zone, eta: Date.now() + zoneScanSecs(regionId) * 1000, secs: zoneScanSecs(regionId)};
   refreshRegionUI(); renderMap(); updateUI(true); save();
   return true;
 }
@@ -27987,7 +28080,7 @@ function gmSetTravel(){
              for ett svar. */
           const zk = nextZoneCost(region);
           api.setTravel({label: 'SEND DRONE',
-                         cost: (zk > 0 ? surveyPriceText(zk) + ' \u00b7 ' : '') + fmtDur(ZONE_SCAN_TIME),
+                         cost: (zk > 0 ? surveyPriceText(zk) + ' \u00b7 ' : '') + fmtDur(zoneScanSecs(region)),
                          enabled: canAffordSurvey(zk),
                          note: canAffordSurvey(zk) ? 'CHARTS THIS ZONE FOR GOOD' : 'NOT ENOUGH GOLD'});
         }
@@ -29265,7 +29358,7 @@ function buildZoneAction(regionId, zone){
     }
     return '<div class="region-actions"><button class="btn-primary" id="zone-scan">' +
       '🛰 Send drone — ' + (zk > 0 ? moneyPlain(zk) + ' · ' : '') +
-      fmtDur(ZONE_SCAN_TIME) + '</button></div>';
+      fmtDur(zoneScanSecs(regionId)) + '</button></div>';
   }
   return '<div class="region-actions"><button class="btn-primary" id="zone-enter">🛰 Travel to ' + zone + ' — instant</button></div>';
 }
@@ -31128,7 +31221,7 @@ function ppForceRender(){
   /* [TILLAGT v5.513.0] Spelarens trad bor i karaktarsrutan, inte pa yrkessidan -
      den ritas om harifran sa ett kop syns direkt aven dar. */
   const pt = document.getElementById('pt-player');
-  if (pt && !pt.closest('[hidden]')) renderPlayerTree();
+  if (pt && pt.closest('.float-win.open')) renderPlayerTree();
 }
 /* [ANDRAT v5.217.0] Ett klick LAGGER UT en poang. Ingenting skickas forran man
    bekraftar, sa man kan bygga hela sin plan, se effekterna och andra sig gratis.
@@ -33454,6 +33547,7 @@ document.querySelectorAll('.qa-btn .lbl').forEach(l => {
     l.closest('.qa-btn').addEventListener('click', () => toggleWindow('prof-overlay', openProfessions, closeProfessions));
 });
 $('prof-close').addEventListener('click', closeProfessions);
+$('ptree-close').addEventListener('click', closePlayerTree);
 /* BUTIKEN (v4.94.0). Bygger raderna forsta gangen den oppnas - de kan inte
    byggas vid start, for fonstret ritas efter att koden redan kort en gang. */
 let shopBuilt = false;
@@ -36462,6 +36556,23 @@ $('onb-cards').addEventListener('click', e => {
   const b = e.target.closest('[data-onbpick]');
   if (b) onbAsk(+b.dataset.onbpick);
 });
+/* Hovra pa kortet = samma stats-ruta som i vaskan. Pa telefon: langt tryck gar inte att skilja
+   fran ett val, sa dar visas rutan pa ett tryck pa den lilla "i"-knappen i kortet. */
+$('onb-cards').addEventListener('mouseover', e => {
+  const b = e.target.closest('[data-onbpick]'); if (!b) return;
+  const ch = ONB.queue[0], g = ch ? onbGear(ch, +b.dataset.onbpick) : null; if (!g) return;
+  /* Till hoger om HELA rutan, sa kortet bredvid inte tacks. Ryms det inte skjuts det in av moveGearTip. */
+  const r = b.closest('.modal').getBoundingClientRect();
+  showGearTip(g, r.right + 10, b.getBoundingClientRect().top, false);
+});
+$('onb-cards').addEventListener('mouseleave', hideGearTip);
+$('onb-cards').addEventListener('click', e => {
+  const i = e.target.closest('[data-onbinfo]'); if (!i) return;
+  e.stopPropagation();
+  const b = i.closest('[data-onbpick]'), ch = ONB.queue[0], g = ch ? onbGear(ch, +b.dataset.onbpick) : null; if (!g) return;
+  const r = b.getBoundingClientRect(); showGearTip(g, r.left, r.bottom + 6, false);
+  setTimeout(() => document.addEventListener('pointerdown', function away(){ hideGearTip(); document.removeEventListener('pointerdown', away); }), 0);
+}, true);
 $('onbask-yes').addEventListener('click', onbTake);
 $('onbask-no').addEventListener('click', () => { ONB.pick = null; $('onbask-overlay').classList.remove('open'); });
 $('onbask-overlay').addEventListener('click', e => {
@@ -42983,7 +43094,7 @@ function nodeZoneHTML(){
       '<div class="dr-lead">Send a drone to scout this location.</div>' +
       '<div class="dr-stats">' +
         '<div class="dr-stat"><span class="ic">\u25f4</span><span class="tx">' +
-          '<span class="k">Flight time</span><span class="v">' + fmtDur(ZONE_SCAN_TIME) + '</span></span></div>' +
+          '<span class="k">Flight time</span><span class="v">' + fmtDur(zoneScanSecs(NODE.region)) + '</span></span></div>' +
         (ndk > 0
           ? '<div class="dr-stat"><span class="ic">\u25c9</span><span class="tx">' +
             '<span class="k">Cost</span><span class="v">' + moneyPlain(ndk) + '</span></span></div>'
@@ -43220,7 +43331,7 @@ function nodeDroneText(region, zone){
   if (mine) return '\ud83d\udef0 Drone charting ' + zone + ' \u2014 ' + fmtDur(zoneScanLeft()) + ' left.';
   if (S.zoneScan) return 'Your drone is charting ' + S.zoneScan.zone + '. It can only chart one zone at a time.';
   if (typeof isZoneCharted === 'function' && !isZoneCharted(region, zone))
-    return 'Nothing charted here yet \u2014 send a drone from the zone panel (' + fmtDur(ZONE_SCAN_TIME) + ').';
+    return 'Nothing charted here yet \u2014 send a drone from the zone panel (' + fmtDur(zoneScanSecs(region)) + ').';
   return 'Nothing charted here yet \u2014 send a drone to survey the zone.';
 }
 function nodeExpHTML(){
@@ -43871,18 +43982,29 @@ const GD_TIPS = [
   {key: 'wear_more', text: 'Another piece — put it on.', when: () => gdWearable() && !gdChoicePending(),
    targets: [() => gdInvCell(r => r.gear && !isGemItem(r.gear) && slotsForGear(r.gear).some(sl => !S.equip[sl])), '#qa-inventory'],
    until: () => !gdWearable()},
-  {key: 'exp_back', text: 'Your expedition is back. Collect it.', when: () => gdRuns().some(r => r.ends_at && new Date(r.ends_at) <= new Date()),
-   targets: ['#node-overlay.open [data-nd="expclaim"]', '#qa-expeditions'], until: () => !gdRuns().some(r => r.ends_at && new Date(r.ends_at) <= new Date())},
+  {key: 'shard', art: 'n13_fragments', text: 'A shard! Every expedition you finish leaves one. Collect all six from a region and forge them into its gem \u2014 it goes in the gem slot on your character.',
+   when: () => S.inv && S.inv.some(r => r && r.key && isShardKey(r.key)),
+   targets: [() => gdInvCell(r => r.key && isShardKey(r.key)), '#gem-wrap', '#qa-inventory']},
+  /* [RATTAT v5.664.0] Tipset laste ends_at - klientens korning heter endsAt (ms). Det slog aldrig till. */
+  {key: 'exp_back', text: 'Your expedition is back. Collect it.', when: () => gdRuns().some(r => r.endsAt && r.endsAt <= Date.now()),
+   targets: ['#node-overlay.open [data-nd="expclaim"]', '#qa-expeditions'], until: () => !gdRuns().some(r => r.endsAt && r.endsAt <= Date.now())},
   {key: 'prof_tree', text: 'Your profession has its own tree. Spend your point.',
    when: () => S.prof && S.prof.known && Object.keys(S.prof.known).some(id => profLvl(id) >= 2), targets: ['#prof-cards']},
-  {key: 'bag_full', art: 'n10_bag_full', text: 'Your backpack’s full! The vault at The Landing keeps your treasures safe.',
-   when: () => S.inv && S.inv.length && invFirstFree() < 0, targets: [...GD_MAP]},
+  /* [ANDRAT v5.664.0] Kommer INNAN vaskan ar full (Chris): vid tre lediga rutor, sa man hinner tanka. */
+  {key: 'bag_full', art: 'n10_bag_full', text: 'Your backpack’s almost full! The vault at The Landing keeps your treasures safe — and the trader buys what you don’t need.',
+   when: () => { if (!S.inv || !S.inv.length) return false; let free = 0; for (let i = 0; i < gbagStart(); i++) if (!S.inv[i]) free++; return free <= 3; },
+   targets: [...GD_MAP]},
   {key: 'landing', art: 'n11_landing', text: 'Welcome to The Landing. The trader buys and sells — the vault keeps what you can’t carry.',
    when: () => S.world && S.world.zone === VAULT_ZONE, targets: ['#node-overlay.open [data-town]', '#qa-vault']},
   {key: 'sell', text: 'Sell what you don’t need.', when: () => S.world && S.world.zone === VAULT_ZONE && gdOverlayOpen('inv-overlay'),
    targets: ['#inv-sellmode']},
   {key: 'auction', art: 'n12_auction', text: 'Psst — other players might pay more than the trader. Try the Auction House sometime.',
    when: () => GUIDE.state && GUIDE.state.tips.indexOf('sell') >= 0 && gdOverlayOpen('inv-overlay'), targets: ['#qa-auction', '#nav-auction']},
+  {key: 'scrap', text: 'See the scrap piling up? Your core gathers it while you idle. Most crafting recipes need it \u2014 keep it for your profession, or sell the surplus.',
+   when: () => S.inv && S.inv.some(r => r && (r.key === 'scrap' || r.key === 'reinforced_scrap') && (r.qty || 0) >= 25),
+   targets: [() => gdInvCell(r => r.key === 'scrap' || r.key === 'reinforced_scrap'), '#qa-inventory']},
+  {key: 'frag_first', art: 'n13_fragments', text: 'Your first fragment! They drop from fights, expeditions and quests \u2014 and from recycling gear you don\u2019t need. Save 25 and trade them for a Gear Cache in the Shop.',
+   when: () => (S.frags || 0) >= 1, targets: ['#frag-pill', '#nav-shop']},
   {key: 'frags25', art: 'n13_fragments', text: '25 fragments! Trade them for a Gear Cache — fragments turn into gear.',
    when: () => (S.frags || 0) >= 25, targets: ['#fc-gear-buy', '#fc-gear-card', '#nav-shop']},
   {key: 'recycle', text: 'Don’t need it? Recycle it into fragments.',
