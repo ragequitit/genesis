@@ -10214,7 +10214,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
              Har star den dar man ar. -->
         <span class="link sn-signout" id="nav-signout">Log out</span>
         <span id="next-save" style="display:none">0:10</span>
-        <div class="sn-ver">GENESIS v5.667.0 — KORTSHOPPEN, PARAGON OCH TUNE ÄR STEG</div>
+        <div class="sn-ver">GENESIS v5.668.0 — SKROTET FÖLJER REGIONEN</div>
       </div>
     </div>
   </aside>
@@ -11529,7 +11529,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
         <div class="settings-row" data-setgrp="other">
           <div>
             <div>Version</div>
-            <div class="desc">GENESIS v5.667.0 — KORTSHOPPEN, PARAGON OCH TUNE ÄR STEG</div>
+            <div class="desc">GENESIS v5.668.0 — SKROTET FÖLJER REGIONEN</div>
           </div>
         </div>
       </div>
@@ -27302,6 +27302,8 @@ function cardLine(etikett, text){
 function cardNote(text){
   return text ? '<div class="sch-note">' + text + '</div>' : '';
 }
+/* [TILLAGT v5.668.0] Var skrotet kommer ifran - samma tabell som serverns scrap_weights. */
+const SCRAP_WHERE = cardNote('Your core gathers scrap while you idle. The kind follows the region you stand in, not your level: Voxholm mostly Scrap, Drakemark Reinforced, Cutlass Bay Charged, Nova Command and Quarantine Phase.');
 function itemDef(row){
   if (row && isBundleKey(row.key)) return bundleDef(bundleRegionOf(row.key));
   /* Skrotet ar spelets mest anvanda material och sags anda av ingen prislista i
@@ -27311,7 +27313,15 @@ function itemDef(row){
   if (row && row.key === 'scrap'){
     return {key: 'scrap', name: MATERIALS.scrap.name,
             ico: MATERIALS.scrap.ico, sell: SCRAP_SELL, kind: 'Material',
-            desc: 'Salvage worth working. Every gathering trade turns three of these into its own basic material — ore, fibre or moss — and nearly everything built in this world starts there.'};
+            desc: 'Salvage worth working. Every gathering trade turns three of these into its own basic material — ore, fibre or moss — and nearly everything built in this world starts there.' + SCRAP_WHERE};
+  }
+  /* [TILLAGT v5.668.0] De tre finare skroten: egen rad i stallet for "Gathered by any." */
+  if (row && (row.key === 'reinforced_scrap' || row.key === 'charged_scrap' || row.key === 'phase_scrap')){
+    const m = MATERIALS[row.key];
+    return {key: row.key, name: m.name, ico: m.ico, sell: matSellValue(row.key), kind: 'Material',
+            desc: (row.key === 'reinforced_scrap' ? 'Sturdier salvage. Higher-rank recipes ask for it.'
+                 : row.key === 'charged_scrap' ? 'Salvage that still hums with power. Mid-game recipes need it.'
+                 : 'Salvage from between worlds. The best recipes are built on it.') + SCRAP_WHERE};
   }
   /* MATERIAL: samma prislista som servern har. Utan den sa klienten "this
      cannot be sold" om varenda malm och blomma, medan servern gladeligen kopte
@@ -44136,7 +44146,7 @@ const GD_TIPS = [
    targets: ['#inv-sellmode']},
   {key: 'auction', art: 'n12_auction', text: 'Psst — other players might pay more than the trader. Try the Auction House sometime.',
    when: () => GUIDE.state && GUIDE.state.tips.indexOf('sell') >= 0 && gdOverlayOpen('inv-overlay'), targets: ['#qa-auction', '#nav-auction']},
-  {key: 'scrap', text: 'See the scrap piling up? Your core gathers it while you idle. Most crafting recipes need it \u2014 keep it for your profession, or sell the surplus.',
+  {key: 'scrap', text: 'See the scrap piling up? Your core gathers it while you idle. Most crafting recipes need it \u2014 keep it for your profession, or sell the surplus. Higher regions give better scrap.',
    when: () => S.inv && S.inv.some(r => r && (r.key === 'scrap' || r.key === 'reinforced_scrap') && (r.qty || 0) >= 25),
    targets: [() => gdInvCell(r => r.key === 'scrap' || r.key === 'reinforced_scrap'), '#qa-inventory']},
   {key: 'frag_first', art: 'n13_fragments', text: 'Your first fragment! They drop from fights, expeditions and quests \u2014 and from recycling gear you don\u2019t need. Save 25 and trade them for a Gear Cache in the Shop.',
@@ -44150,6 +44160,10 @@ const GD_TIPS = [
    when: () => S.inv && S.inv.filter(r => r && r.gear && !isGemItem(r.gear)).length >= 4 && gdOverlayOpen('inv-overlay'), targets: ['#inv-recmode']},
   {key: 'low_health', art: 'n14_ouch', text: 'Ouch. You heal over time — or faster with a bandage. The Shop sells them, and a Medic (second profession) makes them for you.',
    when: () => pveLowHealth(), targets: [() => gdInvCell(r => !!MEDICAL_HEAL[r.key]), '#qa-inventory']},
+  /* [TILLAGT v5.668.0] Forsta gangen man star i en hogre region: skrotet foljer REGIONEN, inte nivan (Chris:
+     "detta ar ingen som vet"). Samma tabell som servern har i scrap_weights. */
+  {key: 'scrap_region', text: 'Your core gathers better scrap up here. Each region gives its own kind \u2014 Drakemark mostly Reinforced, Cutlass Bay Charged, Nova Command and Quarantine Phase. It goes by where you stand, not your level.',
+   when: () => !!(S.world && S.world.current && REGIONS[S.world.current] && (REGIONS[S.world.current].tier || 0) >= 1), targets: ['#core-hex']},
   {key: 'fuel', text: 'Travel uses fuel. It refills on its own — and a Refiner (second profession) makes more, the Shop sells it, and someone might have it cheap on the auction house.',
    when: () => S.world && S.world.zone && S.world.zone !== 'The Grasslands' && S.world.zone !== VAULT_ZONE, targets: ['#fuel-pill']},
   {key: 'drone', art: 'n15_drone', text: 'That zone’s still dark. Send a survey drone to see what’s out there.',
