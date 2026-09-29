@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.14.0 — analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.14.1 — analytics + survey-knob (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -489,7 +489,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.14.0';
+const ADMIN_VERSION = 'v0.14.1';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -1645,7 +1645,7 @@ async function renderEconomy(){
       const rows = ECO.table ? await rpc('admin_content_rows', {p_table: ECO.table, p_limit: 1000, p_q: ECO.q || null}) : [];
       const cur = list.find(t => t.table === ECO.table) || {cols: []};
       const canEdit = ECO.tab === 'knobs' && has('content.knobs');
-      const pkcols = cur.cols.length ? [cur.cols[0]] : []; /* raden identifieras av forsta kolumnen; servern kollar riktig nyckel */
+      const pkcols = (cur.pk && cur.pk.length) ? cur.pk : (cur.cols.length ? [cur.cols[0]] : []);   /* [v0.14.1] alla nyckelkolumner fran servern */ /* raden identifieras av forsta kolumnen; servern kollar riktig nyckel */
       m.innerHTML = head + '<div class="mailgrid" style="grid-template-columns:260px minmax(0,1fr)"><div class="box" style="padding:8px"><div class="tbl-wrap"><table class="t">' +
           list.map(t => '<tr class="clk" data-tbl="' + t.table + '"' + (t.table === ECO.table ? ' style="background:var(--bg-row-hover)"' : '') + '><td><b>' + esc(t.table) + '</b>' + (t.knob && ECO.tab === 'content' ? ' <span class="pill gold">knob</span>' : '') + '</td><td class="num">' + t.rows + '</td></tr>').join('') + '</table></div></div>' +
         '<div class="box"><div class="row" style="margin-bottom:8px"><b style="font-size:14px">' + esc(ECO.table || '') + '</b><span class="pill">' + rows.length + ' rows</span>' + (canEdit ? '<span class="pill gold">click a value to change it</span>' : '<span class="pill">read only — other tables change through migrations</span>') +
