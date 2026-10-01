@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.16.0 — namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.17.0 — buggrapporter och spelfel (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -43,7 +43,11 @@
      pa 1440 och doljde Make leader/Remove - ratt. Knappar for xp.grant, daily.reset, run.abort.
      v0.12.1: Ge XP visar rollens tak (GM 10 000 per gang); Head Admin och GM far ge XP.
      v0.13.0: visningsnamn under My account (det spelarna ser efter GM). Etiketten ar last efter att
-     kontot lagts till och ar det loggen visar, sa ingen kan gomma sig bakom ett nytt namn. -->
+     kontot lagts till och ar det loggen visar, sa ingen kan gomma sig bakom ett nytt namn.
+     v0.17.0: Bug reports (Chris, betatestet). Spelarnas buggrapporter fran knappen i spelets meny,
+     och felen spelet skickar sjalv (synk som fallerar, okanda JS-fel). Bara agarrollen (bugs.read).
+     Needs attention far tva kort till: nya buggrapporter och nya spelfel. Markera seen / fixed /
+     won't fix med en anteckning - allt loggas. Ett fixat fel som kommer tillbaka blir nytt igen. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -175,6 +179,30 @@ h2.sec .hot{color:var(--red);filter:drop-shadow(0 0 5px rgba(255,77,109,.9)) dro
 .mini.purple{border-color:rgba(164,92,255,.45)}.mini.purple .ico{background:rgba(164,92,255,.14);color:var(--purple)}
 .mini.cyan{border-color:rgba(56,232,255,.45)}.mini.cyan .ico{background:rgba(56,232,255,.14);color:var(--cyan)}
 .mini.dim .ico{background:rgba(138,147,184,.14);color:var(--text-dim)}
+/* [v0.17.0] Sex kort i Needs attention blir tva rader om tre i stallet for fyra plus tva. */
+.att .cards.six{grid-template-columns:repeat(3,1fr)}
+.btn.green{border-color:var(--green);color:var(--green)}
+.tabs.bf{margin-top:8px}
+.bugc{background:var(--bg-panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.bug-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+.bug-top .num{font-family:var(--font-mono);color:var(--text-dim)}
+.bug-top .who{font-weight:800;cursor:pointer}
+.bug-top .who:hover{color:var(--cyan)}
+.bug-top .when{margin-left:auto;color:var(--text-faint);font-size:11px}
+.bug-what{margin-top:8px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.bug-exp{margin-top:6px;font-size:12px;color:var(--text-dim);white-space:pre-wrap;word-break:break-word}
+.bug-ctx{margin-top:6px;font-size:11px;color:var(--text-faint);font-family:var(--font-mono);word-break:break-word}
+.bug-ctx.red{color:var(--red)}
+.bug-note{margin-top:8px;font-size:12px;color:var(--gold)}
+.bug-note svg{width:13px;height:13px;vertical-align:-2px}
+.bug-acts{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.bug-acts .bnote{flex:1 1 220px;min-width:0;padding:6px 9px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg-inset);color:var(--text);font:inherit;font-size:12px}
+.err-msg{font-family:var(--font-mono);font-size:12px;word-break:break-word}
+.errt td.macts{white-space:nowrap}
+.errt td.macts .btn + .btn{margin-left:5px}
+.err-st summary{cursor:pointer;font-size:11px;color:var(--text-dim);margin-top:4px}
+.err-st pre{white-space:pre-wrap;font-size:10.5px;color:var(--text-dim);margin:4px 0 0;max-height:160px;overflow:auto}
 .grid-ov{display:grid;grid-template-columns:1.1fr 1.1fr .9fr;gap:14px}
 .box{background:linear-gradient(180deg,#0f1533,#0b1024);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
 .box h3{margin:0 0 8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
@@ -538,7 +566,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.16.0';
+const ADMIN_VERSION = 'v0.17.0';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -756,10 +784,12 @@ $('lock-out').onclick = async () => { remSet(false); await sb.auth.signOut(); lo
 const NAV = [
   ['overview','Overview','home', null], ['players','Players','users', null], ['cases','Cases','cases', null],
   ['chat','Chat','chat', null], ['guilds','Guilds','guild', null], ['mail','Mail & Rewards','mail', null],
-  ['economy','Economy & Content','econ', null], ['analytics','Analytics','stats', null], ['admin','Admin','admin', null]
+  ['economy','Economy & Content','econ', null], ['analytics','Analytics','stats', null], ['admin','Admin','admin', null],
+  /* [v0.17.0] Femte faltet: behorigheten som kravs for att valet ens ska synas. */
+  ['bugs','Bug reports','warn', null, 'bugs.read']
 ];
 function buildNav(){
-  $('nav').innerHTML = NAV.map(n => '<div class="nv' + (n[3] ? ' off' : '') + '" data-page="' + n[0] + '">' + ico(n[2]) + n[1] +
+  $('nav').innerHTML = NAV.filter(n => !n[4] || has(n[4])).map(n => '<div class="nv' + (n[3] ? ' off' : '') + '" data-page="' + n[0] + '">' + ico(n[2]) + n[1] +
     (n[3] ? '<span class="ph">' + n[3] + '</span>' : '') + '</div>').join('') +
     '<div class="foot">Project Genesis<small>A living world</small></div>';
   $('nav').querySelectorAll('.nv:not(.off)').forEach(el => el.onclick = () => go(el.dataset.page));
@@ -775,6 +805,7 @@ function go(page){
   else if (page === 'economy') renderEconomy();
   else if (page === 'analytics') renderAnalytics();
   else if (page === 'admin') renderAdmin();
+  else if (page === 'bugs') renderBugs();   /* [v0.17.0] */
   else if (page === 'me') renderMe();
 }
 $('btn-me').onclick = $('who-av').onclick = $('who-txt').onclick = () => { if (ME) go('me'); };
@@ -826,6 +857,17 @@ async function renderOverview(){
   let pr, ov, oc, al = [];
   try { [pr, ov, oc, al] = await Promise.all([rpc('admin_presence'), rpc('admin_overview'), rpc('admin_overview_cases'), has('audit.read') ? rpc('admin_alerts_list').catch(() => []) : Promise.resolve([])]); }
   catch (e){ m.innerHTML = '<h1 class="pg">Overview</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  /* [v0.17.0] Buggrapporter och spelfel - bara for den som far se dem. Faller anropet syns
+     resten av oversikten som vanligt. */
+  let bs = null;
+  if (has('bugs.read')) { try { bs = await rpc('admin_bugs_summary'); } catch (e){ bs = null; } }
+  const bugN = bs ? (+bs.bugs_new || 0) + (+bs.errors_new || 0) : 0, bugHot = bugN > 0;
+  const bugMinis = bs
+    ? '<div class="mini red" data-bugtab="reports"><div class="ico">' + ico('warn') + '</div><div><div class="k">New bug reports</div><div class="v">' + bs.bugs_new +
+        ((+bs.bugs_open || 0) > (+bs.bugs_new || 0) ? ' <small style="font-size:12px;color:var(--text-dim)">+' + (bs.bugs_open - bs.bugs_new) + ' seen</small>' : '') + '</div></div><span class="arr">›</span></div>' +
+      '<div class="mini purple" data-bugtab="errors"><div class="ico">' + ico('act') + '</div><div><div class="k">New game errors</div><div class="v">' + bs.errors_new +
+        (bs.errors_24h ? ' <small style="font-size:12px;color:var(--text-dim)">' + bs.errors_24h + ' active 24 h</small>' : '') + '</div></div><span class="arr">›</span></div>'
+    : '';
   const sp = (pr.samples || []).slice(-96);
   const mx = Math.max(1, ...sp.map(s => s.online));
   const gold24 = (ov.ledger_24h || []).reduce((a, r) => a + (+r.gold || 0), 0);
@@ -840,7 +882,7 @@ async function renderOverview(){
     '</div>' +
     (al && al.length ? '<div class="alrt"><div class="sec-row"><h2 class="sec" style="color:var(--red)">' + ico('warn') + ' Staff alerts (' + al.length + ')</h2><span class="link" id="ov-alerts">All alerts →</span></div>' +
       al.slice(0, 5).map(a => alertRow(a, true)).join('') + (al.length > 5 ? '<div class="m" style="color:var(--text-dim);font-size:11px;margin-top:6px">+' + (al.length - 5) + ' more</div>' : '') + '</div>' : '') +
-    '<div class="att"><div class="sec-row"><h2 class="sec">' + ico('warn', (oc.reports_24h || oc.cases_open || (al && al.length)) ? 'hot' : '') + ' Needs attention' + ((oc.reports_24h || oc.cases_open || (al && al.length)) ? ' <span class="pill red">' + ((+oc.reports_24h || 0) + (+oc.cases_open || 0) + (al ? al.length : 0)) + '</span>' : '') + '</h2><span class="link" data-go="cases">View all cases →</span></div><div class="cards">' +
+    '<div class="att"><div class="sec-row"><h2 class="sec">' + ico('warn', (oc.reports_24h || oc.cases_open || (al && al.length) || bugHot) ? 'hot' : '') + ' Needs attention' + ((oc.reports_24h || oc.cases_open || (al && al.length) || bugHot) ? ' <span class="pill red">' + ((+oc.reports_24h || 0) + (+oc.cases_open || 0) + (al ? al.length : 0) + bugN) + '</span>' : '') + '</h2><span class="link" data-go="cases">View all cases →</span></div><div class="cards' + (bs ? ' six' : '') + '">' + bugMinis +
       '<div class="mini red" data-go="cases"><div class="ico">' + ico('flag') + '</div><div><div class="k">Player reports 24 h</div><div class="v">' + oc.reports_24h + '</div></div><span class="arr">›</span></div>' +
       '<div class="mini gold" data-go="cases"><div class="ico">' + ico('doc') + '</div><div><div class="k">Open cases</div><div class="v">' + oc.cases_open + (oc.cases_waiting ? ' <small style="font-size:12px;color:var(--text-dim)">+' + oc.cases_waiting + ' waiting</small>' : '') + '</div></div><span class="arr">›</span></div>' +
       '<div class="mini purple" data-go="cases"><div class="ico">' + ico('gavel') + '</div><div><div class="k">Active sanctions</div><div class="v">' + oc.sanctions_active + '</div></div><span class="arr">›</span></div>' +
@@ -873,6 +915,8 @@ async function renderOverview(){
       '<div class="qb y" id="ov-newcase">' + ico('doc') + ' New case<span class="arr">›</span></div></div>';
   m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
   m.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  /* [v0.17.0] Buggkorten oppnar ratt flik direkt. */
+  m.querySelectorAll('[data-bugtab]').forEach(b => b.onclick = () => { BUGTAB = b.dataset.bugtab; BUGFILT = 'new'; go('bugs'); });
   m.querySelectorAll('[data-focus]').forEach(b => b.onclick = () => $('q').focus());
   $('ov-newcase').onclick = () => newCaseBox(null);
   if ($('ov-alerts')) $('ov-alerts').onclick = () => { ADM.tab = 'alerts'; go('admin'); };
@@ -885,6 +929,90 @@ function renderPlayers(){
   const m = $('main');
   if (P360) return renderP360();
   m.innerHTML = '<h1 class="pg">Players</h1><div class="pg-sub">Find anyone by handle, character, guild or id.</div><div class="empty">Use the search box above (press <span class="mono">/</span>).</div>';
+}
+/* ---------- [v0.17.0] BUG REPORTS ----------
+   Tva flikar: spelarnas rapporter (bug_reports) och spelets egna fel (client_errors).
+   Rapporterna ar kort: texten ar det viktiga och den ar ofta flera rader. Felen ar en
+   tabell: samma fel + version ar EN rad som raknar upp, med antal spelare som traffats. */
+let BUGTAB = 'reports', BUGFILT = 'new';
+const BUG_AREA_NAME = {node:'The node', map:'Map & travel', expeditions:'Expeditions', quests:'Quests',
+  fights:'Fights & dungeons', professions:'Professions', gear:'Gear & bags', trade:'Shop & trade',
+  helpers:'Helpers & pets', social:'Chat & guild', account:'Account & login', other:'Something else'};
+function bugStPill(st){
+  return '<span class="pill ' + (st === 'new' ? 'red' : st === 'seen' ? 'gold' : st === 'fixed' ? 'green' : '') + '">' +
+    (st === 'wontfix' ? "won't fix" : esc(st)) + '</span>';
+}
+async function renderBugs(){
+  const m = $('main');
+  const head = sub => '<div class="pg-row"><div><h1 class="pg">Bug reports</h1><div class="pg-sub" style="margin-bottom:0">' + sub + '</div></div></div>';
+  m.innerHTML = head('What players report, and the errors the game sends by itself.') + '<div class="empty">Loading…</div>';
+  const filts = BUGTAB === 'reports' ? ['new','seen','fixed','wontfix','all'] : ['new','seen','fixed','all'];
+  if (filts.indexOf(BUGFILT) < 0) BUGFILT = 'new';
+  let sum, rows;
+  try {
+    [sum, rows] = await Promise.all([rpc('admin_bugs_summary'),
+      rpc(BUGTAB === 'reports' ? 'admin_bug_reports' : 'admin_client_errors', {p_status: BUGFILT === 'all' ? null : BUGFILT})]);
+  } catch (e){ m.innerHTML = head('') + '<div class="empty">' + esc(e.message) + '</div>'; return; }
+  rows = rows || [];
+  const tabs = '<div class="tabs" style="margin-top:0">' +
+    '<div class="tab' + (BUGTAB === 'reports' ? ' on' : '') + '" data-bt="reports">Player reports' + (sum.bugs_new ? ' <span class="pill red">' + sum.bugs_new + '</span>' : '') + '</div>' +
+    '<div class="tab' + (BUGTAB === 'errors' ? ' on' : '') + '" data-bt="errors">Game errors' + (sum.errors_new ? ' <span class="pill red">' + sum.errors_new + '</span>' : '') + '</div></div>';
+  const fl = '<div class="tabs bf">' + filts.map(f => '<div class="tab' + (BUGFILT === f ? ' on' : '') + '" data-bf="' + f + '">' + (f === 'wontfix' ? "won't fix" : f) + '</div>').join('') + '</div>';
+  const plats = c => [c.region ? c.region + (c.zone ? ' · ' + c.zone : '') : null, (c.w && c.h) ? c.w + '×' + c.h : null,
+                      (c.open && c.open.length) ? 'open: ' + c.open.join(', ') : null].filter(Boolean);
+  let list;
+  if (BUGTAB === 'reports'){
+    list = rows.length ? rows.map(b => {
+      const c = b.ctx || {};
+      const where = [c.ver].concat(plats(c)).filter(Boolean).map(esc).join(' · ');
+      return '<div class="bugc" data-id="' + b.id + '">' +
+        '<div class="bug-top"><span class="num">#' + b.id + '</span>' + bugStPill(b.status) +
+          '<span class="pill cyan">' + esc(BUG_AREA_NAME[b.area] || b.area) + '</span>' +
+          '<span class="who" data-open="' + esc(b.profile_id) + '">' + esc(b.handle || '–') + (b.character ? ' · ' + esc(b.character) : '') + '</span>' +
+          '<span class="when">' + ago(b.created_at) + '</span></div>' +
+        '<div class="bug-what">' + esc(b.what) + '</div>' +
+        (b.expected ? '<div class="bug-exp"><b>Expected:</b> ' + esc(b.expected) + '</div>' : '') +
+        (where ? '<div class="bug-ctx">' + where + '</div>' : '') +
+        (c.sync_error ? '<div class="bug-ctx red">Last sync error: ' + esc(c.sync_error) + '</div>' : '') +
+        (b.admin_note ? '<div class="bug-note">' + ico('doc') + ' ' + esc(b.admin_note) + '</div>' : '') +
+        '<div class="bug-acts"><input class="bnote" placeholder="Note (optional)" maxlength="1000">' +
+          ['seen','fixed','wontfix'].filter(st => st !== b.status).map(st =>
+            '<button class="btn sm' + (st === 'fixed' ? ' green' : st === 'seen' ? ' orange' : '') + '" data-set="' + st + '">' +
+            (st === 'seen' ? 'Mark seen' : st === 'fixed' ? 'Fixed' : "Won't fix") + '</button>').join('') +
+          (b.status !== 'new' ? '<button class="btn sm" data-set="new">Reopen</button>' : '') +
+        '</div></div>';
+    }).join('') : '<div class="empty">No ' + (BUGFILT === 'all' ? '' : (BUGFILT === 'wontfix' ? "won't fix " : BUGFILT + ' ')) + 'bug reports.</div>';
+  } else {
+    list = rows.length ? '<div class="box" style="padding:6px 10px"><table class="t errt"><tr><th>Status</th><th>Kind</th><th>Error</th><th>Version</th><th>Times</th><th>Players</th><th>Last</th><th></th></tr>' +
+      rows.map(e => {
+        const c = e.sample_ctx || {};
+        const det = [c.at ? 'line ' + c.at : null].concat(plats(c)).concat([e.last_handle ? 'last: ' + e.last_handle : null]).filter(Boolean).map(esc).join(' · ');
+        return '<tr><td>' + bugStPill(e.status) + '</td><td><span class="pill ' + (e.kind === 'sync' ? 'orange' : 'purple') + '">' + esc(e.kind) + '</span></td>' +
+          '<td><div class="err-msg">' + esc(e.message) + '</div>' + (det ? '<div class="bug-ctx">' + det + '</div>' : '') +
+            (c.stack ? '<details class="err-st"><summary>Stack</summary><pre>' + esc(c.stack) + '</pre></details>' : '') + '</td>' +
+          '<td class="num">' + esc(e.version || '–') + '</td><td class="num">' + e.n + '</td><td class="num">' + e.players + '</td>' +
+          '<td class="num">' + ago(e.last_at) + '</td><td class="macts">' +
+          ['seen','fixed'].filter(st => st !== e.status).map(st => '<button class="btn sm' + (st === 'fixed' ? ' green' : ' orange') +
+            '" data-eset="' + st + '" data-eid="' + e.id + '">' + (st === 'seen' ? 'Seen' : 'Fixed') + '</button>').join('') +
+          (e.status !== 'new' ? '<button class="btn sm" data-eset="new" data-eid="' + e.id + '">Reopen</button>' : '') + '</td></tr>';
+      }).join('') + '</table></div>'
+      : '<div class="empty">No ' + (BUGFILT === 'all' ? '' : BUGFILT + ' ') + 'game errors.</div>';
+  }
+  m.innerHTML = head(BUGTAB === 'reports'
+      ? 'What players tell us went wrong. Only the owner role sees this page.'
+      : 'Errors the game sends by itself. The same error in the same version is one row that counts up.') + tabs + fl + list;
+  m.querySelectorAll('[data-bt]').forEach(t => t.onclick = () => { BUGTAB = t.dataset.bt; BUGFILT = 'new'; renderBugs(); });
+  m.querySelectorAll('[data-bf]').forEach(t => t.onclick = () => { BUGFILT = t.dataset.bf; renderBugs(); });
+  m.querySelectorAll('.bugc [data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  m.querySelectorAll('.bugc [data-set]').forEach(b => b.onclick = async () => {
+    const card = b.closest('.bugc'), note = card.querySelector('.bnote').value.trim();
+    try { await rpc('admin_bug_report_set', {p_id: +card.dataset.id, p_status: b.dataset.set, p_note: note || null}); toast('Saved'); renderBugs(); }
+    catch (e){ toast(e.message, true); }
+  });
+  m.querySelectorAll('[data-eset]').forEach(b => b.onclick = async () => {
+    try { await rpc('admin_client_error_set', {p_id: +b.dataset.eid, p_status: b.dataset.eset}); toast('Saved'); renderBugs(); }
+    catch (e){ toast(e.message, true); }
+  });
 }
 async function openPlayer(pid, tab){
   const m = $('main'); go('players'); m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">Loading…</div>';
