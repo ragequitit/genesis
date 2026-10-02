@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.17.1 — buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.18.0 — recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -52,8 +52,16 @@
      regeln som gommer den, och samma vikt betyder att den senare vinner - efter inloggning pa en
      smal skarm blev sidan helt tom. Rutan hade dessutom varken bakgrund eller niva, sa den hade
      legat under inloggningen (z 50) och laset (z 9000) aven om den visats. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<!-- [ANDRAT v0.18.0] Typsnitten pa egen server i stallet for Google Fonts - se noten i index.html. -->
+<style>
+@font-face{font-family:'Orbitron';font-style:normal;font-display:swap;font-weight:700;src:url(assets/fonts/orbitron-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Orbitron';font-style:normal;font-display:swap;font-weight:900;src:url(assets/fonts/orbitron-latin-900-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:400;src:url(assets/fonts/inter-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:600;src:url(assets/fonts/inter-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:700;src:url(assets/fonts/inter-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:800;src:url(assets/fonts/inter-latin-800-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:900;src:url(assets/fonts/inter-latin-900-normal.woff2) format('woff2')}
+</style>
 <style>
 :root{
   --bg-page:#070a17;--bg-panel:#0b1024;--bg-panel-2:#0f152d;--bg-inset:#0a0f22;--bg-row:#0e1430;--bg-row-hover:#151c3e;
@@ -573,7 +581,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.17.1';
+const ADMIN_VERSION = 'v0.18.0';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -932,10 +940,47 @@ async function renderOverview(){
 setInterval(() => { if (ME && PAGE === 'overview') renderOverview(); }, 60 * 1000);
 
 /* ---------- PLAYERS / PLAYER 360 ---------- */
-function renderPlayers(){
+/* [v0.18.0] RECENT PLAYERS (Chris: "jag kunde inte se vilka som skapat konto").
+   Players-sidan var bara en sokruta. Nu: siffror for i dag / 7 dagar, och tre
+   listor - senast skapade konton (med om mejlen ar bekraftad och om de sagt ja
+   till mejl), senast sedda, och raderade konton (handle + antal karaktarer;
+   mejladressen sparas INTE efter en radering). Klick pa en rad oppnar spelaren. */
+async function renderPlayers(){
   const m = $('main');
   if (P360) return renderP360();
-  m.innerHTML = '<h1 class="pg">Players</h1><div class="pg-sub">Find anyone by handle, character, guild or id.</div><div class="empty">Use the search box above (press <span class="mono">/</span>).</div>';
+  m.innerHTML = '<h1 class="pg">Players</h1><div class="pg-sub">Find anyone by handle, character, guild or id — search box above (press <span class="mono">/</span>).</div><div class="empty">Loading…</div>';
+  let d;
+  try { d = await rpc('admin_players_recent'); }
+  catch (e){ m.querySelector('.empty').textContent = 'Could not load recent players: ' + e.message; return; }
+  if (PAGE !== 'players' || P360) return;
+  const c = d.counts || {};
+  const card = (k, v, s, col) => '<div class="card"><div class="k">' + k + '</div><div class="v"' + (col ? ' style="color:var(--' + col + ')"' : '') + '>' + v + '</div>' + (s ? '<div class="s" style="font-size:11px;color:var(--text-faint)">' + s + '</div>' : '') + '</div>';
+  const yes = '<span class="pill green">yes</span>', no = '<span class="pill">no</span>';
+  const tbl = (head, rows) => rows.length ? '<table class="t"><tr>' + head.map(h => '<th>' + h + '</th>').join('') + '</tr>' + rows.join('') + '</table>' : '<div class="empty">Nothing yet.</div>';
+  m.innerHTML = '<h1 class="pg">Players</h1><div class="pg-sub">Find anyone by handle, character, guild or id — search box above (press <span class="mono">/</span>).</div>' +
+    '<div class="cards" style="margin-bottom:14px">' +
+      card('New accounts today', c.signups_today || 0, (c.signups_7d || 0) + ' last 7 days', 'cyan') +
+      card('Seen today', c.seen_today || 0, (c.seen_7d || 0) + ' last 7 days', 'green') +
+      card('Deleted, 7 days', c.deleted_7d || 0, '', 'red') +
+      card('Accounts total', c.total || 0, (c.unconfirmed || 0) + ' unconfirmed email') +
+      card('Email opt-in', c.mail_optin || 0, 'said yes to update mails', 'gold') +
+    '</div>' +
+    '<div class="grid-ov">' +
+      '<div class="box"><div class="sec-row"><h2 class="sec">' + ico('users') + ' Newest accounts</h2></div>' +
+        tbl(['Handle', 'Characters', 'Confirmed', 'Mail', 'Joined', 'Seen'], (d.signups || []).map(p =>
+          '<tr class="clk" data-open="' + esc(p.id) + '"><td><b>' + esc(p.handle || '(no handle yet)') + '</b></td><td>' + esc((p.characters || []).join(', ') || '–') + '</td>' +
+          '<td>' + (p.confirmed ? yes : '<span class="pill red">no</span>') + '</td><td>' + (p.mail_optin ? yes : no) + '</td>' +
+          '<td class="num" title="' + when(p.created_at) + '">' + ago(p.created_at) + '</td><td class="num">' + ago(p.last_seen_at) + '</td></tr>')) + '</div>' +
+      '<div class="box"><div class="sec-row"><h2 class="sec">' + ico('clock') + ' Last seen</h2></div>' +
+        tbl(['Handle', 'Character', 'Seen', 'Joined'], (d.seen || []).map(p =>
+          '<tr class="clk" data-open="' + esc(p.id) + '"><td><b>' + esc(p.handle || '–') + '</b></td><td>' + esc(p.character || '–') + '</td>' +
+          '<td class="num" title="' + when(p.last_seen_at) + '">' + ago(p.last_seen_at) + '</td><td class="num">' + ago(p.created_at) + '</td></tr>')) + '</div>' +
+    '</div>' +
+    '<div class="box" style="margin-top:14px"><div class="sec-row"><h2 class="sec">' + ico('ban') + ' Deleted accounts</h2></div>' +
+      tbl(['Handle', 'Characters', 'When'], (d.deleted || []).map(x =>
+        '<tr><td><b>' + esc(x.handle || '–') + '</b></td><td class="num">' + (x.characters || 0) + '</td><td class="num" title="' + when(x.at) + '">' + ago(x.at) + '</td></tr>')) +
+      '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:6px">Players who deleted their own account. The email address is not kept.</div></div>';
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
 }
 /* ---------- [v0.17.0] BUG REPORTS ----------
    Tva flikar: spelarnas rapporter (bug_reports) och spelets egna fel (client_errors).
@@ -1592,6 +1637,7 @@ async function renderMail(){
   const to = MAILTO;
   if (MAILTAB === 'campaign') return renderCampaigns(hist);
   if (MAILTAB === 'templates') return renderTemplates();
+  if (MAILTAB === 'email') return renderEmail();
   m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">One letter to one character, with attachments the game rolls itself.</div></div>' +
     (lim ? '<div class="right">Your caps: gold <b>' + (lim.max_gold != null ? gold(lim.max_gold) : '∞') + '</b> · fragments <b>' + (lim.max_frags != null ? lim.max_frags : '∞') + '</b> · credits <b>' + (lim.max_credits != null ? lim.max_credits : '∞') + '</b> · cache tickets <b>' + (lim.max_tickets != null ? lim.max_tickets : '∞') + '</b></div>' : '') + '</div>' +
     mailTabs() +
@@ -1666,7 +1712,141 @@ async function renderMail(){
     catch (e){ $('ml-send').disabled = false; toast(e.message, true); }
   };
 }
-function mailTabs(){ return '<div class="tabs" style="margin-top:0"><div class="tab' + (MAILTAB === 'single' ? ' on' : '') + '" data-mt="single">Single letter</div><div class="tab' + (MAILTAB === 'campaign' ? ' on' : '') + '" data-mt="campaign">Campaigns' + (has('mail.campaign') ? '' : ' <span class="n" style="color:var(--text-faint)">no access</span>') + '</div><div class="tab' + (MAILTAB === 'templates' ? ' on' : '') + '" data-mt="templates">Templates' + (TPLS && TPLS.length ? '<span class="n">' + TPLS.length + '</span>' : '') + '</div></div>'; }
+/* GENESIS: utskickets HTML. SAMMA kod i admin.html (forhandsvisning) och i
+   Edge Function send-campaign (det som faktiskt skickas) - andra pa bada stallena. */
+function campaignEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function campaignBodyHtml(body){
+  /* Ren text in. Tom rad = nytt stycke. Rader som borjar med "- " = punktlista.
+     **fet** = fetstil. Inget annat - mejlprogram ar kinkiga. */
+  const inl = t => campaignEsc(t).replace(/\*\*(.+?)\*\*/g, '<b style="color:#e8ecff">$1</b>');
+  const P = 'font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:15px;line-height:23px;color:#8a93b8;margin:0 0 14px 0';
+  return String(body || '').replace(/\r/g, '').split(/\n{2,}/).map(block => {
+    const lines = block.split('\n').filter(l => l.trim() !== '');
+    if (!lines.length) return '';
+    if (lines.every(l => /^\s*-\s+/.test(l))){
+      return '<ul style="' + P + ';padding-left:22px">' + lines.map(l => '<li style="margin:0 0 6px 0">' + inl(l.replace(/^\s*-\s+/, '')) + '</li>').join('') + '</ul>';
+    }
+    if (lines.length === 1 && /^#\s+/.test(lines[0])){
+      return '<div style="font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:17px;line-height:24px;font-weight:700;color:#e8ecff;margin:22px 0 8px 0">' + inl(lines[0].replace(/^#\s+/, '')) + '</div>';
+    }
+    return '<p style="' + P + '">' + lines.map(inl).join('<br>') + '</p>';
+  }).join('');
+}
+function campaignHtml(subject, body, unsubUrl, siteUrl){
+  siteUrl = siteUrl || 'https://games.chriswhippit.com';
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"><title>' + campaignEsc(subject) + '</title></head>' +
+    '<body style="margin:0;padding:0;background-color:#05060d;" bgcolor="#05060d">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#05060d" style="background-color:#05060d;"><tr><td align="center" style="padding:36px 16px;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">' +
+    '<tr><td align="left" style="padding:0 6px 14px 6px;font-family:Consolas,\'Courier New\',monospace;font-size:11px;letter-spacing:4px;color:#38e8ff;">GENESIS</td></tr>' +
+    '<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a0d18" style="background-color:#0a0d18;border:1px solid #1b2140;border-radius:14px;"><tr><td style="padding:28px 30px 30px 30px;">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="width:7px;height:7px;border-radius:50%;background-color:#3dff9e;font-size:0;line-height:0;">&nbsp;</td>' +
+    '<td style="padding-left:9px;font-family:Consolas,\'Courier New\',monospace;font-size:10px;letter-spacing:3px;color:#565e80;">TRANSMISSION</td></tr></table>' +
+    '<div style="height:18px;line-height:18px;font-size:0;">&nbsp;</div>' +
+    '<div style="font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#e8ecff;">' + campaignEsc(subject) + '</div>' +
+    '<div style="height:14px;line-height:14px;font-size:0;">&nbsp;</div>' +
+    campaignBodyHtml(body) +
+    '<div style="height:10px;line-height:10px;font-size:0;">&nbsp;</div>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#1ba8c9" style="border-radius:12px;background-color:#1ba8c9;background-image:linear-gradient(90deg,#1ba8c9 0%,#7b6cff 100%);">' +
+    '<a href="' + campaignEsc(siteUrl) + '" style="display:block;padding:15px 20px;font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;letter-spacing:1px;color:#ffffff;text-decoration:none;">Open Genesis</a></td></tr></table>' +
+    '</td></tr></table></td></tr>' +
+    '<tr><td align="left" style="padding:16px 6px 0 6px;font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;color:#565e80;">' +
+    'You get this because you said yes to update mails in Genesis. ' +
+    '<a href="' + campaignEsc(unsubUrl) + '" style="color:#565e80;text-decoration:underline;">Unsubscribe</a> &middot; <a href="' + campaignEsc(siteUrl) + '" style="color:#565e80;text-decoration:underline;">games.chriswhippit.com</a></td></tr>' +
+    '</table></td></tr></table></body></html>';
+}
+function campaignText(subject, body, unsubUrl, siteUrl){
+  return subject + '\n\n' + String(body || '').replace(/\*\*/g, '') + '\n\nOpen Genesis: ' + (siteUrl || 'https://games.chriswhippit.com') +
+    '\n\nYou get this because you said yes to update mails in Genesis. Unsubscribe: ' + unsubUrl + '\n';
+}
+
+/* ---------- [v0.18.0] E-POST: MASSUTSKICK (Chris) ----------
+   Ett utskick = amne + text. Texten ar ren text: tom rad = nytt stycke, "- " = punkt,
+   "# " = mellanrubrik, **fet**. Forhandsvisningen till hoger ar EXAKT det som skickas
+   (samma kod som i Edge Function send-campaign). Mottagare: alla med mail_optin,
+   bekraftad adress och inte avstangda. Skickas av send-campaign med Resend-nyckeln
+   pa servern - nyckeln finns aldrig har. "Send test" gar bara till dig sjalv. */
+let EM = {list: null, edit: null, busy: false};
+async function renderEmail(){
+  const m = $('main'); const can = has('mail.campaign');
+  const head = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">Email to players who said yes to update mails. One mail, everyone at once.</div></div></div>' + mailTabs();
+  if (!can){ m.innerHTML = head + '<div class="empty">Your role cannot send email campaigns.</div>'; return; }
+  if (!EM.list){
+    m.innerHTML = head + '<div class="empty">Loading…</div>';
+    try { EM.list = await rpc('admin_campaign_list'); } catch (e){ m.innerHTML = head + '<div class="empty">' + esc(e.message) + '</div>'; return; }
+    if (MAILTAB !== 'email') return;
+  }
+  const d = EM.list, t = EM.edit || {};
+  const st = x => '<span class="pill ' + (x.status === 'sent' ? 'green' : x.status === 'failed' ? 'red' : x.status === 'sending' ? 'gold' : '') + '">' + esc(x.status) + '</span>';
+  m.innerHTML = head +
+    '<div class="mailgrid"><div class="box">' + h3(t.id ? 'Draft #' + t.id : 'New update mail') +
+      '<div class="fld"><label>Subject</label><input id="em-subject" maxlength="120" placeholder="Big update: guilds, pets and a new region" value="' + esc(t.subject || '') + '"></div>' +
+      '<div class="fld"><label>Text</label><textarea id="em-body" style="min-height:260px" placeholder="Hey runners!&#10;&#10;# What\'s new&#10;&#10;- Guilds are here&#10;- Pets can run expeditions&#10;&#10;**Thanks** for playing.">' + esc(t.body || '') + '</textarea>' +
+      '<div class="cap">Blank line = new paragraph · lines starting with "- " = bullet list · "# " = heading · **bold**. The preview on the right is exactly what goes out.</div></div>' +
+      '<div class="row" style="justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap"><div class="s" style="font-size:12px;color:var(--text-dim)">Recipients right now: <b>' + (d.optin || 0) + '</b> (opted in, confirmed email, not banned)</div>' +
+      '<div class="row" style="gap:8px">' + (t.id ? '<button class="btn" id="em-new">New</button>' : '') +
+      '<button class="btn" id="em-save">Save draft</button><button class="btn" id="em-test">Send test to me</button>' +
+      '<button class="btn primary" id="em-send"' + (t.id ? '' : ' disabled title="Save the draft first"') + '>Send to all</button></div></div>' +
+      '<div class="m" id="em-msg" style="margin-top:8px"></div>' +
+    '</div><div class="box">' + h3('Preview') + '<iframe id="em-prev" style="width:100%;height:560px;border:1px solid var(--border);border-radius:10px;background:#05060d"></iframe></div></div>' +
+    '<div class="box" style="margin-top:14px">' + h3('Sent & drafts (' + (d.campaigns || []).length + ')') +
+      ((d.campaigns || []).length ? '<table class="t"><tr><th>#</th><th>Subject</th><th>Status</th><th>Recipients</th><th>Sent</th><th>Failed</th><th>By</th><th>When</th><th></th></tr>' +
+        d.campaigns.map(x => '<tr><td class="num">' + x.id + '</td><td><b>' + esc(x.subject) + '</b>' + (x.error ? '<div class="m" style="color:var(--red)">' + esc(x.error) + '</div>' : '') + '</td><td>' + st(x) + '</td>' +
+          '<td class="num">' + (x.recipients == null ? '–' : x.recipients) + '</td><td class="num">' + (x.sent == null ? '–' : x.sent) + '</td><td class="num">' + (x.failed == null ? '–' : x.failed) + '</td>' +
+          '<td>' + esc(x.created_by_label || '?') + '</td><td class="num" title="' + when(x.sent_at || x.created_at) + '">' + ago(x.sent_at || x.created_at) + '</td>' +
+          '<td>' + (x.status === 'draft' ? '<button class="btn sm" data-emedit="' + x.id + '">Edit</button> <button class="btn sm r" data-emdel="' + x.id + '">Delete</button>' : '<button class="btn sm" data-emcopy="' + x.id + '">Copy to new</button>') + '</td></tr>').join('') + '</table>'
+      : '<div class="empty">No mails yet.</div>') + '</div>';
+  const prev = () => { try { $('em-prev').srcdoc = campaignHtml($('em-subject').value || '(no subject)', $('em-body').value, 'https://games.chriswhippit.com/?unsub=example', 'https://games.chriswhippit.com'); } catch (e){} };
+  $('em-subject').oninput = prev; $('em-body').oninput = prev; prev();
+  const msg = (t2, err) => { const el = $('em-msg'); el.textContent = t2; el.style.color = err ? 'var(--red)' : 'var(--text-dim)'; };
+  const save = async () => {
+    const r = await rpc('admin_campaign_save', {p_id: EM.edit && EM.edit.id ? EM.edit.id : null, p_subject: $('em-subject').value, p_body: $('em-body').value});
+    EM.edit = r; EM.list = await rpc('admin_campaign_list'); return r;
+  };
+  $('em-save').onclick = async () => { try { await save(); toast('Draft saved.'); renderEmail(); } catch (e){ msg(e.message, true); } };
+  if ($('em-new')) $('em-new').onclick = () => { EM.edit = null; renderEmail(); };
+  $('em-test').onclick = async () => {
+    if (EM.busy) return; EM.busy = true; msg('Saving and sending a test to your own address…');
+    try {
+      const r = await save();
+      const {data, error} = await sb.functions.invoke('send-campaign', {body: {id: r.id, test: true}});
+      if (error) throw new Error(await fnErr(error));
+      if (data && data.error) throw new Error(data.error);
+      msg('Test sent to you (' + (data.sent || 0) + '). Check your inbox - and the spam folder the first time.');
+    } catch (e){ msg('Test failed: ' + e.message, true); }
+    EM.busy = false;
+  };
+  $('em-send').onclick = async () => {
+    if (EM.busy || !EM.edit || !EM.edit.id) return;
+    const n = EM.list.optin || 0;
+    if (!(await confirmBox({title: 'Send "' + (EM.edit.subject || '') + '" to ' + n + ' players?', body: 'This goes out as real email, right now, and cannot be recalled. Send a test to yourself first if you have not.', tone: 'red', yes: 'Send to ' + n}))) return;
+    EM.busy = true; msg('Sending to ' + n + '…');
+    try {
+      const r = await save();
+      const {data, error} = await sb.functions.invoke('send-campaign', {body: {id: r.id, test: false}});
+      if (error) throw new Error(await fnErr(error));
+      if (data && data.error) throw new Error(data.error);
+      toast('Sent to ' + (data.sent || 0) + (data.failed ? ', ' + data.failed + ' failed' : '') + '.');
+      EM.edit = null; EM.list = await rpc('admin_campaign_list'); renderEmail();
+    } catch (e){ msg('Sending failed: ' + e.message, true); EM.list = await rpc('admin_campaign_list').catch(() => EM.list); }
+    EM.busy = false;
+  };
+  m.querySelectorAll('[data-emedit]').forEach(b => b.onclick = () => { EM.edit = d.campaigns.find(x => String(x.id) === b.dataset.emedit) || null; renderEmail(); });
+  m.querySelectorAll('[data-emcopy]').forEach(b => b.onclick = () => { const x = d.campaigns.find(y => String(y.id) === b.dataset.emcopy); EM.edit = x ? {subject: x.subject, body: x.body} : null; renderEmail(); });
+  m.querySelectorAll('[data-emdel]').forEach(b => b.onclick = async () => {
+    if (!(await confirmBox({title: 'Delete draft #' + b.dataset.emdel + '?', body: 'Only the draft. Nothing has been sent.', tone: 'red', yes: 'Delete'}))) return;
+    try { await rpc('admin_campaign_delete', {p_id: +b.dataset.emdel}); if (EM.edit && String(EM.edit.id) === b.dataset.emdel) EM.edit = null; EM.list = await rpc('admin_campaign_list'); toast('Deleted.'); renderEmail(); } catch (e){ toast(e.message, true); }
+  });
+}
+/* Edge Function-fel kommer som ett Response-objekt i supabase-js; plocka ut texten. */
+async function fnErr(error){
+  try { if (error && error.context && typeof error.context.json === 'function'){ const j = await error.context.json(); return j.error || j.message || JSON.stringify(j); } } catch (e){}
+  return (error && error.message) || String(error);
+}
+function mailTabs(){ return '<div class="tabs" style="margin-top:0"><div class="tab' + (MAILTAB === 'single' ? ' on' : '') + '" data-mt="single">Single letter</div><div class="tab' + (MAILTAB === 'campaign' ? ' on' : '') + '" data-mt="campaign">Campaigns' + (has('mail.campaign') ? '' : ' <span class="n" style="color:var(--text-faint)">no access</span>') + '</div><div class="tab' + (MAILTAB === 'templates' ? ' on' : '') + '" data-mt="templates">Templates' + (TPLS && TPLS.length ? '<span class="n">' + TPLS.length + '</span>' : '') + '</div>' +
+  /* [v0.18.0] E-POST: riktiga mejl till dem som sagt ja (Chris). Inte spelets brev. */
+  '<div class="tab' + (MAILTAB === 'email' ? ' on' : '') + '" data-mt="email">Email' + (has('mail.campaign') ? '' : ' <span class="n" style="color:var(--text-faint)">no access</span>') + '</div></div>'; }
 document.addEventListener('click', e => { const t = e.target.closest('[data-mt]'); if (t){ MAILTAB = t.dataset.mt; renderMail(); } });
 
 /* ---- mallar (v0.11.0, Chris): spara det man skickar ofta, till en eller till manga ---- */
