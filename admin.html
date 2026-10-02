@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.18.0 — recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.18.1 — mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -581,7 +581,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.18.0';
+const ADMIN_VERSION = 'v0.18.1';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -1789,6 +1789,12 @@ async function renderEmail(){
       '<button class="btn" id="em-save">Save draft</button><button class="btn" id="em-test">Send test to me</button>' +
       '<button class="btn primary" id="em-send"' + (t.id ? '' : ' disabled title="Save the draft first"') + '>Send to all</button></div></div>' +
       '<div class="m" id="em-msg" style="margin-top:8px"></div>' +
+      /* [v0.18.0] VILKA som far det (Chris). Hopfalld lista: handle, adress, nar de sa ja. */
+      '<details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:var(--text-dim)">Who gets it (' + (d.recipients || []).length + ')' +
+        (d.optin_unconfirmed ? ' <span style="color:var(--text-faint)">· ' + d.optin_unconfirmed + ' more said yes but have not confirmed their email, so they are skipped</span>' : '') + '</summary>' +
+        ((d.recipients || []).length ? '<table class="t" style="margin-top:8px"><tr><th>Handle</th><th>Email</th><th>Said yes</th></tr>' +
+          d.recipients.map(r => '<tr class="clk" data-open="' + esc(r.id) + '"><td><b>' + esc(r.handle || '–') + '</b></td><td class="mono">' + esc(r.email) + '</td><td class="num" title="' + when(r.since) + '">' + ago(r.since) + '</td></tr>').join('') + '</table>'
+        : '<div class="empty" style="margin-top:8px">Nobody has opted in yet. The box is in the game: before first play, and under Settings → Account.</div>') + '</details>' +
     '</div><div class="box">' + h3('Preview') + '<iframe id="em-prev" style="width:100%;height:560px;border:1px solid var(--border);border-radius:10px;background:#05060d"></iframe></div></div>' +
     '<div class="box" style="margin-top:14px">' + h3('Sent & drafts (' + (d.campaigns || []).length + ')') +
       ((d.campaigns || []).length ? '<table class="t"><tr><th>#</th><th>Subject</th><th>Status</th><th>Recipients</th><th>Sent</th><th>Failed</th><th>By</th><th>When</th><th></th></tr>' +
@@ -1832,6 +1838,7 @@ async function renderEmail(){
     } catch (e){ msg('Sending failed: ' + e.message, true); EM.list = await rpc('admin_campaign_list').catch(() => EM.list); }
     EM.busy = false;
   };
+  m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
   m.querySelectorAll('[data-emedit]').forEach(b => b.onclick = () => { EM.edit = d.campaigns.find(x => String(x.id) === b.dataset.emedit) || null; renderEmail(); });
   m.querySelectorAll('[data-emcopy]').forEach(b => b.onclick = () => { const x = d.campaigns.find(y => String(y.id) === b.dataset.emcopy); EM.edit = x ? {subject: x.subject, body: x.body} : null; renderEmail(); });
   m.querySelectorAll('[data-emdel]').forEach(b => b.onclick = async () => {
