@@ -589,6 +589,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let ME = null;          /* svaret fran admin_my_perms */
 let PAGE = 'overview';
+let PLAYERS_T = null;   /* [v0.18.1] live-omritningen pa Players */
 let P360 = null;        /* oppnad spelare */
 let P360MOD = null;     /* straff + arenden for oppnad spelare */
 let P360TAB = 'overview';
@@ -810,6 +811,7 @@ function buildNav(){
   $('nav').querySelectorAll('.nv:not(.off)').forEach(el => el.onclick = () => go(el.dataset.page));
 }
 function go(page){
+  if (page !== 'players') clearTimeout(PLAYERS_T);   /* [v0.18.1] live-omritningen bara pa Players */
   PAGE = page; $('nav').querySelectorAll('.nv').forEach(el => el.classList.toggle('on', el.dataset.page === page));
   if (page === 'overview') renderOverview();
   else if (page === 'players') renderPlayers();
@@ -981,6 +983,10 @@ async function renderPlayers(){
         '<tr><td><b>' + esc(x.handle || '–') + '</b></td><td class="num">' + (x.characters || 0) + '</td><td class="num" title="' + when(x.at) + '">' + ago(x.at) + '</td></tr>')) +
       '<div class="s" style="color:var(--text-faint);font-size:11px;margin-top:6px">Players who deleted their own account. The email address is not kept.</div></div>';
   m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  /* [v0.18.1] LIVE (Chris: "en kompis joinade for 4 min sedan och det syns inte").
+     Sidan ritas om var 30:e sekund sa lange man star kvar pa den. */
+  clearTimeout(PLAYERS_T);
+  PLAYERS_T = setTimeout(() => { if (PAGE === 'players' && !P360 && !document.hidden) renderPlayers(); else if (PAGE === 'players' && !P360) PLAYERS_T = setTimeout(() => renderPlayers(), 5000); }, 30000);
 }
 /* ---------- [v0.17.0] BUG REPORTS ----------
    Tva flikar: spelarnas rapporter (bug_reports) och spelets egna fel (client_errors).
