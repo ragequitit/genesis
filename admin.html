@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.19.0 — forslagsladan (Ideas); mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.20.0 — satt namn + buggar/ideer per spelare; forslagsladan (Ideas); mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -581,7 +581,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.19.0';
+const ADMIN_VERSION = 'v0.20.0';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -592,6 +592,7 @@ let PAGE = 'overview';
 let PLAYERS_T = null;   /* [v0.18.1] live-omritningen pa Players */
 let P360 = null;        /* oppnad spelare */
 let P360MOD = null;     /* straff + arenden for oppnad spelare */
+let P360REP = null;     /* [v0.20.0] buggrapporter + ideer for oppnad spelare */
 let P360TAB = 'overview';
 let CASE = null;        /* oppnat arende */
 let CHATF = {channel: 'general', q: ''};
@@ -658,13 +659,22 @@ function confirmBox(opts){
     m.innerHTML = '<h3>' + esc(opts.title) + '</h3><p>' + esc(opts.body || '') + '</p>' +
       (opts.reason ? '<label>Reason (required)</label><textarea id="m-reason"></textarea>' : '') +
       (opts.message ? '<label>Message to the player (optional, sent as mail)</label><textarea id="m-msg" data-notr placeholder="' + esc(opts.message) + '"></textarea>' : '') +
+      /* [TILLAGT v0.20.0] Ett enradsfalt, for det som ska SKRIVAS och inte bara bekraftas. */
+      (opts.input ? '<label>' + esc(opts.input.label || '') + '</label><input id="m-input" data-notr value="' + esc(opts.input.value || '') + '" placeholder="' + esc(opts.input.placeholder || '') + '" maxlength="' + (opts.input.max || 64) + '">' : '') +
       '<div class="acts"><button class="btn" id="m-no">Cancel</button><button class="btn ' + (opts.tone === 'red' ? 'red' : opts.tone === 'orange' ? 'orange' : 'primary') + '" id="m-yes">' + esc(opts.yes || 'Confirm') + '</button></div>';
     $('modal-bg').classList.add('on');
     $('m-no').onclick = () => { modalClose(); res(null); };
+    if (opts.input) setTimeout(() => { const i = $('m-input'); if (i){ i.focus(); i.select(); } }, 30);
     $('m-yes').onclick = () => {
       const r = opts.reason ? ($('m-reason').value || '').trim() : '';
       if (opts.reason && !r){ $('m-reason').style.borderColor = 'var(--red)'; return; }
-      modalClose(); res(opts.reason ? {reason: r, message: opts.message ? ($('m-msg').value || '').trim() : ''} : true);
+      const inp = opts.input ? ($('m-input').value || '').trim() : '';
+      if (opts.input && !inp){ $('m-input').style.borderColor = 'var(--red)'; return; }
+      /* Ett falt att fylla i gor svaret till ett objekt aven utan reason-rutan. */
+      modalClose();
+      res((opts.reason || opts.input)
+        ? {reason: r, message: opts.message ? ($('m-msg').value || '').trim() : '', input: inp}
+        : true);
     };
   });
 }
@@ -1081,17 +1091,26 @@ async function openPlayer(pid, tab){
   const m = $('main'); go('players'); m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">Loading…</div>';
   if (!CAT_READY) CAT_READY = loadGameCatalog();
   try { await CAT_READY; } catch (e){}
-  try { [P360, P360MOD] = await Promise.all([rpc('admin_player', {p_profile: pid}), rpc('admin_player_mod', {p_profile: pid})]); }
+  try { [P360, P360MOD, P360REP] = await Promise.all([rpc('admin_player', {p_profile: pid}), rpc('admin_player_mod', {p_profile: pid}),
+         /* [TILLAGT v0.20.0] Buggrapporter och ideer per spelare (Chris). Egen funktion
+            i stallet for ett nytt falt i admin_player - den ar redan enorm. Faller den
+            bort star fliken tom i stallet for att hela sidan vagrar. */
+         rpc('admin_player_reports', {p_profile: pid}).catch(() => null)]); }
   catch (e){ m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
   /* Talighet: saknas en lista (skulle inte handa) blir den tom i stallet for att krascha sidan. */
   try {
     P360.profile = P360.profile || {}; ['characters','chat','reports','notes','audit'].forEach(k => P360[k] = P360[k] || []);
     P360.characters.forEach(c => ['professions','expedition_runs','work_orders','boosts','quests','items','stacks','vault','bag_slots','pets','mail','ledger','xp_ledger','auctions'].forEach(k => c[k] = c[k] || []));
     P360MOD = P360MOD || {}; P360MOD.sanctions = P360MOD.sanctions || []; P360MOD.cases = P360MOD.cases || [];
+    P360REP = P360REP || {bugs: 0, ideas: 0, rows: []}; P360REP.rows = P360REP.rows || [];
   }
   catch (e){ m.innerHTML = '<h1 class="pg">Players</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
   P360TAB = tab || 'overview'; renderP360();
 }
+/* Serverns felkoder for handle, i klartext. */
+const HANDLE_ERR = {handle_length: 'The name must be 3–16 characters.',
+  handle_characters: 'Letters, numbers and _ only, and it must start with a letter.',
+  handle_taken: 'Someone else already has that name.', not_found: 'No such account.'};
 const KIND_NAME = {warn: 'Warning', mute: 'Chat mute', mail_block: 'Mail block', auction_block: 'Auction block', guild_block: 'Guild block', report_block: 'Report block', pause: 'Account pause', lock: 'Account lock', char_lock: 'Character lock', handle_force: 'Forced name change'};
 function sancRow(s, withLift){
   return '<div class="sanc' + (s.active ? ' act' : '') + '"><span class="pill ' + (s.active ? 'red' : '') + '">' + esc(KIND_NAME[s.kind] || s.kind) + (s.channel && s.channel !== 'all' ? ' · ' + esc(s.channel) : '') + '</span>' +
@@ -1104,7 +1123,8 @@ function renderP360(){
   const d = P360, p = d.profile, m = $('main'), md = P360MOD || {sanctions: [], cases: []};
   const online = p.seen_at && (Date.now() - new Date(p.seen_at).getTime()) < 90000;
   const active = md.sanctions.filter(s => s.active);
-  const tabs = [['overview','Overview'],['inventory','Inventory'],['helpers','Helpers'],['economy','Economy'],['progression','Progression'],['social','Social'],['moderation','Moderation', active.length],['timeline','Timeline'],['notes','Notes & audit']];
+  const rep = P360REP || {bugs: 0, ideas: 0, rows: []};
+  const tabs = [['overview','Overview'],['inventory','Inventory'],['helpers','Helpers'],['economy','Economy'],['progression','Progression'],['social','Social'],['feedback','Bugs & ideas', (rep.bugs|0) + (rep.ideas|0)],['moderation','Moderation', active.length],['timeline','Timeline'],['notes','Notes & audit']];
   let h = '<div class="row" style="margin-bottom:10px"><button class="btn" id="p-back">‹ Back</button><h1 class="pg" style="font-size:22px">Player 360</h1></div>' +
     '<div class="p360-head"><div><div class="hn">' + esc(p.handle) + ' ' +
       (p.banned ? '<span class="pill red">Banned</span>' : online ? '<span class="pill green">Online</span>' : '<span class="pill">Offline</span>') +
@@ -1114,6 +1134,7 @@ function renderP360(){
       (p.handle_prev ? ' · previously <i>' + esc(p.handle_prev) + '</i>' : '') + (p.banned && p.ban_reason ? ' · ban: <i>' + esc(p.ban_reason) + '</i>' : '') + '</div></div>' +
       '<div class="acts">' +
         (has('chat.mute') || has('player.restrict') || has('player.pause') || has('player.lock') || has('case.manage') ? '<button class="btn orange" id="p-sanction">' + ico('gavel') + ' Sanction…</button>' : '') +
+        (has('handle.force') ? '<button class="btn" id="p-sethandle">Set name</button>' : '') +
         (has('handle.force') ? '<button class="btn" id="p-handle">Force name change</button>' : '') +
         (has('case.manage') ? '<button class="btn" id="p-case">New case</button>' : '') +
         (has('mail.single') ? '<button class="btn" id="p-mail">' + ico('mail') + ' Send mail</button>' : '') +
@@ -1162,6 +1183,20 @@ function renderP360(){
   });
   if (P360TAB === 'timeline') loadTimeline(p.id);
   on('p-mail', () => { MAILTO = {profile: p.id, handle: p.handle, characters: d.characters.filter(c => !c.deleted_at).map(c => ({id: c.id, name: c.name}))}; go('mail'); });
+  /* [TILLAGT v0.20.0] SATT ETT NAMN (Chris). Force name change ar en straffatgard som
+     slanger namnet; den har SATTER det man skriver, och fungerar aven pa ett konto
+     som saknar handle - vilket bada betatestarna gor. */
+  on('p-sethandle', async () => {
+    const r = await confirmBox({
+      title: 'Set the name for ' + (p.handle || 'this account'),
+      body: '3–16 characters, starts with a letter, then letters, numbers or _. The old name is held for a week so nobody else takes it. The player can change it themselves right after.',
+      input: {label: 'Handle', value: p.handle || '', placeholder: 'ChrisWhippit', max: 16},
+      yes: 'Set name'});
+    if (!r) return;
+    try { const x = await rpc('admin_handle_set', {p_profile: p.id, p_handle: r.input, p_reason: r.reason || null});
+          toast('Name set to ' + x.handle + '.'); openPlayer(p.id, P360TAB); }
+    catch (e){ toast(HANDLE_ERR[String(e.message).replace(/^.*?: /, '')] || e.message, true); }
+  });
   on('p-handle', async () => {
     const r = await confirmBox({title: 'Force a name change for ' + p.handle + '?', body: 'The handle becomes Runner_xxxxxxxx at once and the old name is reserved for 90 days. The player can pick a new name right away.', reason: true, message: 'Your name broke the naming rules. Please pick a new one in Settings.', tone: 'orange', yes: 'Change name'});
     if (!r) return; try { const x = await rpc('admin_handle_force', {p_profile: p.id, p_reason: r.reason, p_message: r.message || null}); toast('Renamed to ' + x.handle + '.'); openPlayer(p.id, 'moderation'); } catch (e){ toast(e.message, true); }
@@ -1208,6 +1243,27 @@ function p360Tab(d){
     '<span class="k">Daily</span><span class="v">' + (c.daily ? 'day ' + c.daily.day + ', cycle ' + (c.daily.cycles || 0) + ', last claim ' + (c.daily.last_claim_date || c.daily.claimed_on || '–') : '–') + '</span>' +
     '<span class="k">Professions</span><span class="v">' + (c.professions.length ? c.professions.map(x => esc(x.prof) + ' (' + Math.round(x.xp) + ' xp)').join(', ') : '–') + '</span>' +
     '<span class="k">Chat privacy</span><span class="v">' + esc(c.chat_privacy || 'default') + '</span></div></div>').join('') || '<div class="empty">No characters.</div>';
+  /* [TILLAGT v0.20.0] BUGGAR OCH IDEER (Chris: "jag vill veta vilka som skriver vad").
+     Allt spelaren skickat, nyast forst, med status. Raderna tas aldrig bort av spelet,
+     sa listan ar hela historiken. */
+  if (t === 'feedback'){
+    const r = P360REP || {bugs: 0, ideas: 0, rows: []};
+    const head = '<div class="kv" style="margin-bottom:10px">' +
+      '<span class="k">Bug reports</span><span class="v">' + (r.bugs | 0) + (r.bugs_open ? ' <span class="pill red">' + r.bugs_open + ' open</span>' : '') + '</span>' +
+      '<span class="k">Ideas</span><span class="v">' + (r.ideas | 0) + (r.ideas_open ? ' <span class="pill cyan">' + r.ideas_open + ' open</span>' : '') + '</span>' +
+      '<span class="k">Marked fixed</span><span class="v">' + (r.fixed | 0) + '</span></div>';
+    if (!r.rows.length) return head + '<div class="empty">Nothing sent yet.</div>';
+    return head + r.rows.map(b =>
+      '<div class="bugc"><div class="bug-top"><span class="num">#' + b.id + '</span>' + bugStPill(b.status) +
+        '<span class="pill ' + (b.kind === 'idea' ? 'cyan' : 'orange') + '">' + (b.kind === 'idea' ? 'idea' : 'bug') + '</span>' +
+        '<span class="pill">' + esc(BUG_AREA_NAME[b.area] || b.area) + '</span>' +
+        (b.character ? '<span class="who">' + esc(b.character) + '</span>' : '') +
+        '<span class="when">' + ago(b.created_at) + '</span></div>' +
+      '<div class="bug-what">' + esc(b.what) + '</div>' +
+      (b.expected ? '<div class="bug-exp"><b>' + (b.kind === 'idea' ? 'Why:' : 'Expected:') + '</b> ' + esc(b.expected) + '</div>' : '') +
+      (b.admin_note ? '<div class="bug-note">' + ico('doc') + ' ' + esc(b.admin_note) + '</div>' : '') +
+      '</div>').join('');
+  }
   if (t === 'inventory') return cs.map(c => charHead(c) + pvInventory(c) + '<details class="pv-raw"><summary>Raw data (for developers)</summary>' + h3('Gear (' + c.items.length + ')') +
     (c.items.length ? '<table class="t"><tr><th>Item</th><th>Rarity</th><th>Lvl</th><th>Where</th><th>HP</th><th>Pow</th><th>Dmg</th><th>Affixes</th><th>Flags</th><th>Id</th></tr>' +
       c.items.map(i => '<tr><td class="r' + i.rarity + '"><b>' + esc(i.key) + '</b></td><td>' + i.rarity + '</td><td class="num">' + (i.level ?? '') + '</td><td>' + esc(i.location) + (i.slot != null ? ' #' + i.slot : '') + '</td>' +
