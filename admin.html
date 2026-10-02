@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.18.1 — mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.19.0 — forslagsladan (Ideas); mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -581,7 +581,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.18.1';
+const ADMIN_VERSION = 'v0.19.0';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -621,7 +621,7 @@ const I = {
   flag: 'M5 21V4h11l-1 4 1 4H5', doc: 'M6 3h9l5 5v13H6zM14 3v6h6M9 13h6M9 17h6', gavel: 'M14 4l6 6-3 3-6-6zM3 21l7-7M12 12l-4 4',
   ban: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8', clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
   swords: 'M4 4l10 10M20 4L10 14M4 20l4-4M20 20l-4-4M14 14l3 3M10 14l-3 3', coin: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9.5C9 8.1 10.3 7 12 7s3 1.1 3 2.5S13.7 12 12 12s-3 1.1-3 2.5S10.3 17 12 17s3-1.1 3-2.5',
-  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4', warn: 'M12 3l10 18H2zM12 10v4M12 17v1', lift: 'M5 12l5 5L20 7',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4', warn: 'M12 3l10 18H2zM12 10v4M12 17v1', bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.3 1 2.5h6c0-1.2.4-1.9 1-2.5A6 6 0 0 0 12 3z', lift: 'M5 12l5 5L20 7',
   act: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12l3 3 5-6'
 };
 const ico = (k, cls) => '<svg' + (cls ? ' class="' + cls + '"' : '') + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + I[k] + '"/></svg>';
@@ -802,7 +802,7 @@ const NAV = [
   ['chat','Chat','chat', null], ['guilds','Guilds','guild', null], ['mail','Mail & Rewards','mail', null],
   ['economy','Economy & Content','econ', null], ['analytics','Analytics','stats', null], ['admin','Admin','admin', null],
   /* [v0.17.0] Femte faltet: behorigheten som kravs for att valet ens ska synas. */
-  ['bugs','Bug reports','warn', null, 'bugs.read']
+  ['bugs','Bugs & ideas','warn', null, 'bugs.read']
 ];
 function buildNav(){
   $('nav').innerHTML = NAV.filter(n => !n[4] || has(n[4])).map(n => '<div class="nv' + (n[3] ? ' off' : '') + '" data-page="' + n[0] + '">' + ico(n[2]) + n[1] +
@@ -878,12 +878,14 @@ async function renderOverview(){
      resten av oversikten som vanligt. */
   let bs = null;
   if (has('bugs.read')) { try { bs = await rpc('admin_bugs_summary'); } catch (e){ bs = null; } }
-  const bugN = bs ? (+bs.bugs_new || 0) + (+bs.errors_new || 0) : 0, bugHot = bugN > 0;
+  const bugN = bs ? (+bs.bugs_new || 0) + (+bs.errors_new || 0) + (+bs.ideas_new || 0) : 0, bugHot = bugN > 0;
   const bugMinis = bs
     ? '<div class="mini red" data-bugtab="reports"><div class="ico">' + ico('warn') + '</div><div><div class="k">New bug reports</div><div class="v">' + bs.bugs_new +
         ((+bs.bugs_open || 0) > (+bs.bugs_new || 0) ? ' <small style="font-size:12px;color:var(--text-dim)">+' + (bs.bugs_open - bs.bugs_new) + ' seen</small>' : '') + '</div></div><span class="arr">›</span></div>' +
       '<div class="mini purple" data-bugtab="errors"><div class="ico">' + ico('act') + '</div><div><div class="k">New game errors</div><div class="v">' + bs.errors_new +
-        (bs.errors_24h ? ' <small style="font-size:12px;color:var(--text-dim)">' + bs.errors_24h + ' active 24 h</small>' : '') + '</div></div><span class="arr">›</span></div>'
+        (bs.errors_24h ? ' <small style="font-size:12px;color:var(--text-dim)">' + bs.errors_24h + ' active 24 h</small>' : '') + '</div></div><span class="arr">›</span></div>' +
+      /* [v0.19.0] Forslagsladan i Needs attention (Chris). */
+      '<div class="mini cyan" data-bugtab="ideas"><div class="ico">' + ico('bulb') + '</div><div><div class="k">New ideas</div><div class="v">' + (+bs.ideas_new || 0) + '</div></div><span class="arr">›</span></div>'
     : '';
   const sp = (pr.samples || []).slice(-96);
   const mx = Math.max(1, ...sp.map(s => s.online));
@@ -1002,24 +1004,27 @@ function bugStPill(st){
 }
 async function renderBugs(){
   const m = $('main');
-  const head = sub => '<div class="pg-row"><div><h1 class="pg">Bug reports</h1><div class="pg-sub" style="margin-bottom:0">' + sub + '</div></div></div>';
+  const head = sub => '<div class="pg-row"><div><h1 class="pg">Bugs &amp; ideas</h1><div class="pg-sub" style="margin-bottom:0">' + sub + '</div></div></div>';
   m.innerHTML = head('What players report, and the errors the game sends by itself.') + '<div class="empty">Loading…</div>';
-  const filts = BUGTAB === 'reports' ? ['new','seen','fixed','wontfix','all'] : ['new','seen','fixed','all'];
+  const filts = BUGTAB !== 'errors' ? ['new','seen','fixed','wontfix','all'] : ['new','seen','fixed','all'];
   if (filts.indexOf(BUGFILT) < 0) BUGFILT = 'new';
   let sum, rows;
   try {
     [sum, rows] = await Promise.all([rpc('admin_bugs_summary'),
-      rpc(BUGTAB === 'reports' ? 'admin_bug_reports' : 'admin_client_errors', {p_status: BUGFILT === 'all' ? null : BUGFILT})]);
+      BUGTAB === 'errors' ? rpc('admin_client_errors', {p_status: BUGFILT === 'all' ? null : BUGFILT})
+                          : rpc('admin_bug_reports', {p_status: BUGFILT === 'all' ? null : BUGFILT, p_kind: BUGTAB === 'ideas' ? 'idea' : 'bug'})]);
   } catch (e){ m.innerHTML = head('') + '<div class="empty">' + esc(e.message) + '</div>'; return; }
   rows = rows || [];
   const tabs = '<div class="tabs" style="margin-top:0">' +
-    '<div class="tab' + (BUGTAB === 'reports' ? ' on' : '') + '" data-bt="reports">Player reports' + (sum.bugs_new ? ' <span class="pill red">' + sum.bugs_new + '</span>' : '') + '</div>' +
+    '<div class="tab' + (BUGTAB === 'reports' ? ' on' : '') + '" data-bt="reports">Bug reports' + (sum.bugs_new ? ' <span class="pill red">' + sum.bugs_new + '</span>' : '') + '</div>' +
+    /* [v0.19.0] Forslagen - samma tabell, egen flik (Chris). */
+    '<div class="tab' + (BUGTAB === 'ideas' ? ' on' : '') + '" data-bt="ideas">Ideas' + (sum.ideas_new ? ' <span class="pill cyan">' + sum.ideas_new + '</span>' : '') + '</div>' +
     '<div class="tab' + (BUGTAB === 'errors' ? ' on' : '') + '" data-bt="errors">Game errors' + (sum.errors_new ? ' <span class="pill red">' + sum.errors_new + '</span>' : '') + '</div></div>';
   const fl = '<div class="tabs bf">' + filts.map(f => '<div class="tab' + (BUGFILT === f ? ' on' : '') + '" data-bf="' + f + '">' + (f === 'wontfix' ? "won't fix" : f) + '</div>').join('') + '</div>';
   const plats = c => [c.region ? c.region + (c.zone ? ' · ' + c.zone : '') : null, (c.w && c.h) ? c.w + '×' + c.h : null,
                       (c.open && c.open.length) ? 'open: ' + c.open.join(', ') : null].filter(Boolean);
   let list;
-  if (BUGTAB === 'reports'){
+  if (BUGTAB !== 'errors'){
     list = rows.length ? rows.map(b => {
       const c = b.ctx || {};
       const where = [c.ver].concat(plats(c)).filter(Boolean).map(esc).join(' · ');
@@ -1029,7 +1034,7 @@ async function renderBugs(){
           '<span class="who" data-open="' + esc(b.profile_id) + '">' + esc(b.handle || '–') + (b.character ? ' · ' + esc(b.character) : '') + '</span>' +
           '<span class="when">' + ago(b.created_at) + '</span></div>' +
         '<div class="bug-what">' + esc(b.what) + '</div>' +
-        (b.expected ? '<div class="bug-exp"><b>Expected:</b> ' + esc(b.expected) + '</div>' : '') +
+        (b.expected ? '<div class="bug-exp"><b>' + (b.kind === 'idea' ? 'Why:' : 'Expected:') + '</b> ' + esc(b.expected) + '</div>' : '') +
         (where ? '<div class="bug-ctx">' + where + '</div>' : '') +
         (c.sync_error ? '<div class="bug-ctx red">Last sync error: ' + esc(c.sync_error) + '</div>' : '') +
         (b.admin_note ? '<div class="bug-note">' + ico('doc') + ' ' + esc(b.admin_note) + '</div>' : '') +
@@ -1039,7 +1044,7 @@ async function renderBugs(){
             (st === 'seen' ? 'Mark seen' : st === 'fixed' ? 'Fixed' : "Won't fix") + '</button>').join('') +
           (b.status !== 'new' ? '<button class="btn sm" data-set="new">Reopen</button>' : '') +
         '</div></div>';
-    }).join('') : '<div class="empty">No ' + (BUGFILT === 'all' ? '' : (BUGFILT === 'wontfix' ? "won't fix " : BUGFILT + ' ')) + 'bug reports.</div>';
+    }).join('') : '<div class="empty">No ' + (BUGFILT === 'all' ? '' : (BUGFILT === 'wontfix' ? "won't fix " : BUGFILT + ' ')) + (BUGTAB === 'ideas' ? 'ideas' : 'bug reports') + '.</div>';
   } else {
     list = rows.length ? '<div class="box" style="padding:6px 10px"><table class="t errt"><tr><th>Status</th><th>Kind</th><th>Error</th><th>Version</th><th>Times</th><th>Players</th><th>Last</th><th></th></tr>' +
       rows.map(e => {
@@ -1056,8 +1061,8 @@ async function renderBugs(){
       }).join('') + '</table></div>'
       : '<div class="empty">No ' + (BUGFILT === 'all' ? '' : BUGFILT + ' ') + 'game errors.</div>';
   }
-  m.innerHTML = head(BUGTAB === 'reports'
-      ? 'What players tell us went wrong. Only the owner role sees this page.'
+  m.innerHTML = head(BUGTAB === 'reports' ? 'What players tell us went wrong. Only the owner role sees this page.'
+      : BUGTAB === 'ideas' ? 'What players wish the game did. "Fixed" here means: built.'
       : 'Errors the game sends by itself. The same error in the same version is one row that counts up.') + tabs + fl + list;
   m.querySelectorAll('[data-bt]').forEach(t => t.onclick = () => { BUGTAB = t.dataset.bt; BUGFILT = 'new'; renderBugs(); });
   m.querySelectorAll('[data-bf]').forEach(t => t.onclick = () => { BUGFILT = t.dataset.bf; renderBugs(); });
