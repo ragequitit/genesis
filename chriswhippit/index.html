@@ -503,16 +503,16 @@
     <h1 data-en="Games" style="font-family: var(--font-heading); font-weight: 500; font-size: clamp(38px, 6vw, 76px); letter-spacing: -.04em; margin: 0 0 14px;">Spel</h1>
     <p data-en="Small games we've built. Everything here is a test build and changes often." style="font-size: 17px; line-height: 1.6; color: var(--color-neutral-400); margin: 0; max-width: 560px; text-wrap: pretty;">Små spel vi har byggt. Allt här är testversioner och ändras ofta.</p>
     <sc-if value="{{ hasGame }}">
-      <div style="margin-top: 44px; border-radius: 14px; overflow: hidden; background: var(--color-surface); box-shadow: 0 0 0 1px var(--color-neutral-700), 0 24px 60px rgba(0,0,0,.5);">
-        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--color-neutral-800);">
-          <span style="font-family: var(--font-heading); font-size: 20px; font-weight: 500; flex: 1 1 auto; min-width: 0;">{{ gameTitle }}</span>
+      <div style="position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; background: var(--color-bg);">
+        <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 18px; border-bottom: 1px solid var(--color-neutral-800); background: var(--color-surface);">
+          <span style="font-family: var(--font-heading); font-size: 18px; font-weight: 500; flex: 1 1 auto; min-width: 0;">{{ gameTitle }}</span>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button onClick="{{ gameFull }}" data-gear data-en="Fullscreen" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--color-neutral-700); background: transparent; color: var(--color-neutral-300); cursor: pointer;">Fullskärm</button>
             <a href="{{ gameSrc }}" target="_blank" rel="noopener" data-gear data-en="New tab" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-300);">Ny flik</a>
-            <button onClick="{{ gameClose }}" data-gear data-en="Close" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--color-neutral-700); background: transparent; color: var(--color-neutral-300); cursor: pointer;">Stäng</button>
+            <button onClick="{{ gameClose }}" data-gear data-en="Close" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--color-accent); background: transparent; color: var(--color-accent-200); cursor: pointer;">Stäng</button>
           </div>
         </div>
-        <iframe id="cw-game-frame" src="{{ gameSrc }}" title="{{ gameTitle }}" allow="fullscreen; autoplay; gamepad" allowfullscreen="true" style="display: block; width: 100%; height: min(78vh, 780px); border: 0; background: var(--color-bg);"></iframe>
+        <iframe id="cw-game-frame" src="{{ gameSrc }}" title="{{ gameTitle }}" allow="fullscreen; autoplay; gamepad" allowfullscreen="true" style="flex: 1 1 auto; min-height: 0; display: block; width: 100%; border: 0; background: var(--color-bg);"></iframe>
       </div>
     </sc-if>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 18px; margin-top: 44px;">
@@ -1090,11 +1090,11 @@ class Component extends DCLogic {
       atShop: r === 'shop' ? '1' : '',
       atSpel: r === 'spel' ? '1' : '',
       goSpel: this.go('spel'),
-      games: GAMES.map((g, i) => ({ ...g, thumb: SITE_ROOT + 'spel/thumbs/' + g.slug + '.jpg', num: String(i + 1).padStart(2, '0'), ring: this.state.game === g.slug ? '0 0 0 1px var(--color-accent)' : '0 0 0 1px var(--color-neutral-800)', onPlay: () => { this.setState({ game: g.slug }); window.scrollTo({ top: 0, behavior: 'smooth' }); } })),
+      games: GAMES.map((g, i) => ({ ...g, thumb: SITE_ROOT + 'spel/thumbs/' + g.slug + '.jpg', num: String(i + 1).padStart(2, '0'), ring: this.state.game === g.slug ? '0 0 0 1px var(--color-accent)' : '0 0 0 1px var(--color-neutral-800)', onPlay: () => { document.body.style.overflow = 'hidden'; this.setState({ game: g.slug }); } })),
       hasGame: this.state.game ? true : '',
       gameSrc: this.state.game ? SITE_ROOT + 'spel/' + this.state.game + '.html' : '',
       gameTitle: (GAMES.find((g) => g.slug === this.state.game) || {}).title || '',
-      gameClose: () => this.setState({ game: null }),
+      gameClose: () => { document.body.style.overflow = ''; this.setState({ game: null }); },
       gameFull: () => { const f = document.getElementById('cw-game-frame'); if (f && f.requestFullscreen) f.requestFullscreen(); },
       goHem: this.go('hem'),
       goSetup: this.go('setup'),
