@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <script>try{if((localStorage.getItem('genesis-admin-lang')||'en')!=='en')document.documentElement.classList.add('tr-wait')}catch(e){}</script>
 <title>Genesis Admin Center</title>
-<!-- GENESIS ADMIN CENTER v0.20.0 — satt namn + buggar/ideer per spelare; forslagsladan (Ideas); mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
+<!-- GENESIS ADMIN CENTER v0.21.0 — vilken enhet varje rapport kom fran (2026-10-03); satt namn + buggar/ideer per spelare; forslagsladan (Ideas); mottagarlistan i Email; recent players, e-postutskick, typsnitt pa egen server (2026-10-02); buggrapporter och spelfel, smal skarm (2026-10-01); namnen ur spelet, spelarvyn, analytics (2026-09-29), fas 0-10 + sprak (design: admin-center.md 2026-09-26/27)
      Egen sida bredvid index.html. Samma Supabase-projekt, EGNA adminkonton (ingen
      spelprofil), tvafaktor (TOTP) tvingad av servern, allt via admin_*-funktioner.
      Ingen service_role har. Ingen SQL har.
@@ -205,6 +205,9 @@ h2.sec .hot{color:var(--red);filter:drop-shadow(0 0 5px rgba(255,77,109,.9)) dro
 .bug-exp{margin-top:6px;font-size:12px;color:var(--text-dim);white-space:pre-wrap;word-break:break-word}
 .bug-ctx{margin-top:6px;font-size:11px;color:var(--text-faint);font-family:var(--font-mono);word-break:break-word}
 .bug-ctx.red{color:var(--red)}
+/* [TILLAGT v0.21.0] Enhetsbrickan: telefon, platta eller dator. */
+.dev{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;color:var(--text-dim)}
+.dev .pill{font-size:10px}
 .bug-note{margin-top:8px;font-size:12px;color:var(--gold)}
 .bug-note svg{width:13px;height:13px;vertical-align:-2px}
 .bug-acts{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap}
@@ -581,7 +584,7 @@ I18N.start();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.20.0';
+const ADMIN_VERSION = 'v0.21.0';
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -1008,6 +1011,50 @@ let BUGTAB = 'reports', BUGFILT = 'new';
 const BUG_AREA_NAME = {node:'The node', map:'Map & travel', expeditions:'Expeditions', quests:'Quests',
   fights:'Fights & dungeons', professions:'Professions', gear:'Gear & bags', trade:'Shop & trade',
   helpers:'Helpers & pets', social:'Chat & guild', account:'Account & login', other:'Something else'};
+/* [TILLAGT v0.21.0] VILKEN ENHET (Chris: telefon, platta eller dator ar det forsta man maste
+   veta for att hitta en bugg). Spelaren valjer ingenting; spelet skickar webblasartexten (ua),
+   fonstrets matt (w, h) och fran v5.721.0 aven skarmens matt (sw, sh), pekpunkter (tp),
+   grov pekare (coarse) och stående/liggande (orient). Etiketten raknas fram HAR och bara har,
+   sa aldre rapporter ocksa far en. En iPad med ny Safari sager att den ar en Mac - det ar
+   pekpunkterna som avslojar den; saknas de (rapporter fore v5.721.0) blir den "Computer". */
+function devInfo(c){
+  c = c || {};
+  const ua = String(c.ua || ''), tp = +c.tp || 0;
+  let os = null;
+  if (/iPhone|iPod/.test(ua)) os = 'iPhone';
+  else if (/iPad/.test(ua)) os = 'iPad';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/CrOS/.test(ua)) os = 'ChromeOS';
+  else if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Macintosh|Mac OS X/.test(ua)) os = tp > 1 ? 'iPad' : 'Mac';
+  else if (/Linux/.test(ua)) os = 'Linux';
+  let br = null;
+  if (/Edg(e|A|iOS)?\//.test(ua)) br = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) br = 'Opera';
+  else if (/SamsungBrowser/.test(ua)) br = 'Samsung Internet';
+  else if (/Firefox\/|FxiOS/.test(ua)) br = 'Firefox';
+  else if (/Chrome\/|CriOS/.test(ua)) br = 'Chrome';
+  else if (/Safari\//.test(ua)) br = 'Safari';
+  const kort = Math.min(+c.sw || 0, +c.sh || 0);
+  let typ;
+  if (os === 'iPhone') typ = 'phone';
+  else if (os === 'iPad') typ = 'tablet';
+  else if (os === 'Android') typ = /Mobile/.test(ua) ? 'phone' : 'tablet';
+  else if (c.coarse && kort > 0 && os !== 'Windows' && os !== 'Mac') typ = kort < 600 ? 'phone' : 'tablet';
+  else if (os) typ = 'computer';
+  else typ = null;
+  return {typ: typ, os: os, br: br};
+}
+function devHTML(c){
+  c = c || {};
+  const d = devInfo(c);
+  if (!d.typ && !c.w) return '';
+  const namn = {phone: 'Phone', tablet: 'Tablet', computer: 'Computer'}[d.typ] || 'Unknown device';
+  const farg = {phone: 'cyan', tablet: 'purple', computer: 'gold'}[d.typ] || '';
+  const bitar = [d.os, d.br, c.orient, (c.w && c.h) ? 'window ' + c.w + '\u00d7' + c.h : null,
+                 (c.sw && c.sh) ? 'screen ' + c.sw + '\u00d7' + c.sh : null, c.tp ? 'touch' : null].filter(Boolean);
+  return '<div class="dev"><span class="pill ' + farg + '">' + namn + '</span>' + esc(bitar.join(' \u00b7 ')) + '</div>';
+}
 function bugStPill(st){
   return '<span class="pill ' + (st === 'new' ? 'red' : st === 'seen' ? 'gold' : st === 'fixed' ? 'green' : '') + '">' +
     (st === 'wontfix' ? "won't fix" : esc(st)) + '</span>';
@@ -1031,7 +1078,8 @@ async function renderBugs(){
     '<div class="tab' + (BUGTAB === 'ideas' ? ' on' : '') + '" data-bt="ideas">Ideas' + (sum.ideas_new ? ' <span class="pill cyan">' + sum.ideas_new + '</span>' : '') + '</div>' +
     '<div class="tab' + (BUGTAB === 'errors' ? ' on' : '') + '" data-bt="errors">Game errors' + (sum.errors_new ? ' <span class="pill red">' + sum.errors_new + '</span>' : '') + '</div></div>';
   const fl = '<div class="tabs bf">' + filts.map(f => '<div class="tab' + (BUGFILT === f ? ' on' : '') + '" data-bf="' + f + '">' + (f === 'wontfix' ? "won't fix" : f) + '</div>').join('') + '</div>';
-  const plats = c => [c.region ? c.region + (c.zone ? ' · ' + c.zone : '') : null, (c.w && c.h) ? c.w + '×' + c.h : null,
+  /* [ANDRAT v0.21.0] Fonstrets matt star nu i enhetsraden (devHTML), inte har. */
+  const plats = c => [c.region ? c.region + (c.zone ? ' · ' + c.zone : '') : null,
                       (c.open && c.open.length) ? 'open: ' + c.open.join(', ') : null].filter(Boolean);
   let list;
   if (BUGTAB !== 'errors'){
@@ -1045,6 +1093,7 @@ async function renderBugs(){
           '<span class="when">' + ago(b.created_at) + '</span></div>' +
         '<div class="bug-what">' + esc(b.what) + '</div>' +
         (b.expected ? '<div class="bug-exp"><b>' + (b.kind === 'idea' ? 'Why:' : 'Expected:') + '</b> ' + esc(b.expected) + '</div>' : '') +
+        devHTML(c) +
         (where ? '<div class="bug-ctx">' + where + '</div>' : '') +
         (c.sync_error ? '<div class="bug-ctx red">Last sync error: ' + esc(c.sync_error) + '</div>' : '') +
         (b.admin_note ? '<div class="bug-note">' + ico('doc') + ' ' + esc(b.admin_note) + '</div>' : '') +
@@ -1061,7 +1110,7 @@ async function renderBugs(){
         const c = e.sample_ctx || {};
         const det = [c.at ? 'line ' + c.at : null].concat(plats(c)).concat([e.last_handle ? 'last: ' + e.last_handle : null]).filter(Boolean).map(esc).join(' · ');
         return '<tr><td>' + bugStPill(e.status) + '</td><td><span class="pill ' + (e.kind === 'sync' ? 'orange' : 'purple') + '">' + esc(e.kind) + '</span></td>' +
-          '<td><div class="err-msg">' + esc(e.message) + '</div>' + (det ? '<div class="bug-ctx">' + det + '</div>' : '') +
+          '<td><div class="err-msg">' + esc(e.message) + '</div>' + devHTML(c) + (det ? '<div class="bug-ctx">' + det + '</div>' : '') +
             (c.stack ? '<details class="err-st"><summary>Stack</summary><pre>' + esc(c.stack) + '</pre></details>' : '') + '</td>' +
           '<td class="num">' + esc(e.version || '–') + '</td><td class="num">' + e.n + '</td><td class="num">' + e.players + '</td>' +
           '<td class="num">' + ago(e.last_at) + '</td><td class="macts">' +
