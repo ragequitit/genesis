@@ -545,7 +545,7 @@ const RAR={common:{c:'var(--common)',w:1},uncommon:{c:'var(--uncommon)',w:1},rar
 
 const UP=[
   // common
-  {name:'Bigger Payout',d:'+15% points per bounce (at least +2)',ico:'+2',col:'#22c55e',rar:'common',w:10,p:14,go:()=>S.per=Math.max(S.per+2,Math.round(S.per*1.15))},
+  {name:'Bigger Payout',d:'+15% points per bounce',ico:'+15%',col:'#22c55e',rar:'common',w:10,p:14,go:()=>S.per*=1.15},
   {name:'Peg Drop',d:'3 new green pegs appear',ico:'●●',col:'#22c55e',rar:'common',w:9,p:12,go:()=>addPegs(['green','green','green'])},
   {name:'Bumper',d:'2 blue bumpers that fling balls hard and pay x2',ico:'B',col:'#38bdf8',rar:'common',w:7,p:16,go:()=>addPegs(['bumper','bumper'])},
   {name:'Spring Pad',d:'New floor pad that launches balls back up',ico:'↑↑',col:'#9b5cff',rar:'common',w:8,p:16,cap:{max:6,n:()=>S.pads.size},go:addPad},
@@ -556,9 +556,9 @@ const UP=[
   {name:'Lucky Penny',d:'+10% chance a peg hit pays double',ico:'¢',col:'#22c55e',rar:'uncommon',w:6,p:22,cap:{max:5,n:()=>Math.round(S.crit/.1)},go:()=>S.crit+=.1},
   {name:'Center Boost',d:'The two middle slots pay +6×',ico:'◆',col:'#ffb020',rar:'uncommon',w:5,p:18,go:()=>S.midAdd+=6},
   {name:'Coupon',d:'Your next 2 shots cost half',ico:'½',col:'#38bdf8',rar:'uncommon',w:5,p:0,draftOnly:true,go:()=>S.coupon+=2},
-  {name:'Heavy Balls',d:'+8% points per bounce (at least +1) and +3% combo per hit',ico:'HB',col:'#ff8fc7',rar:'uncommon',w:5,p:24,go:()=>{S.per=Math.max(S.per+1,Math.round(S.per*1.08));S.comboK+=.03}},
+  {name:'Heavy Balls',d:'+8% points per bounce, +3% combo',ico:'HB',col:'#ff8fc7',rar:'uncommon',w:5,p:24,go:()=>{S.per*=1.08;S.comboK+=.03}},
   // rare
-  {name:'Fat Payout',d:'+35% points per bounce (at least +5)',ico:'+5',col:'#22c55e',rar:'rare',w:5,p:38,go:()=>S.per=Math.max(S.per+5,Math.round(S.per*1.35))},
+  {name:'Fat Payout',d:'+35% points per bounce',ico:'+35%',col:'#22c55e',rar:'rare',w:5,p:38,go:()=>S.per*=1.35},
   {name:'Overtime',d:'+5 seconds before Last Call stops a long shot',ico:'+5s',col:'#ff5c6c',rar:'uncommon',w:4,p:20,cap:{max:3,n:()=>S.lastCall||0},go:()=>S.lastCall=(S.lastCall||0)+1},
   {name:'Extra Ball',d:'+1 ball with every shot',ico:'+B',col:'#ff8fc7',rar:'rare',w:5,p:42,go:()=>S.balls+=1},
   {name:'Combo Engine',d:'+5% combo per bounce',ico:'C+',col:'#ff9a3d',rar:'rare',w:5,p:34,go:()=>S.comboK+=.05},
@@ -574,13 +574,13 @@ const UP=[
   {name:'Paycheck',d:'Get 35% of the shot price back after every shot',ico:'$$',col:'#22c55e',rar:'epic',w:2.5,p:40,cap:{max:2,n:()=>Math.round(S.paycheck/.35)},go:()=>S.paycheck=+(S.paycheck+.35).toFixed(2)},
   {name:'Peg Storm',d:'8 new pegs, 2 of them gold',ico:'✦',col:'#ffb020',rar:'epic',w:2,p:50,go:()=>addPegs(['green','green','green','green','green','green','gold','gold'])},
   // legendary
-  {name:'Double Trouble',get d(){return `Permanently doubles your balls per shot (at least +2). Now ${S.balls} → ${dblBalls()}`},ico:'×2',col:'#ffb020',rar:'legendary',w:.8,p:110,go:()=>S.balls=dblBalls()},
+  {name:'Double Trouble',get d(){return `Balls per shot: ${S.balls} → ${dblBalls()}`},ico:'×2',col:'#ffb020',rar:'legendary',w:.8,p:110,go:()=>S.balls=dblBalls()},
   {name:'Midas Touch',d:'All gold pegs become ruby, 8 green pegs become gold',ico:'M',col:'#ffb020',rar:'legendary',w:.8,p:100,go:()=>{pegs.forEach(p=>{if(p.t==='gold'){p.t='ruby';p.born=1}});for(let i=0;i<8;i++)convert('green','gold')}},
   {name:'Jackpot Slots',d:'Edge slots pay +200%, x4 slots pay +100%',ico:'JP',col:'#ffb020',rar:'legendary',w:.8,p:90,go:()=>{S.edgeMult+=2;S.x4Mult=(S.x4Mult||1)+1}},
 ];
 
 function newRun(){
-  S={money:15*lv('cash'),freeShots:1,per:3+lv('per'),balls:1+lv('ball'),shot:1,baseCost:8,cost:8,growth:GROWTH+ASC_G*M.asc,interest:0,flying:false,rerolls:0,roundEarn:0,
+  S={money:15*lv('cash'),freeShots:1,per:4+lv('per'),balls:1+lv('ball'),shot:1,baseCost:8,cost:8,growth:GROWTH+ASC_G*M.asc,interest:0,flying:false,rerolls:0,roundEarn:0,
      comboK:COMBOK+.02*lv('combo')-(M.asc>=8?.01:0),bucketAdd:0,edgeMult:1,wallPay:0,wallSpring:0,paycheck:0,ballBounce:0,shake:0,flash:0,bflash:-1,bflashT:0,maxCombo:0,drafting:false,
      st:{maxBalls:0,bounces:0,jackpots:0,bestHit:0,splits:0,springHits:0,wallHits:0,buys:0,picks:[]},pads:new Set(),padUses:Math.max(1,2+lv('padUse')-(M.asc>=10?1:0)),padPow:0,padAnim:[0,0,0,0,0,0,0,0],bonds:[],total:0,slow:0,over:false,
      crit:0,midAdd:0,coupon:0,draftN:Math.max(1,2+lv('draft')-(M.asc>=9?1:0)),shopN:M.asc>=3?2:3,priceMul:(1-.08*lv('sdisc'))*(M.asc>=7?1.2:1),luck:1+.3*lv('luck')};
@@ -625,6 +625,7 @@ function pick(n,draft){
   }
   return out;
 }
+function perTxt(){return S.per<100?String(Math.round(S.per*10)/10):fmt(Math.round(S.per))}
 function dblBalls(){return Math.max(S.balls*2,S.balls+2)}
 const BUYUP=.08,MAXBUY=2;
 const DRAIN_T=14,CD=3,FREEZE=.6; // shot clock: LAST CALL at 14 s (+5 s per Overtime), then 3-2-1, then balls freeze and drop straight down
@@ -640,7 +641,7 @@ function cardHTML(u,price,sold,lock){
   return `${SICON[u.name]?`<img class="icoimg" src="${SICON[u.name]}" alt="" width="44" height="44">`:`<span class="ico" style="background:${u.col}">${u.ico}</span>`}<span><span class="tag">${u.rar.toUpperCase()}</span><b>${u.name}</b><span class="d">${u.d}</span>${u.cap?`<span class="uppips" title="${u.cap.n()} of ${u.cap.max} taken">`+Array.from({length:u.cap.max},(_,k)=>`<i class="${k<u.cap.n()?'on':''}"></i>`).join('')+`<b>${u.cap.n()}/${u.cap.max}</b></span>`:''}</span><span class="price">${sold?'SOLD':price==null?'FREE':fmt(price)}${lock?'<small class="lock">keep '+fmt(shotPrice())+' for shot</small>':''}</span>`;
 }
 function ui(){
-  $('sPer').textContent=S.per; $('sBalls').textContent=S.balls; $('sCombo').textContent='+'+Math.round(S.comboK*100)+'%'; $('sShot').textContent=S.shot;
+  $('sPer').textContent=perTxt(); $('sBalls').textContent=S.balls; $('sCombo').textContent='+'+Math.round(S.comboK*100)+'%'; $('sShot').textContent=S.shot;
   $('ascTag').textContent=M.asc?'TIER '+M.asc:'';$('chipTag').textContent=M.chips+' chips';
   const busy=S.flying||S.drafting||autoOn;
   const done=S.shot-1,nm=Math.ceil((done+1)/10)*10;
@@ -1189,9 +1190,10 @@ const THEMES={
     pump(138,11);pump(330,13);pump(430,9)},
   under(){const t=performance.now()/1000,O=graveFx,I=INK;
     if(t>O.next){O.next=t+4+Math.random()*5;const r=Math.random(),dir=Math.random()<.5?1:-1,x0=dir>0?-60:W+60;
-      if(r<.33)O.list.push({k:'ghost',x:x0,y:230+Math.random()*320,vx:dir*(26+Math.random()*16),ph:Math.random()*6,dir});
-      else if(r<.55){const y=96+Math.random()*50,v=dir*(95+Math.random()*40);for(let n=0;n<3+(Math.random()*3|0);n++)O.list.push({k:'bat',x:x0-dir*n*34,y:y+(Math.random()-.5)*36,vx:v,ph:Math.random()*6,dir,s:.8+Math.random()*.4})}
-      else if(r<.78)O.list.push({k:'zombie',x:x0,y:770,vx:dir*16,ph:0,dir});
+      const walker=O.list.some(v=>(v.k==='zombie'||v.k==='vamp')&&!v.dead);
+      if(r<.4||(walker&&r>=.75))O.list.push({k:'ghost',x:x0,y:230+Math.random()*320,vx:dir*(26+Math.random()*16),ph:Math.random()*6,dir});
+      else if(r<.75){const y=96+Math.random()*50,v=dir*(95+Math.random()*40);for(let n=0;n<3+(Math.random()*3|0);n++)O.list.push({k:'bat',x:x0-dir*n*34,y:y+(Math.random()-.5)*36,vx:v,ph:Math.random()*6,dir,s:.8+Math.random()*.4})}
+      else if(r<.875)O.list.push({k:'zombie',x:x0,y:770,vx:dir*16,ph:0,dir});
       else O.list.push({k:'vamp',x:x0,y:770,vx:dir*34,ph:0,dir})}
     const dt=Math.min(.05,t-(O.last||t));O.last=t;
     for(const v of O.list){if(!v.dead){v.x+=v.vx*dt;v.ph+=dt}ctx.save();ctx.lineJoin='round';ctx.strokeStyle=I;ctx.lineWidth=2.5;
@@ -1448,7 +1450,7 @@ function renderStats(){
     ||'<p style="margin:0;font-size:13px;color:var(--muted)">Nothing taken yet this run.</p>';
   $('statBody').innerHTML=[
     ['Run','var(--pink)',[['Shot',S.shot],['Points now',fmt(Math.floor(S.money))],['Earned this run',fmt(S.total)],['Last shot',fmt(S.roundEarn)],['Next shot costs',S.freeShots?'FREE':fmt(shotPrice())],['Chips this run',runChips(S.shot-1)],['Difficulty',M.asc?'Tier '+M.asc:'Normal']]],
-    ['Scoring','var(--sun)',[['Points per bounce',S.per],['Combo per bounce','+'+Math.round(S.comboK*100)+'%'],['Double-hit chance',Math.round(S.crit*100)+'%'],['Interest per shot',Math.round(S.interest*100)+'%'],['Paycheck',S.paycheck?Math.round(S.paycheck*100)+'% of shot price':'—'],['Wall pay',S.wallPay?S.wallPay+'× bounce':'—']]],
+    ['Scoring','var(--sun)',[['Points per bounce',perTxt()],['Combo per bounce','+'+Math.round(S.comboK*100)+'%'],['Double-hit chance',Math.round(S.crit*100)+'%'],['Interest per shot',Math.round(S.interest*100)+'%'],['Paycheck',S.paycheck?Math.round(S.paycheck*100)+'% of shot price':'—'],['Wall pay',S.wallPay?S.wallPay+'× bounce':'—']]],
     ['Balls & bounce','var(--sky)',[['Balls per shot',S.balls],['Most balls at once',st.maxBalls],['Spring pads',S.pads.size+' (×'+S.padUses+' per ball)'],['Extra floor bounces',S.ballBounce],['Wall springs',S.wallSpring||'—'],['Pad bounces this run',st.springHits],['Wall pays this run',st.wallHits]]],
     ['Board','var(--mint)',[['Pegs',pegs.length],['Gold pegs (x2)',gold],['Ruby pegs (x4)',ruby],['Bumpers',bump],['Splitter pegs',spl],['Splits this run',st.splits],['Floor slots',slotList]]],
     ['Records this run','var(--grape)',[['Peg hits',st.bounces],['Best single hit',fmt(st.bestHit)],['Jackpots',st.jackpots],['Shop buys',st.buys],['Shop price rise','+'+Math.round((buyMul()-1)*100)+'%'],['Upgrades taken',st.picks.length]]],
