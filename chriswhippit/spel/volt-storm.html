@@ -15,6 +15,7 @@
 }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-weight: 700; -webkit-tap-highlight-color: transparent;
   background-image: radial-gradient(circle at 20% 0%, rgba(255,255,255,.06), transparent 40%), radial-gradient(circle at 100% 100%, rgba(0,0,0,.35), transparent 50%); }
 button { font-family: inherit; color: inherit; }
@@ -189,6 +190,13 @@ button:focus-visible, input:focus-visible + .sw { outline: 3px solid var(--accen
 .lrow { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; column-gap: 7px; align-items: center; background: rgba(0,0,0,.18); border-radius: 10px; padding: 6px; }
 .lrow .lt { min-width: 0; }
 .lrow .lr { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+/* desktop: price + level dots on their own row under the text so long descriptions get the width */
+@media (min-width: 781px) {
+  .lrow { grid-template-columns: 34px minmax(0, 1fr); align-items: start; }
+  .lrow .lr { grid-column: 2; flex-direction: row-reverse; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .lrow .ld { font-size: 11px; }
+  .sheet.lab { gap: 10px; }
+}
 .lrow .mx { font: 700 11px var(--display); color: var(--cc); letter-spacing: .06em; }
 .lrow .ic { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink); display: grid; place-items: center; background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--cc) 40%, #3b3580) 0, #1c1740 100%); box-sizing: border-box; }
 .lrow .ic svg { width: 27px; height: 27px; display: block; }
@@ -204,6 +212,14 @@ button:focus-visible, input:focus-visible + .sw { outline: 3px solid var(--accen
 .odbtns button { --c: var(--panel2); color: var(--text); width: 34px; height: 34px; padding: 0; font-size: 14px; border-radius: 10px; box-shadow: 0 3px 0 var(--ink); }
 .odbtns button[aria-pressed="true"] { --c: var(--bad); color: var(--ink); }
 .odbtns button.locked { opacity: .45; }
+.tierbox { display: flex; flex-direction: column; gap: 5px; }
+.odl small { max-width: 46ch; }
+.tierrules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.tierrules li b { color: var(--text); }
+.tierrules li.new b, .tierrules li.new { color: #ff7ac8; }
+.tierrules .plus { color: var(--good); margin-left: 6px; }
+.tiergoal { font-size: 12px; color: var(--text); }
+.unl { max-width: 90%; text-wrap: balance; }
 .recs { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .recs b { color: var(--text); font: 700 15px var(--display); font-variant-numeric: tabular-nums; }
 .labbtns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -314,6 +330,7 @@ button:focus-visible, input:focus-visible + .sw { outline: 3px solid var(--accen
   .odrow { gap: 6px; } .odl { font-size: 12px; }
   .odbtns { gap: 3px; } .odbtns button { width: 22px; height: 22px; font-size: 10px; border-radius: 6px; border-width: 2px; box-shadow: 0 2px 0 var(--ink); }
   .odbtns button svg { width: 10px; height: 10px; }
+  .tierbox { gap: 3px; } .tierrules { font-size: 9.5px; } .tierrules li:not(.new) { display: none; } .tiergoal { font-size: 9.5px; line-height: 1.2; }
   .labbtns { grid-template-columns: 1fr 1fr; gap: 6px; } .labbtns .btn3d { font-size: 12px; padding: 7px 4px; box-shadow: 0 3px 0 var(--ink); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -394,7 +411,7 @@ button:focus-visible, input:focus-visible + .sw { outline: 3px solid var(--accen
         <div class="ovt red">SHORT CIRCUIT!</div>
         <div class="ovs" id="overShots"></div>
         <div class="spk">+<b id="overSparks">0</b> sparks</div>
-        <div class="unl" id="overUnlock" hidden>NEW OVERDRIVE UNLOCKED!</div>
+        <div class="unl" id="overUnlock" hidden>TIER UNLOCKED!</div>
         <div class="ovbtns"><button id="overLab" class="btn3d btn-lab" type="button">OPEN THE LAB</button><button id="overNew" class="btn3d" type="button">NEW RUN</button></div>
       </div>
       <div id="toast" hidden></div>
@@ -413,7 +430,11 @@ button:focus-visible, input:focus-visible + .sw { outline: 3px solid var(--accen
     <div class="mh"><h2 id="labTitle">The Lab</h2><div class="sparks"><svg class="vi"><use href="#i-spark"/></svg><span id="labSparks">0</span></div><button class="btn3d x" id="labClose" type="button" aria-label="Close">×</button></div>
     <p class="note" id="labNote"></p>
     <div class="labgrid" id="labGrid"></div>
-    <div class="odrow"><div class="odl">Overdrive<small id="odInfo"></small></div><div class="odbtns" id="odBtns"></div></div>
+    <div class="tierbox">
+      <div class="odrow"><div class="odl">Tier<small id="odInfo">Each tier you unlock adds stronger cards to the shop for good. Playing on a tier adds its rule (rules stack) and gives more sparks.</small></div><div class="odbtns" id="odBtns"></div></div>
+      <ul class="tierrules" id="tierRules"></ul>
+      <div class="tiergoal" id="tierGoal"></div>
+    </div>
     <div class="recs" id="labRecs"></div>
     <div class="labbtns">
       <button id="refundBtn" class="btn3d danger" type="button">Refund upgrades</button>
@@ -444,6 +465,7 @@ const COMBOK = 0.06;     // combo per hop
 const PRICEEXP = 0.7;    // shop price = base × (shotPrice/8)^PRICEEXP  (standard)
 const BUYUP = 0.08;      // +8% on all shop prices per purchase, whole run
 const MAXBUY = 2;        // max purchases per shop (per shot)
+const TIER_GROWTH = 0.0, TIER_FLAT = 0.04; // Tier rule 1 (Pricier shots): +TIER_FLAT from tier 1, plus TIER_GROWTH per tier
 const BASE_SLOTS = [10, 4, 2, 1, 1, 2, 4, 10];
 const START = { volt: 0, price: 8, perHit: 3, bolts: 1, coils: 2, padUses: 2 };
 
@@ -452,18 +474,22 @@ const W = 640, H = 800, FLOOR_Y = 770;
 // Slot edges on the floor. Edge (x10) slots are narrower so jackpots stay rare.
 const EDGE_W = 56;
 const SLOT_X = (() => { const a = [0, EDGE_W], m = (W - 2 * EDGE_W) / 6; for (let i = 1; i <= 6; i++) a.push(EDGE_W + m * i); a.push(W); return a; })();
+function slotBase(i) { return BASE_SLOTS[i] === 10 && S ? S.edge : BASE_SLOTS[i]; } // Weak edges (tier 5+)
 function slotAt(x) { for (let i = 0; i < 8; i++) if (x < SLOT_X[i + 1]) return i; return 7; }
 const SPOUT = { x: 320, y: 62 };
 const RAIL_L = 12, RAIL_R = 628;
 const REACH = 150, TESLA_REACH = 220;
 const CONE = 70 * Math.PI / 180, TURN = 15 * Math.PI / 180, DOWN = Math.PI / 2;
 const HOP_T = 0.08, CHARGE_DROP = 0.06, CAP_CHARGE = 0.6, TESLA_CHARGE = 0.30;
-const NODE_CD = 0.12, MAX_BOLTS = 60, BOLT_LIFE = 25, SPLIT_GENS = 2, SHOT_MAX_T = 30, INTEREST_CAP = 0.5;
+const NODE_CD = 0.12, MAX_BOLTS = 60, SPLIT_GENS = 2, INTEREST_CAP = 0.5;
+// Shot clock (one clock for the whole shot): LAST CALL at L, 3-2-1, ROUND OVER (freeze), then every bolt drops straight down.
+const CLOCK_L = 14, CLOCK_OT = 5, SPLIT_STOP = 6, FREEZE_T = 0.6, CLEAR_T = 7.6;
+const clockL = () => CLOCK_L + CLOCK_OT * S.overtime;
 const PAD_HALF = 16, PAD_PAY = 5, RAIL_WEIGHT = 0.6, DOWN_BIAS = 6, FALL_JITTER = 26, RETRY_DOWN = false, DIST_POW = 3, UP_FLOOR = 0.08;
 // Free aim + ricochet beam
 const MIN_AIM = 4 * Math.PI / 180, BEAM_R = 22, BEAM_SPEED = 2600, MAX_RICO = 8, BASE_RAILS = false;
 // Plasma orbs: drifting targets that explode into a cascade of bolts
-const SPAWN_BUDGET = 10, INHERIT = 0.25; // spawned bolts keep half the parent's combo // max extra bolts (forks, orbs, prisms, capacitors) per shot
+const SPAWN_BUDGET = 30, INHERIT = 0.25; // spawned bolts keep half the parent's combo // max extra bolts (forks, orbs, prisms, capacitors) per shot
 const ORB_R = 20, ORB_PAY = 3, ORB_BOLTS = 3, ORB_CHARGE = 0.4, ORB_BASE = 0, ORB_WEIGHT = 1.4, FORK_GENS = 2;
 const COIL_SPOTS = [232, 408, 144, 496, 320, 188, 452, 276, 364, 100, 540, 56, 584];
 
@@ -515,6 +541,7 @@ const UPG = [
   { id: 'hc', name: 'Heavy Current', r: 'uncommon', w: 5, p: 24, ic: 'HC', col: '#ffe36b', d: '+8% volt per hit (min +1), +3% combo per hop.', go() { S.perHit += Math.max(1, Math.round(S.perHit * 0.08)); S.comboK += 0.03; } },
   { id: 'bo', name: 'Bounce Nodes', r: 'uncommon', w: 6, p: 22, col: '#ff5ae8', d: '2 magenta bounce nodes: pay x2, fling the bolt back up and recharge it.', go() { addNodes('bounce', 2); } },
   { id: 'am', name: 'Amp Nodes', r: 'uncommon', w: 6, p: 20, col: '#e8f0ff', d: '2 white amp nodes: pay x2 and add +5 combo hops.', go() { addNodes('amp', 2); } },
+  { id: 'ot', name: 'Overtime', r: 'uncommon', w: 4, p: 20, max: 3, col: '#ffd23f', d: '+5 seconds before Last Call stops a long shot.', go() { S.overtime++; } },
   { id: 'wa', name: 'Wild Arc', r: 'uncommon', w: 6, p: 22, max: 3, col: '#6fe6ff', d: 'Bolts pull less toward the floor and zigzag sideways more.', go() { S.wild++; } },
   { id: 'gm', name: 'Gold Magnet', r: 'uncommon', w: 5, p: 24, max: 2, col: '#ffcf4a', d: 'Bolts are 3× more likely to jump to gold and ruby nodes.', go() { S.goldMag++; } },
   { id: 'pm', name: 'Plasma Orb', r: 'uncommon', w: 5, p: 26, max: 3, col: '#ff5fd2', d: 'A drifting plasma orb. When a chain hits it, it explodes into bolts.', go() { addOrb(); } },
@@ -538,7 +565,9 @@ const UPG = [
   { id: 'pr', name: 'Power Rebate', r: 'epic', w: 2.5, p: 40, max: 2, ic: 'PR', col: '#6bffc7', d: 'Get 35% of the shot price back after each shot.', go() { S.rebate += 0.35; } },
   { id: 'ns', name: 'Node Storm', r: 'epic', w: 2, p: 50, ic: 'NS', col: '#62f08c', d: '8 new nodes, 2 of them gold.', go() { addNodes('n', 6); addNodes('gold', 2); } },
 
-  { id: 'ds', name: 'Double Strike', r: 'legendary', w: 0.8, p: 110, ic: 'x2', col: '#ffffff', d: 'Double the bolts per shot.', go() { S.double++; } },
+  { id: 'ds', name: 'Double Strike', r: 'legendary', w: 0.8, p: 110, ic: 'x2', col: '#ffffff',
+    get d() { const o = S ? boltsPerShot() : 1; return `Permanently doubles your bolts per shot (at least +2). Now ${o} → ${Math.min(MAX_BOLTS, Math.max(o * 2, o + 2))}`; },
+    go() { const o = boltsPerShot(); S.boltsPer = Math.min(MAX_BOLTS, Math.max(o * 2, o + 2)); } },
   { id: 'mc', name: 'Midas Circuit', r: 'legendary', w: 0.8, p: 100, ic: 'MC', col: '#ffd84a', d: 'All gold nodes turn ruby, 8 green turn gold.', go() { convertNodes('gold', 'ruby', 999); convertNodes('n', 'gold', 8); } },
   { id: 'su', name: 'Supercell', r: 'legendary', w: 0.8, p: 100, max: 1, col: '#9fb4ff', d: 'Every 8th hop in a chain detonates like a plasma orb.', go() { S.supercell++; } },
   { id: 'jg', name: 'Jackpot Grounds', r: 'legendary', w: 0.8, p: 90, ic: 'JG', col: '#ffcf33', d: 'Edge slots pay +200%, x4 slots +100%.', go() { S.slotBonus[0] += 20; S.slotBonus[7] += 20; S.slotBonus[1] += 4; S.slotBonus[6] += 4; } },
@@ -568,6 +597,24 @@ const LAB = [
   { id: 'fr', d: 'Your first rerolls after each shot are free.', cat: 3, name: 'Free Reroll', max: 2, base: 40, ic: 'FR', next: l => `${l + 1} free reroll${l ? 's' : ''}` },
   { id: 'wp', d: 'The free pick shows 3 cards instead of 2.', cat: 3, name: 'Wider Picks', max: 1, base: 70, ic: 'WP', next: () => `3 free cards` },
 ];
+// Tier rules: playing on tier N applies rules 1..N (they stack).
+const TIER_RULES = [
+  null,
+  { n: 'Pricier shots', d: 'shot price grows +0.04 faster' },
+  { n: 'Lean start', d: '−5 starting volt per tier' },
+  { n: 'Small shop', d: 'the shop shows 2 cards instead of 3' },
+  { n: 'Pricey rerolls', d: 'rerolls cost double' },
+  { n: 'Weak edges', d: 'the x10 edge slots pay x8' },
+  { n: 'Fewer coils', d: '1 coil less on the floor at start' },
+  { n: 'Markup', d: 'shop prices +20%' },
+  { n: 'Slow combo', d: 'combo grows 0.01 less per hop' },
+  { n: 'Tight picks', d: 'the free pick shows 1 card less' },
+  { n: 'Worn coils', d: 'each bolt can use coils 1 time less' },
+];
+const tierReq = n => Math.min(30, 18 + 2 * n); // shots on tier n to unlock tier n+1
+// Cards unlock permanently by the highest tier ever unlocked (meta.odMax). Missing = Normal.
+const UNLOCK = { ce: 1, sc: 1, rn: 2, lr: 2, gm: 2, cb: 3, pm: 3, sp: 4, ot: 4, bn: 4, bd: 5, ns: 5, fk: 5, pr: 6, pz: 6, cr: 6, gb: 7, su: 7, jg: 8, mc: 9, ds: 10 };
+const cardsAt = n => UPG.filter(u => (UNLOCK[u.id] || 0) === n).map(u => u.name);
 const labLv = id => (meta.lv[id] || 0);
 const labPrice = it => Math.round(it.base * Math.pow(1.65, labLv(it.id)));
 
@@ -584,20 +631,21 @@ const saveMeta = () => LS.set('voltstorm-meta', meta);
 
 // ================= RUN STATE =================
 let S = null;
-const HOOK = { bought() { }, full() { }, amp() { }, hit() { }, land() { }, jackpot() { }, pad() { }, shot() { }, split() { }, rail() { }, endShot() { }, over() { }, milestone() { }, gain() { }, node() { }, explode() { }, orb() { } };
+const HOOK = { clock() { }, bought() { }, full() { }, amp() { }, hit() { }, land() { }, jackpot() { }, pad() { }, shot() { }, split() { }, rail() { }, endShot() { }, over() { }, milestone() { }, gain() { }, node() { }, explode() { }, orb() { } };
 
-function odStart(v, od) { return od >= 2 ? Math.max(Math.min(v, 10), v - 5 * od) : v; }
+function odStart(v, od) { return od >= 2 ? Math.max(0, v - 5 * od) : v; }
 
 function newRun() {
   const od = meta.od;
   S = {
     volt: odStart(15 * labLv('cs'), od), total: 0, shots: 0, price: START.price, free: true, discount: 0, lastCost: 0,
-    perHit: START.perHit + labLv('tw'), comboK: COMBOK + 0.02 * labLv('cm'), crit: 0,
-    boltsPer: START.bolts + labLv('ts'), double: 0, padUses: START.padUses + labLv('cst'),
+    perHit: START.perHit + labLv('tw'), comboK: COMBOK + 0.02 * labLv('cm') - (od >= 8 ? 0.01 : 0), crit: 0,
+    boltsPer: START.bolts + labLv('ts'), double: 0, padUses: Math.max(1, START.padUses + labLv('cst') - (od >= 10 ? 1 : 0)), overtime: 0,
     superCoils: 0, groundBounce: 0, railSpring: 0, liveRails: 0, interest: 0, rebate: 0, growthCut: 0,
     wild: 0, goldMag: 0, fork: 0, prism: 0, chainReact: 0, supercell: 0, bank: 0, orbs: [], orbT: 0,
     slotBonus: [0, 0, 0, 0, 0, 0, 0, 0], od, luck: 1 + 0.3 * labLv('lf'),
-    freeRerolls: labLv('fr'), draftSize: 2 + labLv('wp'), shopDisc: 0.08 * labLv('ld'), magnet: labLv('sm'),
+    freeRerolls: labLv('fr'), draftSize: Math.max(1, 2 + labLv('wp') - (od >= 9 ? 1 : 0)), shopSize: od >= 3 ? 2 : 3,
+    edge: od >= 5 ? 8 : 10, shopDisc: 0.08 * labLv('ld'), magnet: labLv('sm'),
     nodes: [], coils: [], live: [], segs: [], parts: [], floats: [], conf: [],
     phase: 'aim', aimA: DOWN, time: 0, settle: 0, pending: 0, hud: { hops: 0, cmb: 1, t: 9, pop: 0 },
     shop: [], shopVer: 0, rerolls: 0, freeLeft: 0, shopBought: false, buys: 0, shopBuys: 0,
@@ -607,7 +655,7 @@ function newRun() {
     st: { explosions: 0, orbVolt: 0, ricochets: 0, forks: 0, hops: 0, hits: 0, crits: 0, bestHit: 0, hitVolt: 0, landVolt: 0, padVolt: 0, railVolt: 0, bonusVolt: 0, jackpots: 0, padBounces: 0, railHits: 0, groundBounces: 0, splits: 0, boltsFired: 0, longestChain: 0, bestCombo: 1, bestShot: 0, land: [0, 0, 0, 0, 0, 0, 0, 0], shotHist: [] },
   };
   buildBoard();
-  for (let i = 0; i < START.coils + labLv('cf'); i++) addCoil();
+  for (let i = 0; i < Math.max(0, START.coils + labLv('cf') - (od >= 6 ? 1 : 0)); i++) addCoil();
   convertNodes('n', 'gold', 2 * labLv('gbd'));
   for (let i = 0; i < ORB_BASE; i++) addOrb();
   S.shopVer++;
@@ -669,16 +717,17 @@ function addCoil() {
 }
 
 // ================= ECONOMY =================
-function growth() { return GROWTH - S.growthCut + 0.05 * S.od; }
+function growth() { return GROWTH - S.growthCut + (S.od >= 1 ? TIER_FLAT : 0) + TIER_GROWTH * S.od; }
 function shotCost() { return S.free ? 0 : Math.round(S.price * (S.discount > 0 ? 0.5 : 1)); }
 function priceScale() { return Math.pow(S.price / 8, PRICEEXP); }
-function cardPrice(u) { return Math.max(1, Math.round(u.p * priceScale() * Math.pow(1 + BUYUP, S.buys) * (1 - S.shopDisc))); }
-function rerollPrice() { return S.freeLeft > 0 ? 0 : Math.round((4 + 4 * S.rerolls) * priceScale()); }
+function cardPrice(u) { return Math.max(1, Math.round(u.p * priceScale() * Math.pow(1 + BUYUP, S.buys) * (1 - S.shopDisc) * (S.od >= 7 ? 1.2 : 1))); }
+function rerollPrice() { return S.freeLeft > 0 ? 0 : Math.round((4 + 4 * S.rerolls) * priceScale() * (S.od >= 4 ? 2 : 1)); }
 function sparkMult() { return (1 + 0.5 * S.od) * (1 + 0.25 * S.magnet); }
 function sparksNow() { return Math.floor(S.sparkRaw * sparkMult()); }
 function boltsPerShot() { return Math.min(MAX_BOLTS, S.boltsPer * Math.pow(2, S.double)); }
 
-function eligible(u) { return (!u.max || (S.taken[u.id] || 0) < u.max) && (!u.req || u.req()); }
+function unlocked(u) { return (UNLOCK[u.id] || 0) <= meta.odMax; }
+function eligible(u) { return unlocked(u) && (!u.max || (S.taken[u.id] || 0) < u.max) && (!u.req || u.req()); }
 function drawCards(n, allowFree) {
   const pool = UPG.filter(u => eligible(u) && (allowFree || !u.free)).map(u => [u, u.w * (u.r === 'common' ? 1 : S.luck)]);
   const out = [];
@@ -689,7 +738,7 @@ function drawCards(n, allowFree) {
   return out;
 }
 function applyUpg(u) { S.taken[u.id] = (S.taken[u.id] || 0) + 1; u.go(); }
-function rollShop() { S.shop = drawCards(3, false).map(u => ({ u, sold: false })); S.rerolls = 0; S.freeLeft = S.freeRerolls; S.shopBought = false; S.shopBuys = 0; S.shopVer++; }
+function rollShop() { S.shop = drawCards(S.shopSize, false).map(u => ({ u, sold: false })); S.rerolls = 0; S.freeLeft = S.freeRerolls; S.shopBought = false; S.shopBuys = 0; S.shopVer++; }
 
 // You can never spend yourself out of your next shot.
 function canSpend(p) { return S.volt - p >= shotCost(); }
@@ -706,7 +755,7 @@ function reroll() {
   if (!S || S.phase !== 'aim' || S.shopBought || !S.shop.length) return false;
   const p = rerollPrice(); if (!canSpend(p)) return false;
   if (S.freeLeft > 0) S.freeLeft--; else { S.volt -= p; S.rerolls++; }
-  S.shop = drawCards(3, false).map(u => ({ u, sold: false })); S.shopVer++;
+  S.shop = drawCards(S.shopSize, false).map(u => ({ u, sold: false })); S.shopVer++;
   checkOver();
   return true;
 }
@@ -766,7 +815,7 @@ function shoot() {
   S.volt -= c; S.lastCost = c;
   if (S.free) S.free = false; else { if (S.discount > 0) S.discount--; S.price *= growth(); }
   S.shots++; S.shotEarn = 0; S.hud.hops = 0; S.spawnLeft = SPAWN_BUDGET;
-  for (const n of S.nodes) n.used = false; S.phase = 'fire'; S.settle = 0; S.shotT = 0; S.jackShot = 0;
+  for (const n of S.nodes) n.used = false; S.phase = 'fire'; S.settle = 0; S.shotT = 0; S.jackShot = 0; S.clock = 0; S.freezeT = 0;
   const n = boltsPerShot();
   for (let i = 0; i < n; i++) {
     const b = mkBolt(SPOUT.x, SPOUT.y);
@@ -875,8 +924,9 @@ function throwTo(b, upper) {
 const nodeMult = n => n.t === 'gold' || n.t === 'tesla' || n.t === 'blast' || n.t === 'bounce' || n.t === 'amp' ? 2 : n.t === 'ruby' ? 4 : 1;
 // Bolt takes the colour of the last special node it touched, for a few hops.
 const BOLT_TINT = { gold: '#ffd84a', ruby: '#ff3d62', tesla: '#6fd6ff', cap: '#c78bff', blast: '#ff8a3d', bounce: '#ff5ae8', amp: '#ffffff' };
+function splitsOpen() { return S.shotT < clockL() - SPLIT_STOP; }
 function spawnBolt(src, x, y, dir, charge, delay) {
-  if (S.live.length >= MAX_BOLTS || S.spawnLeft <= 0) return null;
+  if (S.live.length >= MAX_BOLTS || S.spawnLeft <= 0 || !splitsOpen()) return null;
   S.spawnLeft--;
   const e = mkBolt(x, y); e.hops = Math.floor(src.hops * INHERIT); e.gen = src.gen + 1; e.charge = charge; e.dir = dir;
   e.delay = delay || 0.03; e.pend = 'next'; e.gb = 0; e.col = src.col; e.colN = src.colN;
@@ -944,7 +994,7 @@ function hitNode(b, n) {
   HOOK.hit(b, n);
 }
 function split(b, n, charge) {
-  if (S.live.length >= MAX_BOLTS || S.spawnLeft <= 0) return;
+  if (S.live.length >= MAX_BOLTS || S.spawnLeft <= 0 || !splitsOpen()) return;
   S.spawnLeft--;
   const nb = mkBolt(n.x, n.y);
   nb.hops = b.hops; nb.gen = b.gen + 1; nb.charge = charge || CAP_CHARGE; nb.pad = S.padUses; nb.gb = S.groundBounce;
@@ -997,13 +1047,14 @@ function arrive(b) {
   } else if (h.kind === 'floor') land(b);
 }
 function land(b) {
-  const i = slotAt(b.x), m = BASE_SLOTS[i] + S.slotBonus[i];
+  const i = slotAt(b.x), m = slotBase(i) + S.slotBonus[i];
   const amt = S.perHit * m * combo(b);
   S.st.landVolt += amt; S.st.land[i]++;
   S.slotFlash[i] = 1;
   gain(amt, b.x, FLOOR_Y - 26, 'land', false);
   HOOK.land(b, i, m);
   if (BASE_SLOTS[i] === 10) { S.st.jackpots++; HOOK.jackpot(b, i); }
+  if (b.dropping) { b.done = true; return; }
   if (b.gb > 0) { b.gb--; S.st.groundBounces++; b.charge = Math.max(b.charge, 0.5); throwTo(b, false); }
   else b.done = true;
 }
@@ -1011,7 +1062,6 @@ function land(b) {
 function stepBolts(dt) {
   for (const b of S.live) {
     b.age += dt;
-    if (b.age > BOLT_LIFE) { b.done = true; continue; }
     if (b.delay > 0) { b.delay -= dt; if (b.delay > 0) continue; }
     if (b.pend) {
       const p = b.pend; b.pend = null;
@@ -1033,17 +1083,53 @@ function step(dt) {
   S.hud.t += dt; S.hud.pop = Math.max(0, S.hud.pop - dt * 5);
   if (S.phase === 'fire') {
     S.shotT += dt;
-    stepBolts(dt);
-    if (S.shotT > SHOT_MAX_T) S.live = [];
+    shotClock();
+    if (S.freezeT > 0) S.freezeT = Math.max(0, S.freezeT - dt); // ROUND OVER: bolts hang in the air
+    else stepBolts(dt);
     if (!S.live.length) { S.settle += dt; if (S.settle > 0.3) endShot(); }
   }
   for (const s of S.segs) { s.tt = (s.tt || 0) + dt; if (s.prog >= 1) s.age += dt; }
   S.segs = S.segs.filter(s => s.age < s.life && s.tt < 3);
+  if (S.segs.length > SEG_CAP[LOWFX ? 1 : 0]) S.segs.splice(0, S.segs.length - SEG_CAP[LOWFX ? 1 : 0]); // oldest arcs go first
   for (const n of S.nodes) if (n.flash > 0) n.flash = Math.max(0, n.flash - dt * 3);
   for (const c of S.coils) if (c.flash > 0) c.flash = Math.max(0, c.flash - dt * 2.5);
   for (let i = 0; i < 8; i++) if (S.slotFlash[i] > 0) S.slotFlash[i] = Math.max(0, S.slotFlash[i] - dt * 2);
   for (let i = 0; i < 2; i++) if (S.railFlash[i] > 0) S.railFlash[i] = Math.max(0, S.railFlash[i] - dt * 3);
   stepFx(dt);
+}
+// LAST CALL → 3-2-1 → ROUND OVER (freeze) → straight drop → hard clear
+function shotClock() {
+  const L = clockL(), t = S.shotT;
+  if (S.clock === 0 && t >= L) { S.clock = 1; HOOK.clock('last'); }
+  if (S.clock >= 1 && S.clock <= 3 && t >= L + 0.75 * S.clock) { HOOK.clock('count', 4 - S.clock); S.clock++; } // 3-2-1 after LAST CALL has shown
+  if (S.clock === 4 && t >= L + 3) { S.clock = 5; S.freezeT = FREEZE_T; HOOK.clock('over'); }
+  if (S.clock === 5 && t >= L + 3 + FREEZE_T) { S.clock = 6; for (const b of S.live) dropBolt(b); }
+  if (S.clock === 6 && t >= L + CLEAR_T) { S.clock = 7; S.live = []; }
+}
+// Falls straight down through everything; coils, rails and ground bounce are off; pays the slot below as usual.
+function dropBolt(b) {
+  let x = b.x, y = b.y;
+  if (b.hop) { const k = Math.min(1, b.hop.t / b.hop.dur); x = b.hop.fx + (b.hop.tx - b.hop.fx) * k; y = b.hop.fy + (b.hop.ty - b.hop.fy) * k; if (b.seg) b.seg.prog = Math.max(b.seg.prog, k); }
+  if (b.pend === 'shot') { x = SPOUT.x; y = SPOUT.y + 8; }
+  b.x = clamp(x, RAIL_L + 4, RAIL_R - 4); b.y = Math.min(y, FLOOR_Y - 2);
+  b.legs = null; b.pend = null; b.delay = 0; b.pad = 0; b.gb = 0; b.dropping = true;
+  hopTo(b, b.x, FLOOR_Y + 4, 'floor', null, 0.25 + (FLOOR_Y - b.y) / 900);
+}
+const SEG_CAP = [140, 70];
+const CAPS = { floats: [30, 16], spark: [260, 110], ring: [50, 24], conf: [260, 150] };
+let LOWFX = false;
+function capFx() {
+  const k = LOWFX ? 1 : 0;
+  if (S.floats.length > CAPS.floats[k]) { // only the small score numbers are culled; points are already counted
+    let over = S.floats.length - CAPS.floats[k];
+    S.floats = S.floats.filter(f => { if (over > 0 && !f.keep) { over--; return false; } return true; });
+  }
+  let sp = 0, rg = 0;
+  for (let i = S.parts.length - 1; i >= 0; i--) {
+    const p = S.parts[i], ring = p.kind === 'ring' || p.kind === 'wave';
+    if (ring ? ++rg > CAPS.ring[k] : ++sp > CAPS.spark[k]) p.t = p.life; // expire extras
+  }
+  if (S.conf.length > CAPS.conf[k]) S.conf.splice(0, S.conf.length - CAPS.conf[k]);
 }
 function stepFx(dt) {
   for (const p of S.parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g || 0) * dt; p.vx *= (1 - (p.drag || 0) * dt); if (p.vr) p.rot += p.vr * dt; }
@@ -1052,10 +1138,13 @@ function stepFx(dt) {
   S.floats = S.floats.filter(f => f.t < f.life);
   for (const c of S.conf) { c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 260 * dt; c.vx *= 0.99; c.rot += c.vr * dt; }
   S.conf = S.conf.filter(c => c.t < c.life && c.y < H + 20);
+  capFx();
+  S.parts = S.parts.filter(p => p.t < p.life);
   const fx = S.fx;
   fx.shake = Math.max(0, fx.shake - dt * 22 - fx.shake * dt * 6);
   fx.flash = Math.max(0, fx.flash - dt * 2.4);
   if (fx.big) { fx.big.t += dt; if (fx.big.t > fx.big.life) fx.big = null; }
+  if (fx.banner) { fx.banner.t += dt; if (fx.banner.t > fx.banner.life) fx.banner = null; }
 }
 
 function sparksForShot(n) { return Math.ceil(n / 10) + (n % 10 === 0 ? n / 2 : 0); }
@@ -1068,7 +1157,7 @@ function endShot() {
   if (S.rebate > 0 && S.lastCost > 0) gainFlat(S.lastCost * S.rebate, 'Rebate');
   S.sparkRaw += sparksForShot(S.shots);
   if (S.shots % 10 === 0) HOOK.milestone(S.shots);
-  if (S.od === meta.odMax && meta.odMax < 10 && S.shots >= 18 + 3 * S.od) { meta.odMax++; S.unlocked = true; saveMeta(); }
+  if (S.od === meta.odMax && meta.odMax < 10 && S.shots >= tierReq(S.od)) { meta.odMax++; S.unlocked = meta.odMax; saveMeta(); }
   HOOK.endShot(earned);
   if (AUTO) { S.shop = []; S.shopVer++; S.phase = 'aim'; checkOver(); }
   else { S.draft = drawCards(S.draftSize, true); S.phase = 'draft'; }
@@ -1150,6 +1239,7 @@ const ICON_SVG = {
   df: iTag('½', '#7dffcf'),
   hc: iLine('M24 34 C24 42 34 40 42 45', '#ffe36b', 3.5) + `<rect x="16" y="4" width="5" height="11" rx="1.5" fill="#c9cfe0"/><rect x="27" y="4" width="5" height="11" rx="1.5" fill="#c9cfe0"/><rect x="10" y="13" width="28" height="21" rx="6" fill="#ffe36b"/>` + iBolt(16.5, 13.5, 0.8, IK),
   rs: `<rect x="3" y="4" width="9" height="40" rx="2" fill="#c0c8d8"/>` + iSpringH(12, 29, 24, 7, 5, '#ff8fc8') + iBall(36, 24, 7.5, '#5cc8ff') + iLine('M44 12 Q34 5 25 11', '#fff', 2) + `<path d="M22 13 L28 7 L29 15 Z" fill="#fff"/>`,
+  ot: `<rect x="20" y="3" width="8" height="6" rx="2" fill="#c9cfe0"/><circle cx="24" cy="27" r="17" fill="#ffd23f"/><circle cx="24" cy="27" r="12" fill="#fff8d6" stroke-width="2"/><path d="M24 27 L24 18 M24 27 L30 30" fill="none" stroke-width="3"/><text x="38" y="45" text-anchor="middle" font-family="Fredoka, 'Arial Rounded MT Bold', sans-serif" font-weight="700" font-size="13" fill="#5dff9a" stroke="${IK}" stroke-width="3" paint-order="stroke">+5</text>`,
   wa: iLine('M5 40 L13 18 L21 32 L29 10 L36 26', '#6fe6ff', 3.5) + `<path d="M39.6 34.3 L41.5 23.6 L30.5 28.4 Z" fill="#6fe6ff"/>` + [[13, 18], [21, 32], [29, 10]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.4" fill="#5dff9a"/>`).join(''),
   gm: iMagnet('#ff5a5a', '#e6e9f5') + iBall(24, 9, 5.5, '#ffcf4a') + iLine('M4 30 Q8 36 4 42 M44 30 Q40 36 44 42', '#ffe14a', 1.8),
   pm: `<circle cx="24" cy="24" r="21" fill="#ff5fd2" fill-opacity=".28" stroke="none"/>` + iSpikes(24, 24, 12, 19, 8, '#ffb3ee') + iBall(24, 24, 11.5, '#ff5fd2') + `<path d="M18 26 Q24 17 30 26" fill="none" stroke="#fff" stroke-width="2"/>`,
@@ -1754,16 +1844,17 @@ function segPath(c, pts, prog) {
 }
 function drawBolts(c) {
   if (!S.segs.length && !S.live.length) return;
+  const light = S.live.length > 12 || LOWFX || S.segs.length > 90; // many bolts: lighter drawing
   c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
   for (const s of S.segs) {
     const al = s.prog < 1 ? 1 : Math.max(0, 1 - s.age / s.life);
     if (al <= 0) continue;
     segPath(c, s.pts, s.prog);
     const gc = s.col || TH.glow, bc = s.col || TH.bolt;
-    c.strokeStyle = hexA(gc, (s.col ? 0.26 : 0.18) * al); c.lineWidth = s.col ? 14 : 12; c.stroke();
+    if (!light) { c.strokeStyle = hexA(gc, (s.col ? 0.26 : 0.18) * al); c.lineWidth = s.col ? 14 : 12; c.stroke(); } // wide glow pass is the expensive one
     c.strokeStyle = hexA(bc, (s.col ? 0.75 : 0.55) * al); c.lineWidth = 4.5; c.stroke();
     c.strokeStyle = `rgba(255,255,255,${0.95 * al})`; c.lineWidth = 1.8; c.stroke();
-    if (s.br && s.br.length) {
+    if (!light && s.br && s.br.length) {
       c.beginPath();
       for (const b of s.br) if (b.i <= s.prog) { c.moveTo(b.pts[0][0], b.pts[0][1]); c.lineTo(b.pts[1][0], b.pts[1][1]); c.lineTo(b.pts[2][0], b.pts[2][1]); }
       c.strokeStyle = hexA(bc, 0.5 * al); c.lineWidth = 2.2; c.stroke();
@@ -1774,6 +1865,7 @@ function drawBolts(c) {
     if (b.delay > 0) continue;
     let x = b.x, y = b.y;
     if (b.hop) { const t = Math.min(1, b.hop.t / b.hop.dur); x = b.hop.fx + (b.hop.tx - b.hop.fx) * t; y = b.hop.fy + (b.hop.ty - b.hop.fy) * t; }
+    if (S.freezeT > 0) { x += rnd(-1.5, 1.5); y += rnd(-1.5, 1.5); }
     const r = 12 + b.charge * 8;
     const gg = c.createRadialGradient(x, y, 0, x, y, r); gg.addColorStop(0, 'rgba(255,255,255,.9)'); gg.addColorStop(0.35, hexA(b.col || TH.bolt, 0.7)); gg.addColorStop(1, hexA(b.col || TH.glow, 0));
     c.fillStyle = gg; circle(c, x, y, r); c.fill();
@@ -1791,11 +1883,15 @@ function emit(kind, x, y, n, col, spd, dir, spread) {
     S.parts.push({ kind, x, y, vx: still ? 0 : Math.cos(a) * v, vy: still ? 0 : Math.sin(a) * v - (kind === 'puff' ? 40 : 0), g: kind === 'spark' || kind === 'drop' ? 420 : kind === 'chunk' ? 650 : kind === 'puff' ? -20 : still || kind === 'star' ? 0 : 60, drag: kind === 'puff' ? 2 : 0.8, t: 0, life: kind === 'flare' ? rnd(0.22, 0.3) : kind === 'chunk' ? rnd(0.6, 0.9) : rnd(0.35, 0.7), col: col || TH.bolt, rot: rnd(6), vr: rnd(-8, 8), s: rnd(2, 4) });
   }
 }
+const SPARK_B = new Map();
 function drawParts(c) {
   c.save();
+  SPARK_B.clear();
   for (const p of S.parts) {
     const a = 1 - p.t / p.life;
-    if (p.kind === 'spark') { c.strokeStyle = hexA(p.col, a); c.lineWidth = 2; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); c.stroke(); }
+    if (p.kind === 'spark') { // batched below: one path per colour/alpha bucket
+      const key = p.col + '|' + Math.min(3, (a * 4) | 0); let bk = SPARK_B.get(key); if (!bk) { bk = []; SPARK_B.set(key, bk); } bk.push(p); continue;
+    }
     else if (p.kind === 'drop') { c.fillStyle = `rgba(190,215,255,${a})`; circle(c, p.x, p.y, p.s * 0.8); c.fill(); }
     else if (p.kind === 'square') { c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = hexA(p.col, a); c.fillRect(-p.s, -p.s, p.s * 2, p.s * 2); c.restore(); }
     else if (p.kind === 'puff') { c.fillStyle = `rgba(245,232,215,${a * 0.5})`; circle(c, p.x, p.y, p.s * (2 + p.t * 8)); c.fill(); }
@@ -1805,6 +1901,12 @@ function drawParts(c) {
     else if (p.kind === 'flare') { const r = p.s * 6 * a; c.save(); c.globalCompositeOperation = 'lighter'; const gg = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, r); gg.addColorStop(0, `rgba(255,255,255,${a})`); gg.addColorStop(0.3, hexA(p.col, a * 0.8)); gg.addColorStop(1, hexA(p.col, 0)); c.fillStyle = gg; circle(c, p.x, p.y, r); c.fill(); c.restore(); }
     else if (p.kind === 'chunk') { c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = hexA(p.col, a); c.strokeStyle = `rgba(12,9,32,${a})`; c.lineWidth = 1.5; c.fillRect(-p.s, -p.s * 0.6, p.s * 2, p.s * 1.2); c.strokeRect(-p.s, -p.s * 0.6, p.s * 2, p.s * 1.2); c.restore(); }
   }
+  for (const [key, list] of SPARK_B) { // sparks: fillRect-style rects, one fill per bucket
+    const [col, al] = key.split('|'); c.globalAlpha = (+al + 1) / 4; c.fillStyle = col; c.beginPath();
+    for (const p of list) { c.rect(p.x - 1.5, p.y - 1.5, 3, 3); c.rect(p.x - p.vx * 0.015 - 1, p.y - p.vy * 0.015 - 1, 2, 2); }
+    c.fill();
+  }
+  c.globalAlpha = 1;
   for (const k of S.conf) { c.save(); c.translate(k.x, k.y); c.rotate(k.rot); c.fillStyle = k.col; c.fillRect(-5, -3, 10, 6); c.restore(); }
   c.restore();
 }
@@ -1829,6 +1931,18 @@ function drawBig(c) {
   c.lineWidth = 12; c.strokeStyle = '#0c0920'; c.strokeText(b.text, 0, 0);
   c.fillStyle = b.col || '#ffe14a'; c.fillText(b.text, 0, 0);
   if (b.sub) { c.font = "700 24px Fredoka, 'Arial Rounded MT Bold', sans-serif"; c.lineWidth = 7; c.strokeText(b.sub, 0, 50); c.fillStyle = '#fff'; c.fillText(b.sub, 0, 50); }
+  c.restore();
+}
+
+// ---------- shot clock banners (LAST CALL / 3-2-1 / ROUND OVER) ----------
+function drawBanner(c) {
+  const b = S.fx.banner; if (!b) return;
+  const k = b.t / b.life, pop = b.count ? 1.5 - Math.min(0.5, b.t * 2.2) : b.t < 0.15 ? 0.5 + b.t / 0.15 * 0.5 : 1;
+  c.save(); c.globalAlpha = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1;
+  c.translate(W / 2, b.y); c.scale(pop, pop);
+  c.font = `700 ${b.size}px Fredoka, 'Arial Rounded MT Bold', sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+  c.lineWidth = b.size / 6; c.strokeStyle = '#0c0920'; c.strokeText(b.text, 0, 0);
+  c.fillStyle = b.col; c.fillText(b.text, 0, 0);
   c.restore();
 }
 
@@ -1864,76 +1978,79 @@ function render(dt) {
   drawHud(g);
   drawFloats(g);
   drawBig(g);
+  drawBanner(g);
   if (S.fx.flash > 0) { g.fillStyle = `rgba(255,255,255,${(REDUCED ? 0.3 : 0.75) * S.fx.flash})`; g.fillRect(-20, -20, W + 40, H + 40); }
 }
 // ================= AUDIO =================
-const AU = { ctx: null, mute: LS.get('voltstorm-mute', false), budget: 0, sec: 0 };
+// No per-second quota (it front-loads every second, then goes silent). Instead we keep the end times of
+// everything playing: frequent sounds go through blip() (≥12 ms apart, ≤22 at once, thinner when busy),
+// important ones (jackpot, countdown, ROUND OVER, buys, POOF) may stack up to 34. A compressor guards the output.
+const AU = { ctx: null, mute: LS.get('voltstorm-mute', false), ends: [], lastBlip: 0 };
+const BLIP_GAP = 0.012, BLIP_MAX = 22, BLIP_BUSY = 8, IMPORTANT_MAX = 34;
 function audioInit() {
   if (AU.ctx) { if (AU.ctx.state === 'suspended') AU.ctx.resume(); return; }
   try {
     AU.ctx = new (window.AudioContext || window.webkitAudioContext)();
     AU.master = AU.ctx.createGain(); AU.master.gain.value = 0.16;
-    // limiter so stacked sounds never clip or choke the output
     AU.lim = AU.ctx.createDynamicsCompressor();
-    AU.lim.threshold.value = -16; AU.lim.knee.value = 6; AU.lim.ratio.value = 14; AU.lim.attack.value = 0.002; AU.lim.release.value = 0.2;
+    AU.lim.threshold.value = -18; AU.lim.knee.value = 6; AU.lim.ratio.value = 6; AU.lim.attack.value = 0.003; AU.lim.release.value = 0.25;
     AU.master.connect(AU.lim); AU.lim.connect(AU.ctx.destination);
   } catch (e) { AU.ctx = null; }
 }
-// Sound budget: max 40 starts per second, max 12 voices at once, and each sound type at most every 45 ms.
-const MAX_VOICES = 12, THROTTLE = 0.045;
-// Voices are counted from their scheduled end times, so the count can never get stuck.
-// Keys starting with '!' (jackpot, fanfare, game over) skip the throttle and voice cap.
-AU.ends = []; AU.last = {};
-function allowSound(key) {
-  if (!AU.ctx || AU.mute || TESTMODE) return false;
-  if (AU.ctx.state !== 'running') { AU.ctx.resume(); return false; }
-  const now = AU.ctx.currentTime, prio = key && key[0] === '!';
-  AU.ends = AU.ends.filter(e => e > now);
-  if (prio) return true;
-  if (key) { if (now - (AU.last[key] || -1) < THROTTLE) return false; AU.last[key] = now; }
-  if (now - AU.sec > 1) { AU.sec = now; AU.budget = 0; }
-  if (AU.ends.length >= MAX_VOICES || ++AU.budget > 40) return false;
-  return true;
-}
-function track(end) { AU.ends.push(end); }
-function tone(f, dur, type, vol, f2, delay, key) {
-  if (!allowSound(key)) return;
+function voiceGate(important) {
+  if (!AU.ctx || AU.mute || TESTMODE) return null;
+  if (AU.ctx.state !== 'running') { AU.ctx.resume(); return null; } // iOS before the first tap: skip
   const now = AU.ctx.currentTime;
-  const t = now + (delay || 0), o = AU.ctx.createOscillator(), gn = AU.ctx.createGain();
+  AU.ends = AU.ends.filter(e => e > now);
+  const n = AU.ends.length;
+  if (important) return n < IMPORTANT_MAX ? { busy: false } : null;
+  if (now - AU.lastBlip < BLIP_GAP || n >= BLIP_MAX) return null;
+  AU.lastBlip = now;
+  return { busy: n > BLIP_BUSY };
+}
+function tone(f, dur, type, vol, f2, delay, important) {
+  const gate = voiceGate(important); if (!gate) return;
+  if (gate.busy) { dur = Math.min(dur, 0.05); vol = (vol || 0.3) * 0.6; if (type === 'square' || type === 'sawtooth') type = 'triangle'; }
+  const t = AU.ctx.currentTime + (delay || 0), o = AU.ctx.createOscillator(), gn = AU.ctx.createGain();
   o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
   if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
   gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol || 0.3, t + 0.008); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(gn); gn.connect(AU.master); track(t + dur + 0.02); o.start(t); o.stop(t + dur + 0.02);
+  o.connect(gn); gn.connect(AU.master); AU.ends.push(t + dur + 0.02); o.start(t); o.stop(t + dur + 0.02);
 }
-function noise(dur, vol, f1, f2, delay, key) {
-  if (!allowSound(key)) return;
-  const now = AU.ctx.currentTime;
+function noise(dur, vol, f1, f2, delay, important) {
+  const gate = voiceGate(important); if (!gate) return;
+  if (gate.busy) { dur = Math.min(dur, 0.05); vol *= 0.6; }
   if (!AU.nb) { const n = AU.ctx.sampleRate; AU.nb = AU.ctx.createBuffer(1, n, n); const d = AU.nb.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
-  const t = now + (delay || 0), src = AU.ctx.createBufferSource(), fl = AU.ctx.createBiquadFilter(), gn = AU.ctx.createGain();
+  const t = AU.ctx.currentTime + (delay || 0), src = AU.ctx.createBufferSource(), fl = AU.ctx.createBiquadFilter(), gn = AU.ctx.createGain();
   src.buffer = AU.nb; fl.type = 'lowpass'; fl.frequency.setValueAtTime(f1, t); fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
   gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(fl); fl.connect(gn); gn.connect(AU.master); track(t + dur + 0.02); src.start(t, Math.random() * 0.5, dur + 0.02);
+  src.connect(fl); fl.connect(gn); gn.connect(AU.master); AU.ends.push(t + dur + 0.02); src.start(t, Math.random() * 0.5, dur + 0.02);
 }
+const IMP = true;
 const SFX = {
   // soft "puff": airy low-passed noise with a gentle sine thump underneath
-  boom() { noise(0.32, 0.22, 1100, 160, 0, 'boomN'); tone(95, 0.22, 'sine', 0.12, 55, 0, 'boomT'); },
-  wall() { noise(0.08, 0.25, 7000, 1800, 0, 'wallN'); tone(2300, 0.05, 'square', 0.05, 800, 0, 'wallT'); },
-  orb() { tone(300, 0.25, 'sine', 0.1, 900, 0, 'orb'); },
-  hop(h) { tone(420 + Math.min(h, 30) * 38, 0.05, 'square', 0.08, null, 0, 'hop'); },
-  gold() { tone(1180, 0.08, 'triangle', 0.14, 1760, 0, 'gold'); },
-  ruby() { tone(1500, 0.1, 'triangle', 0.15, 2400, 0, 'ruby'); },
-  tesla() { tone(180, 0.12, 'sawtooth', 0.12, 900, 0, 'tesla'); },
-  split() { tone(900, 0.07, 'square', 0.09, 1800, 0, 'split'); },
-  shot() { tone(90, 0.16, 'sawtooth', 0.18, 1400, 0, '!'); tone(1600, 0.08, 'square', 0.06, 300, 0.02, '!'); },
-  land(m) { tone(m >= 10 ? 520 : m >= 4 ? 392 : 262, 0.14, 'triangle', 0.22, m >= 4 ? 780 : 200, 0, 'land'); },
-  pad() { tone(160, 0.2, 'triangle', 0.24, 640, 0, 'pad'); },
-  rail() { tone(1900, 0.05, 'square', 0.06, 1200, 0, 'rail'); },
-  jackpot() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.16, 'square', 0.14, null, i * 0.07, '!')); },
-  fanfare() { [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.14, 'triangle', 0.2, null, i * 0.09, '!')); },
-  buy() { tone(880, 0.06, 'square', 0.15); tone(1320, 0.1, 'square', 0.15, null, 0.06); },
+  boom() { noise(0.32, 0.22, 1100, 160, 0, IMP); tone(95, 0.22, 'sine', 0.12, 55, 0, IMP); },
+  wall() { noise(0.08, 0.25, 7000, 1800); tone(2300, 0.05, 'square', 0.05, 800); },
+  orb() { tone(300, 0.25, 'sine', 0.1, 900); },
+  hop(h) { tone(420 + Math.min(h, 30) * 38, 0.05, 'square', 0.08); },
+  gold() { tone(1180, 0.08, 'triangle', 0.14, 1760); },
+  ruby() { tone(1500, 0.1, 'triangle', 0.15, 2400); },
+  tesla() { tone(180, 0.12, 'sawtooth', 0.12, 900); },
+  split() { tone(900, 0.07, 'square', 0.09, 1800); },
+  shot() { tone(90, 0.16, 'sawtooth', 0.18, 1400, 0, IMP); tone(1600, 0.08, 'square', 0.06, 300, 0.02, IMP); },
+  land(m) { tone(m >= 10 ? 520 : m >= 4 ? 392 : 262, 0.14, 'triangle', 0.22, m >= 4 ? 780 : 200); },
+  pad() { tone(160, 0.2, 'triangle', 0.24, 640); },
+  rail() { tone(1900, 0.05, 'square', 0.06, 1200); },
+  ping() { tone(1320, 0.08, 'triangle', 0.12, 1760); },
+  jackpot() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.16, 'square', 0.14, null, i * 0.07, IMP)); },
+  fanfare() { [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.14, 'triangle', 0.2, null, i * 0.09, IMP)); },
+  lastcall() { [880, 660, 880, 660].forEach((f, i) => tone(f, 0.12, 'square', 0.13, null, i * 0.13, IMP)); },
+  beep(n) { tone(n === 1 ? 1180 : 880, 0.14, 'square', 0.14, null, 0, IMP); },
+  roundover() { tone(520, 0.5, 'sawtooth', 0.16, 130, 0, IMP); noise(0.4, 0.2, 2200, 200, 0, IMP); },
+  buy() { tone(880, 0.06, 'square', 0.15, null, 0, IMP); tone(1320, 0.1, 'square', 0.15, null, 0.06, IMP); },
   deny() { tone(150, 0.12, 'square', 0.15, 110); },
-  pick() { tone(660, 0.08, 'triangle', 0.18, null, 0, '!'); tone(990, 0.12, 'triangle', 0.18, null, 0.07, '!'); },
-  over() { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.22, 'square', 0.15, null, i * 0.16, '!')); },
+  pick() { tone(660, 0.08, 'triangle', 0.18, null, 0, IMP); tone(990, 0.12, 'triangle', 0.18, null, 0.07, IMP); },
+  over() { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.22, 'square', 0.15, null, i * 0.16, IMP)); },
   tick() { tone(1400 + Math.random() * 300, 0.03, 'square', 0.08); },
   click() { tone(700, 0.03, 'square', 0.08); },
 };
@@ -1951,9 +2068,13 @@ function big(text, col, sub, size, y) { S.fx.big = { text, col, sub, size, y, t:
 let SHAKE_ON = LS.get('voltstorm-shake', true);
 const SHAKE_MAX = 5;
 function shake(v) { if (SHAKE_ON) S.fx.shake = Math.min(SHAKE_MAX, Math.max(S.fx.shake, v)); }
+// Jackpot / explosion throttles (real time): big effect at most every 1.5 s, slow motion at most every 4 s.
+let lastBigJack = -99, lastSlow = -99;
+function slowMo(d) { if (T - lastSlow >= 4) { lastSlow = T; S.fx.slow = Math.max(S.fx.slow, d); } }
+const busy = () => S.live.length > 12; // many bolts: lighter effects
 Object.assign(HOOK, {
   gain(amt, x, y, kind, crit, label) {
-    if (kind === 'bonus') { floatText(`${label} +${fmt(amt)}`, x, y, FLOAT_COL.bonus, 24, 1.3); return; }
+    if (kind === 'bonus') { floatText(`${label} +${fmt(amt)}`, x, y, FLOAT_COL.bonus, 24, 1.3); S.floats[S.floats.length - 1].keep = true; return; }
     // size grows with the amount (relative to the current per-hit value)
     const base = kind === 'land' ? 20 : kind === 'pad' ? 18 : 14;
     const size = Math.min(36, base + 4 * Math.log10(Math.max(1, amt / S.perHit)) + (crit ? 6 : 0));
@@ -1961,9 +2082,9 @@ Object.assign(HOOK, {
     floatText((crit ? 'CRIT +' : '+') + fmt(amt), x + (crit ? 0 : rnd(-6, 6)), y, crit ? '#ffffff' : FLOAT_COL[kind] || '#fff', size);
   },
   hit(b, n) {
-    const col = NODE_COL[n.t][0], heat = Math.min(10, b.hops / 3 | 0);
-    emit('spark', n.x, n.y, 5 + heat, col, 170 + heat * 18);
-    emit('flare', n.x, n.y, 1, col, 0); S.parts[S.parts.length - 1].s = 2.4 + heat * 0.15;
+    const col = NODE_COL[n.t][0], heat = Math.min(10, b.hops / 3 | 0), many = busy();
+    emit('spark', n.x, n.y, many ? 2 : 4 + heat, col, 170 + heat * 18);
+    if (!many) { emit('flare', n.x, n.y, 1, col, 0); S.parts[S.parts.length - 1].s = 2.4 + heat * 0.15; }
     if (n.t === 'tesla') { emit('ring', n.x, n.y, 1, '#8feaff'); emit('spark', n.x, n.y, 10, '#ffffff', 320); shake(2); SFX.tesla(); }
     else if (n.t === 'ruby') { emit('chunk', n.x, n.y, 5, '#ff5a7e', 240); shake(1.6); SFX.ruby(); }
     else if (n.t === 'gold') { emit('star', n.x, n.y, 4, '#ffe68a', 160); shake(1); SFX.gold(); }
@@ -1981,10 +2102,13 @@ Object.assign(HOOK, {
     shake(BASE_SLOTS[i] >= 4 ? 2.2 : 1.4); SFX.land(BASE_SLOTS[i]);
   },
   jackpot(b, i) {
-    if (!S.jackShot) {
-      S.jackShot = 1; S.fx.flash = 0.7; S.fx.slow = 0.35; shake(SHAKE_MAX);
-      big('JACKPOT!', '#ffe14a', null, 66, 330); confetti(REDUCED ? 30 : 80, true); SFX.jackpot();
-    } else { shake(2.5); S.fx.flash = Math.max(S.fx.flash, 0.2); SFX.gold(); }
+    if (T - lastBigJack >= 1.5) {
+      lastBigJack = T; S.fx.flash = Math.max(S.fx.flash, 0.7); slowMo(0.35); shake(SHAKE_MAX);
+      S.fx.big = null; big('JACKPOT!', '#ffe14a', null, 66, 330); confetti(REDUCED || LOWFX ? 30 : 80, true); SFX.jackpot();
+    } else { // in between: a small puff and a ping
+      for (let k = 0; k < 8; k++) S.conf.push({ x: b.x + rnd(-10, 10), y: FLOOR_Y - 20, vx: rnd(-160, 160), vy: rnd(-380, -180), rot: rnd(6), vr: rnd(-10, 10), col: ['#ffd23f', '#3ee6ff', '#ff6fb5'][k % 3], t: 0, life: 1.4 });
+      SFX.ping();
+    }
   },
   pad(b, p) { emit('ring', p.x, FLOOR_Y - 12, 1, '#ff8fd0'); emit('spark', p.x, FLOOR_Y - 12, 8, '#ff8fd0', 260); SFX.pad(); },
   shot() { V.recoil = 1; V.pressure = 0; shake(1.5); SFX.shot(); emit('spark', SPOUT.x, SPOUT.y + 10, 14, TH.bolt, 300, S.aimA, 0.7); emit('flare', SPOUT.x, SPOUT.y + 10, 1, TH.bolt, 0); S.parts[S.parts.length - 1].s = 6; },
@@ -1998,16 +2122,21 @@ Object.assign(HOOK, {
     shake(rico ? 2.4 : 1.6); SFX.wall();
   },
   explode(x, y, nb) {
-    shake(4.5); S.fx.flash = Math.max(S.fx.flash, 0.3); S.fx.slow = Math.max(S.fx.slow, 0.14);
+    shake(4.5); S.fx.flash = Math.max(S.fx.flash, 0.3); slowMo(0.14);
     emit('wave', x, y, 1, '#ff5fd2', 0); S.parts[S.parts.length - 1].s = 6; S.parts[S.parts.length - 1].life = 0.5;
     emit('wave', x, y, 1, '#ffffff', 0); S.parts[S.parts.length - 1].s = 3.5; S.parts[S.parts.length - 1].life = 0.35;
     emit('flare', x, y, 1, '#ff5fd2', 0); S.parts[S.parts.length - 1].s = 12;
-    emit('spark', x, y, 34, '#ffb3ee', 460); emit('spark', x, y, 18, '#ffffff', 360); emit('chunk', x, y, 10, '#ff5fd2', 330);
+    const many = busy(); emit('spark', x, y, many ? 8 : 34, '#ffb3ee', 460); emit('spark', x, y, many ? 4 : 18, '#ffffff', 360); if (!many) emit('chunk', x, y, 10, '#ff5fd2', 330);
     floatText('BOOM!', x, y - 44, '#ff8ae0', 34, 1.1);
     SFX.boom();
   },
   orb(o) { if (S.time > 0.1) { emit('ring', o.x, o.y, 1, '#ff5fd2'); SFX.orb(); } },
   node(n) { emit('ring', n.x, n.y, 1, NODE_COL[n.t][0]); },
+  clock(kind, n) {
+    if (kind === 'last') { S.fx.banner = { text: 'LAST CALL!', col: '#ffd23f', size: 58, y: 300, t: 0, life: 1.0 }; SFX.lastcall(); }
+    else if (kind === 'count') { S.fx.banner = { text: String(n), col: '#ffffff', size: 130, y: 380, t: 0, life: 0.74, count: true }; SFX.beep(n); }
+    else if (kind === 'over') { S.fx.banner = { text: 'ROUND OVER!', col: '#ff6f93', size: 60, y: 360, t: 0, life: 1.6 }; SFX.roundover(); shake(3); }
+  },
   full(n) { toast(`(+${n} UPGRADED, BOARD FULL)`); },
   bought(u) {
     domFloat(shopOvOpen ? $('shopOv') : $('shopbox'), `SHOP PRICES +${Math.round(BUYUP * 100)}%`);
@@ -2015,7 +2144,7 @@ Object.assign(HOOK, {
   },
   amp(n) { floatText('+5 COMBO', n.x, n.y - 34, '#ffffff', 17, 0.9); emit('ring', n.x, n.y, 1, '#ffffff'); },
   milestone(n) { big(`SHOT ${n}!`, '#3ee6ff', `+${Math.floor(n / 2)} bonus sparks`, 58, 300); confetti(REDUCED ? 40 : 120, false); SFX.fanfare(); },
-  endShot(earned) { if (S.unlocked && !S.unlockShown) { S.unlockShown = true; toast('NEW OVERDRIVE UNLOCKED!'); } },
+  endShot(earned) { if (S.unlocked && !S.unlockShown) { S.unlockShown = true; toast(`TIER ${S.unlocked} UNLOCKED!`); } if (S.live.length === 0 && LOWFX && fastT > 1) LOWFX = false; },
   over() { showOver(); },
 });
 
@@ -2174,6 +2303,7 @@ function showOver() {
   SFX.over();
   $('overShots').textContent = `You reached shot ${S.shots} · ${fmt(S.total)} volt total`;
   $('overUnlock').hidden = !S.unlocked;
+  if (S.unlocked) $('overUnlock').textContent = `TIER ${S.unlocked} UNLOCKED! New cards: ${cardsAt(S.unlocked).join(', ') || 'none'}`;
   $('overOv').hidden = false;
   const tgt = S.sparksFinal || 0; let cur = 0;
   $('overSparks').textContent = '0';
@@ -2198,7 +2328,7 @@ function arm(btn, key, label, action) {
 function renderLab() {
   $('labSparks').textContent = fmt(meta.sparks);
   const active = runActive();
-  $('labNote').textContent = active ? 'Upgrades apply from your next run. Overdrive is locked mid-run.' : 'Permanent upgrades for every new run.';
+  $('labNote').textContent = active ? 'Upgrades apply from your next run. Tier is locked mid-run.' : 'Permanent upgrades for every new run.';
   $('labGrid').innerHTML = CATS.map((c, ci) => `<div class="cat" style="--cc:${c.c}"><h3>${c.n}</h3>${LAB.filter(it => it.cat === ci).map(it => {
     const l = labLv(it.id), maxed = l >= it.max, p = labPrice(it);
     return `<div class="lrow"><span class="ic">${iconSVG(it.id, true)}</span><div class="lt"><div class="nm">${it.name}</div><div class="ld">${it.d}</div><div class="nx">${maxed ? 'Maxed out' : '<span class="np">NEXT: </span>' + it.next(l)}</div></div>
@@ -2207,15 +2337,23 @@ function renderLab() {
   $('labGrid').querySelectorAll('.buy').forEach(b => b.addEventListener('click', () => {
     if (labBuy(b.dataset.id)) { SFX.buy(); if (S && S.shots === 0 && S.phase === 'aim') startNewRun(); renderLab(); } else SFX.deny();
   }));
+  const lockSvg = '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2.5 0h5V7a2.5 2.5 0 0 0-5 0z"/></svg>';
+  const newCards = n => { const c = cardsAt(n); return c.length ? c.join(', ') : 'none'; };
   let ob = '';
   for (let i = 0; i <= 10; i++) {
-    const lock = i > meta.odMax;
-    ob += `<button class="btn3d${lock ? ' locked' : ''}" type="button" data-od="${i}" aria-pressed="${meta.od === i}" ${lock || active ? 'disabled' : ''} title="${lock ? `Reach ${18 + 3 * (i - 1)} shots on Overdrive ${i - 1}` : 'Overdrive ' + i}">${lock ? '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2.5 0h5V7a2.5 2.5 0 0 0-5 0z"/></svg>' : i}</button>`;
+    const lock = i > meta.odMax, r = TIER_RULES[i];
+    const tip = i === 0 ? 'Normal: no extra rules.' : `Tier ${i}: adds ${r.n} – ${r.d}. New cards: ${newCards(i)}` + (lock ? ` (locked: reach ${tierReq(i - 1)} shots on Tier ${i - 1})` : '');
+    ob += `<button class="btn3d${lock ? ' locked' : ''}" type="button" data-od="${i}" aria-pressed="${meta.od === i}" ${lock || active ? 'disabled' : ''} title="${tip}" aria-label="${tip}">${lock ? lockSvg : i}</button>`;
   }
   $('odBtns').innerHTML = ob;
   $('odBtns').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { if (setOverdrive(+b.dataset.od)) { SFX.click(); if (S.shots === 0) startNewRun(); renderLab(); } }));
   const od = meta.od;
-  $('odInfo').textContent = od ? `Shot price grows +${(0.05 * od).toFixed(2)} faster, sparks ×${(1 + 0.5 * od).toFixed(1)}` : 'Harder runs, more sparks';
+  let rules = '';
+  if (!od) rules = '<li class="new"><b>Normal</b> – no extra rules.</li>';
+  for (let i = 1; i <= od; i++) { const c = cardsAt(i); rules += `<li class="${i === od ? 'new' : ''}"><b>${i}. ${TIER_RULES[i].n}</b> – ${TIER_RULES[i].d}${c.length ? `<span class="plus">+ ${c.join(', ')}</span>` : ''}</li>`; }
+  $('tierRules').innerHTML = rules;
+  const m = meta.odMax;
+  $('tierGoal').textContent = m >= 10 ? 'All tiers unlocked.' : `🔓 Unlock Tier ${m + 1} and the cards ${newCards(m + 1)}: reach ${tierReq(m)} shots while playing on Tier ${m}.`;
   $('labRecs').innerHTML = `<span>Runs <b>${meta.rec.runs}</b></span><span>Longest run <b>${meta.rec.longest}</b> shots</span><span>Best total <b>${fmt(meta.rec.bestTotal)}</b></span>`;
 }
 function openLab() { renderLab(); $('labModal').hidden = false; $('settings').hidden = true; $('gearBtn').setAttribute('aria-expanded', 'false'); }
@@ -2225,7 +2363,7 @@ function closeLab() { $('labModal').hidden = true; }
 function openStats() {
   const s = S.st, P = (a, b) => b ? (100 * a / b).toFixed(0) + '%' : '—';
   const groups = [
-    ['Run', [['Shots', S.shots], ['Total volt', fmt(S.total)], ['Volt now', fmt(S.volt)], ['Next shot', fmt(shotCost())], ['Sparks this run', sparksNow()], ['Overdrive', S.od]]],
+    ['Run', [['Shots', S.shots], ['Total volt', fmt(S.total)], ['Volt now', fmt(S.volt)], ['Next shot', fmt(shotCost())], ['Sparks this run', sparksNow()], ['Tier', S.od]]],
     ['Scoring', [['Per hit', fmt(S.perHit)], ['Combo per hop', '+' + Math.round(S.comboK * 100) + '%'], ['Crit chance', Math.round(S.crit * 100) + '%'], ['From hops', fmt(s.hitVolt)], ['From slots', fmt(s.landVolt)], ['From coils', fmt(s.padVolt)], ['From walls', fmt(s.railVolt)], ['From orbs', fmt(s.orbVolt)], ['Bonuses', fmt(s.bonusVolt)]]],
     ['Bolts & bounces', [['Bolts per shot', boltsPerShot()], ['Bolts fired', s.boltsFired], ['Hops', s.hops], ['Hops per bolt', s.boltsFired ? (s.hops / s.boltsFired).toFixed(1) : '—'], ['Crits', s.crits], ['Extra bolts', s.splits], ['Forks', s.forks], ['Orb explosions', s.explosions], ['Wall ricochets', s.ricochets], ['Coil bounces', s.padBounces], ['Rail hits', s.railHits], ['Ground bounces', s.groundBounces]]],
     ['Board', [['Nodes', S.nodes.length], ['Gold', S.nodes.filter(n => n.t === 'gold').length], ['Ruby', S.nodes.filter(n => n.t === 'ruby').length], ['Tesla', S.nodes.filter(n => n.t === 'tesla').length], ['Splitter', S.nodes.filter(n => n.t === 'cap').length], ['Blast', S.nodes.filter(n => n.t === 'blast').length], ['Bounce', S.nodes.filter(n => n.t === 'bounce').length], ['Amp', S.nodes.filter(n => n.t === 'amp').length], ['Coils', S.coils.length], ['Plasma orbs', S.orbs.length], ['Coil uses / bolt', S.padUses], ['Slots', BASE_SLOTS.map((b, i) => b + S.slotBonus[i]).join(' ')]]],
@@ -2245,7 +2383,17 @@ function bindUI() {
   // touch aim is extra sensitive sideways (×2.6), so a tap just beside the professor fires almost flat
   const aimAt = e => { const p = boardXY(e); if (e.pointerType === 'touch') aim(SPOUT.x + (p.x - SPOUT.x) * 2.6, p.y); else aim(p.x, p.y); };
   cv.addEventListener('pointermove', e => { if (e.pointerType !== 'touch' || pDown) aimAt(e); });
-  cv.addEventListener('pointerdown', e => { audioInit(); pDown = true; aimAt(e); try { cv.setPointerCapture(e.pointerId); } catch (_) { } });
+  cv.addEventListener('pointerdown', e => {
+    audioInit();
+    if (e.button === 2) { aimAt(e); pDown = false; doShoot(); return; } // right click: aim there and fire
+    pDown = true; aimAt(e); try { cv.setPointerCapture(e.pointerId); } catch (_) { }
+  });
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('mousedown', e => { // right click outside the board fires along the last aim
+    if (e.button !== 2 || e.target === cv) return;
+    if (!$('labModal').hidden || !$('statsModal').hidden || !$('settings').hidden) return;
+    audioInit(); doShoot();
+  });
   cv.addEventListener('pointerup', e => { if (!pDown) return; pDown = false; aimAt(e); doShoot(); });
   // aim strip: drag = aim, release does not shoot
   const st = $('aimStrip');
@@ -2299,9 +2447,14 @@ function bindUI() {
 function doShoot() { if (!S) return; if (S.phase === 'over') return; if (shopOvOpen) closeShopOv(); if (!shoot()) { if (S.phase === 'aim') SFX.deny(); } }
 
 // ================= LOOP =================
-let lastT = 0, autoWait = 0;
+let lastT = 0, autoWait = 0, slowT = 0, fastT = 0;
 function frame(now) {
-  const rdt = Math.min(0.05, (now - lastT) / 1000 || 0.016); lastT = now; T += rdt;
+  const raw = (now - lastT) / 1000 || 0.016;
+  const rdt = Math.min(0.05, raw); lastT = now; T += rdt;
+  // automatic low-effects mode: ~1 s of frames slower than 28 ms switches it on; it switches off between shots once calm
+  if (raw > 0.028) { slowT += raw; fastT = 0; } else { fastT += raw; slowT = Math.max(0, slowT - raw * 0.5); }
+  if (!LOWFX && slowT > 1) LOWFX = true;
+  if (LOWFX && S.phase !== 'fire' && fastT > 1) LOWFX = false;
   let dt = rdt;
   if (S.fx.slow > 0) { S.fx.slow -= rdt; dt *= 0.3; }
   for (let i = 0; i < 4; i++) step(dt / 4);
@@ -2312,14 +2465,12 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-const __SV=(()=>{const enc=(v,refs)=>JSON.stringify(v,function(k,x){if(x&&typeof x==='object'){const i=refs.indexOf(x);if(i>=0)return{__r:i};if(x instanceof Set)return{__s:[...x]};if(x instanceof Map)return{__m:[...x]}}return x});const dec=(s,refs)=>JSON.parse(s,function(k,x){if(x&&typeof x==='object'&&!Array.isArray(x)){if('__r' in x)return refs[x.__r];if('__s' in x)return new Set(x.__s);if('__m' in x)return new Map(x.__m)}return x});return function(key,refs,get,set,rest,over){const K=key+'-run-v1';function save(){try{if(over())return localStorage.removeItem(K);if(rest())localStorage.setItem(K,enc(get(),refs))}catch(e){}}setInterval(save,1500);addEventListener('visibilitychange',save);addEventListener('pagehide',save);return{restore(){try{const s=localStorage.getItem(K);if(!s)return false;set(dec(s,refs));return true}catch(e){console.warn('save restore failed',e);try{localStorage.removeItem(K)}catch(_){}return false}}}}})();
-const __run=__SV('voltstorm',UPG,()=>S,d=>{S=d;S.live=[];S.segs=[];S.parts=[];S.floats=[];S.conf=[];S.phase='aim';S.draft=null;dispVolt=S.volt;shopKey='';$('overOv').hidden=true;$('draftOv').hidden=true;aimCache.a=null;},()=>S&&S.phase==='aim',()=>S&&S.phase==='over');
 function boot() {
   buildLogo();
   setupCanvas($('cv'));
   bindUI();
   applyThemeCSS(); paintBG();
-  if(!__run.restore())startNewRun();
+  startNewRun();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paintBG(); });
   if (TESTMODE) {
     window.__t = {
@@ -2327,6 +2478,9 @@ function boot() {
       step(dt) { step(dt); }, draw() { T += 1 / 60; render(1 / 60); updateUI(1 / 60); }, shoot, newRun: startNewRun, aim, addNodes: list => addNodes(list),
       upgrades: UPG, pickDraft, buy, reroll, openShopOv, closeShopOv, cardPrice, shotCost, setTheme, openLab, closeLab, openStats, labBuy, setAuto(v) { AUTO = v; },
       runUntilIdle(max = 4000) { let k = 0; while (S.phase === 'fire' && k++ < max) step(1 / 30); },
+      UP: UPG, get lowFx() { return LOWFX; }, set lowFx(v) { LOWFX = v; },
+      perf() { const t0 = performance.now(); step(1 / 60); const t1 = performance.now(); render(1 / 60); const t2 = performance.now();
+        return { stepMs: +(t1 - t0).toFixed(2), drawMs: +(t2 - t1).toFixed(2), bolts: S.live.length, segs: S.segs.length, parts: S.parts.length, floats: S.floats.length, conf: S.conf.length, nodes: S.nodes.length, lowFx: LOWFX }; },
     };
     render(0); updateUI(0.016);
   } else {
