@@ -10668,6 +10668,18 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
    Tatare bokstaver bara pa de minsta skarmarna. STAR SIST. */
 @media (max-width:380px){
   .ct-tab{letter-spacing:.05em;padding:5px 2px}
+  /* [TILLAGT v5.774.0] Butikens kopknapp: texten gick 2 px over kanten pa 360 px. */
+  .sr-buy{padding-left:5px;padding-right:5px;letter-spacing:0}
+}
+/* [TILLAGT v5.774.0] TELEFON (buggsvep 2): scrollar man klart i ett fonster ska sidan bakom inte folja med
+   (uppmatt i Achievements, Daily och buggrutan), och kortens stangkryss (15x17 px) far en storre
+   tryckyta utan att se annorlunda ut. STAR SIST. */
+@media (max-width:760px){
+  .float-win.open, .float-win.open *, #bug-overlay *{overscroll-behavior:contain}
+}
+@media (hover:none){
+  .iw-x{position:relative}
+  .iw-x::after{content:'';position:absolute;inset:-10px}
 }
 
 </style>
@@ -18655,7 +18667,10 @@ function castThen(title, secs, fn){
   };
   CASTING.raf = requestAnimationFrame(step);
   el.querySelector('.cast-cancel').addEventListener('click', castCancel);
-  el.addEventListener('click', e => { if (e.target === el) castCancel(); });
+  /* [ANDRAT v5.774.0] Andra trycket i ett dubbeltryck landade pa fonden och avbrot oppningen direkt.
+     De forsta 450 ms raknas tryck pa fonden darfor inte. */
+  const castFodd = Date.now();
+  el.addEventListener('click', e => { if (e.target === el && Date.now() - castFodd > 450) castCancel(); });
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') castCancel(); });
 /* [TILLAGT v5.266.0] Vad som saknas for att lasa ett papper, eller tomt om
@@ -22628,6 +22643,9 @@ function hookVaultCells(root){
       return;
     }
     if (S.vault.inv[i].gear && isTouchInput()) spawnItemWin(S.vault.inv[i].gear.uid, e.clientX, e.clientY);
+    /* [TILLAGT v5.774.0] En stapel i valvet far sin meny pa tryck ocksa (To backpack) - forut gick den
+       bara att na med hogerklick, sa material i valvet satt fast pa telefonen. */
+    else if (isTouchInput()){ hideGearTip(); openVaultStackMenu(i, e.clientX, e.clientY); }
   });
   grid.addEventListener('contextmenu', e => {
     const cell = e.target.closest('[data-vault]');
@@ -22640,6 +22658,7 @@ function hookVaultCells(root){
     else openVaultStackMenu(+cell.dataset.vault, e.clientX, e.clientY);
   });
   grid.addEventListener('mouseover', e => {
+    if (isTouchInput()) return;   /* [TILLAGT v5.774.0] Inte pa pekskarm: Safari ater trycket om nagot visas vid hovring. */
     /* [BUGG v5.58.1] STAPLARNA I VALVET HADE VARKEN HOVRING ELLER HOGERKLICK.
        Vaskan visar bade pjaskort och stapelkort och har meny for bada; valvet
        kande bara till pjaser, sa allt material dar var helt stumt. Nu samma
@@ -22664,6 +22683,8 @@ function hookVaultBagSlots(){
       const b = vaultBagIn(i);
       if (b){
         if (e.shiftKey){ if (!unequipVaultBag(i)) showBagTip(el, 'No room in the backpack for the bag itself.'); return; }
+        /* [TILLAGT v5.774.0] Pa telefon: vaskans meny, som i ryggsackens fack ovan. */
+        if (isTouchInput()){ hideBagTip(); openGearMenu(b.uid, e.clientX, e.clientY); return; }
         setVaultBagOpen(i, !vaultBagIsOpen(i));
         return;
       }
@@ -22676,6 +22697,7 @@ function hookVaultBagSlots(){
       if (b){ hideBagTip(); openGearMenu(b.uid, e.clientX, e.clientY); }
     });
     el.addEventListener('mouseenter', e => {
+      if (isTouchInput()) return;   /* [TILLAGT v5.774.0] Inte pa pekskarm: Safari ater trycket om nagot visas vid hovring. */
       const b = vaultBagIn(i);
       if (b){ highlightVaultBagSlots(i, true); showGearTip(b, e.clientX, e.clientY); return; }
       showBagTip(el, vaultBagUnlocked(i)
@@ -30543,6 +30565,7 @@ function wireTrader(root, regionId, rita){
     const gbtn = root.querySelector('#vendor-gift');
     if (gbtn) gbtn.addEventListener('click', () => { claimVendorGift(regionId); rita(); });
     if (tbuy) tbuy.addEventListener('click', () => {
+      if (!dubbelSparr('vend:cell')) return;   /* [TILLAGT v5.774.0] dubbeltryck */
       if (S.gold >= cellPrice(regionId)) flyToBag(tbuy, ITEM_DEFS.fuelcell.ico, 'fuelcell');
       buyCell(regionId); rita();
     });
@@ -30558,10 +30581,12 @@ function wireTrader(root, regionId, rita){
         .catch(e => { say(srvErrText(e)); rfr.disabled = false; });
     });
     root.querySelectorAll('[data-buykit]').forEach(b => b.addEventListener('click', () => {
+      if (!dubbelSparr('vend:kit')) return;   /* [TILLAGT v5.774.0] dubbeltryck */
       if (buyCraftingKit(regionId, +b.dataset.buykit)) flyToBag(b, MATERIALS.crafting_kit.ico, 'crafting_kit');
       rita();
     }));
     root.querySelectorAll('[data-buyboost]').forEach(b => b.addEventListener('click', () => {
+      if (!dubbelSparr('vend:boost:' + b.dataset.buyboost)) return;   /* [TILLAGT v5.774.0] dubbeltryck */
       const D = ITEM_DEFS[b.dataset.buyboost];
       if (D && S.gold >= boostPrice(b.dataset.buyboost, regionId)) flyToBag(b, D.ico, b.dataset.buyboost);
       buyBoost(regionId, b.dataset.buyboost);
@@ -30603,6 +30628,7 @@ function wireTrader(root, regionId, rita){
         el.addEventListener(h, () => { clearTimeout(hall); hideGearTip(); }));
     });
     root.querySelectorAll('[data-vbuy]').forEach(b => b.addEventListener('click', () => {
+      if (!dubbelSparr('vend:gear:' + b.dataset.vbuy)) return;   /* [TILLAGT v5.774.0] dubbeltryck */
       const st = vendorStock(regionId)[+b.dataset.vbuy];
       const p = st ? vendorGearPrice(st.r, regionId, st) : 0;
       if (st && S.gold >= p) flyToBag(b, '⚔️');
@@ -34258,8 +34284,12 @@ document.addEventListener('click', e => {
   if (!b) return;
   const rid = b.dataset.stationcraft;
   if (NET.on){
+    /* [ANDRAT v5.774.0] Last tills servern svarat - ett dubbeltryck tillverkade tva. */
+    if (b.dataset.busy) return;
+    b.dataset.busy = '1'; b.disabled = true;
     netCraft(rid).then(() => { netPullItems().then(() => { redrawAll(); renderStation(); }); })
-      .catch(err => say(srvErrText(err, 'Could not make that.')));
+      .catch(err => say(srvErrText(err, 'Could not make that.')))
+      .finally(() => { delete b.dataset.busy; b.disabled = false; });
   } else {
     craftRecipe(rid); redrawAll(); renderStation();
   }
@@ -35060,9 +35090,18 @@ function petWinActions(win, uid){
   const box = win.querySelector('.item-actions');
   const p = petByUid(uid);
   if (!p){ box.innerHTML = '<div class="gc-row">This pet is gone.</div>'; return; }
-  box.innerHTML = '<div class="iw-hint">' + (matchMedia('(hover: none)').matches
-    ? 'Long-press the pet for options'
-    : 'Right-click the pet for options') + '</div>';
+  /* [ANDRAT v5.774.0] PA TELEFON EN KNAPP (buggsvep 2). Texten sa "Long-press the pet for options", men
+     iPhone skickar inget hogerklick vid langt tryck - menyn gick inte att na, sa en hjalpare kunde varken
+     byta namn, tas ur laget eller atervinnas. Knappen oppnar samma meny. Datorn ar som forut. */
+  if (matchMedia('(hover: none)').matches){
+    box.innerHTML = '<button class="btn-neutral iw-opts" type="button">Options</button>';
+    box.querySelector('.iw-opts').addEventListener('click', e => {
+      const r = e.currentTarget.getBoundingClientRect();
+      openPetMenu(uid, r.left, r.top - 8);
+    });
+    return;
+  }
+  box.innerHTML = '<div class="iw-hint">Right-click the pet for options</div>';
 }
 function spawnPetWin(uid, nearX, nearY){
   hideGearTip();
@@ -35971,9 +36010,25 @@ async function shopBuy(key, qty, pay){
   say('Bought ' + qty + ' \u00d7 ' + ((MATERIALS[key] || ITEM_DEFS[key] || {}).name || key) + '.');
   renderInventory(); updateUI(true); renderShopSupplies();
 }
+/* [TILLAGT v5.774.0] SKYDD MOT DUBBELTRYCK (buggsvep 2). Ett snabbt dubbeltryck pa telefonen skickade tva
+   kop/tillverkningar till servern, och servern utforde bada. Samma nyckel inom sparrtiden ignoreras.
+   Anvands dar knappen ritas om direkt (handlaren, chatten); dar svaret kan vantas in lases det i stallet. */
+const DUBBEL_SPARR = new Map();
+function dubbelSparr(nyckel, ms){
+  const nu_ = Date.now(), sist = DUBBEL_SPARR.get(nyckel) || 0;
+  if (nu_ - sist < (ms || 1200)) return false;
+  DUBBEL_SPARR.set(nyckel, nu_);
+  return true;
+}
+let SHOP_BUSY = false;
 document.addEventListener('click', e => {
   const sb = e.target.closest('[data-shopbuy]');
-  if (sb) shopBuy(sb.dataset.shopbuy, +sb.dataset.qty || 1, sb.dataset.pay);
+  if (!sb) return;
+  /* [ANDRAT v5.774.0] Last tills servern svarat - forut gick tva kop igenom pa ett dubbeltryck. */
+  if (SHOP_BUSY) return;
+  SHOP_BUSY = true; sb.disabled = true;
+  Promise.resolve(shopBuy(sb.dataset.shopbuy, +sb.dataset.qty || 1, sb.dataset.pay))
+    .finally(() => { SHOP_BUSY = false; sb.disabled = false; });
 });
 /* ===== ATERKOP (v5.131.0) =====
    Servern minns de femton senaste sakerna man salt i en timme och lamnar
@@ -36701,6 +36756,9 @@ function itemWinActions(win, uid){
          nu, dar man letar efter den. */
       '';
   }
+  /* [TILLAGT v5.774.0] Till valvet fran kortet nar valvet ar oppet (telefonen hade ingen vag dit). */
+  if (found.where === 'inv' && vaultIsOpen() && atVault())
+    box.insertAdjacentHTML('beforeend', '<button class="ia-cancel" data-act="tovault">To vault</button>');
 }
 /* Kort text pa Salvage-knappen: totalt antal material, och en prick om ratt yrke
    ger paslag - sa spelaren ser vardet utan att oppna bekraftelsen. */
@@ -36855,6 +36913,7 @@ function spawnItemWin(uid, nearX, nearY){
     if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
     else if (btn.dataset.act === 'setgem'){ setGemFromBag(cur.it); win.remove(); }
     else if (btn.dataset.act === 'unvault'){ if (fromVault(cur.idx)) win.remove(); }
+    else if (btn.dataset.act === 'tovault'){ if (toVault(cur.idx)) win.remove(); }   /* [TILLAGT v5.774.0] */
     else if (btn.dataset.act === 'unbag'){ if (unequipBag(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unequip'){ if (unequipGear(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'sell'){
@@ -36957,6 +37016,9 @@ function stackWinActions(win, key){
     h += '<button class="ia-equip" data-act="drink">Drink<span>+' + fb.pct[rar] + '% ' + fb.what + ' · ' + fb.mins[rar] + 'm</span></button>';
     if (active) h += '<div class="ia-note-dim">Active: ' + Math.ceil(flaskLeft(row.boost) / 60) + 'm left — drinking extends it</div>';
   }
+  /* [TILLAGT v5.774.0] Till valvet direkt fran kortet nar valvet ar oppet - pa telefon fanns ingen
+     annan vag (dra-och-slapp fungerar inte med fingret). */
+  if (vaultIsOpen() && atVault()) h += knapp('tovault', 'To vault', 'stored in the vault');
   /* [v5.733.0] Samma regel som menyn: belonings- och skarvsaker har inga saljknappar. */
   if (shardOf(key)) h += '<div class="ia-note-dim">Proof of an expedition. It cannot be sold or traded.</div>';
   else if (d && d.noSell && !isCacheTicket(key)) h += '<div class="ia-note-dim">A reward. It cannot be sold or traded.</div>';
@@ -37286,6 +37348,7 @@ function spawnStackWin(key, nearX, nearY){
     else if (btn.dataset.act === 'melon'){ openMelon(at); win.remove(); return; }
     else if (btn.dataset.act === 'useschem'){ useRecipeItem(at); win.remove(); return; }
     else if (btn.dataset.act === 'useall'){ useCacheTicketAll(key); win.remove(); return; }
+    else if (btn.dataset.act === 'tovault'){ toVault(at); win.remove(); return; }   /* [TILLAGT v5.774.0] */
     else if (btn.dataset.act === 'drink'){ if (drinkFlask(at)) spawnFloat({text: 'Boost active!'}); }
     else if (btn.dataset.act === 'learn'){
       const res = useRecipeItem(at);
@@ -37518,6 +37581,7 @@ document.querySelectorAll('#panel-character [data-slot]').forEach(elm => {
     return {x: vanster ? r.left : r.right, y: r.top + r.height / 2, side: vanster ? 'left' : 'right'};
   };
   elm.addEventListener('mouseenter', () => {
+    if (isTouchInput()) return;   /* [TILLAGT v5.774.0] Inte pa pekskarm: Safari ater trycket om nagot visas vid hovring. */
     const it = S.equip[+elm.dataset.slot];
     if (it){ const p = tipSpot(); showGearTip(it, p.x, p.y, false, p.side); }
   });
@@ -38807,6 +38871,9 @@ document.querySelectorAll('[data-bag]').forEach(el => {
     if (b){
       /* Shift+klick tar ut VÄSKAN ur facket, precis som på kroppens platser. */
       if (e.shiftKey){ if (!unequipBag(i)) showBagTip(el, 'No room in the backpack for the bag itself.'); return; }
+      /* [TILLAGT v5.774.0] Pa telefon oppnar trycket vaskans meny (Take out m.m.) - shift-klick, hogerklick
+         och drag finns inte dar, sa en vaska i facket gick aldrig att ta ut. */
+      if (isTouchInput()){ hideBagTip(); openGearMenu(b.uid, e.clientX, e.clientY); return; }
       /* Vanligt klick växlar mellan inbakad och utbruten. */
       setBagOpen(i, !bagIsOpen(i));
       return;
@@ -38826,6 +38893,7 @@ document.querySelectorAll('[data-bag]').forEach(el => {
     if (b){ hideBagTip(); openGearMenu(b.uid, e.clientX, e.clientY); }
   });
   el.addEventListener('mouseenter', e => {
+    if (isTouchInput()) return;   /* [TILLAGT v5.774.0] Inte pa pekskarm: Safari ater trycket om nagot visas vid hovring. */
     const b = bagIn(i);
     if (b){ highlightBagSlots(i, true); showGearTip(b, e.clientX, e.clientY); return; }
     showBagTip(el, bagUnlocked(i)
@@ -43063,11 +43131,15 @@ function guildChatBoot(){
 async function guildChatSendNow(){
   const inp = $('gd-input'); if (!inp) return;
   const t = inp.value.trim(); if (!t) return;
+  /* [TILLAGT v5.774.0] Ett meddelande at gangen - knapp och Enter skickade dubbelt (uppmatt: tva anrop). */
+  if (guildChatSendNow.busy) return;
+  guildChatSendNow.busy = true;
   try {
     await srvRpc('guild_chat_send', {p_character: SRV.charId, p_body: t});
     inp.value = ''; GUILD.draft = '';
     guildChatPull();
   } catch (e){ say(srvErrText(e, 'Could not send that.')); }
+  finally { guildChatSendNow.busy = false; }
 }
 
 /* ----- Ett lyssnaroga pa hela fonstret ----- */
@@ -44197,7 +44269,10 @@ async function chatSend(){
   /* bara lankar vars token ar kvar i texten skickas, i textens ordning */
   const live = CHAT.links.filter(l => text.indexOf(l.token) >= 0).sort((a, b) => text.indexOf(a.token) - text.indexOf(b.token));
   if (!text.trim() && !live.length) return;
-  const btn = $('chat-btn-send'); btn.disabled = true;
+  const btn = $('chat-btn-send');
+  /* [TILLAGT v5.774.0] Enter-tangenten gick runt den avstangda knappen - ett dubbeltryck skickade tva. */
+  if (CHAT.sending) return;
+  CHAT.sending = true; btn.disabled = true;
   try {
     if (CHAT.tab === 'guild'){
       const it = live.find(l => l.item);
@@ -44218,7 +44293,7 @@ async function chatSend(){
     const m = String(e && e.message || '');
     if (m.indexOf('link_item_not_owned') >= 0){ CHAT.links = []; chatDraftLinksRender(); }
     say(srvErrText(e, 'Could not send that.'));
-  } finally { btn.disabled = false; inp.focus(); }
+  } finally { CHAT.sending = false; btn.disabled = false; inp.focus(); }
 }
 /* --- Shift+klick pa gear medan man skriver: LANKA, inte flytta --- */
 function chatShiftCapture(e){
@@ -45331,6 +45406,7 @@ function plTipShow(btn){
   PLTIP = el;
 }
 document.addEventListener('mouseover', e => {
+  if (isTouchInput()) return;   /* [TILLAGT v5.774.0] Inte pa pekskarm: Safari ater trycket om nagot visas vid hovring. */
   const b = e.target.closest('[data-plmenu]');
   if (b) plTipShow(b); else if (!e.target.closest('.pl-tip')) plTipHide();
 });
