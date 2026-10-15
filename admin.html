@@ -1711,13 +1711,20 @@ function attachWire(pre, onChange){
     const d = document.createElement('div'); d.className = 'stk gear';
     const rars = (CATALOG.rarities || []).map(r => '<option value="' + r.idx + '"' + ((rar | 0) === r.idx ? ' selected' : '') + '>' + esc(r.name) + '</option>').join('');
     d.innerHTML = '<input class="k" list="ml-gcat" placeholder="gear key… (type a name)" value="' + esc(key || '') + '"><select class="r">' + rars + '</select><input class="l" type="number" min="1" max="50" value="' + (lvl || 1) + '" title="Item level"><button class="btn sm">×</button>';
-    d.querySelector('button').onclick = () => { d.remove(); fire(); };
+    d.querySelector('button').onclick = () => { d.remove(); gearBtn(); fire(); };
     /* Sallsyntheter som pjasen inte kan ha slacks nar nyckeln ar vald. */
     const k = d.querySelector('.k'), rs = d.querySelector('.r');
     const limit = () => { const g = (CATALOG.gear || []).find(x => x.key === k.value.trim()); [...rs.options].forEach(o => { o.disabled = !!(g && g.rarities && !g.rarities.includes(+o.value))
       || (lim('mail.single', 'max_gear_rarity') != null && +o.value > lim('mail.single', 'max_gear_rarity')); });   /* [ANDRAT v5.787.0] rollens tak */ if (rs.selectedOptions[0] && rs.selectedOptions[0].disabled){ const f = [...rs.options].find(o => !o.disabled); if (f) rs.value = f.value; } };
     k.addEventListener('input', () => { limit(); fire(); }); rs.addEventListener('change', fire); d.querySelector('.l').addEventListener('input', fire); limit();
     $(pre + '-gear').appendChild(d);
+    gearBtn();
+  };
+  /* [TILLAGT v5.796.0] Knappen gommes nar rollens tak for pjaser ar natt (buggsvep 6) - forut gick det
+     att lagga till fler och forst servern sa nej. Owner har inget tak och ser alltid knappen. */
+  const gearBtn = () => {
+    const max = lim('mail.single', 'max_gear'), n = $(pre + '-gear').children.length;
+    $(pre + '-addgear').style.display = (max != null && n >= max) ? 'none' : '';
   };
   $(pre + '-addstack').onclick = () => addStack();
   $(pre + '-addgear').onclick = () => addGear();
@@ -2515,7 +2522,9 @@ const PERM_INFO = {
 const EXTRA_PERMS = [['player.restrict', 'Restrict (mail / auction / guild / report blocks)'], ['player.pause', 'Pause account'], ['run.abort', 'Abort a stuck run']];
 const SETTING_INFO = {
   require_mfa: ['Two-factor required', 'Staff must sign in with an authenticator code. Turn off only for testing.', 'bool'],
-  second_approval: ['Second approval', 'Big campaigns need a second admin to approve before sending.', 'bool'],
+  /* [ANDRAT v5.796.0] Installningen sparas men ingenting kontrollerar den an (buggsvep 6). Sagt rakt ut,
+     sa ingen tror att den skyddar. Utskick ar dessutom bara for Owner. */
+  second_approval: ['Second approval (not active yet)', 'Saved, but nothing checks it yet. Campaigns are Owner only, so they cannot be sent by anyone else.', 'bool'],
   alert_actions_per_hour: ['Alert: actions per hour', 'Raise an alert when one admin does this many actions within an hour.', 'num'],
   alert_gold_over: ['Alert: gold over (copper)', 'Raise an alert when one adjustment, letter or campaign moves more gold than this.', 'num']
 };
