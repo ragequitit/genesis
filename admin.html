@@ -1176,6 +1176,8 @@ function renderP360(){
   const active = md.sanctions.filter(s => s.active);
   const rep = P360REP || {bugs: 0, ideas: 0, rows: []};
   const tabs = [['overview','Overview'],['inventory','Inventory'],['helpers','Helpers'],['economy','Economy'],['progression','Progression'],['social','Social'],['feedback','Bugs & ideas', (rep.bugs|0) + (rep.ideas|0)],['moderation','Moderation', active.length],['timeline','Timeline'],['notes','Notes & audit']];
+  /* [TILLAGT v5.800.0] Buggrapporter ar Owners (bugs.read) - fliken syntes for alla roller (buggsvep 9). */
+  if (!has('bugs.read')){ const fi = tabs.findIndex(t => t[0] === 'feedback'); if (fi >= 0) tabs.splice(fi, 1); }
   let h = '<div class="row" style="margin-bottom:10px"><button class="btn" id="p-back">‹ Back</button><h1 class="pg" style="font-size:22px">Player 360</h1></div>' +
     '<div class="p360-head"><div><div class="hn">' + esc(p.handle) + ' ' +
       (p.banned ? '<span class="pill red">Banned</span>' : online ? '<span class="pill green">Online</span>' : '<span class="pill">Offline</span>') +
@@ -1487,7 +1489,8 @@ const DEFAULT_MSG = {
   lock: 'Your account is locked while the team looks into something.', char_lock: 'One of your characters is locked while the team looks into something.'
 };
 function sanctionBox(p, chars, caseId){
-  const kinds = KINDS.filter(k => has(k[2]));
+  /* [ANDRAT v5.800.0] Utan karaktarslista (fran ett arende) gar karaktarslas inte - forut kastade servern ett fel. */
+  const kinds = KINDS.filter(k => has(k[2]) && !(k[0] === 'char_lock' && !(chars && chars.length)));
   if (!kinds.length){ toast('You have no sanction permissions.', true); return; }
   const m = $('modal'); m.className = 'modal orange';
   m.innerHTML = '<h3>Sanction ' + esc(p.handle) + '</h3><p>Every sanction is logged with your name, is visible to the player as a mail if you write one, and can be lifted.' + (caseId ? ' Linked to case #' + caseId + '.' : '') + '</p>' +
@@ -2299,7 +2302,7 @@ function pvTipHTML(d){
   if (d.t === 'pet'){
     const p = d.p, g = gPet(p.species, p.name);
     return '<div class="pvt-n" style="color:' + RARC[p.rarity | 0] + '">' + esc(p.nickname || g.n) + '</div>' +
-      '<div class="pvt-k">' + (p.nickname ? esc(g.n) + ' · ' : '') + RARN[p.rarity | 0] + ' helper · Level ' + (p.level || 1) + ' of 10</div><div class="pvt-sep"></div>' +
+      '<div class="pvt-k">' + (p.nickname ? esc(g.n) + ' · ' : '') + RARN[p.rarity | 0] + ' helper · Level ' + (p.level || 1) + ' of 25</div><div class="pvt-sep"></div>' +
       (p.affixes || []).map(a => '<div class="pvt-a">' + gHelp(a) + '</div>').join('') +
       '<div class="pvt-w">' + (p.team_slot != null ? 'Working in team slot ' + (p.team_slot + 1) : 'Resting (not in the team)') + '</div>';
   }
@@ -2359,7 +2362,7 @@ async function pvDo(d, it){
       const r = await confirmBox({title: 'Remove all ' + d.s.qty + ' ' + nm + ' from ' + who + '?', body: 'The stack is deleted. The amount is kept in the audit.', reason: true, tone: 'red', yes: 'Remove'});
       if (!r) return; await rpc('admin_stack_set', {p_character: d.c.id, p_key: d.s.key, p_rarity: d.s.rarity, p_qty: 0, p_reason: r.reason, p_vault: d.vault}); toast('Removed.');
     } else if (d.t === 'pet' && it.act === 'lvl'){
-      const r = await numberBox({title: nm + ' — level', body: 'Right now level ' + (d.p.level || 1) + ' of 10. Its XP is set to the start of the new level.', label: 'New level (1–10)', min: 1, max: 10, value: Math.min(10, (d.p.level || 1) + 1), yes: 'Set level'});
+      const r = await numberBox({title: nm + ' — level', body: 'Right now level ' + (d.p.level || 1) + ' of 25. Its XP is set to the start of the new level.', label: 'New level (1–25)', min: 1, max: 25, value: Math.min(25, (d.p.level || 1) + 1), yes: 'Set level'});
       if (!r) return; await rpc('admin_pet_set_level', {p_pet: d.p.id, p_level: r.n, p_reason: r.reason}); toast(nm + ' is now level ' + r.n + '.');
     } else if (d.t === 'pet' && it.act === 'rar'){
       const r = await confirmBox({title: 'Make ' + nm + ' ' + RARN[it.v] + '?', body: 'It keeps its ability. The bonus is scaled to the new rarity the same way the game rolls it: ' + (d.p.affixes || []).map(gHelp).join(', ') + '.', reason: true, tone: 'orange', yes: 'Change rarity'});
