@@ -813,8 +813,8 @@ $('lock-out').onclick = async () => { remSet(false); await sb.auth.signOut(); lo
 
 /* ---------- navigation ---------- */
 const NAV = [
-  ['overview','Overview','home', null], ['players','Players','users', null], ['cases','Cases','cases', null],
-  ['chat','Chat','chat', null], ['guilds','Guilds','guild', null], ['mail','Mail & Rewards','mail', null],
+  ['overview','Overview','home', null], ['players','Players','users', null], ['cases','Cases','cases', null, 'case.manage'],
+  ['chat','Chat','chat', null, 'chat.read'], ['guilds','Guilds','guild', null], ['mail','Mail & Rewards','mail', null],
   ['economy','Economy & Content','econ', null], ['analytics','Analytics','stats', null], ['admin','Admin','admin', null],
   /* [v0.17.0] Femte faltet: behorigheten som kravs for att valet ens ska synas. */
   ['bugs','Bugs & ideas','warn', null, 'bugs.read']
@@ -1714,7 +1714,8 @@ function attachWire(pre, onChange){
     d.querySelector('button').onclick = () => { d.remove(); fire(); };
     /* Sallsyntheter som pjasen inte kan ha slacks nar nyckeln ar vald. */
     const k = d.querySelector('.k'), rs = d.querySelector('.r');
-    const limit = () => { const g = (CATALOG.gear || []).find(x => x.key === k.value.trim()); [...rs.options].forEach(o => { o.disabled = !!(g && g.rarities && !g.rarities.includes(+o.value)); }); if (rs.selectedOptions[0] && rs.selectedOptions[0].disabled){ const f = [...rs.options].find(o => !o.disabled); if (f) rs.value = f.value; } };
+    const limit = () => { const g = (CATALOG.gear || []).find(x => x.key === k.value.trim()); [...rs.options].forEach(o => { o.disabled = !!(g && g.rarities && !g.rarities.includes(+o.value))
+      || (lim('mail.single', 'max_gear_rarity') != null && +o.value > lim('mail.single', 'max_gear_rarity')); });   /* [ANDRAT v5.787.0] rollens tak */ if (rs.selectedOptions[0] && rs.selectedOptions[0].disabled){ const f = [...rs.options].find(o => !o.disabled); if (f) rs.value = f.value; } };
     k.addEventListener('input', () => { limit(); fire(); }); rs.addEventListener('change', fire); d.querySelector('.l').addEventListener('input', fire); limit();
     $(pre + '-gear').appendChild(d);
   };
@@ -1760,7 +1761,11 @@ async function renderMail(){
   if (MAILTAB === 'templates') return renderTemplates();
   if (MAILTAB === 'email') return renderEmail();
   m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Mail & Rewards</h1><div class="pg-sub" style="margin-bottom:0">One letter to one character, with attachments the game rolls itself.</div></div>' +
-    (lim ? '<div class="right">Your caps: gold <b>' + (lim.max_gold != null ? gold(lim.max_gold) : '∞') + '</b> · fragments <b>' + (lim.max_frags != null ? lim.max_frags : '∞') + '</b> · credits <b>' + (lim.max_credits != null ? lim.max_credits : '∞') + '</b> · cache tickets <b>' + (lim.max_tickets != null ? lim.max_tickets : '∞') + '</b></div>' : '') + '</div>' +
+    (lim ? '<div class="right">Your caps: gold <b>' + (lim.max_gold != null ? gold(lim.max_gold) : '∞') + '</b> · fragments <b>' + (lim.max_frags != null ? lim.max_frags : '∞') + '</b> · credits <b>' + (lim.max_credits != null ? lim.max_credits : '∞') + '</b> · cache tickets <b>' + (lim.max_tickets != null ? lim.max_tickets : '∞') + '</b>' +
+      /* [TILLAGT v5.787.0] De nya taken for foremal. */
+      ' · gear <b>' + (lim.max_gear != null ? lim.max_gear : '∞') + '</b>' +
+      (lim.max_gear_rarity != null ? ' (up to ' + esc(RARN[lim.max_gear_rarity] || lim.max_gear_rarity) + ')' : '') +
+      ' · items <b>' + (lim.max_stack_qty != null ? lim.max_stack_qty : '∞') + '</b></div>' : '') + '</div>' +
     mailTabs() +
     (can ? '<div class="mailgrid"><div class="box">' + h3('New letter') +
       '<div class="fld"><label>To (handle)</label><div class="row"><input id="ml-handle" placeholder="Search a handle…" value="' + esc(to ? to.handle : '') + '" style="flex:1"><select id="ml-char" style="flex:1">' + (to ? to.characters.map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('') : '<option value="">— pick a player first —</option>') + '</select></div><div id="ml-hits" style="position:relative"></div></div>' +
@@ -2298,14 +2303,14 @@ function pvMenuItems(d){
   if (d.t === 'gear'){
     const i = d.i, moving = i.location === 'auction' || i.location === 'mail';
     if (has('items.manage') && !i.gem && !moving && (i.rarities || []).length > 1)
-      (i.rarities || []).filter(r => r !== i.rarity).forEach(r => out.push({label: 'Make it ' + RARN[r], color: RARC[r], act: 'rar', v: r}));
+      (i.rarities || []).filter(r => r !== i.rarity && (lim('items.manage', 'max_rarity') == null || r <= lim('items.manage', 'max_rarity'))).forEach(r => out.push({label: 'Make it ' + RARN[r], color: RARC[r], act: 'rar', v: r}));   /* [ANDRAT v5.787.0] rollens tak */
     if (has('item.remove') && !moving) out.push({label: 'Remove item', danger: true, act: 'rm'});
     if (moving) out.push({label: 'On its way (' + i.location + ') — cannot be changed', off: true});
   }
   if (d.t === 'stack' && has('items.manage')){ out.push({label: 'Set amount…', act: 'qty'}); out.push({label: 'Remove all ' + d.s.qty, danger: true, act: 'rm'}); }
   if (d.t === 'pet' && has('items.manage')){
     out.push({label: 'Set level…', act: 'lvl'});
-    [0, 1, 2, 3, 4, 5].filter(r => r !== (d.p.rarity | 0)).forEach(r => out.push({label: 'Make it ' + RARN[r], color: RARC[r], act: 'rar', v: r}));
+    [0, 1, 2, 3, 4, 5].filter(r => r !== (d.p.rarity | 0) && (lim('items.manage', 'max_rarity') == null || r <= lim('items.manage', 'max_rarity'))).forEach(r => out.push({label: 'Make it ' + RARN[r], color: RARC[r], act: 'rar', v: r}));
     out.push({label: 'Remove helper', danger: true, act: 'rm'});
   }
   if (!out.length) out.push({label: 'Your role cannot change this', off: true});
