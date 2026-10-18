@@ -15964,7 +15964,8 @@ function dgcRatingPill(heroic){
      det DET som galler. Pillret har ett id sa det kan skrivas om pa plats. */
   const f = dgfCurrent(id, heroic);
   const r = PVE.ratings ? PVE.ratings[id] : null;
-  const v = (f && f.rating) || (r ? r[heroic ? 'heroic' : 'normal'] : null);
+  /* [ANDRAT v5.901.0] Rift-sidan har ingen samlad lista - bara prognosen galler (annars visades Normal-betyget). */
+  const v = (f && f.rating) || ((r && DGC_SIDE !== 'rift') ? r[heroic ? 'heroic' : 'normal'] : null);
   if (!v) return '';
   const rt = PVE_RATING[v] || PVE_RATING.normal;
   return '<span class="dgc-pill dgc-rate" id="dgc-rate-pill" style="--rt:' + rt.col + '">' +
@@ -16230,7 +16231,7 @@ function dgcRunHTML(run){
   /* [TILLAGT v5.608.0] HEROISKT LOPP TONAS LILA (Chris). pve_dungeon_state
      skickar nu med run.heroic, och klassen 'heroic' byter EN variabel - samma
      vaxel som svarighetsvalet redan anvander. Ingen andra uppsattning regler. */
-  return '<div class="dgc-frame running' + (run.heroic ? ' heroic' : '') + '">' +
+  return '<div class="dgc-frame running' + ((run.rift | 0) > 0 ? ' rift' : run.heroic ? ' heroic' : '') + '">' +
     '<div class="dgc-claim">' +
       '<div class="dgc-kind">' + ((run.rift | 0) > 0 ? 'Rift ' + (run.rift | 0) + ' In Progress' : run.heroic ? 'Heroic Run In Progress' : 'Run In Progress') + '</div>' +
       '<div class="dgc-title">' + esc(run.name || 'Dungeon') + '</div>' +
@@ -16471,7 +16472,7 @@ function buildZoneDungeon(regionId, zone){
 function buildDgSetup(dg){
   return '<div class="pve-card">' +
     '<div class="pve-name">' + esc(dg.name) + '</div>' +
-    '<div class="pve-blurb">Two difficulties \u00b7 ' + dg.bosses +
+    '<div class="pve-blurb">Normal, Heroic and Rift \u00b7 ' + dg.bosses +
     ' bosses \u00b7 the run keeps going while you are away, in real time.</div>' +
     (pveLowHealth() ? '<div class="pve-low">LOW HEALTH \u2014 patch up before you enter.</div>' : '') +
     '<div class="pve-btns"><button class="pve-fight" id="dg-enter">Choose difficulty</button></div>' +
@@ -16510,7 +16511,7 @@ function buildDgRun(run){
   const pct = total > 0
     ? Math.max(0, Math.min(100, 100 * (total - pveDgLeft()) / total)) : 0;
   return '<div class="pve-card">' +
-    '<div class="dgc-frame running dgz-run' + (run.heroic ? ' heroic' : '') + '">' +
+    '<div class="dgc-frame running dgz-run' + ((run.rift | 0) > 0 ? ' rift' : run.heroic ? ' heroic' : '') + '">' +
       '<div class="dgc-claim">' +
         '<div class="dgc-kind">' +
           (run.heroic ? 'Heroic Run In Progress' : 'Run In Progress') + '</div>' +
@@ -40431,7 +40432,7 @@ async function renderLeaderboard(){
   const list = $('lb-list'); if (!list) return;
   document.querySelectorAll('#lb-tabs .lb-tab').forEach(b => b.classList.toggle('on', b.dataset.lbk === LB.kind));
   if ($('lb-why')) $('lb-why').textContent = LB_WHY[LB.kind + '|' + (LB.kind === 'gold' ? 'all' : LB.period)] || '';
-  const veckaFinns = LB.kind !== 'gold';
+  const veckaFinns = LB.kind !== 'gold' && LB.kind !== 'rift';   /* [ANDRAT v5.901.0] rift ar bara all time */
   /* [ANDRAT v5.832.0] Gold andrar inte spelarens val - tillbaka pa Level ar This week kvar (buggsvep 14). */
   const period = veckaFinns ? LB.period : 'all';
   document.querySelectorAll('#lb-period button').forEach(b => {
