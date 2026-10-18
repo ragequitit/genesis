@@ -4427,6 +4427,13 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .wb-cell{padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03);display:grid;grid-template-columns:22px 1fr;gap:2px 8px;font-size:11.5px}
 .wb-cell i{font-style:normal;font-size:16px;grid-row:span 2;line-height:1.2}
+.wb-ico{position:relative;width:24px;height:24px;display:block}
+.wb-ico img{width:24px;height:24px;object-fit:contain;display:block}
+.wb-ico img + span{display:none}   /* tecknet syns bara nar bilden saknas */
+.wb-ico.noart span{display:block}
+.wb-drop .pic.ico img{width:28px;height:28px;object-fit:contain}
+.wb-drop .pic.ico img + *{display:none}
+.wb-drop .pic.ico{font-size:18px}
 .wb-cell b{color:#fff}
 .wb-cell span{color:var(--text-dim);line-height:1.4}
 .wb-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
@@ -4447,6 +4454,7 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-abs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .wb-ab{display:grid;grid-template-columns:24px 1fr;gap:0 8px;padding:7px 9px;border-radius:9px;border:1px solid var(--border);background:rgba(0,0,0,.25);font-size:11.5px}
 .wb-ab i{font-style:normal;font-size:16px;grid-row:span 2}
+.wb-ab .wb-ico{width:24px;height:24px}
 .wb-ab b{color:#fff}
 .wb-ab span{color:var(--text-dim);line-height:1.35}
 .wb-ab span u{color:#fff;text-decoration:none;font-weight:800}
@@ -43419,14 +43427,16 @@ function renderWorldBoss(){
 }
 /* ===== BOSSKATALOGEN (v5.903.0) ===== */
 function wbBossArt(b){ return 'assets/worldboss/' + (b.key || b.boss) + '.webp'; }
+/* [ANDRAT v5.905.0] EGNA IKONER (Chris): assets/worldboss/ico/<namn>.webp - tecknet star kvar som reserv tills filen finns. */
+function wbIco(name, fb){ return '<i class="wb-ico"><img src="assets/worldboss/ico/' + name + '.webp" alt="" onerror="this.parentNode.classList.add(\'noart\');this.remove()"><span>' + fb + '</span></i>'; }
 function wbRulesHTML(){
   return '<div class="wb-sec"><h4>How it works</h4><div class="wb-grid">' +
-    '<div class="wb-cell"><i>⏰</i><b>Twice a day</b><span>Weekdays 12:00 and 18:00, weekends 11:00 and 18:00 (Swedish time). A skull on the map and a line in chat tell you where, an hour before.</span></div>' +
-    '<div class="wb-cell"><i>🚩</i><b>Get there</b><span>The boss lands in one zone of its region. Travel there — the zone opens for everyone while the boss is around, drone or not.</span></div>' +
-    '<div class="wb-cell"><i>⚔</i><b>Fight 5–15 minutes</b><span><b>Strike</b> every 8 s, <b>Power Strike</b> (×3) every 45 s, <b>Dodge</b> when the boss winds up, <b>Heal</b> (+40 %) when you are low.</span></div>' +
-    '<div class="wb-cell"><i>⚠</i><b>Special attacks</b><span>Every 30 s the boss charges one. The screen warns you — Dodge in time and it misses. Knocked out? Back in 20 s with half health. Nothing is lost.</span></div>' +
-    '<div class="wb-cell"><i>✉</i><b>The letter</b><span>Everyone who struck gets gold, XP and gear by mail when it falls (or escapes). Top damage gets a little more. 20+ strikes rolls twice for rarity.</span></div>' +
-    '<div class="wb-cell"><i>⭐</i><b>Only here</b><span>Broken Charms, the <b>Apex Charm</b> (level 50 → 60), signature pieces in World Boss cut and Master schematics.</span></div>' +
+    '<div class="wb-cell">' + wbIco('clock', '⏰') + '<b>Twice a day</b><span>Weekdays 12:00 and 18:00, weekends 11:00 and 18:00 (Swedish time). A skull on the map and a line in chat tell you where, an hour before.</span></div>' +
+    '<div class="wb-cell">' + wbIco('flag', '🚩') + '<b>Get there</b><span>The boss lands in one zone of its region. Travel there — the zone opens for everyone while the boss is around, drone or not.</span></div>' +
+    '<div class="wb-cell">' + wbIco('swords', '⚔') + '<b>Fight 5–15 minutes</b><span><b>Strike</b> every 8 s, <b>Power Strike</b> (×3) every 45 s, <b>Dodge</b> when the boss winds up, <b>Heal</b> (+40 %) when you are low.</span></div>' +
+    '<div class="wb-cell">' + wbIco('warning', '⚠') + '<b>Special attacks</b><span>Every 30 s the boss charges one. The screen warns you — Dodge in time and it misses. Knocked out? Back in 20 s with half health. Nothing is lost.</span></div>' +
+    '<div class="wb-cell">' + wbIco('letter', '✉') + '<b>The letter</b><span>Everyone who struck gets gold, XP and gear by mail when it falls (or escapes). Top damage gets a little more. 20+ strikes rolls twice for rarity.</span></div>' +
+    '<div class="wb-cell">' + wbIco('star', '⭐') + '<b>Only here</b><span>Broken Charms, the <b>Apex Charm</b> (level 50 → 60), signature pieces in World Boss cut and Master schematics.</span></div>' +
   '</div></div>';
 }
 function wbCodexHTML(st, openKey){
@@ -43443,7 +43453,8 @@ function wbCodexHTML(st, openKey){
 const WB_KIND_TXT = {frost: 'freezes you for 8 s — no moves', slam: 'hits you for 35 % of your health', spores: 'halves your strikes for 15 s', regrow: 'the boss heals 2 % — cannot be dodged, just keep hitting'};
 function wbCodexDetail(b){
   const sp = b.specials || {};
-  const specials = ['frost', 'slam', 'spores', 'regrow'].map(k => '<div class="wb-ab ' + k + '"><i>' + (WB_KINDS[k] || {}).ic + '</i><b>' + esc(sp[k] || k) + '</b><span>' + WB_KIND_TXT[k] + (k === 'regrow' ? '' : ' · <u>Dodge</u> avoids it') + '</span></div>').join('');
+  /* [ANDRAT v5.905.0] Egen ikon per boss och attack: assets/worldboss/ico/<boss>_<kind>.webp, tecknet som reserv. */
+  const specials = ['frost', 'slam', 'spores', 'regrow'].map(k => '<div class="wb-ab ' + k + '">' + wbIco(esc(b.key) + '_' + k, (WB_KINDS[k] || {}).ic) + '<b>' + esc(sp[k] || k) + '</b><span>' + WB_KIND_TXT[k] + (k === 'regrow' ? '' : ' · <u>Dodge</u> avoids it') + '</span></div>').join('');
   const o = b.odds || {};
   const pct = x => Math.round((+x || 0) * 100) + ' %';
   const sig = (b.sig || []).map(x => {
@@ -43463,12 +43474,12 @@ function wbCodexDetail(b){
       '<div class="wb-blurb">' + esc(b.blurb || '') + '</div></div></div>' +
     '<h5>Special attacks</h5><div class="wb-abs">' + specials + '</div>' +
     '<h5>What it drops</h5><div class="wb-drops">' +
-      '<div class="wb-drop"><span class="pic ico">🎁</span><b>A piece of gear for everyone</b><span>' + odds + '</span><i>always</i></div>' +
+      '<div class="wb-drop"><span class="pic ico"><img src="assets/worldboss/ico/gift.webp" alt="" onerror="this.remove()">🎁</span><b>A piece of gear for everyone</b><span>' + odds + '</span><i>always</i></div>' +
       sig +
-      '<div class="wb-drop"><span class="pic ico">📜</span><b>Master schematic</b><span>A high-rank crafting pattern from ' + esc(b.region_name || b.region) + '</span><i>' + pct(o.paper) + '</i></div>' +
+      '<div class="wb-drop"><span class="pic ico"><img src="assets/worldboss/ico/scroll.webp" alt="" onerror="this.remove()">📜</span><b>Master schematic</b><span>A high-rank crafting pattern from ' + esc(b.region_name || b.region) + '</span><i>' + pct(o.paper) + '</i></div>' +
       '<div class="wb-drop"><span class="pic" style="background-image:url(\'assets/items/charms/charm_legendary.webp\')"></span><b>Broken Charm</b><span>Epic, Legendary or Mythic — a Jewelcrafter restores it</span><i>' + pct(o.charm) + '</i></div>' +
       '<div class="wb-drop"><span class="pic" style="background-image:url(\'assets/items/charms/apex_charm.webp\')"></span><b>Apex Charm</b><span>Lifts one level 50 piece to 60. Only from World Bosses</span><i>' + pct(o.apex) + ' · top ' + pct(o.apex_top) + '</i></div>' +
-      '<div class="wb-drop"><span class="pic ico">💰</span><b>Gold and XP</b><span>Three fights’ worth of XP and a purse of gold, scaled to the region</span><i>always</i></div>' +
+      '<div class="wb-drop"><span class="pic ico"><img src="assets/worldboss/ico/coins.webp" alt="" onerror="this.remove()">💰</span><b>Gold and XP</b><span>Three fights’ worth of XP and a purse of gold, scaled to the region</span><i>always</i></div>' +
     '</div></div>';
 }
 function wbBindCodex(body){
