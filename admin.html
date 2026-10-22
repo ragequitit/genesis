@@ -588,7 +588,7 @@ I18N.start();
 <script src="lib/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.22.0';   /* [ANDRAT v0.22.0] skarmbild i buggrapporter */
+const ADMIN_VERSION = 'v0.22.1';   /* [ANDRAT v0.22.0] skarmbild i buggrapporter */
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -2221,7 +2221,14 @@ async function loadGameCatalog(){
 }
 function gItem(k, sn){ return GCAT.items[k] || {n: sn || String(k).replace(/_/g, ' '), a: ''}; }
 function gItemArt(i){ const c = gItem(i.key, i.name); return c.pr ? c.pr[Math.min(5, i.rarity | 0)] : (c.a || ''); }
-function gStack(k, sn){ return GCAT.stacks[k] || {n: sn || String(k).replace(/_/g, ' '), a: '', i: '📦', d: ''}; }
+/* [ANDRAT v0.22.1] Ritningar som saknas i spelets katalog visas som papper med lasbart namn, inte som ra nyckel (Chris). */
+function gStack(k, sn){
+  if (GCAT.stacks[k]) return GCAT.stacks[k];
+  const m = /^sch_(ou|ws|jc|md|rf)_(.+)$/.exec(String(k));
+  if (m){ const p = {ou: ['pattern', 'Pattern'], ws: ['schematic', 'Schematic'], jc: ['design', 'Design'], md: ['schematic', 'Formula'], rf: ['schematic', 'Process']}[m[1]];
+    return {n: sn || (p[1] + ': ' + m[2].replace(/_/g, ' ')), a: 'assets/items/schematics/' + p[0] + '.webp', i: '\ud83d\udcdc', d: '', k: p[1]}; }
+  return {n: sn || String(k).replace(/_/g, ' '), a: '', i: '📦', d: ''};
+}
 function gAff(a){ const x = GCAT.affixes[a.k]; const v = (+a.v || 0).toFixed(2); return x ? (x.l ? '−' : '+') + v + x.s + ' ' + x.n : '+' + v + '% ' + a.k; }
 function gHelp(a){ const x = GCAT.helpers[a.f]; return x ? (x.t ? x.t.replace('{v}', (+a.v).toFixed(2)) : x.n + ' ' + a.v) : '+' + a.v + '% ' + a.f; }
 function gPet(sp, sn){ return GCAT.pets[sp] || {n: sn || sp, a: 'assets/pets/' + sp + '.png'}; }
