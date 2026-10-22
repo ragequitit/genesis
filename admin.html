@@ -209,6 +209,8 @@ h2.sec .hot{color:var(--red);filter:drop-shadow(0 0 5px rgba(255,77,109,.9)) dro
 .dev{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;color:var(--text-dim)}
 .dev .pill{font-size:10px}
 .bug-note{margin-top:8px;font-size:12px;color:var(--gold)}
+/* [TILLAGT v0.22.0] Skarmbild fran spelaren (toms pa servern nar rapporten blir Fixed/Won't fix). */
+.bug-shotbox{margin-top:8px}.bug-shotbox img{display:block;max-width:100%;max-height:420px;border-radius:8px;border:1px solid var(--border,#333)}
 .bug-note svg{width:13px;height:13px;vertical-align:-2px}
 .bug-acts{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap}
 .bug-acts .bnote{flex:1 1 220px;min-width:0;padding:6px 9px;border-radius:8px;border:1px solid var(--border);
@@ -586,7 +588,7 @@ I18N.start();
 <script src="lib/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.21.2';
+const ADMIN_VERSION = 'v0.22.0';   /* [ANDRAT v0.22.0] skarmbild i buggrapporter */
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -1095,6 +1097,7 @@ async function renderBugs(){
           '<span class="when">' + ago(b.created_at) + '</span></div>' +
         '<div class="bug-what">' + esc(b.what) + '</div>' +
         (b.expected ? '<div class="bug-exp"><b>' + (b.kind === 'idea' ? 'Why:' : 'Expected:') + '</b> ' + esc(b.expected) + '</div>' : '') +
+        (b.has_shot ? '<div class="bug-shotbox"><button class="btn sm" data-shot="' + b.id + '">Show screenshot</button></div>' : '') +   /* [TILLAGT v0.22.0] */
         devHTML(c) +
         (where ? '<div class="bug-ctx">' + where + '</div>' : '') +
         (c.sync_error ? '<div class="bug-ctx red">Last sync error: ' + esc(c.sync_error) + '</div>' : '') +
@@ -1128,6 +1131,14 @@ async function renderBugs(){
   m.querySelectorAll('[data-bt]').forEach(t => t.onclick = () => { BUGTAB = t.dataset.bt; BUGFILT = 'new'; renderBugs(); });
   m.querySelectorAll('[data-bf]').forEach(t => t.onclick = () => { BUGFILT = t.dataset.bf; renderBugs(); });
   m.querySelectorAll('.bugc [data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  /* [TILLAGT v0.22.0] Bilden hamtas forst nar man klickar - listan halls latt. */
+  m.querySelectorAll('.bugc [data-shot]').forEach(b => b.onclick = async () => {
+    try { const d = await rpc('admin_bug_shot', {p_id: +b.dataset.shot});
+      if (!d || !/^data:image\/(webp|jpeg|png);base64,/.test(d)){ toast('No screenshot'); return; }
+      const box = b.parentElement; box.innerHTML = '<a target="_blank" rel="noopener"><img alt="Screenshot"></a>';
+      box.querySelector('img').src = d; box.querySelector('a').href = d;
+    } catch (e){ toast(e.message, true); }
+  });
   m.querySelectorAll('.bugc [data-set]').forEach(b => b.onclick = async () => {
     const card = b.closest('.bugc'), note = card.querySelector('.bnote').value.trim();
     try { await rpc('admin_bug_report_set', {p_id: +card.dataset.id, p_status: b.dataset.set, p_note: note || null}); toast('Saved'); renderBugs(); }
