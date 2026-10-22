@@ -1148,6 +1148,25 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
   border:1px dashed var(--border);background:transparent;color:var(--text-dim)}
 .lo-new:hover{border-color:var(--cyan);color:var(--cyan)}
 .lo-full{margin-top:3px;text-align:center;font-size:9.5px;color:var(--text-dim);padding:6px}
+/* [TILLAGT gren loadout-sheets] SHEETS: Main ar kroppen, de andra sheeten byter bara sina egna platser */
+.sh-hint{font-size:10px;color:var(--text-dim);line-height:1.4;padding:0 2px 4px}
+.sh-edit{border:1px solid var(--border);border-radius:9px;padding:7px;background:rgba(0,0,0,.25);display:flex;flex-direction:column;gap:6px}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:5px}
+.sh-slot{position:relative;aspect-ratio:1;border-radius:8px;border:2px solid var(--tc,var(--border));background:rgba(0,0,0,.3);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:44px}
+.sh-slot img,.sh-slot .art-wrap{width:70%;height:70%;object-fit:contain}
+.sh-slot.main{opacity:.38;border-style:dashed}
+.sh-slot.sel{box-shadow:0 0 0 2px var(--cyan)}
+.sh-slot .sh-lbl{position:absolute;left:3px;top:1px;font-size:7.5px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
+.sh-slot .sh-own{position:absolute;right:3px;bottom:1px;font-size:9px;font-weight:900;color:var(--cyan)}
+.sh-legend{font-size:9.5px;color:var(--text-dim)}
+.sh-pick{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+.sh-pick .tb-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;background:rgba(255,255,255,.03);cursor:pointer;min-height:40px}
+.sh-pick .tb-row:hover{background:rgba(56,232,255,.08)}
+.sh-pick .tb-row img,.sh-pick .tb-row .art-wrap{width:28px;height:28px;object-fit:contain;flex:0 0 28px}
+.sh-pick .tb-n{flex:1;min-width:0;font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-btn{padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:#fff;font-weight:800;font-size:10px;cursor:pointer;min-height:32px}
+.sh-btn.warn{border-color:rgba(255,90,90,.5)}
 .lo-foot{margin-top:2px;text-align:center;font-size:9px;color:var(--text-dim);padding:3px}
 .lo-foot.ok{color:var(--green,#37e08a)}
 .ask-input{width:100%;margin:10px 0 2px;padding:9px 11px;border-radius:8px;
@@ -14255,6 +14274,16 @@ async function srvRpc(fn, args){
    varst: servern VET varfor, och den kunskapen kastades bort pa sju stallen.
    Ordlistan ar ett stalle, sa samma kod aldrig kan fa tva olika texter. */
 const SRV_ERRORS = {
+  /* [TILLAGT gren loadout-sheets] */
+  item_on_sheet:        'That piece belongs to a loadout sheet \u2014 change it in Loadouts.',
+  sheets_disabled:      'Loadout sheets are not open yet.',
+  sheet_cap:            'You are using all your sheets.',
+  sheet_bad_name:       'Use 1 to 10 characters.',
+  sheet_not_found:      'That sheet is gone.',
+  sheet_wrong_slot:     'That piece doesn\u2019t fit in that slot.',
+  sheet_slot_not_allowed: 'That slot can\u2019t be part of a sheet.',
+  sheet_slot_empty:     'That slot is already empty.',
+  sheet_need_bag_space: 'Make room in your bag first \u2014 the pieces go back there.',
   /* [TILLAGT v5.665.0] */
   guild_leader:         'You lead a guild with members in it \u2014 hand over leadership (or disband) before deleting this character.',
   not_enough_fragments: 'Not enough fragments.',
@@ -18473,6 +18502,13 @@ const LO_MAX = 5;
 let LO = {rows: [], busy: false};
 async function netLoadoutState(){
   if (!NET.on) return null;
+  /* [ANDRAT gren loadout-sheets] Sheets forst. Ar de inte oppna for kontot (servern sager enabled false)
+     anvands de gamla loadouterna precis som forut. */
+  try {
+    const st = await srvRpc('sheet_state', {p_character: SRV.charId});
+    if (st && st.enabled){ LO.sh = st; LO.rows = (st.sheets || []).length ? st.sheets : [{idx: 0}]; return LO.rows; }
+  } catch (e){}
+  LO.sh = null;
   LO.rows = (await srvRpc('loadout_state', {p_character: SRV.charId})) || [];
   return LO.rows;
 }
@@ -18492,6 +18528,7 @@ function loIsWorn(row){
 function renderLoadouts(){
   const box = $('lo-wrap');
   if (!box) return;
+  if (LO.sh && LO.sh.enabled){ renderSheets(box); return; }   /* [TILLAGT gren loadout-sheets] */
   if (!NET.on){
     box.innerHTML = '<div class="ct-soon">Loadouts live on the server.<br>Sign in to use them.</div>';
     return;
@@ -18581,6 +18618,118 @@ document.addEventListener('click', async e => {
       if (r && r.failed)   d.push(r.failed + " wouldn't fit");
       say(d.length ? d.join(' \u00b7 ') : 'Nothing to put on.');
       await netLoadoutState();
+    }
+    renderLoadouts();
+  } catch (err){ say(srvErrText(err)); }
+  finally { LO.busy = false; }
+});
+/* [TILLAGT gren loadout-sheets] LOADOUT SHEETS (Chris, granskarna 2026-10-23).
+   Main ar det du har pa dig. Ett extra sheet ("Lucky Loot") fyller bara de platser du lagger nagot i - byter
+   du till det tas de pjaserna pa och Mains pjaser pa de platserna vantar, resten sitter kvar. Byter du
+   tillbaka ar allt som forut. Vaskan rors aldrig vid ett byte. Platserna 10 (vaska) och 14 (gem) ar aldrig med. */
+const SH_SLOTS = [0, 1, 2, 3, 4, 5, 9, 6, 7, 8, 12, 13, 11];
+function shGear(row){ try { return row ? netGearFromRow(row) : null; } catch (e){ return null; } }
+function shMainAt(k){
+  const st = LO.sh; if (!st) return null;
+  const w = st.waiting && st.waiting[k];
+  if (w) return shGear(w);
+  const on = st.active && (st.sheets || []).find(x => x.id === st.active);
+  if (on && on.slots && on.slots[k]) return null;   /* sheetets egen pjas sitter dar - Mains vantar inte */
+  return S.equip && S.equip[k] || null;
+}
+function shFits(g, k){
+  const D = g && ITEMS[g.t]; if (!D) return false;
+  if (g.greg || (typeof isGemItem === 'function' && isGemItem(g))) return false;
+  return D.slot === k || (k === 12 && D.slot === 8);
+}
+function renderSheets(box){
+  const st = LO.sh, list = st.sheets || [];
+  const act = st.active || null;
+  let h = '<div class="lo-top">Loadout sheets<span>' + list.length + ' / ' + (st.cap || 2) + '</span></div>' +
+    '<div class="sh-hint">A sheet only changes the slots you fill. Everything else stays as Main.</div>';
+  h += '<div class="lo-row' + (!act ? ' on' : '') + '"><span class="lo-nm">Main</span><span class="lo-n">body</span>' +
+    (!act ? '<span class="lo-now">Wearing</span>' : '<button class="lo-act" data-shwear="main">Wear</button>') + '</div>';
+  list.forEach(x => {
+    const n = Object.keys(x.slots || {}).length, on = act === x.id;
+    h += '<div class="lo-row' + (on ? ' on' : '') + '">' +
+      '<span class="lo-nm">' + esc(x.name) + '</span><span class="lo-n">' + n + '</span>' +
+      (on ? '<span class="lo-now">Wearing</span>' : '<button class="lo-act" data-shwear="' + x.id + '">Wear</button>') +
+      '<button class="lo-ic" data-shedit="' + x.id + '" title="Edit pieces">\u25BE</button>' +
+      '<button class="lo-ic" data-shren="' + x.id + '" title="Rename">\u270e</button>' +
+      '<button class="lo-ic" data-shdel="' + x.id + '" title="Remove">\u2715</button></div>';
+    if (LO.shEdit === x.id) h += shEditHTML(x);
+  });
+  h += list.length < (st.cap || 2)
+    ? '<button class="lo-new" data-shnew="1">+ New sheet</button>'
+    : '<div class="lo-full">All your sheets are in use.</div>';
+  box.innerHTML = h;
+}
+function shEditHTML(x){
+  let h = '<div class="sh-edit"><div class="sh-grid">';
+  SH_SLOTS.forEach(k => {
+    const own = x.slots && x.slots[k] ? shGear(x.slots[k]) : null;
+    const g = own || shMainAt(k);
+    const nm = GEAR_SLOTS[k] ? GEAR_SLOTS[k].name : '';
+    h += '<div class="sh-slot' + (own ? '' : ' main') + (LO.shPick && LO.shPick.k === k ? ' sel' : '') + '" data-shslot="' + k + '"' +
+      (g ? ' style="--tc:' + ahRarCol(g.r) + '"' : '') + ' title="' + esc(nm + (own ? '' : ' \u2014 from Main')) + '">' +
+      '<span class="sh-lbl">' + esc(nm) + '</span>' +
+      (g ? '<span class="art-wrap">' + artWithFallback(itemArtFor(g.t, g.r), '?') + '</span>' : '') +
+      (own ? '<span class="sh-own">\u2713</span>' : '') + '</div>';
+  });
+  h += '</div><div class="sh-legend">\u2713 = this sheet\u2019s own piece. Faded = from Main. Tap a slot to change it.</div>';
+  if (LO.shPick && LO.shPick.id === x.id){
+    const k = LO.shPick.k, own = x.slots && x.slots[k];
+    const rows = (S.inv || []).filter(it => it && it.gear && it.gear.sid && shFits(it.gear, k)).map(it => it.gear);
+    h += '<div class="sh-legend"><b>' + esc(GEAR_SLOTS[k].name) + '</b> \u2014 pick a piece from your bag' + (own ? ', or take this sheet\u2019s piece off.' : '.') + '</div>';
+    if (own) h += '<button class="sh-btn warn" data-shclear="' + k + '">Take it off (to bag)</button>';
+    h += '<div class="sh-pick">' + (rows.length ? rows.map(g =>
+      '<div class="tb-row" data-shput="' + g.sid + '"><span class="art-wrap">' + artWithFallback(itemArtFor(g.t, g.r), '?') + '</span>' +
+      '<span class="tb-n" style="color:' + ahRarCol(g.r) + '">' + esc(gearName(g)) + '</span></div>').join('')
+      : '<div class="tb-empty">Nothing in your bag fits this slot.</div>') + '</div>';
+  }
+  return h + '</div>';
+}
+async function shDo(fn, args, ok){
+  const r = await srvRpc(fn, Object.assign({p_character: SRV.charId}, args || {}));
+  if (r && r.enabled !== undefined){ LO.sh = r; LO.rows = (r.sheets || []).length ? r.sheets : [{idx: 0}]; }
+  try { await netPullItems(); } catch (e){}
+  try { renderInventory(); updateUI(true); } catch (e){}
+  if (ok) say(typeof ok === 'function' ? ok(r) : ok);
+  return r;
+}
+document.addEventListener('click', async e => {
+  const t = e.target.closest && e.target.closest('[data-shwear],[data-shedit],[data-shren],[data-shdel],[data-shnew],[data-shslot],[data-shput],[data-shclear]');
+  if (!t || !LO.sh) return;
+  if (LO.busy) return;
+  LO.busy = true;
+  try {
+    const d = t.dataset;
+    if (d.shwear !== undefined){
+      const id = d.shwear === 'main' ? null : d.shwear;
+      const nm = id ? ((LO.sh.sheets || []).find(x => x.id === id) || {}).name : 'Main';
+      await shDo('sheet_switch', {p_sheet: id}, r => 'Wearing ' + nm + '.' + (r && r.skipped ? ' ' + r.skipped + ' piece' + (r.skipped === 1 ? '' : 's') + ' couldn\u2019t go on.' : ''));
+    } else if (d.shedit !== undefined){
+      LO.shEdit = LO.shEdit === d.shedit ? null : d.shedit; LO.shPick = null;
+    } else if (d.shnew !== undefined){
+      const namn = await askText({title: 'Name this sheet', body: 'Up to 10 characters.', placeholder: 'Lucky Loot', yes: 'CREATE', max: 10});
+      if (namn !== null){ const r = await shDo('sheet_create', {p_name: namn}); const nx = r && r.sheets && r.sheets[r.sheets.length - 1]; if (nx) LO.shEdit = nx.id; }
+    } else if (d.shren !== undefined){
+      const old = ((LO.sh.sheets || []).find(x => x.id === d.shren) || {}).name || '';
+      const namn = await askText({title: 'Rename sheet', body: 'Up to 10 characters.', value: old, yes: 'SAVE', max: 10});
+      if (namn !== null) await shDo('sheet_rename', {p_sheet: d.shren, p_name: namn});
+    } else if (d.shdel !== undefined){
+      const x = (LO.sh.sheets || []).find(y => y.id === d.shdel) || {};
+      const ja = await askConfirm({title: 'Remove ' + (x.name || 'sheet') + '?', body: 'Its pieces go back to your bag. Main is not touched.', yes: 'REMOVE'});
+      if (ja){ await shDo('sheet_remove', {p_sheet: d.shdel}, 'Sheet removed.'); if (LO.shEdit === d.shdel) LO.shEdit = null; }
+    } else if (d.shslot !== undefined){
+      const k = +d.shslot;
+      LO.shPick = (LO.shPick && LO.shPick.k === k && LO.shPick.id === LO.shEdit) ? null : {id: LO.shEdit, k: k};
+    } else if (d.shput !== undefined && LO.shPick){
+      await shDo('sheet_set', {p_sheet: LO.shPick.id, p_slot: LO.shPick.k, p_item: d.shput});
+      LO.shPick = null;
+    } else if (d.shclear !== undefined && LO.shPick){
+      await shDo('sheet_clear', {p_sheet: LO.shPick.id, p_slot: +d.shclear}, 'Back in your bag.');
+      LO.shPick = null;
     }
     renderLoadouts();
   } catch (err){ say(srvErrText(err)); }
@@ -43106,6 +43255,7 @@ const HTP = [
        '<b>Reroll</b> opens at [[xp:level 25]]: change one stat on a piece for [[gold:gold]]. No limit \u2014 but every try on the same piece costs more than the last, so your purse decides when to stop.',   /* [ANDRAT v5.1041.0] */
        '<b>Recycle</b> gear you do not need for [[frag:fragments]], or sell it for [[gold:gold]].',
        '<b>Transport</b> gear makes travel faster.',
+       '<b>Loadout sheets</b>: Main is what you wear. Make a sheet like <b>Lucky Loot</b> and fill only the slots you want to swap. Wearing it swaps just those pieces — the rest stays as Main — and switching back puts everything back. Pieces in a sheet don’t use bag space; take them off first to sell or trade them.',   /* [TILLAGT gren loadout-sheets] */
        '<b>Appearance</b>: right-click a piece (or open its card) and pick the look of any piece you have ever owned for that slot. Only the picture changes.'],
    where:'Your character panel and the Inventory.'},
   {id:'skills', n:'Skill tree', img:'assets/ui/ico/skilltree.webp',
