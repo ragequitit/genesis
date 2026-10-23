@@ -1264,7 +1264,7 @@ input::-moz-selection, textarea::-moz-selection{background:rgba(56,232,255,.32);
 .cs-pop-r{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
   font-size:10.5px;line-height:1.75;color:var(--text)}
 .cs-pop-r b{font-family:var(--font-mono);font-weight:800;color:var(--cyan)}
-.cs-pop-n{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.1);
+.cs-pop-n{white-space:pre-line;margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.1);
   font-size:9px;color:#ffc542;line-height:1.45}
 /* Pa telefon oppnas rutan med ett TRYCK, och da lases den pa avstand - darfor
    storre text och en bredd som mitten av skarmen bar. */
@@ -24502,6 +24502,31 @@ function cacheCost(){
    vanligare vid +10 %, vilket later rimligt men later procenten betyda olika saker
    vid olika sallsyntheter. Sa har betyder +10 % samma sak overallt: en tiondel av
    skrapet blir nagot battre. */
+/* [TILLAGT tyst 2026-10-23] VAD TUREN GER (Chris): Legendary- och Mythic-chans for ladorna och gear-chansen per
+   vunnen strid, raknat exakt som servern (gear_weights_for / cache_weights_for / open_gear_cache / pve_fight).
+   Visas i Loot Luck-radens hovring. Inga tak namns. */
+function luckOdds(luck){
+  const tierNu = Math.min(4, Math.max(0, Math.floor((levelInfo().lvl - 1) / 10)));
+  const w = (HELPER_CACHE_WEIGHTS[tierNu] || HELPER_CACHE_WEIGHTS[0]).slice();
+  if (luck > 0){
+    const low = w[0] + w[1], high = w[2] + w[3] + w[4] + w[5], mv = low * Math.min(1, luck);
+    w[0] -= mv * (w[0] / low); w[1] -= mv * (w[1] / low);
+    for (let i = 2; i < 6; i++) w[i] += mv * (w[i] / high);
+    if (luck > 1){ w[4] *= luck; w[5] *= luck; }
+  }
+  const t = w.reduce((a, b) => a + b, 0) || 1;
+  return {leg: w[4] / t * 100, myth: w[5] / t * 100};
+}
+function lootLuckNote(){
+  const L = lootLuckMult() - 1;
+  const f = n => (Math.round(n * 10) / 10).toFixed(1) + '%';
+  const gc = luckOdds(L + (helperBonus('cacheluck') + helperBonus('gearrar')) / 100);
+  const hc = luckOdds(L + helperBonus('cacheluck') / 100);
+  const drop = Math.min(95, 20 * (1 + L + (gearBonus('geardrop') || 0) / 100));
+  return 'Gear Caches: ' + f(gc.leg) + ' Legendary \u00B7 ' + f(gc.myth) + ' Mythic\n' +
+         'Helper Caches: ' + f(hc.leg) + ' Legendary \u00B7 ' + f(hc.myth) + ' Mythic\n' +
+         'Gear from fights: ' + Math.round(drop) + '% per win';
+}
 function cacheWeights(){
   /* Vikterna kommer ur regionen man STAR i - en cache oppnad i frontaren ar en
      annan cache an en oppnad hemma, aven om knappen ser likadan ut. */
@@ -24510,7 +24535,8 @@ function cacheWeights(){
   const w = (HELPER_CACHE_WEIGHTS[tierNu] || HELPER_CACHE_WEIGHTS[0]).slice();   /* [ANDRAT v5.977.0] */
   /* [ANDRAT v5.875.0] Som servern: Cache Instinct PLUS Loot Luck, tak 70 %. */
   /* [ANDRAT v5.1114.0] SOM SERVERN: Loot Luck har sitt tak pa 70 %, hjalparens Cache Instinct laggs OVANPA, totalt hogst 100 % (Chris). */
-  const luck = Math.min(0.7, lootLuckMult() - 1) + helperBonus('cacheluck') / 100;
+  /* [ANDRAT tyst 2026-10-23] SOM SERVERN: all tur raknas (inget 70-tak). Over 100 % vags Legendary och Mythic upp med hela turen. */
+  const luck = (lootLuckMult() - 1) + helperBonus('cacheluck') / 100;
   if (luck <= 0) return w;
   const moved = (w[0] + w[1]) * Math.min(1, luck);
   const lowTotal = w[0] + w[1];
@@ -24518,6 +24544,7 @@ function cacheWeights(){
   w[1] -= moved * (w[1] / lowTotal);
   const highTotal = w[2] + w[3] + w[4] + w[5];
   for (let i = 2; i < w.length; i++) w[i] += moved * (w[i] / highTotal);
+  if (luck > 1){ w[4] *= luck; w[5] *= luck; }   /* [TILLAGT tyst 2026-10-23] */
   return w;
 }
 function rollRarity(weights, rnd){
@@ -28352,7 +28379,7 @@ function charStatRows(){
       ['Skills', skillPct('player', 'p_gold')], ['Paragon', paragonPct('pg_gold')], ['Worldsaver', flaskPct('worldsaver')]],   /* [TILLAGT v5.977.0] */
       gemPct('gold_find')));
   up('loot', 'Loot Luck', [...gearPer('luck'), ['Skills', skillPct('player', 'p_luck')],
-      ['Vial', boostPct('luck')]]);
+      ['Vial', boostPct('luck')]], {note: lootLuckNote()});   /* [ANDRAT tyst 2026-10-23] vad turen ger (Chris) */
   /* [ANDRAT v5.519.0] Field Training och paragonens Insight rakas i grant_xp pa
      servern - da maste de sta har ocksa, annars ljuger raden. */
   /* [ANDRAT v5.810.0] Hjalparnas Study Partner saknades - servern lagger helper_bonus('xp') i grant_xp (buggsvep 12). */
@@ -28423,10 +28450,11 @@ function charStatRows(){
   /* [ANDRAT v5.1012.0] GEAR AR GEAR (Chris): Gear Caches raknar aven Rarer gear (serverns open_gear_cache). Tva rader, en per ladsort. */
   /* [ANDRAT v5.1114.0] HJALPARNA OVANPA LUCK (Chris): Loot Luck raknas hogst 70, hjalparna laggs ovanpa, totaltak 100 -
      som serverns gear_weights_for, cache_weights_for och open_gear_cache. Gear Rarity visar nu ocksa Loot Luck. */
-  const luckCapped = Math.min(70, gearPer('luck').reduce((s2, p) => s2 + (+p[1] || 0), 0) + skillPct('player', 'p_luck') + boostPct('luck'));
-  up('loot', 'Helper Cache Odds', [['Helpers', helperBonus('cacheluck')], ['Loot Luck', luckCapped]], {cap: 100, quiet: true});
-  up('loot', 'Gear Cache Odds', [['Helpers', helperBonus('cacheluck') + helperBonus('gearrar')], ['Loot Luck', luckCapped]], {cap: 100, quiet: true});
-  up('loot', 'Gear Rarity', [['Helpers', helperBonus('gearrar')], ['Loot Luck', luckCapped]], {cap: 100, quiet: true});
+  /* [ANDRAT tyst 2026-10-23] all tur raknas nu (inget tak) - som servern */
+  const luckCapped = gearPer('luck').reduce((s2, p) => s2 + (+p[1] || 0), 0) + skillPct('player', 'p_luck') + boostPct('luck');
+  up('loot', 'Helper Cache Odds', [['Helpers', helperBonus('cacheluck')], ['Loot Luck', luckCapped]]);
+  up('loot', 'Gear Cache Odds', [['Helpers', helperBonus('cacheluck') + helperBonus('gearrar')], ['Loot Luck', luckCapped]]);
+  up('loot', 'Gear Rarity', [['Helpers', helperBonus('gearrar')], ['Loot Luck', luckCapped]]);
   /* [ANDRAT v5.540.0] Rykte ger LAGRE priser hos handlaren, vilket servern
      raknar pa riktigt i varje kop. Minustecknet ar med flit: priset GAR NED. */
   const rep = repVendorPct();
