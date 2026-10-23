@@ -15301,7 +15301,7 @@ async function netPullMailbox(){
     }));
     if (ids.length){
       const gr = await srvSelect('items',
-        'character_id=eq.' + SRV.charId + '&id=in.(' + ids.join(',') + ')&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,god_roll,tune_count,tune_prev,pve_effect,gem_region,gem_pct,gem_good,gem_ability,gem_locked,gem_reroll,from_vendor,charmed,apex,skin');   /* [ANDRAT v5.1035.0] reroll */
+        'character_id=eq.' + SRV.charId + '&id=in.(' + ids.join(',') + ')&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,base_level,socket_kind,socket_idx,god_roll,tune_count,tune_prev,pve_effect,gem_region,gem_pct,gem_good,gem_ability,gem_locked,gem_reroll,from_vendor,charmed,apex,skin');   /* [ANDRAT v5.1035.0] reroll */
       (gr || []).forEach(row => { const g = netGearFromRow(row); if (g) mailGearById[row.id] = g; });
     }
   } catch (e){}
@@ -18146,6 +18146,7 @@ function netGearFromRow(row){
     pw:   row.power | 0,       /* Power - rullas inte, raknas ur sallsynthet och niva */
     dm:   row.damage | 0,      /* Damage - bara vapen och andra handen */
     lv:   row.item_level | 0,  /* nivan pjasen foll pa. Vaxer aldrig efterat */
+    base: row.base_level == null ? null : (row.base_level | 0),   /* [TILLAGT tyst 2026-10-23] ramverket: grundnivan (servern items.base_level) */
     g:    +row.gold_value || 0,
     fv:   !!row.from_vendor,   /* [TILLAGT v5.791.0] kopt av handlaren - ingen Sell Value-bonus vid forsaljning */
     craft: row.crafted ? 1 : undefined,
@@ -18215,7 +18216,7 @@ async function netPullItemsSafe(){
 async function netPullItemsRun(){
   if (!SRV.charId) return false;
   const rows = await srvSelect('items',
-    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,socket_kind,socket_idx,god_roll,tune_count,tune_prev,pve_effect,gem_region,gem_pct,gem_good,gem_ability,gem_locked,gem_reroll,from_vendor,charmed,apex,skin');   /* [ANDRAT v5.1035.0] reroll */
+    'character_id=eq.' + SRV.charId + '&select=id,item_key,rarity,affixes,hp,gold_value,crafted,location,slot_idx,power,damage,item_level,base_level,socket_kind,socket_idx,god_roll,tune_count,tune_prev,pve_effect,gem_region,gem_pct,gem_good,gem_ability,gem_locked,gem_reroll,from_vendor,charmed,apex,skin');   /* [ANDRAT v5.1035.0] reroll */
 
   S.equip = {};
   /* VILKEN VASKA SOM SITTER I VILKET FACK KOMMER NU FRAN SERVERN.
@@ -25393,6 +25394,15 @@ function xpAward(dinNiva, kallansNiva, vikt){
        * LEVEL_NUM.xp_share * diffFaktor(dinNiva, kallansNiva);
 }
 function levelCap(){ return LEVEL_NUM.level_cap; }
+/* [TILLAGT tyst 2026-10-23] RAMVERKET steg 2: kravet for att bara en pjas, samma som serverns item_req_level.
+   Grundnivan = nivan den droppade pa (gamla pjaser: apex 50, charmad niva-10). En charm hojer aldrig kravet over
+   max(grundnivan, 50) - sa charmat gear aldrig lases ute nar nivataket hojs. Identiskt med forut for allt som finns. */
+function gearReqLvl(g){
+  if (!g) return 1;
+  const lv = g.lv | 0;
+  const base = g.base != null ? (g.base | 0) : (g.apex ? 50 : (g.chm ? Math.max(1, lv - 10) : lv));
+  return Math.min(lv, Math.max(base, 50));
+}
 /* [TILLAGT tyst 2026-10-23] EXPANSIONSRAMVERKET steg 1: de inskrivna 50-taken laser nivataket (som servern, lvl_cap).
    Saker att anropa tidigt - faller tillbaka pa 50 om nivatalen inte hunnit laddas. */
 function capLvl(){ try { return (+LEVEL_NUM.level_cap) || 50; } catch (e){ return 50; } }
@@ -25872,7 +25882,7 @@ async function equipFromVault(vaultIdx, want){
   const destSlot = gem ? null : targetSlotFor(row.gear, want);
   const oldBefore = (destSlot != null) ? S.equip[destSlot] : null;
   const oldSid = oldBefore && oldBefore.sid, oldUid = oldBefore && oldBefore.uid;
-  const tooLow = row.gear.lv && Math.min(row.gear.lv, 50) > levelInfo().lvl;
+  const tooLow = row.gear.lv && gearReqLvl(row.gear) > levelInfo().lvl;   /* [ANDRAT tyst 2026-10-23] */
   try { vaultOrderSave(); } catch (e){}   /* valvets platser laser fast fore bytet, annars glider de ihop */
   /* [ANDRAT v5.1082.0] BYTET SKER DIREKT (Chris: "det tar en sekund"). Skarmen byter plats pa en gang, och servern gor
      hela bytet i ETT anrop (vault_equip_swap) i stallet for tre med en hamtning efter varje. */
@@ -26229,8 +26239,8 @@ function quickEquipFromVault(i){
   const mal = slotsForGear(g).find(sl => !S.equip[sl]);
   if (mal == null) return false;
   /* Samma nivakrav som overallt annars - annars vore valvet en genvag forbi det. */
-  if (g.lv && Math.min(g.lv, 50) > levelInfo().lvl){   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
-    say('Requires level ' + Math.min(g.lv, 50) + ' — you are ' /* [ANDRAT v5.980.0] gear over 50 kravs bara niva 50 */  + levelInfo().lvl + '.');
+  if (g.lv && gearReqLvl(g) > levelInfo().lvl){   /* [ANDRAT tyst 2026-10-23] */   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
+    say('Requires level ' + gearReqLvl(g) + ' — you are ' /* [ANDRAT v5.980.0] gear over 50 kravs bara niva 50 */  + levelInfo().lvl + '.');
     return false;
   }
   if (NET.on){
@@ -28742,13 +28752,13 @@ function equipGear(idx, want){
   /* Nivakravet: en pjas rullas pa den niva agaren hade nar den foll, och kan
      bara baras av den som natt dit. Kollas har OCKSA, sa man far ett begripligt
      besked i stallet for serverns felkod. */
-  if (row.gear && row.gear.lv && Math.min(row.gear.lv, 50) > levelInfo().lvl){   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
-    say('Requires level ' + Math.min(row.gear.lv, 50) + ' — you are ' /* [ANDRAT v5.980.0] gear over 50 kravs bara niva 50 */  + levelInfo().lvl + '.');
+  if (row.gear && row.gear.lv && gearReqLvl(row.gear) > levelInfo().lvl){   /* [ANDRAT tyst 2026-10-23] */   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
+    say('Requires level ' + gearReqLvl(row.gear) + ' — you are ' /* [ANDRAT v5.980.0] gear over 50 kravs bara niva 50 */  + levelInfo().lvl + '.');
     return;
   }
   if (NET.on){
     netEquip(row.gear, want).catch(e => say(e.message === 'level_too_low_for_item'
-      ? 'Requires level ' + (row.gear.lv ? Math.min(row.gear.lv, 50) : '?') + ' — you are ' /* [ANDRAT v5.980.0] gear over 50 kravs bara niva 50 */  + levelInfo().lvl + '.'
+      ? 'Requires level ' + (row.gear.lv ? gearReqLvl(row.gear) : '?') + ' — you are ' /* [ANDRAT v5.980.0] gear over 50 kravs bara niva 50 */  + levelInfo().lvl + '.'
       : srvErrText(e, 'Could not equip that.')));   /* [ANDRAT v5.799.0] inte radkoden */
     return;
   }
@@ -41158,7 +41168,7 @@ function gearTipHTML(it){
     /* SMAKRADEN: vilket spel i natverket pjasen kommer ifran. Star kursivt
        mellan namnet och nivan, samma rad som melonen har. */
     skinLine(it) + (ITEMS[it.t] && ITEMS[it.t].flavor ? '<div class="gt-flavor">' + ITEMS[it.t].flavor + '</div>' : '') +
-    (it.lv ? '<div class="gt-lvl' + (Math.min(it.lv, 50) > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + charmTag(it) + '</div>' : '') +   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
+    (it.lv ? '<div class="gt-lvl' + (gearReqLvl(it) > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + charmTag(it) + '</div>' : '') +   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
     gearKindLine(it) +
     /* Tre avgränsade block: plats · talen · förmågor · priset. Strecken
        gör att ögat hittar rätt grupp utan att läsa. */
@@ -41503,7 +41513,7 @@ function itemWinHTML(it, worn){
     '<div class="item-top">' + art +
       '<div class="item-head">' +
         skinLine(it) + (ITEMS[it.t] && ITEMS[it.t].flavor ? '<div class="gt-flavor">' + ITEMS[it.t].flavor + '</div>' : '') +
-        (it.lv ? '<div class="gt-lvl' + (Math.min(it.lv, 50) > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + charmTag(it) + '</div>' : '') +   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
+        (it.lv ? '<div class="gt-lvl' + (gearReqLvl(it) > levelInfo().lvl ? ' cant' : '') + '">Level ' + it.lv + charmTag(it) + '</div>' : '') +   /* [ANDRAT v5.876.0] Apex 60 bars pa niva 50 */
         gearKindLine(it) +
         stat(fmt(it.hp), 'Health', delta(it.hp - (cur ? cur.hp : 0))) +
         stat(fmt(it.pw || 0), 'Power', delta((it.pw || 0) - (cur ? (cur.pw || 0) : 0))) +
