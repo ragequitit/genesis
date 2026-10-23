@@ -21211,7 +21211,7 @@ function learnRecipe(rid){
    x (1 + 0,03 x (niva - 1)) avrundat, Crafting Kits + 1 per 10 nivaer. Bara de nya utrustningsrecepten. */
 function recipeCost(r){
   if (!r || !r.perk) return (r && r.cost) || {};
-  const lv = Math.max(1, Math.min(50, levelInfo().lvl || 1)), out = {};
+  const lv = Math.max(1, Math.min(capLvl(), levelInfo().lvl || 1)), out = {};   /* [ANDRAT tyst 2026-10-23] nivataket */
   Object.keys(r.cost).forEach(k => {
     out[k] = k === 'crafting_kit' ? r.cost[k] : Math.max(1, Math.round(+r.cost[k] * (1 - gemPct('craft_cost') / 100)));   /* [ANDRAT v5.1054.0] kit skalar inte med nivan langre (Chris) - som serverns recipe_cost_for */
   });
@@ -23978,7 +23978,7 @@ function regionLevelRoll(regionId){
 function rollItem(key, rarIdx, capFrac, srcLvl){
   const D = ITEMS[key];
   if (!D) return null;
-  const lv = Math.min(50, Math.max(1, srcLvl | 0 || 1));
+  const lv = Math.min(capLvl(), Math.max(1, srcLvl | 0 || 1));   /* [ANDRAT tyst 2026-10-23] nivataket */
   const lm = 1 + 0.10 * (lv - 1);
   /* En väska rullar bara sitt pris. Inga egenskaper, ingen hälsa, ingen combat
      power — den bär saker, den slåss inte.
@@ -24214,7 +24214,7 @@ function equippedList(){ return GEAR_SLOTS.map((_, i) => S.equip[i] || null); }
    Forut stod de bade dar och har - andrades de pa ett stalle visade
    karaktarsbladet ett tal medan striden raknade ett annat. Vardena i
    nivatabellens reserv galler bara om hamtningen faller. */
-function basLvl(){ try { return Math.min(50, Math.max(1, levelInfo().lvl)); } catch (e){ return 1; } }
+function basLvl(){ try { return Math.min(capLvl(), Math.max(1, levelInfo().lvl)); } catch (e){ return 1; } }   /* [ANDRAT tyst 2026-10-23] nivataket */
 function basePower(){ return Math.round(LEVEL_NUM.base_power_lvl * basLvl()); }
 function baseDamage(){ return Math.round(LEVEL_NUM.base_damage_lvl * basLvl()); }
 function baseHealth(){ return Math.round(LEVEL_NUM.base_health_lvl * basLvl()); }
@@ -24880,7 +24880,7 @@ async function helperToSlot(uid, slot){
 }
 /* [BORTTAGET v5.773.0] clearTeamSlot() - anropades aldrig (granskningen). */
 function grantPetXP(n){
-  const L = Math.max(1, Math.min(50, levelInfo().lvl || 1));   /* [ANDRAT v5.957.0] */
+  const L = Math.max(1, Math.min(capLvl(), levelInfo().lvl || 1));   /* [ANDRAT v5.957.0] [ANDRAT tyst 2026-10-23] nivataket */
   const share = (n / Math.max(1, xpAward(L, L, 1))) * PET_XP_PER_UNIT * (1 + gearBonus('petxp') / 100);
   if (!(share > 0)) return;
   for (const p of activeTeam()){
@@ -25393,6 +25393,9 @@ function xpAward(dinNiva, kallansNiva, vikt){
        * LEVEL_NUM.xp_share * diffFaktor(dinNiva, kallansNiva);
 }
 function levelCap(){ return LEVEL_NUM.level_cap; }
+/* [TILLAGT tyst 2026-10-23] EXPANSIONSRAMVERKET steg 1: de inskrivna 50-taken laser nivataket (som servern, lvl_cap).
+   Saker att anropa tidigt - faller tillbaka pa 50 om nivatalen inte hunnit laddas. */
+function capLvl(){ try { return (+LEVEL_NUM.level_cap) || 50; } catch (e){ return 50; } }
 function xpToNext(level){
   /* [ANDRAT v5.933.0] Samma som serverns xp_for_level: steg over 40 kostar level_growth_41 ganger mer per steg.
      Utan detta sa spelet "du ar 45" medan servern raknade 44 (Chris bugg: kunde inte ta pa niva 45-pjas). */
