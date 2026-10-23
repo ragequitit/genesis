@@ -25373,7 +25373,8 @@ let DIFF_LO = -5, DIFF_HI = 4;
 async function netLevelNumbers(){
   const rows = await srvSelect('level_config', 'select=key,value');
   (rows || []).forEach(r => {
-    if (LEVEL_NUM[r.key] !== undefined) LEVEL_NUM[r.key] = +r.value;
+    /* [ANDRAT tyst 2026-10-23] ALLA nycklar kopieras (ramverket: band_growth_N / band_time_N ar nya for varje tiotal), inte bara de spelet redan kande. */
+    if (r && r.key && r.value != null && isFinite(+r.value)) LEVEL_NUM[r.key] = +r.value;
   });
   try {
     const w = await srvSelect('expedition_weight_config', 'select=mins,vikt&order=mins');
@@ -25403,7 +25404,7 @@ function diffFarg(dinNiva, kallansNiva){
    serverns: ditt nivasteg, gange vikten, gange andelen, gange faktorn. */
 /* [ANDRAT v5.897.0] Basen ar KALLANS niva, inte din (Chris) - samma som serverns xp_award. */
 function xpAward(dinNiva, kallansNiva, vikt){
-  return xpToNext(Math.max(1, (kallansNiva | 0) || (dinNiva | 0))) * (vikt || 1)
+  return xpBaseToNext(Math.max(1, (kallansNiva | 0) || (dinNiva | 0))) * (vikt || 1)   /* [ANDRAT tyst 2026-10-23] grundkurvan, som serverns xp_award */
        * LEVEL_NUM.xp_share * diffFaktor(dinNiva, kallansNiva);
 }
 function levelCap(){ return LEVEL_NUM.level_cap; }
@@ -25436,12 +25437,38 @@ function worldLevel(){
   } catch (e){ return null; }
 }
 function capLvl(){ try { return (+LEVEL_NUM.level_cap) || 50; } catch (e){ return 50; } }
+/* [ANDRAT tyst 2026-10-23] RAMVERKET steg 6: XP per tiotal, samma som serverns xp_base_for_level / xp_for_level.
+   Upp till scale_floor (50) ar kurvan som forut. Over den fortsatter grundkurvan med en tillvaxt per tiotal
+   (band_growth_N ur level_config, saknas tas det senaste tiotalet) och KOSTNADEN per niva far en tidsfaktor
+   per tiotal (band_time_N) som inte foljer med i vad striderna ger (xpAward laser grundkurvan). */
+function xpBandVal(prefix, band){
+  let best = null, bestN = -1;
+  for (const k in LEVEL_NUM){
+    if (k.indexOf(prefix) !== 0) continue;
+    const n = +k.slice(prefix.length);
+    if (!isFinite(n) || n > band || n <= bestN) continue;
+    bestN = n; best = +LEVEL_NUM[k];
+  }
+  return best;
+}
+function xpBaseToNext(level){
+  const floor = (+LEVEL_NUM.scale_floor) || 50;
+  const base = L => Math.round(LEVEL_NUM.level_base
+    * Math.pow(LEVEL_NUM.level_growth, Math.max(1, L) - 1)
+    * Math.pow(LEVEL_NUM.level_growth_41 || 1, Math.max(0, L - 40)));
+  if ((level | 0) <= floor) return base(level);
+  let v = base(floor);
+  for (let k = floor + 1; k <= level; k++){
+    const g = xpBandVal('band_growth_', Math.floor((k - 1) / 10));
+    v *= (g != null ? g : LEVEL_NUM.level_growth * (LEVEL_NUM.level_growth_41 || 1));
+  }
+  return Math.round(v);
+}
 function xpToNext(level){
-  /* [ANDRAT v5.933.0] Samma som serverns xp_for_level: steg over 40 kostar level_growth_41 ganger mer per steg.
-     Utan detta sa spelet "du ar 45" medan servern raknade 44 (Chris bugg: kunde inte ta pa niva 45-pjas). */
-  return Math.round(LEVEL_NUM.level_base
-    * Math.pow(LEVEL_NUM.level_growth, Math.max(1, level) - 1)
-    * Math.pow(LEVEL_NUM.level_growth_41 || 1, Math.max(0, level - 40)));
+  const floor = (+LEVEL_NUM.scale_floor) || 50;
+  if ((level | 0) <= floor) return xpBaseToNext(level);
+  const t = xpBandVal('band_time_', Math.floor((level - 1) / 10));
+  return Math.round(xpBaseToNext(level) * (t != null ? t : 1));
 }
 /* [BORTTAGET v5.773.0] xpToCap() - anropades aldrig (granskningen). */
 /* PARAGON: efter 50 fortsatter nivaerna oandligt. Forsta steget kostar som
