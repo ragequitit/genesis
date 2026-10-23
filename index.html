@@ -20262,7 +20262,7 @@ function gatherRoll(profId){
   const lvl = profLevelInfo(profXpOf(profId)).lvl;
   /* Extractors adelsten ligger vid sidan om kärnutfallet - den ar ingen stege,
      bara en handelse - men den oppnas anda av nivan, som allt annat. */
-  if (def.gems && lvl >= GATHER_GEM_LEVEL && Math.random() < (GATHER_GEM_BY_TIER[regionTier()] || 0.01))
+  if (def.gems && lvl >= GATHER_GEM_LEVEL && Math.random() < (tierRow(GATHER_GEM_BY_TIER, regionTier()) || 0.01))
     return weightedMat(def.gems);
   /* [ANDRAT v5.426.0] RARE LUCK RAKNADES BARA PA SERVERN (buggsvep). De tva nya
      samlarnoderna byggdes i gather_tick, men klientens EGNA rullning - den som
@@ -24528,8 +24528,8 @@ function cacheCost(){
    vunnen strid, raknat exakt som servern (gear_weights_for / cache_weights_for / open_gear_cache / pve_fight).
    Visas i Loot Luck-radens hovring. Inga tak namns. */
 function luckOdds(luck){
-  const tierNu = Math.min(4, Math.max(0, Math.floor((levelInfo().lvl - 1) / 10)));
-  const w = (HELPER_CACHE_WEIGHTS[tierNu] || HELPER_CACHE_WEIGHTS[0]).slice();
+  const tierNu = Math.min(maxTier(), Math.max(0, Math.floor((levelInfo().lvl - 1) / 10)));
+  const w = (tierRow(HELPER_CACHE_WEIGHTS, tierNu) || HELPER_CACHE_WEIGHTS[0]).slice();
   if (luck > 0){
     const low = w[0] + w[1], high = w[2] + w[3] + w[4] + w[5], mv = low * Math.min(1, luck);
     w[0] -= mv * (w[0] / low); w[1] -= mv * (w[1] / low);
@@ -24553,8 +24553,8 @@ function cacheWeights(){
   /* Vikterna kommer ur regionen man STAR i - en cache oppnad i frontaren ar en
      annan cache an en oppnad hemma, aven om knappen ser likadan ut. */
   /* [ANDRAT v5.1084.0] SPELARENS NIVA, INTE REGIONEN (Chris) - som serverns open_cache: niva 1-10 = tier 0 ... 41-50 = tier 4. */
-  const tierNu = Math.min(4, Math.max(0, Math.floor((levelInfo().lvl - 1) / 10)));
-  const w = (HELPER_CACHE_WEIGHTS[tierNu] || HELPER_CACHE_WEIGHTS[0]).slice();   /* [ANDRAT v5.977.0] */
+  const tierNu = Math.min(maxTier(), Math.max(0, Math.floor((levelInfo().lvl - 1) / 10)));
+  const w = (tierRow(HELPER_CACHE_WEIGHTS, tierNu) || HELPER_CACHE_WEIGHTS[0]).slice();   /* [ANDRAT v5.977.0] */
   /* [ANDRAT v5.875.0] Som servern: Cache Instinct PLUS Loot Luck, tak 70 %. */
   /* [ANDRAT v5.1114.0] SOM SERVERN: Loot Luck har sitt tak pa 70 %, hjalparens Cache Instinct laggs OVANPA, totalt hogst 100 % (Chris). */
   /* [ANDRAT tyst 2026-10-23] SOM SERVERN: all tur raknas (inget 70-tak). Over 100 % vags Legendary och Mythic upp med hela turen. */
@@ -25405,6 +25405,14 @@ function gearReqLvl(g){
 }
 /* [TILLAGT tyst 2026-10-23] EXPANSIONSRAMVERKET steg 1: de inskrivna 50-taken laser nivataket (som servern, lvl_cap).
    Saker att anropa tidigt - faller tillbaka pa 50 om nivatalen inte hunnit laddas. */
+/* [TILLAGT tyst 2026-10-23] RAMVERKET steg 3: tabeller per region. Saknas raden for en region tas den SENASTE
+   raden under (aldrig region 1-raden) - samma som servern. En ny region fungerar fran dag ett och kan finjusteras sen. */
+function tierRow(tbl, t){
+  if (!tbl) return undefined;
+  for (let i = Math.floor(+t || 0); i >= 0; i--) if (tbl[i] !== undefined) return tbl[i];
+  return undefined;
+}
+function maxTier(){ try { return Math.max(0, ...Object.values(REGIONS).map(R => R.tier | 0)); } catch (e){ return 4; } }
 function capLvl(){ try { return (+LEVEL_NUM.level_cap) || 50; } catch (e){ return 50; } }
 function xpToNext(level){
   /* [ANDRAT v5.933.0] Samma som serverns xp_for_level: steg over 40 kostar level_growth_41 ganger mer per steg.
@@ -29711,8 +29719,8 @@ function expGoldRange(def){
   const mins = Math.min(120, Math.max(2, def.mins));
   /* [ANDRAT v5.776.0] Over 2 timmar: full timtakt ganger expLongEff - forut gav 4 och 8 h lika mycket som 2. */
   const mid = (def.mins <= 120
-              ? EXP_GOLD_PER_HOUR[Math.min(4, tier)] * (mins / 60) * expDurationBonus(mins)
-              : EXP_GOLD_PER_HOUR[Math.min(4, tier)] * (def.mins / 60) * expLongEff(def.mins, 'gold'))
+              ? tierRow(EXP_GOLD_PER_HOUR, tier) * (mins / 60) * expDurationBonus(mins)
+              : tierRow(EXP_GOLD_PER_HOUR, tier) * (def.mins / 60) * expLongEff(def.mins, 'gold'))
             * (1 + expGoldBonus());
   return [Math.round(mid * 0.88), Math.round(mid * 1.12)];
 }
@@ -29889,7 +29897,7 @@ const GEAR_WEIGHTS = {
 };
 function gearWeightsFor(regionId){
   const R = REGIONS[regionId];
-  return GEAR_WEIGHTS[R ? R.tier : 0] || GEAR_WEIGHTS[0];
+  return tierRow(GEAR_WEIGHTS, R ? R.tier : 0) || GEAR_WEIGHTS[0];   /* [ANDRAT tyst 2026-10-23] ramverket */
 }
 function rollExpeditionLoot(def){
   const loot = {
@@ -30357,7 +30365,7 @@ function confirmClaim(){
 /* Travel now: genvägen från katalogen — popup med pris och ETA, sen resa */
 function openTravelNow(regionId){
   const R = REGIONS[regionId];
-  const t = TRAVEL_BY_TIER[R.tier];
+  const t = tierRow(TRAVEL_BY_TIER, R.tier);
   if (!t) return;
   const busy = !!S.world.travel;
   const price = costToTravel(regionId);
@@ -33143,7 +33151,7 @@ function fuelBetween(fromId, toId){
   let a = REGIONS[fromId].tier, b = REGIONS[toId].tier;
   if (a > b){ const t = a; a = b; b = t; }
   let sum = 0;
-  for (let r = a; r < b; r++) sum += FUEL_STEP[r];
+  for (let r = a; r < b; r++) sum += tierRow(FUEL_STEP, r);   /* [ANDRAT tyst 2026-10-23] ramverket: steg 4 saknades (en 6:e region gav NaN) */
   return sum || FUEL_STEP[0];   // grannar i samma ring: ett steg
 }
 function addFuel(n){ S.fuel = Math.max(0, Math.min(fuelMax(), S.fuel + n)); }
@@ -33177,7 +33185,7 @@ function secsBetween(fromId, toId){
   if (a > b){ const t = a; a = b; b = t; }
   let sum = 0;
   for (let r = a + 1; r <= b; r++){
-    const cfg = TRAVEL_BY_TIER[r];
+    const cfg = tierRow(TRAVEL_BY_TIER, r);
     sum += (cfg && cfg.time) || 120;
   }
   if (!sum){ const c0 = TRAVEL_BY_TIER[0]; sum = (c0 && c0.time) || 120; }
@@ -34707,7 +34715,7 @@ function openRegion(id){
     } else {
       zonesHtml = '<div class="shelf-empty">Travel here to explore its zones.</div>';
     }
-    const t = TRAVEL_BY_TIER[R.tier];
+    const t = tierRow(TRAVEL_BY_TIER, R.tier);
     let action = '';
     if (id === S.world.current){
       action = '<div class="region-actions"><button class="btn-neutral" disabled style="opacity:.6">You are here</button></div>';
@@ -35575,7 +35583,7 @@ function regionMinLevel(id){ return ((REGIONS[id] && REGIONS[id].tier) | 0) * 10
 /* [BORTTAGET v5.773.0] discoverReqText() - anropades aldrig (granskningen). */
 function researchTime(id){
   const fran = SURVEY_SECS && SURVEY_SECS[id + ':0'];
-  const base = fran || DISCOVER_TIME[REGIONS[id].tier] || 180;
+  const base = fran || tierRow(DISCOVER_TIME, REGIONS[id].tier) || 180;
   return Math.max(30, Math.round(base));
 }
 function buildDiscoverBody(id, R){
@@ -36020,7 +36028,7 @@ function startTravel(id){
       return true;
     }).catch(e => { say(srvErrText(e)); return false; });
   }
-  const t = TRAVEL_BY_TIER[REGIONS[id].tier];
+  const t = tierRow(TRAVEL_BY_TIER, REGIONS[id].tier);
   const cost = costToTravel(id);
   if (!t || S.fuel < cost) return;
   S.fuel -= cost;
