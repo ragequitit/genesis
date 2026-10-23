@@ -23972,8 +23972,9 @@ function zonNiva(regionId, zi){
   if (!R) return levelInfo().lvl;
   const lo = (R.tier | 0) * 10 + 1, hi = lo + 9;
   const min = levelInfo().lvl;
-  /* Vid taket skalar varlden till dig och bandet slutar galla for nivan. */
-  if (min >= levelCap()) return levelCap();
+  /* [ANDRAT tyst 2026-10-23] Milstolpen: en region du passerat skalar till varldens niva (ramverket steg 4, som serverns scaled_level). */
+  const W = worldLevel();
+  if (W != null && hi <= W) return W;
   return Math.max(lo, Math.min(hi, min + zonForskjutning(zi)));
 }
 function regionLevelRoll(regionId){
@@ -25350,7 +25351,8 @@ function fmt(n){
    helst harifran. Talen laddas en gang; formeln ar densamma pa bada sidor, men
    TALEN har bara ett hem. Sakras vardena inte anvands de gamla, sa spelet gar
    att spela aven om hamtningen faller. */
-const LEVEL_NUM = {level_base: 607, level_growth: 1.0845, level_growth_41: 1.20, level_cap: 50,   /* [ANDRAT v5.933.0] level_growth_41 som servern (Chris: dyrare 41-50) */
+const LEVEL_NUM = {level_base: 607, level_growth: 1.0845, level_growth_41: 1.20, level_cap: 50, scale_floor: 50,   /* [TILLAGT tyst 2026-10-23] ramverket steg 4: milstolpen borjar har */
+                     /* [ANDRAT v5.933.0] level_growth_41 som servern (Chris: dyrare 41-50) */
                    paragon_base: 32000, paragon_growth: 1.03,
                    xp_share: 0.046875, expedition_damp: 0.66, expedition_cap: 0.25, expedition_cap_exp: 0.3, expedition_long_exp: 0.5,   /* [TILLAGT v5.977.0 / v5.979.0] */
                    base_power_lvl: 5, base_damage_lvl: 2, base_health_lvl: 20};
@@ -25422,6 +25424,15 @@ function tierRow(tbl, t){
   return undefined;
 }
 function maxTier(){ try { return Math.max(0, ...Object.values(REGIONS).map(R => R.tier | 0)); } catch (e){ return 4; } }
+/* [TILLAGT tyst 2026-10-23] RAMVERKET steg 4: varldens niva med milstolpar - samma som serverns world_level.
+   Fran niva 50 ar varlden milstolpen under din niva (50, 60, 70 ...). Regioner du passerat skalar dit,
+   en region over milstolpen har sin egen niva. Under 50: null (ingen skala). */
+function worldLevel(){
+  try {
+    const L = levelInfo().lvl, floor = (+LEVEL_NUM.scale_floor) || 50;
+    return L >= floor ? Math.min(capLvl(), 10 * Math.floor(L / 10)) : null;
+  } catch (e){ return null; }
+}
 function capLvl(){ try { return (+LEVEL_NUM.level_cap) || 50; } catch (e){ return 50; } }
 function xpToNext(level){
   /* [ANDRAT v5.933.0] Samma som serverns xp_for_level: steg over 40 kostar level_growth_41 ganger mer per steg.
@@ -35138,7 +35149,7 @@ function rollVendorStock(regionId){
     if (r === 3){ if (epics >= 1) r = 2; else epics++; }
     if (r > vendorMaxRar(regionId)) r = vendorMaxRar(regionId);
     /* [ANDRAT v5.1090.0] Niva 50: 41-50 hos alla handlare, som serverns vendor_restock (Chris). */
-    out.push({k: pickItemKey(r), r: r, sold: false, lv: levelInfo().lvl >= 50 ? 41 + Math.floor(Math.random() * 10) : regionLevelRoll(regionId)});
+    out.push({k: pickItemKey(r), r: r, sold: false, lv: (worldLevel() != null && ((REGIONS[regionId] ? REGIONS[regionId].tier | 0 : 0) * 10 + 10) <= worldLevel()) ? worldLevel() - 9 + Math.floor(Math.random() * 10) : regionLevelRoll(regionId)});   /* [ANDRAT tyst 2026-10-23] milstolpen, som serverns vendor_restock */
   }
   return out;
 }
