@@ -25370,6 +25370,22 @@ const DIFF_FAKTOR = {'-5':0.10, '-4':0.20, '-3':0.40, '-2':0.60, '-1':0.80,
 const DIFF_FARG   = {'-5':'gra', '-4':'gron', '-3':'gron', '-2':'gron', '-1':'gul',
                      '0':'gul', '1':'gul', '2':'orange', '3':'rod', '4':'rod'};
 let DIFF_LO = -5, DIFF_HI = 4;
+/* [TILLAGT tyst 2026-10-23] RAMVERKET steg 7: OSLAPPTA REGIONER. Servern sager vilka regioner som finns for den har
+   karaktaren (regions_visible: slappta + testkontot ser allt). De som inte finns tas bort ur spelets listor innan
+   nagot ritas, sa en region kan byggas fardig och ligga dold tills releaseknappen trycks. Svarar servern inte
+   lamnas allt som det ar. */
+async function netRegionGate(){
+  if (!SRV.charId) return;
+  const vis = await srvRpc('regions_visible', {p_character: SRV.charId});
+  if (!Array.isArray(vis) || !vis.length) return;
+  const ok = new Set(vis);
+  Object.keys(REGIONS).forEach(id => {
+    if (ok.has(id)) return;
+    delete REGIONS[id];
+    if (typeof EXPEDITIONS !== 'undefined') delete EXPEDITIONS[id];
+    if (typeof GEMS !== 'undefined') delete GEMS[id];
+  });
+}
 async function netLevelNumbers(){
   const rows = await srvSelect('level_config', 'select=key,value');
   (rows || []).forEach(r => {
@@ -47299,6 +47315,7 @@ async function netEnterWorld(){
   /* [TILLAGT v5.276.0] Niva- och paragontalen hamtas samtidigt. Faller det
      anvands reservvardena och spelet gar vidare. */
   try { await netLevelNumbers(); } catch (e){}
+  try { await netRegionGate(); } catch (e){}   /* [TILLAGT tyst 2026-10-23] ramverket steg 7 */
   await netSync();          /* och tiden sedan sist raknas fram */
   /* Vad karaktaren REDAN har ar inte nya nivaer. Utan detta small
      uppstigningen av direkt vid inloggning for var och en som har nagra. */
