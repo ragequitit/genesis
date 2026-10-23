@@ -25374,6 +25374,25 @@ let DIFF_LO = -5, DIFF_HI = 4;
    karaktaren (regions_visible: slappta + testkontot ser allt). De som inte finns tas bort ur spelets listor innan
    nagot ritas, sa en region kan byggas fardig och ligga dold tills releaseknappen trycks. Svarar servern inte
    lamnas allt som det ar. */
+/* [TILLAGT tyst 2026-10-23] RAMVERKET steg 8: TABELLERNA PER REGION KOMMER FRAN SERVERN. Branslesteg, restider,
+   ladornas vikter, samlarens gem-chans och expeditionsguldet laddas vid inloggning och skriver over spelets
+   egna kopior (som bara ar reserv om hamtningen faller). Da kan en ny region fa sina rader pa servern utan
+   att spelet behover andras, och spelet och servern kan aldrig saga olika saker. */
+async function netTierTables(){
+  const get = async (t, q) => { try { return await srvSelect(t, q); } catch (e){ return null; } };
+  const travel = await get('travel_config', 'select=tier,secs,fuel_step&order=tier');
+  if (travel && travel.length){
+    travel.forEach(r => { FUEL_STEP[+r.tier] = +r.fuel_step; TRAVEL_BY_TIER[+r.tier] = {time: +r.secs}; });
+  }
+  const cw = await get('cache_weights', 'select=tier,weights&order=tier');
+  if (cw && cw.length) cw.forEach(r => { if (Array.isArray(r.weights) && r.weights.length === 6) CACHE_WEIGHTS[+r.tier] = r.weights.map(Number); });
+  const hw = await get('helper_cache_weights', 'select=tier,weights&order=tier');
+  if (hw && hw.length) hw.forEach(r => { if (Array.isArray(r.weights) && r.weights.length === 6) HELPER_CACHE_WEIGHTS[+r.tier] = r.weights.map(Number); });
+  const gc = await get('gather_chance', 'select=tier,gem&order=tier');
+  if (gc && gc.length) gc.forEach(r => { GATHER_GEM_BY_TIER[+r.tier] = +r.gem; });
+  const eg = await get('expedition_gold_config', 'select=tier,per_hour&order=tier');
+  if (eg && eg.length) eg.forEach(r => { EXP_GOLD_PER_HOUR[+r.tier] = +r.per_hour; });
+}
 async function netRegionGate(){
   if (!SRV.charId) return;
   const vis = await srvRpc('regions_visible', {p_character: SRV.charId});
@@ -47316,6 +47335,7 @@ async function netEnterWorld(){
      anvands reservvardena och spelet gar vidare. */
   try { await netLevelNumbers(); } catch (e){}
   try { await netRegionGate(); } catch (e){}   /* [TILLAGT tyst 2026-10-23] ramverket steg 7 */
+  try { await netTierTables(); } catch (e){}   /* [TILLAGT tyst 2026-10-23] ramverket steg 8 */
   await netSync();          /* och tiden sedan sist raknas fram */
   /* Vad karaktaren REDAN har ar inte nya nivaer. Utan detta small
      uppstigningen av direkt vid inloggning for var och en som har nagra. */
