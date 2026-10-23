@@ -14820,6 +14820,7 @@ async function netPull(){
   S.gold      = +c.gold_copper || 0;
   S.frags     = +c.fragments || 0;
   S.xp        = +c.xp || 0;
+  SRV.paragonBank = +c.paragon_bank || 0;   /* [TILLAGT tyst 2026-10-23] ramverket steg 5: paragonbanken */
   S.fuel      = +c.fuel || 0;
   S.credits   = +c.credits || 0;
   /* [TILLAGT v5.274.0] KLASSEN. Den star pa karaktarsraden och kan aldrig vara
@@ -15208,6 +15209,7 @@ async function netSync(){
       if (row.xp != null){
         S.xp = +row.xp;
         if (row.paragon != null) SRV.paragon = +row.paragon;
+        if (row.paragon_bank != null) SRV.paragonBank = +row.paragon_bank;   /* [TILLAGT tyst 2026-10-23] */
         noteLevelChange();
       }
     }
@@ -25454,7 +25456,11 @@ function levelInfo(){
   const cap = levelCap();
   let lvl = 1, rem = S.xp;
   while (lvl < cap && rem >= xpToNext(lvl)){ rem -= xpToNext(lvl); lvl++; }
-  if (lvl < cap) return {lvl, into: rem, need: xpToNext(lvl), para: 0};
+  /* [ANDRAT tyst 2026-10-23] RAMVERKET steg 5: paragonbanken (servern paragon_xp_of). Nar taket hojs ligger veteranens paragon i banken
+     medan hen levlar mot nya taket - poangen syns och galler hela tiden. Banken ar 0 for alla i dag, sa inget andras. */
+  const bank = +(SRV && SRV.paragonBank) || 0;
+  if (lvl < cap) return {lvl, into: rem, need: xpToNext(lvl), para: (bank > 0 && SRV.paragon != null) ? (SRV.paragon | 0) : 0};
+  rem += bank;
   /* [ANDRAT v5.279.0] PARAGONTALET KOMMER FRAN SERVERN. Servern skriver det i
      samma funktion som skriver erfarenheten, sa det kan aldrig hamna efter.
      Raknas har bara nar servern inte svarat an, eller i offlineläget. */
@@ -45944,7 +45950,8 @@ document.addEventListener('click', async (e) => {
         const row = await srvCharacterRow();
         if (row){ if (row.gold_copper != null) S.gold = +row.gold_copper; if (row.fragments != null) S.frags = +row.fragments;
                   if (row.xp != null) S.xp = +row.xp;
-                  if (row.paragon != null) SRV.paragon = +row.paragon; }
+                  if (row.paragon != null) SRV.paragon = +row.paragon;
+                  if (row.paragon_bank != null) SRV.paragonBank = +row.paragon_bank; }
         netPullItems().then(() => renderInventory && renderInventory()).catch(() => {});
         updateUI(true);
       }
