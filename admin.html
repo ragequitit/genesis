@@ -588,7 +588,7 @@ I18N.start();
 <script src="lib/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script>
 (() => {
-const ADMIN_VERSION = 'v0.22.2';   /* [ANDRAT v0.22.0] skarmbild i buggrapporter */
+const ADMIN_VERSION = 'v0.22.3';   /* [ANDRAT v0.22.3] test play: blockerade flikar som knappar */
 const SUPA_URL = 'https://lbssixfkqoqvpapprpab.supabase.co';
 const SUPA_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {auth: {persistSession: true, storageKey: 'genesis-admin'}});
@@ -770,6 +770,33 @@ $('g-enroll').onclick = async () => {
 };
 $('g-out').onclick = $('btn-out').onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
+/* [TILLAGT 2026-10-24] Test play: flikar som webblasaren stoppade oppnas med en knapp var. */
+function tpShowButtons(rows, url){
+  let box = document.getElementById('tp-box');
+  if (box) box.remove();
+  box = document.createElement('div');
+  box.id = 'tp-box';
+  box.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#16161c;border:1px solid #33334a;border-radius:14px;padding:18px;max-width:360px;width:100%;color:#eee;font:14px system-ui,sans-serif';
+  card.innerHTML = '<div style="font-weight:700;margin-bottom:6px">Open the other test accounts</div>' +
+    '<div style="opacity:.75;margin-bottom:12px">The browser only opens one tab per click. Click each account to open it.</div>';
+  rows.forEach(r => {
+    const b = document.createElement('button');
+    b.textContent = 'Open ' + (r.character || r.handle || r.email);
+    b.style.cssText = 'display:block;width:100%;margin:6px 0;padding:10px;border-radius:10px;border:1px solid #4b4b6a;background:#24243a;color:#fff;font-weight:700;cursor:pointer';
+    b.onclick = () => { const w = window.open(url(r), '_blank'); if (w){ b.disabled = true; b.textContent = '✓ ' + b.textContent.slice(5); b.style.opacity = '.5'; } };
+    card.appendChild(b);
+  });
+  const close = document.createElement('button');
+  close.textContent = 'Close';
+  close.style.cssText = 'display:block;width:100%;margin-top:10px;padding:8px;border-radius:10px;border:0;background:transparent;color:#aaa;cursor:pointer';
+  close.onclick = () => box.remove();
+  card.appendChild(close);
+  box.appendChild(card);
+  box.onclick = e => { if (e.target === box) box.remove(); };
+  document.body.appendChild(box);
+}
 async function enter(){
   let me; try { me = await rpc('admin_my_perms'); } catch (e){ gerr(e.message); return; }
   if (!me.admin){ gerr('This account is not staff (' + me.why + ').'); gateShow('gate-login'); await sb.auth.signOut(); return; }
@@ -786,12 +813,12 @@ async function enter(){
     $('btn-tp').disabled = true;
     try {
       const rows = await rpc('testplay_logins');
-      let blocked = 0;
-      (rows || []).forEach(r => {
-        const w = window.open('index.html?tp=' + encodeURIComponent(btoa(JSON.stringify({e: r.email, p: r.pw}))), '_blank');
-        if (!w) blocked++;
-      });
-      if (blocked) alert(blocked + ' tab(s) were blocked by the browser. Allow pop-ups for this page and click Test play again.');
+      /* [ANDRAT 2026-10-24] Webblasaren slapper bara EN ny flik per klick (Chris: 4 blockerades). De som stoppas
+         visas som knappar - varje knapptryck ar ett eget klick och oppnar sin flik. */
+      const url = r => 'index.html?tp=' + encodeURIComponent(btoa(JSON.stringify({e: r.email, p: r.pw})));
+      const kvar = [];
+      (rows || []).forEach(r => { const w = window.open(url(r), '_blank'); if (!w) kvar.push(r); });
+      if (kvar.length) tpShowButtons(kvar, url);
     } catch (e){ alert(e.message || 'Could not start test play.'); }
     finally { $('btn-tp').disabled = false; }
   };
