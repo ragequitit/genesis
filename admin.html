@@ -485,7 +485,7 @@ table.t td.macts .btn{margin:2px 0;white-space:normal;text-align:center;justify-
     <div id="search"><svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="Search handle, character, guild or id…  ( / )" autocomplete="off"><div id="search-res"></div></div>
     <span id="env" class="prod">PROD</span>
     <span id="lat">Server <b id="lat-ms">–</b></span>
-    <div id="who"><div class="av" id="who-av" title="My account" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg></div><div id="who-txt" style="cursor:pointer" title="My account"><b id="who-name">–</b><div class="role" id="who-role">–</div></div><button class="btn sm" id="btn-me">My account</button><button class="btn sm" id="btn-out">Sign out</button></div>
+    <div id="who"><div class="av" id="who-av" title="My account" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg></div><div id="who-txt" style="cursor:pointer" title="My account"><b id="who-name">–</b><div class="role" id="who-role">–</div></div><button class="btn sm" id="btn-tp" style="display:none" title="Open five tabs signed in as the test accounts">Test play</button><button class="btn sm" id="btn-me">My account</button><button class="btn sm" id="btn-out">Sign out</button></div>
   </div>
   <div id="nav"></div>
   <div id="main"></div>
@@ -779,6 +779,22 @@ async function enter(){
   $('gate').classList.add('hidden'); $('app').classList.add('on');
   $('who-name').textContent = me.display_name || me.label || (await sb.auth.getUser()).data.user.email;
   $('who-role').textContent = me.role_name;
+  /* [TILLAGT v5.1158.0] TEST PLAY (Chris 2026-10-24): bara agaren. Servern byter testkontonas losenord och lamnar
+     engangsnycklar; varje konto oppnas i en egen flik (index.html?tp=...) som loggar in sig sjalv. */
+  $('btn-tp').style.display = me.role === 'owner' ? '' : 'none';
+  $('btn-tp').onclick = async () => {
+    $('btn-tp').disabled = true;
+    try {
+      const rows = await rpc('testplay_logins');
+      let blocked = 0;
+      (rows || []).forEach(r => {
+        const w = window.open('index.html?tp=' + encodeURIComponent(btoa(JSON.stringify({e: r.email, p: r.pw}))), '_blank');
+        if (!w) blocked++;
+      });
+      if (blocked) alert(blocked + ' tab(s) were blocked by the browser. Allow pop-ups for this page and click Test play again.');
+    } catch (e){ alert(e.message || 'Could not start test play.'); }
+    finally { $('btn-tp').disabled = false; }
+  };
   $('env').className = /127\.0\.0\.1|localhost|test/.test(location.hostname) ? 'test' : 'prod';
   $('env').textContent = $('env').className === 'prod' ? 'PROD' : 'TEST';
   buildNav();
