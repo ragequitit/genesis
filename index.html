@@ -30132,6 +30132,28 @@ function openCharmPicker(key){
 /* [ANDRAT v5.891.0] ALLA delar (Chris): samma plats kravs, inte vaskor och inte stenar. */
 function skinnable(it){ return !!(it && ITEMS[it.t] && !ITEMS[it.t].bag && !isGemItem(it) && it.s >= 0 && it.s !== 10 && it.s !== 14); }
 let skinPickEl = null;
+/* [TILLAGT tyst 2026-10-27] VARIFRAN UTSEENDET KOMMER (Chris: "under Unlocked kan vi ha vart den kommer ifran").
+   Signaturpjaser: dungeonen enligt serverns lista (pve_signature_config). Saker som aldrig faller (tom fall-lista)
+   eller ar tillverkade: Crafted. Allt annat faller i varlden. Hamtas en gang. */
+let SKIN_SRC = null;
+async function skinSrcLoad(){
+  if (SKIN_SRC) return;
+  SKIN_SRC = {};
+  try {
+    const [sig, dg] = await Promise.all([srvSelect('pve_signature_config', 'select=item_key,dungeon_id'),
+                                         srvSelect('pve_dungeon_config', 'select=id,name')]);
+    const namn = {}; (dg || []).forEach(d => { namn[d.id] = d.name; });
+    (sig || []).forEach(s => { SKIN_SRC[s.item_key] = 'Dungeon · ' + (namn[s.dungeon_id] || s.dungeon_id); });
+  } catch (e){}
+}
+function skinSrcText(key){
+  if (SKIN_SRC && SKIN_SRC[key]) return SKIN_SRC[key];
+  const D = ITEMS[key];
+  if (!D) return 'Unlocked';
+  if (/^sig[a-z]?_/.test(key)) return 'Dungeon';
+  if (D.crafted || !(D.dropRars && D.dropRars.length)) return 'Crafted';
+  return 'World drop';
+}
 function closeSkinPicker(){ if (skinPickEl){ skinPickEl.remove(); skinPickEl = null; } }
 async function openSkinPicker(it){
   closeSkinPicker();
@@ -30140,11 +30162,12 @@ async function openSkinPicker(it){
   try { keys = await srvRpc('transmog_list', {p_character: SRV.charId}) || []; }
   catch (e){ say(srvErrText(e, 'Could not load your looks.')); return; }
   keys = keys.filter(k => ITEMS[k] && ITEMS[k].slot === it.s && !ITEMS[k].bag);   /* [ANDRAT v5.891.0] bara samma plats */
+  await skinSrcLoad();   /* [TILLAGT tyst 2026-10-27] varifran varje utseende kommer (Chris) */
   const box = document.createElement('div');
   box.className = 'item-win charm-pick';
   const rad = (key, nm, cur) => '<button class="cp-row" data-sk="' + esc(key) + '"' + (cur ? ' disabled' : '') + ' style="--rc:' + rarCol(it.r) + '">' +
     '<span class="cp-art">' + artWithFallback(key === '_' ? gearArt(it) : itemArtFor(key, it.r), '📦') + '</span>' +
-    '<span class="cp-txt"><b>' + esc(nm) + '</b><i>' + (cur ? 'Current look' : (key === '_' ? 'Its own picture' : 'Unlocked')) + '</i></span></button>';
+    '<span class="cp-txt"><b>' + esc(nm) + '</b><i>' + (cur ? 'Current look' : (key === '_' ? 'Its own picture' : skinSrcText(key))) + '</i></span></button>';   /* [ANDRAT tyst 2026-10-27] varifran i stallet for "Unlocked" */
   box.innerHTML =
     '<div class="iw-head"><span class="iw-title">Appearance · ' + esc(gearName(it)) + '</span></div>' +
     '<div class="cp-desc">Pick the look of any ' + esc((GEAR_SLOTS[it.s] || {name: 'piece'}).name.toLowerCase()) + ' piece you have ever owned. Only the picture changes.</div>' +
