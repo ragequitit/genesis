@@ -15401,9 +15401,11 @@ function setFigureSrc(classId, pieces){
   const fig = CLASS_FIGURE[classId], id = fig && setFigureId(pieces);
   return id ? 'assets/character/set/' + fig + '_' + id + '.webp' : null;
 }
+/* Ett utseende (skin) raknas som det det VISAR: ett craftat utseende ritas i sin fasta variant (samma som ITEMS[..].art). */
+function skinAffs(skin){ const v = (typeof CRAFT_VAR_ORDER !== 'undefined') && CRAFT_VAR_ORDER.find(x => CRAFT_VAR.has(skin + '|' + x)); return v ? [{k: v}] : []; }
 function equipSetPieces(){
   const out = {};
-  for (let sl = 0; sl <= 4; sl++){ const it = S.equip && S.equip[sl]; if (it) out[sl] = (it.skin && ITEMS[it.skin]) ? {key: it.skin, affs: it.a} : {key: it.t, affs: it.a}; }
+  for (let sl = 0; sl <= 4; sl++){ const it = S.equip && S.equip[sl]; if (it) out[sl] = (it.skin && ITEMS[it.skin]) ? {key: it.skin, affs: skinAffs(it.skin)} : {key: it.t, affs: it.a}; }
   return out;
 }
 function classFigureSrc(){ return setFigureSrc(S.classId, equipSetPieces()) || figureSrcFor(S.classId, figureState()); }
@@ -45237,7 +45239,7 @@ const HTP = [
        '<b>Reroll</b> opens at [[xp:level 25]]: change one stat on a piece for [[gold:gold]]. No limit \u2014 but every try on the same piece costs more than the last, so your purse decides when to stop.',   /* [ANDRAT v5.1041.0] */
        'Reroll never gives a [[legendary:God Roll]] — those only happen when a piece is made or found. A God Roll stat cannot be rerolled.',   /* [TILLAGT v5.1207.0] (Chris) */
        '<b>Recycle</b> gear you do not need for [[frag:fragments]], or sell it for [[gold:gold]].',
-       'Wear <b>3 or more pieces of the same set</b> (head, chest, legs, gloves, boots) and your character shows the <b>full set look</b>. Crafted sets count by recipe, so 3 Arcweave pieces with the same property make a set.',   /* [TILLAGT v5.1312.0] setbilder */
+       'Wear <b>3 or more pieces of the same set</b> (head, chest, legs, gloves, boots) and your character shows the <b>full set look</b>. Appearances count too. Crafted sets count by recipe, so 3 Arcweave pieces with the same property make a set.',   /* [TILLAGT v5.1312.0] setbilder */
        'Mark gear you love as a <b>\u2605 Favorite</b> (right-click or the card): it shows a star and cannot be sold or recycled until you remove it. Trading, mailing and the auction house still work.',   /* [TILLAGT v5.1213.0] */
        '<b>Transport</b> gear makes travel faster.',
        'Old workshop models - <b>Prototype</b>, <b>Surplus</b>, <b>Retired</b> and more - drop like any other loot, in every slot and rarity.',   /* [TILLAGT v5.1202.0] */
@@ -54781,7 +54783,7 @@ function nodeInspectHTML(){
   let fig = 0;
   try { for (const sl in FIGURE_BITS) if (bar[sl]) fig |= FIGURE_BITS[sl]; } catch (e){}
   /* [ANDRAT v5.1312.0] setbilden galler aven nar man inspekterar nagon annan */
-  const insPieces = {}; for (let sl = 0; sl <= 4; sl++){ const g = bar[sl]; if (g) insPieces[sl] = {key: (g.skin && ITEMS[g.skin]) ? g.skin : g.item_key, affs: g.affixes}; }
+  const insPieces = {}; for (let sl = 0; sl <= 4; sl++){ const g = bar[sl]; if (g) insPieces[sl] = (g.skin && ITEMS[g.skin]) ? {key: g.skin, affs: skinAffs(g.skin)} : {key: g.item_key, affs: g.affixes}; }
   const figSrc = (typeof setFigureSrc === 'function' && setFigureSrc(d.class_id, insPieces)) || ((typeof figureSrcFor === 'function') ? figureSrcFor(d.class_id, fig) : null);
   const kol = list => '<div class="equip-col">' +
     list.map(x => inspSlotHTML(bar, x[0], x[1], x[2])).join('') + '</div>';
