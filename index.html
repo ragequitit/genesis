@@ -9871,6 +9871,14 @@ body:has(.modal-overlay.open) .chat-root.mode-min,body:has(.ask-back) .chat-root
 /* [TILLAGT v5.262.0] Svarighetspillen: samma form som de andra, men i
    bedomningens farg med en lysande prick fore. */
 .dgc-pill.dgc-rate{color:var(--rt);border-color:var(--rt)}
+/* [TILLAGT gren moln-granskning] gear score-rutan i raden under bilden */
+.dgc-frame .dgc-art .dgc-pill.dgc-gs,.dgc-pills .dgc-pill.dgc-gs{flex:2 1 0;justify-content:space-evenly;gap:10px;padding-top:4px;padding-bottom:4px;border-color:var(--gsc)}
+.dgc-gs .gsb{display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:0}
+.dgc-gs .gsb i{font-style:normal;font-size:8.5px;letter-spacing:.06em;text-align:center;line-height:1.15;margin-bottom:2px;text-transform:uppercase;font-weight:900;color:var(--text-dim);white-space:nowrap}
+.dgc-gs .gsb.me{border-left:1px solid rgba(255,255,255,.14);padding-left:10px}
+.dgc-gs .gsb b{font-size:17px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums}
+.dgc-gs .gsb b small{font-size:8px;font-weight:700;color:var(--text-dim);margin-left:3px}
+.dgc-gs .gsb.me b{color:var(--gsc)}
 .dgc-pill.dgc-rate .dot{width:7px;height:7px;border-radius:50%;background:var(--rt);
   box-shadow:0 0 8px 1px var(--rt);flex:0 0 auto}
 .dgc-bosses, .dgc-pills{flex:0 0 auto}
@@ -12560,6 +12568,12 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 /* [TILLAGT v5.1183.0] Malmbytet pa telefon: bilden visar TVA malmer, sa bildkolumnen far vara sa bred som bilden (annars lag den over namnet). */
 @media (max-width:760px){
   .recipe-row.ox-row{grid-template-columns:auto minmax(0,1fr)}
+}
+/* [TILLAGT gren moln-granskning] gear score-rutan pa telefon: egen rad under de tre pillren, bilden lite hogre sa bada far plats */
+@media (max-width:760px){
+  .dgc-frame .dgc-art:has(.dgc-gs:not([style*="none"])){height:clamp(124px,16vh,140px)}
+  .dgc-frame .dgc-art .dgc-pills:has(.dgc-gs){flex-wrap:wrap}
+  .dgc-frame .dgc-art .dgc-pill.dgc-gs{flex:1 1 100%}
 }
 </style>
 </head>
@@ -17878,13 +17892,15 @@ function dgcReqGS(heroic){
   return {n: Math.round(n), est: !!rift};
 }
 function dgcReqHTML(heroic){
+  /* [ANDRAT gren moln-granskning] tydligare (Chris): en ruta i raden under bilden med GEAR SCORE NEEDED och YOUR GEAR SCORE,
+     siffrorna stora under rubrikerna. Gron = klarar kravet, gul = nara (80 %+), rod = for lite. */
   const q = dgcReqGS(heroic);
-  if (!q) return '<div class="dgc-req" id="dgc-req"></div>';
+  if (!q) return '<span class="dgc-pill dgc-gs" id="dgc-req" style="display:none"></span>';
   const m = myGearScore();
   const col = m >= q.n ? 'var(--green,#3fd68a)' : m >= q.n * 0.8 ? '#ffb347' : 'var(--red,#ff5964)';
-  return '<div class="dgc-req" id="dgc-req" style="--gsc:' + col + '">' +
-    '<span>Required gear score: <b>' + fmtLong(q.n) + '</b>' + (q.est ? ' <span class="est">(estimate)</span>' : '') + '</span>' +
-    '<span class="me">Your gear score: <b>' + fmtLong(m) + '</b></span></div>';
+  return '<span class="dgc-pill dgc-gs" id="dgc-req" style="--gsc:' + col + '">' +
+    '<span class="gsb"><i>Gear score<br>needed</i><b>' + fmtLong(q.n) + (q.est ? '<small>est.</small>' : '') + '</b></span>' +
+    '<span class="gsb me"><i>Your<br>gear score</i><b>' + fmtLong(m) + '</b></span></span>';
 }
 /* Bedomningen som en pille i samma rad som liv, tid och bossar. Har servern
    inte hunnit svara an ritas ingen pille alls - hellre tom an gissad. */
@@ -18430,9 +18446,9 @@ function renderDgChoice(){
           (rift ? ' Rift Bosses' : heroic ? ' Heroic Bosses' : ' Bosses') + '</span>' +
         '<span class="dgc-pill"><i class="ic">' + DGC_ICONS.revive + '</i>' +
           (+d.revives) + (+d.revives === 1 ? ' Revive' : ' Revives') + '</span>' +
-        /* [ANDRAT moln] Svarighetspillret (Easy..Impossible) borttaget - kravraden under bilden visar siffror i stallet. */
+        /* [ANDRAT gren moln-granskning] Gear score sitter dar Easy..Impossible satt (Chris): rubrik overst, siffran under. */
+        dgcReqHTML(heroic) +
       '</div></div>' +
-      dgcReqHTML(heroic) +
       '<div class="section-label dgc-bh">Boss encounters</div>' +
       '<div class="dgc-bosses">' + bossHTML + '</div>' +
     '</div>';
