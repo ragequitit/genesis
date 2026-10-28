@@ -4802,6 +4802,10 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-fight .wb-abil .wb-btn .ic{width:46px;height:46px}
 .wb-fight .wb-abil .wb-btn .ic img{width:46px;height:46px}
 .wb-hero.hit img{animation:wbShake .35s}
+/* [TILLAGT gren moln-granskning] levande boss: bilderna ligger pa varandra, kort overtoning (dod langsammare) */
+.wb-hero img.wbl{position:absolute;inset:0;opacity:0;transition:opacity .15s ease-out;object-position:center 22%}
+.wb-hero img.wbl.on{opacity:1}
+.wb-hero img.wbl-dead{transition-duration:1s}
 @keyframes wbShake{0%{transform:translate(0,0)}25%{transform:translate(-6px,2px) scale(1.02)}50%{transform:translate(5px,-3px)}75%{transform:translate(-3px,1px)}100%{transform:translate(0,0)}}
 .wb-hero .wb-pop{position:absolute;left:50%;top:40%;transform:translate(-50%,0);font-size:34px;font-weight:900;color:#fff;text-shadow:0 0 12px #ff5c6c,0 2px 4px #000;animation:wbPop 1.1s forwards;pointer-events:none}
 .wb-hero .wb-pop.crit{color:var(--gold);font-size:42px}
@@ -48679,6 +48683,7 @@ function wbFx(kind, text){
   void h.offsetWidth;
   if (kind) h.classList.add('fx-' + kind);
   if (kind && kind !== 'dodge') wbFxLayer(kind);   /* [TILLAGT moln] egen kort effekt per specialattack */
+  if (kind !== 'dodge' && kind !== 'regrow') wbPose('attack');   /* [TILLAGT gren moln-granskning] levande boss: attackbilden under effekten */
   if (kind) WB.fxLast = {kind: kind, t: Date.now()};   /* [TILLAGT moln] sa att loggen inte spelar samma effekt en gang till */
   const w = h.querySelector('.wb-warn');
   if (w && text){ w.textContent = text; w.classList.add('on'); w.classList.remove('go'); }
@@ -48789,6 +48794,7 @@ function wbAct(action){
     if (action === 'strike' || action === 'heavy' || action === 'power'){   /* [ANDRAT v5.1056.0] */
       const h = document.querySelector('#wb-body .wb-hero');
       if (h){ h.classList.remove('hit'); void h.offsetWidth; h.classList.add('hit'); }
+      wbPose(r.dead ? 'dead' : 'hit');   /* [TILLAGT gren moln-granskning] levande boss */
       /* [ANDRAT gren moln-granskning] FARGER (Chris 2026-10-28): vanligt slag vitt, crit guld, ultimate lila (aven nar den crittar - da med CRIT och hardare skakning). */
       wbPop((r.crit ? 'CRIT ' : '') + fmt(r.damage) + (r.weak ? ' (weak)' : ''), action === 'power' ? 'ult' : (r.crit ? 'crit' : ''));
       if (action === 'power') wbUltShake(!!r.crit);   /* [TILLAGT moln] skakning nar ultimaten landar */
@@ -48845,7 +48851,7 @@ function renderWorldBoss(){
      lagerkrans nar bossen fallit, inget "World Boss"-marke (det star i titeln). Events-rutan ser ut som forut. */
   const nfightTxt = ev.state === 'dead' ? (ev.participants | 0) + ((ev.participants | 0) === 1 ? ' hero took part.' : ' heroes took part.') : (ev.participants | 0) + ' fighting';
   const whereTxt = esc(ev.zone) + ' · <b>' + esc(ev.region_name || ev.region) + '</b> · <span id="wb-nfight">' + nfightTxt + '</span>';
-  const hero = '<div class="wb-hero"><img src="' + wbEventArt(ev) + '" alt="" onerror="this.onerror=null;this.src=\'' + wbBossImg(ev) + '\'">' +
+  const hero = '<div class="wb-hero">' + wbHeroImgs(ev) +   /* [ANDRAT gren moln-granskning] levande boss (Chris 2026-10-28) */
     (fight
       ? (ev.state === 'dead' ? '<span class="wb-tag gold">' + artWithFallback('assets/worldboss/ui/laurel.webp', '\ud83c\udfc6') + ' Defeated</span>' : '') +
         '<div class="wb-where wb-hero-where">' + whereTxt + '</div>'
@@ -48923,6 +48929,32 @@ function renderWorldBoss(){
 /* ===== BOSSKATALOGEN (v5.903.0) ===== */
 function wbBossArt(b){ return 'assets/worldboss/' + (b.key || b.boss) + '.webp'; }
 /* [TILLAGT v5.982.0] DODA BOSSAR (Chris): levande bild under striden, egen bild nar bossen har fallit (<nyckel>_dead.webp). */
+/* [TILLAGT gren moln-granskning] LEVANDE WORLD BOSS (Chris 2026-10-28): fyra hela bilder per boss pa samma plats
+   (vila, attack, traff, dod) i assets/worldboss/live. De ligger ovanpa varandra och tonas over kort (0,15 s) samtidigt
+   som effekten, sa bytet syns som att bossen ror sig. Vila star still (ingen andning - hackar i Firefox).
+   Saknas en bild faller vilan tillbaka pa den gamla bossbilden. */
+const WB_LIVE = new Set(['vharok', 'gravmaw', 'leviathan', 'omega', 'bloom']);
+/* utsnitt per boss: bossarna star olika hogt i bilden (matt 2026-10-28) */
+const WB_LIVE_POS = {vharok: '25%', gravmaw: '42%', leviathan: '48%', omega: '36%', bloom: '28%'};
+function wbHeroImgs(ev){
+  const k = ev.key || ev.boss;
+  const old = '<img src="' + wbEventArt(ev) + '" alt="" onerror="this.onerror=null;this.src=\'' + wbBossImg(ev) + '\'">';
+  if (!WB_LIVE.has(k)) return old;
+  const dod = ev.state === 'dead';
+  const fall = esc(wbEventArt(ev));
+  return ['idle', 'attack', 'hit', 'dead'].map(p => '<img class="wbl wbl-' + p + ((dod ? p === 'dead' : p === 'idle') ? ' on' : '') + '" style="object-position:center ' + (WB_LIVE_POS[k] || '22%') + '" src="assets/worldboss/live/' + k + '_' + p + '.webp" alt=""' +
+    (p === 'idle' ? ' onerror="this.onerror=null;this.classList.remove(\'wbl\');this.src=\'' + fall + '\'"' : ' onerror="this.remove()"') + '>').join('');
+}
+function wbPose(p){
+  const h = document.querySelector('#wb-body .wb-hero'); if (!h || !h.querySelector('.wbl')) return;
+  const cur = h.querySelector('.wbl.on');
+  if (cur && cur.classList.contains('wbl-dead')) return;   /* dod ar dod */
+  const nx = h.querySelector('.wbl-' + p); if (!nx) return;
+  h.querySelectorAll('.wbl.on').forEach(e => { if (e !== nx) e.classList.remove('on'); });
+  nx.classList.add('on');
+  clearTimeout(WB.poseTo);
+  if (p === 'attack' || p === 'hit') WB.poseTo = setTimeout(() => wbPose('idle'), p === 'attack' ? 1100 : 700);
+}
 function wbEventArt(ev){ return 'assets/worldboss/' + (ev.key || ev.boss) + (ev.state === 'dead' ? '_dead' : '') + '.webp'; }
 /* [ANDRAT v5.905.0] EGNA IKONER (Chris): assets/worldboss/ico/<namn>.webp - tecknet star kvar som reserv tills filen finns. */
 function wbIco(name, fb){ return '<i class="wb-ico"><img src="assets/worldboss/ico/' + name + '.webp" alt="" onerror="this.parentNode.classList.add(\'noart\');this.remove()"><span>' + fb + '</span></i>'; }
