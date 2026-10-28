@@ -14,14 +14,15 @@
 
   DATAKALLA
     ?src=<url>       JSON enligt kontraktet nedan, hamtas om var 20:e sekund (?every=<sek>, minst 5)
-    DATAKALLA        konstanten forst i skriptet (null = DEMO)
+    DATAKALLA        konstanten forst i skriptet: serverns world_view() (skrivskyddad, bara spelnamn)
+    ?demo            tvinga DEMO-laget med pahittade spelare
     postMessage      {genesisWorld: <kontrakt>} fran sidan som baddar in vyn (iframe) - bara samma sajt, eller ?from=<origin>
     ?embed=1         dolj rubrik och knappar (for inbaddning i Whippit-varlden)
     ?view=<id>|boss  starta inzoomad pa en region (t.ex. ?view=drakemark) eller pa World Boss
     ?regissor=0      stang av regissoren (rors inte skarmen pa 25 s flyger kameran sjalv till det som hander)
     ?tid=<0-24>      las tiden pa dygnet (annars tittarens klocka) - dag, skymning, natt
     ?demo-boss=pagar|dod   hoppa fram i demons bosscykel (for skarmbilder)
-    Utan nagon kalla kor sidan DEMO-lage med pahittade spelare, tydligt markt DEMO.
+    DEMO-laget ar tydligt markt DEMO.
 
   KONTRAKT (JSON) - bara spelnamn, aldrig konto-id, e-post eller annat personligt
   {
@@ -243,9 +244,12 @@ import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 /* ===== INSTALLNINGAR ===== */
-const DATAKALLA = null;   // URL till JSON enligt kontraktet ovan. null = DEMO (om ingen ?src= anges)
+/* [ANDRAT genesis-world] riktig data: serverns skrivskyddade world_view() (bara spelnamn, testkonton bortfiltrerade).
+   Nyckeln ar spelets publika nyckel - samma som star i index.html. ?demo tvingar DEMO-laget. */
+const SB_KEY = 'sb_publishable_u2XJLvX3PRD_azBJIEWlcg_R83K1JeH';
+const DATAKALLA = 'https://lbssixfkqoqvpapprpab.supabase.co/rest/v1/rpc/world_view?apikey=' + SB_KEY;
 const Q = new URLSearchParams(location.search);
-const SRC = Q.get('src') || DATAKALLA;
+const SRC = Q.has('demo') ? null : (Q.get('src') || DATAKALLA);
 const EVERY = Math.max(5, +Q.get('every') || 20) * 1000;
 if (Q.get('embed') === '1') document.body.classList.add('embed');
 const MOBILE = matchMedia('(pointer:coarse)').matches || innerWidth < 640;
