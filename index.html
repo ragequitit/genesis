@@ -12284,6 +12284,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
     box-shadow:0 3px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);color:#eafcff}
   .recipe-row > .pp-openbtn.addq:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.2)}
   .recipe-row > .pp-openbtn.addq:disabled{background:rgba(255,255,255,.04);border-color:var(--border);border-bottom-width:1px;box-shadow:none;color:var(--text-dim)}
+  .recipe-row > .pp-openbtn.fillq{grid-row:3}   /* [TILLAGT v5.1342.0] Fill queue under Add to queue pa telefon */
   .recipe-row > .rr-crafts{flex-direction:row}
   .recipe-row > .rr-crafts .pp-openbtn{flex:1 1 0;min-width:0;padding:8px 6px}
   .recipe-row .rr-name{font-size:13px;margin-bottom:2px;line-height:1.2}
@@ -40664,7 +40665,11 @@ function ppBookRows(profId){
           })()
         : '<button class="pp-openbtn addq" data-addq="' + r.id + '" data-qty="1"' +
             ((afford && free > 0) ? '' : ' disabled') + '>' +
-            (free > 0 ? 'Add to queue' : 'Queue full') + '</button>') +
+            (free > 0 ? 'Add to queue' : 'Queue full') + '</button>' +
+          /* [TILLAGT v5.1342.0] FILL QUEUE (ide #98 PickyPete, Chris ja): fyller alla lediga koplatser med ett tryck -
+             sa manga som materialet racker till. Samma vag som Craft N (craftManyNet), ingen ny servervag. */
+          (function(){ const fyll = Math.min(Math.max(0, free), craftMaxAfford(r.id) || 0);
+            return free > 1 ? '<button class="pp-openbtn addq fillq" data-addq="' + r.id + '" data-qty="' + Math.max(1, fyll) + '"' + (fyll >= 2 ? '' : ' disabled') + '>Fill queue' + (fyll >= 2 ? ' (' + fyll + ')' : '') + '</button>' : ''; })()) +
     '</div>';
   }).join('') || '<div class="shelf-empty">No recipes match.</div>';
 }
