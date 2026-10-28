@@ -29639,7 +29639,8 @@ function charStatRows(){
         ts > 60 ? ('Capped at 60% \u2014 ' + ts + '% rolled') : '');
   }
   /* [ANDRAT v5.787.0] Servern: hogst 60 % totalt, varav 15 i botten - bonusen tak 45. */
-  up('combat', 'Crit Chance', [...gearPer('crit'), ['Class', classVal('crit')]], {cap: 45});
+  { const ccPar = [['Base', 15], ...gearPer('crit'), ['Class', classVal('crit')]], ccSum = round(ccPar.reduce((s2, p) => s2 + (+p[1] || 0), 0));
+    rad('combat', 'Crit Chance', Math.min(60, ccSum) + '%', del(ccPar), ccSum > 60 ? 'Capped at 60% — ' + ccSum + '% rolled' : ''); }   /* [ANDRAT tyst 2026-10-28] hela chansen som servern (crit_base 15 + gear + klass, tak 60) - samma som How to play */
   /* [ANDRAT v5.796.0] STENEN GANGRAR (buggsvep 6). Servern multiplicerar stenen OVANPA resten
      (apply_currency: belopp * gem_mult), sa +20 % ovriga och +10 % sten blir +32 %, inte +30 %.
      Stenens rad visar darfor sitt verkliga bidrag, och summan blir serverns. */
@@ -29677,7 +29678,10 @@ function charStatRows(){
       dgSum > 25 ? 'Capped at 25% shorter — ' + dgSum + '% on your gear' : 'Max 25% shorter'); }
   up('prog', 'Pet XP', [['Helpers', helperBonus('petxp')],
       ['Class', classVal('petxp')], ['Vial', boostPct('petxp')]]);   /* [ANDRAT v5.787.0] Echo Serum */
-  up('combat', 'Crit Damage', [...gearPer('critdmg')]);
+  /* [ANDRAT tyst 2026-10-28] CRIT DAMAGE SOM GANGER (Chris): raden visade bara gearets del ("+55%") och lat svag. Servern
+     (pve_crit_of): mult = crit_mult 1.75 + gear_bonus('critdmg') / 100 - visas som "x2.3", forklaringen star i How to play. */
+  { const cdPar = gearPer('critdmg'), cdSum = cdPar.reduce((s2, p) => s2 + (+p[1] || 0), 0);
+    rad('combat', 'Crit Damage', '×' + (1.75 + cdSum / 100).toFixed(2).replace(/0$/, ''), [['Base', '×1.75']].concat(del(cdPar)), 'Critical hits land this many times as hard'); }
   /* [TILLAGT v5.758.0] STRIDSEFFEKTERNA (Chris: "+8% healing received star
      ingenstans i statsen"). Pjasernas extraeffekt (signaturpjaser ur dungeons)
      och klassens strideffekter raknas av servern i varje strid och dungeon
@@ -45383,7 +45387,8 @@ const HTP = [
        '<b>Gear Drops</b> — more pieces from fights and dungeon bosses (up to 60% per fight win, 95% on bosses).',
        '<b>Fragment Find</b> and <b>Gold Find</b> — more [[frag:fragments]] and [[gold:gold]] from everything that gives them. Your gem counts too. Cap 100%.',
        '<b>Player XP</b> — more [[xp:XP]] from everything. No cap.',
-       '<b>Crit Chance</b> and <b>Crit Damage</b> (gem) — critical hits more often and harder. Crit Chance stops at 60% in total.',
+       '<b>Crit Chance</b> — the chance that a hit is a critical hit. Everyone starts at 15%, gear and class add more. Stops at 60% in total.',   /* [ANDRAT tyst 2026-10-28] (Chris) */
+       '<b>Crit Damage</b> — how hard a critical hit lands. Everyone starts at ×1.75 (a crit hits 1.75 times as hard), and Crit Damage on gear adds to that: +25% makes it ×2.0. Your Character panel shows your total.',
        '<b>Armor</b> — less damage taken, up to 60%.',
        '<b>Dungeon Speed</b> — shorter dungeons, up to 25% (up to 50% in Heroic and Rift).',   /* [ANDRAT v5.1190.0] */
        '<b>Expedition Speed</b> — shorter expeditions, up to 80%. <b>Travel Speed</b> — faster travel, up to 60%.',
