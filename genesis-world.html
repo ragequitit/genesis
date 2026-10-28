@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Genesis World</title>
+<link rel="icon" href="data:,">
 <!--
   GENESIS-VARLDEN  [TILLAGT genesis-world]
   Fristaende, skrivskyddad askadarvy av Project Genesis. Ror aldrig spelet: inga anrop till spelets
@@ -29,7 +30,19 @@
        "region":"cutlassbay", "zon":"Wreck Reef",     // zon = zonnamn eller index 0-5 (5 = regionens dungeon)
        "aktivitet":"idle",                            // idle | strid | expedition | dungeon | resa | yrke
        "mal":{"region":"novacommand","zon":"The Dock Ring"},   // bara vid resa, annars null
-       "framsteg":0.4}                                // valfri, 0-1 hur langt resan kommit
+       "framsteg":0.4,                                // valfri, 0-1 hur langt resan kommit
+       "info":{                                       // valfri: visas i spelarrutan nar man trycker pa figuren
+         "klass":"warden",                            // breaker | prospector | fabricator | warden | runner
+         "paragon":12, "titel":"the Unbroken",
+         "guild":{"namn":"Iron Owls","tag":"OWL"},    // eller null
+         "gs":2256,                                   // gear score (snitt per plats, som i spelet)
+         "gear":[                                     // det spelaren bar, plats = karaktarsbladets nummer
+           {"slot":0, "key":"phase_cap", "rarity":3, "level":44}
+           // slot 0 huvud, 1 brost, 2 ben, 3 handskar, 4 fotter, 5 vapen, 6 hals, 7 balte, 8 ring,
+           // 9 offhand, 11 transport, 12 ring 2, 13 relik, 14 karaktarssten.  rarity 0-5 = Common..Mythic
+           // valfritt per pjas: "namn" och "bild" (assets/...webp). Saknas de slas nyckeln upp i spelets
+           // katalog (genesis-catalog i index.html), som hamtas forsta gangen en ruta med utrustning oppnas.
+         ]}}
     ],
     "helpare": [                                      // valfri: hjalpare ute pa expedition
       {"namn":"Pip", "agare":"Whippen", "region":"drakemark", "zon":"Troll Mire"}
@@ -83,6 +96,26 @@
   #card .rows span{color:var(--ink2)}
   #card .x{position:absolute;top:6px;right:8px;z-index:2;background:rgba(0,0,0,.45);color:#fff;border:0;border-radius:8px;
     width:28px;height:28px;font-size:16px;cursor:pointer}
+  #card.pl{max-height:calc(100vh - 150px);max-height:calc(100dvh - 150px);overflow-y:auto;overscroll-behavior:contain}
+  .pc-title{font-size:11px;color:#ffc542;letter-spacing:.05em;position:relative;z-index:1;margin-top:-40px;margin-bottom:22px;text-shadow:0 1px 3px #000}
+  .pc-meta{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:12px;color:var(--ink2);margin-top:6px}
+  .pc-meta b{color:var(--ink);font-weight:700}
+  .pc-cls{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+  .pc-btn{margin-top:10px;width:100%;background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.45);color:#bff7ee;border-radius:9px;
+    padding:7px;font-size:12px;font-weight:600;line-height:1;letter-spacing:.06em;cursor:pointer;font-family:inherit}
+  .doll{display:grid;grid-template-columns:auto 1fr auto;gap:6px;margin-top:10px;align-items:start}
+  .dcol{display:flex;flex-direction:column;gap:5px}
+  .dmid{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .dmid .fig{width:100%;max-width:120px;height:178px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6))}
+  .drow{display:flex;justify-content:center;gap:5px;margin-top:6px}
+  .slot{width:44px;height:44px;border-radius:9px;background:#0b131c;border:1.5px solid rgba(255,255,255,.1);position:relative;cursor:pointer;padding:0;
+    display:block;overflow:hidden;font-family:inherit}
+  .slot .sbg{position:absolute;inset:6px;background:center/contain no-repeat;opacity:.22}
+  .slot.has{border-color:var(--rc);box-shadow:inset 0 0 12px -3px var(--rc)}
+  .slot.has img{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);object-fit:contain}
+  .slot.sel{outline:2px solid #fff;outline-offset:1px}
+  .itemline{min-height:30px;font-size:12px;margin-top:8px;text-align:center;line-height:1.35}
+  .itemline small{display:block;color:var(--ink2);font-size:11px}
   #chips{display:flex;gap:6px;overflow-x:auto;padding:0 14px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   #chips::-webkit-scrollbar{display:none}
   .chip{flex:0 0 auto;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:999px;
@@ -105,8 +138,12 @@
     #zoom{display:none}
     .wide{display:none}
     #stats div{white-space:nowrap}
-    #card .rows{columns:2;column-gap:12px;font-size:11px}
+    #card:not(.pl) .rows{columns:2;column-gap:12px;font-size:11px}
     #card .hd{height:52px}
+    #card{max-width:calc(100vw - 28px);width:calc(100vw - 28px)}
+    #card.pl{max-height:calc(100vh - 190px);max-height:calc(100dvh - 190px)}
+    .slot{width:40px;height:40px}
+    .dmid .fig{height:150px}
   }
 </style>
 </head>
@@ -475,6 +512,33 @@ function clampCam(){ const m = 200; cam.x = clamp(cam.x, WB.x0 - m, WB.x1 + m); 
 const ents = new Map();      // namn -> spelare
 const helps = new Map();     // hjalpare
 let boss = null, bossImg = {}, data = null, lastSig = '', selected = null, selRegion = null;
+/* Spelarinfo fran kontraktet tvattas till enkla varden; text visas alltid som text (aldrig som HTML). */
+const CLASS_TXT = {breaker: 'Breaker', prospector: 'Prospector', fabricator: 'Fabricator', warden: 'Warden', runner: 'Runner'};
+const CLASS_COL = {breaker: '#38e8ff', prospector: '#ffc542', fabricator: '#38bdf8', warden: '#4cd97b', runner: '#a78bfa'};
+const CLASS_FIG = {breaker: 'cyborg', prospector: 'blockman', fabricator: 'hoodie-man', warden: 'elf', runner: 'monkey-pirate'};   // som CLASS_FIGURE i index.html
+const RAR = [['Common', '#ffffff'], ['Uncommon', '#1eff5a'], ['Rare', '#38a8ff'], ['Epic', '#a45cff'], ['Legendary', '#ffc542'], ['Mythic', '#ff3b3b']];
+const str = (v, n) => (typeof v === 'string' || typeof v === 'number') ? String(v).trim().slice(0, n) : '';
+const okPath = v => (typeof v === 'string' && /^assets\/[A-Za-z0-9_\-\/.]+\.(webp|png)$/.test(v) && v.indexOf('..') < 0) ? v : '';
+function cleanInfo(i){
+  if (!i || typeof i !== 'object') return null;
+  const g = i.guild, gear = Array.isArray(i.gear) ? i.gear : [];
+  return {klass: str(i.klass, 20).toLowerCase(), paragon: Math.max(0, +i.paragon || 0), titel: str(i.titel, 40),
+    guild: g && typeof g === 'object' ? {namn: str(g.namn, 30), tag: str(g.tag, 6)} : (str(g, 30) ? {namn: str(g, 30), tag: ''} : null),
+    gs: (i.gs != null && isFinite(+i.gs)) ? Math.round(+i.gs) : null,
+    gear: gear.slice(0, 16).filter(x => x && isFinite(+x.slot)).map(x => ({slot: +x.slot | 0, key: str(x.key, 60), namn: str(x.namn, 60), bild: okPath(x.bild),
+      rarity: clamp(+x.rarity | 0, 0, 5), level: (x.level != null && isFinite(+x.level)) ? +x.level | 0 : null}))};
+}
+/* Spelets katalog (namn + bild per pjas) ligger i index.html. Den hamtas EN gang, och bara om en pjas saknar namn/bild. */
+let CATALOG = null, catalogP = null;
+function loadCatalog(){
+  if (!catalogP) catalogP = fetch('index.html', {cache: 'force-cache'}).then(r => r.text()).then(t => {
+    const m = t.match(/<script type="application\/json" id="genesis-catalog">([\s\S]*?)<\/script>/); CATALOG = m ? JSON.parse(m[1]) : {items: {}};
+  }).catch(() => { CATALOG = {items: {}}; });
+  return catalogP; }
+function itemLook(g){
+  const D = CATALOG && CATALOG.items && CATALOG.items[g.key];
+  const bild = g.bild || (D ? (Array.isArray(D.pr) ? okPath(D.pr[g.rarity] || D.pr[0]) : okPath(D.a)) : '');
+  return {namn: g.namn || (D && D.n) || g.key || '?', bild}; }
 const PAL = ['#f97316', '#22d3ee', '#a3e635', '#f472b6', '#facc15', '#60a5fa', '#c084fc', '#34d399', '#fb7185', '#e2e8f0'];
 function zoneOf(rid, zon){ const R = REG_BY[rid]; if (!R || R.locked) return null;
   if (typeof zon === 'number' && R.zones[zon]) return R.zones[zon];
@@ -500,7 +564,7 @@ function applyPlayer(e, s){
   let z = zoneOf(s.region, s.zon); if (!z) z = R.zones[hash(s.namn) % 5];
   const akt = ['idle', 'strid', 'expedition', 'dungeon', 'resa', 'yrke'].indexOf(s.aktivitet) >= 0 ? s.aktivitet : 'idle';
   const malZ = (akt === 'resa' && s.mal) ? zoneOf(s.mal.region, s.mal.zon) || (REG_BY[s.mal.region] && !REG_BY[s.mal.region].locked ? REG_BY[s.mal.region].zones[0] : null) : null;
-  e.niva = +s.niva || 0; e.namn = String(s.namn).slice(0, 24);
+  e.niva = +s.niva || 0; e.namn = String(s.namn).slice(0, 24); e.info = cleanInfo(s.info);
   const prevZ = e.z, prevAkt = e.akt, prevMal = e.malZ;
   e.R = R; e.akt = akt; e.malZ = malZ; e.framsteg = (typeof s.framsteg === 'number') ? clamp(s.framsteg, 0, 1) : null;
   if (!prevZ){ e.z = z; const p = spotFor(e); e.x = p.x; e.y = p.y; e.tx = p.x; e.ty = p.y; e.wait = Math.random() * 3; return true; }
@@ -803,16 +867,69 @@ function renderChips(){
   LAND.forEach(R => add(R.namn, counts[R.id] || 0, () => { selected = null; selRegion = R.id; renderCard(); focusRegion(R); }));
 }
 const AKT_TXT = {idle: 'Exploring', strid: 'Fighting', expedition: 'On an expedition', dungeon: 'In a dungeon', resa: 'Travelling', yrke: 'Crafting'};
+/* SPELARRUTAN: namn, niva, klass, guild, gear score, vad spelaren gor - och Inspect (utrustningen som i spelets profilkort).
+   Bara lasning: knapparna har oppnar och stanger rutan, inget annat. */
+let cardSig = '', inspOpen = innerWidth >= 640, inspSlot = null;
+const DOLL = {left: [[0, 'head', 'Head'], [6, 'neck', 'Neck'], [1, 'chest', 'Chest'], [2, 'legs', 'Legs'], [4, 'feet', 'Boots']],
+  right: [[3, 'hands', 'Hands'], [7, 'waist', 'Waist'], [8, 'ring', 'Ring'], [12, 'ring', 'Ring'], [13, 'relic', 'Relic']],
+  under: [[5, 'weapon', 'Weapon'], [11, 'transport', 'Transport'], [9, 'offhand', 'Off-hand']]};   // samma docka som INSP_COLS i index.html
+function el(tag, cls, txt){ const d = document.createElement(tag); if (cls) d.className = cls; if (txt != null) d.textContent = txt; return d; }
+function renderPlayerCard(e){
+  const card = $('card'), hd = $('cardHd'), T = $('cardT'), S = $('cardS'), R0 = $('cardR'), inf = e.info;
+  const doing = e.fly && e.fly.hint !== 'resa' ? 'Travelling' : AKT_TXT[e.akt];
+  const sig = JSON.stringify([selected, e.niva, inf, doing, e.z.namn, e.malZ && e.malZ.namn, inspOpen, inspSlot, !!CATALOG]);
+  if (sig === cardSig && card.classList.contains('on')) return; cardSig = sig;
+  card.className = 'on pl'; hd.style.backgroundImage = 'url(assets/bg/region/' + e.R.id + '.webp)';
+  T.textContent = e.namn; S.textContent = ''; R0.textContent = '';
+  const old = card.querySelector('.pc-title'); if (old) old.remove();
+  if (inf && inf.titel){ const t = el('div', 'pc-title', inf.titel); T.parentNode.insertBefore(t, T); }
+  const meta = el('div', 'pc-meta'); S.appendChild(meta);
+  const add = (lab, val, dot) => { const sp = el('span'); if (dot){ const i = el('i', 'pc-cls'); i.style.background = dot; sp.appendChild(i); }
+    if (lab) sp.appendChild(document.createTextNode(lab + ' ')); sp.appendChild(el('b', null, val)); meta.appendChild(sp); };
+  add('Level', String(e.niva || '?')); if (inf && inf.paragon) add('Paragon', String(inf.paragon));
+  if (inf && inf.klass) add('', CLASS_TXT[inf.klass] || inf.klass, CLASS_COL[inf.klass] || '#9fb3c0');
+  if (inf && inf.gs != null) add('Gear score', inf.gs.toLocaleString('en-US'));
+  if (inf && inf.guild && inf.guild.namn) add('⚑', inf.guild.namn + (inf.guild.tag ? ' [' + inf.guild.tag + ']' : ''));
+  const row = (a, b) => { const d = el('div'); d.appendChild(el('span', null, a + ' ')); d.appendChild(document.createTextNode(b)); R0.appendChild(d); };
+  row('Doing:', doing); row('Where:', e.R.namn + ' · ' + e.z.namn);
+  if (e.akt === 'resa' && e.malZ) row('Heading to:', e.malZ.R.namn + ' · ' + e.malZ.namn);
+  if (!inf || !inf.gear) return;
+  const btn = el('button', 'pc-btn', inspOpen ? 'Hide gear ▴' : 'Inspect gear ▾'); R0.appendChild(btn);
+  btn.onclick = () => { inspOpen = !inspOpen; inspSlot = null; renderCard(); };
+  if (!inspOpen) return;
+  if (!CATALOG && inf.gear.some(g => !g.bild || !g.namn)) loadCatalog().then(() => { cardSig = ''; renderCard(); });
+  const bar = {}; inf.gear.forEach(g => { bar[g.slot] = g; });
+  const slotEl = (sl, art, namn) => { const b = el('button', 'slot'); b.setAttribute('aria-label', namn); const g = bar[sl];
+    const bg = el('i', 'sbg'); bg.style.backgroundImage = 'url(assets/slots/slot_' + art + '.webp)';
+    if (inspSlot === sl) b.classList.add('sel');
+    if (!g){ b.appendChild(bg); b.onclick = () => { inspSlot = inspSlot === sl ? null : sl; renderCard(); }; return b; }
+    const L = itemLook(g); b.classList.add('has'); b.style.setProperty('--rc', RAR[g.rarity][1]);
+    if (L.bild){ const im = el('img'); im.src = L.bild; im.alt = ''; im.draggable = false; im.onerror = () => { im.remove(); b.appendChild(bg); }; b.appendChild(im); } else b.appendChild(bg);
+    b.onclick = () => { inspSlot = inspSlot === sl ? null : sl; renderCard(); }; return b; };
+  const doll = el('div', 'doll'), col = list => { const c = el('div', 'dcol'); list.forEach(x => c.appendChild(slotEl(x[0], x[1], x[2]))); return c; };
+  doll.appendChild(col(DOLL.left));
+  const mid = el('div', 'dmid'); mid.appendChild(slotEl(14, 'gem', 'Character Gem'));
+  const fig = CLASS_FIG[inf.klass];
+  if (fig){ let n = 0; [[0, 16], [1, 8], [2, 4], [3, 2], [4, 1]].forEach(b => { if (bar[b[0]]) n |= b[1]; });   // som FIGURE_BITS i index.html
+    const im = el('img', 'fig'); im.alt = ''; im.draggable = false; im.src = 'assets/character/' + fig + '/' + String(n).padStart(2, '0') + '.webp'; im.onerror = () => im.remove(); mid.appendChild(im); }
+  doll.appendChild(mid); doll.appendChild(col(DOLL.right)); R0.appendChild(doll);
+  const under = el('div', 'drow'); DOLL.under.forEach(x => under.appendChild(slotEl(x[0], x[1], x[2]))); R0.appendChild(under);
+  const line = el('div', 'itemline');
+  const all = DOLL.left.concat(DOLL.right, DOLL.under, [[14, 'gem', 'Character Gem']]), pick = all.find(x => x[0] === inspSlot);
+  if (pick){ const g = bar[pick[0]];
+    if (g){ const L = itemLook(g), b = el('b', null, L.namn); b.style.color = RAR[g.rarity][1]; line.appendChild(b);
+      line.appendChild(el('small', null, pick[2] + ' · ' + RAR[g.rarity][0] + (g.level != null ? ' · ilvl ' + g.level : ''))); }
+    else line.appendChild(el('small', null, pick[2] + ' · empty')); }
+  else line.appendChild(el('small', null, inf.gear.length ? 'Tap a piece to see what it is' : 'Wearing nothing'));
+  R0.appendChild(line);
+}
 function renderCard(){
   const card = $('card'), hd = $('cardHd'), T = $('cardT'), S = $('cardS'), R0 = $('cardR');
   const e = selected && ents.get(selected);
-  if (e){ card.className = 'on'; hd.style.backgroundImage = 'url(assets/bg/region/' + e.R.id + '.webp)';
-    T.textContent = e.namn; S.textContent = 'Level ' + (e.niva || '?') + ' · ' + (e.fly && e.fly.hint !== 'resa' ? 'Travelling' : AKT_TXT[e.akt]);
-    R0.textContent = ''; const row = (a, b) => { const d = document.createElement('div'); const s = document.createElement('span'); s.textContent = a + ' '; d.appendChild(s); d.appendChild(document.createTextNode(b)); R0.appendChild(d); };
-    row('Where:', e.R.namn + ' · ' + e.z.namn);
-    if (e.akt === 'resa' && e.malZ) row('Heading to:', e.malZ.R.namn + ' · ' + e.malZ.namn);
-    return; }
+  if (e){ renderPlayerCard(e); return; }
+  card.classList.remove('pl'); cardSig = '';
   const R = selRegion && REG_BY[selRegion];
+  { const old = card.querySelector('.pc-title'); if (old) old.remove(); }
   if (R && !R.locked){ card.className = 'on'; hd.style.backgroundImage = 'url(assets/bg/region/' + R.id + '.webp)';
     T.textContent = R.namn; const zc = {}; let n = 0; ents.forEach(x => { if (x.R === R && !x.gone){ zc[x.z.i] = (zc[x.z.i] || 0) + 1; n++; } });
     S.textContent = 'Level ' + R.band + ' · ' + n + ' online'; R0.textContent = '';
@@ -844,7 +961,7 @@ function tap(sx, sy){
   const now = performance.now(), dbl = now - lastTap < 320; lastTap = now;
   let best = null, bd = 22; const k = figK(cam.z);
   ents.forEach((e, key) => { const q = toScreen(P(e.x, e.y, (e.h || 0) + 8 * k)); const d = Math.hypot(q.x - sx, q.y - sy); if (d < bd){ bd = d; best = key; } });
-  if (best){ selected = best; selRegion = null; renderCard(); return; }
+  if (best){ if (selected !== best) inspSlot = null; selected = best; selRegion = null; renderCard(); return; }
   if (boss){ const q = toScreen(P(boss.x, boss.y, 60)); if (Math.hypot(q.x - sx, q.y - sy) < Math.max(30, 70 * cam.z)){ const p = P(boss.x, boss.y, 0); flyTo({x: p.x, y: p.y - 60, z: Math.max(cam.z, 1.6)}); return; } }
   const R = regionAt(sx, sy);
   selected = null; selRegion = R ? R.id : null; renderCard();
@@ -874,6 +991,20 @@ const DEMO = (() => {
   const pl = [...names].map((n, i) => { const ri = Math.min(4, Math.floor(Math.pow(r(), 1.3) * 5)), R = REG_BY[regs[ri]];
     return {namn: n, niva: ri * 10 + 1 + Math.floor(r() * 10), region: R.id, zon: R.zoner[Math.floor(r() * 5)], aktivitet: 'idle', mal: null}; });
   const ACT = ['idle', 'idle', 'idle', 'strid', 'strid', 'yrke', 'expedition', 'dungeon', 'resa'];
+  /* pahittad spelarinfo: riktiga pjasnycklar ur spelets katalog sa bilderna syns, men namnen ar pahittade */
+  const DK = {0: ['runners_cap', 'phase_cap', 'sig_lamphelm', 'sigv_bulkhelm'], 1: ['runners_vest', 'phase_vest', 'sig_rockplate', 'sigv_plating'],
+    2: ['runners_trousers', 'phase_trousers', 'sig_seamguards', 'sigv_hullwalkers'], 3: ['runners_gloves', 'phase_gloves', 'sig_grippers', 'sigv_breachers'],
+    4: ['runners_boots', 'phase_boots', 'sig_tunnelstompers', 'sigv_maglocks'], 5: ['runners_dagger', 'voidsteel_blade', 'sigw_talon', 'sigv_blade'],
+    6: ['salvage_neck', 'genesis_neck', 'sigu_charm', 'neck_runners_sleeve'], 7: ['salvage_waist', 'genesis_waist', 'sigv_belt', 'waist_runners_belt'],
+    8: ['salvage_ring', 'voidsteel_band', 'ring_copper_band', 'sigu_band'], 9: ['salvage_offhand', 'genesis_offhand', 'sigv_coil', 'offhand_arc_torch'],
+    11: ['salvage_transport', 'genesis_transport', 'sigv_pod', 'transport_sky_lance'], 12: ['salvage_ring', 'voidsteel_band', 'ring_copper_band', 'sigu_band'],
+    13: ['salvage_relic', 'sigu_colors', 'relic_steel_core', 'relic_orb_of_the_ancients']};
+  const KL = Object.keys(CLASS_TXT), TIT = ['', '', 'the Unbroken', 'Dungeon Delver', 'Boss Slayer', 'Wanderer', 'Master Crafter'];
+  const GU = [null, {namn: 'Iron Owls', tag: 'OWL'}, {namn: 'Night Shift', tag: 'NS'}, {namn: 'Cubehold', tag: 'CUBE'}, {namn: 'Salt & Steel', tag: 'S&S'}];
+  pl.forEach(p => { const rar = () => clamp(Math.floor(p.niva / 10 + r() * 2 - .5), 0, 5), gear = [];
+    Object.keys(DK).forEach(sl => { if (r() < (p.niva < 10 ? .45 : .9)){ const l = DK[sl]; gear.push({slot: +sl, key: l[Math.floor(r() * l.length)], rarity: rar(), level: Math.max(1, p.niva - Math.floor(r() * 4))}); } });
+    p.info = {klass: KL[Math.floor(r() * KL.length)], paragon: p.niva >= 48 ? Math.floor(r() * 40) : 0, titel: TIT[Math.floor(r() * TIT.length)],
+      guild: GU[Math.floor(r() * GU.length)], gs: Math.round(p.niva * 42 + r() * 300), gear}; });
   pl.forEach(p => { p.aktivitet = ACT[Math.floor(r() * ACT.length)]; if (p.aktivitet === 'dungeon') p.zon = REG_BY[p.region].zoner[5]; if (p.aktivitet === 'resa') p.aktivitet = 'idle'; });
   const helpare = ['Pip', 'Bolt', 'Moss', 'Tink', 'Rook', 'Fizz', 'Dot', 'Nib'].map((h, i) => { const o = pl[i * 5]; return {namn: h, agare: o.namn, region: o.region, zon: REG_BY[o.region].zoner[(i * 3) % 5]}; });
   const BOSSES = [['Vharok', 'vharok', 'drakemark', 'The Spine'], ['Gravmaw', 'gravmaw', 'voxholm', 'The Mineshaft'], ['Leviathan', 'leviathan', 'cutlassbay', 'Wreck Reef'],
