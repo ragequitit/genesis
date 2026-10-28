@@ -4805,6 +4805,11 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 @keyframes wbShake{0%{transform:translate(0,0)}25%{transform:translate(-6px,2px) scale(1.02)}50%{transform:translate(5px,-3px)}75%{transform:translate(-3px,1px)}100%{transform:translate(0,0)}}
 .wb-hero .wb-pop{position:absolute;left:50%;top:40%;transform:translate(-50%,0);font-size:34px;font-weight:900;color:#fff;text-shadow:0 0 12px #ff5c6c,0 2px 4px #000;animation:wbPop 1.1s forwards;pointer-events:none}
 .wb-hero .wb-pop.crit{color:var(--gold);font-size:42px}
+/* [TILLAGT gren moln-granskning] ultimaten lila, bossens attacker roda i loggen, liten skakning pa crit (Chris 2026-10-28) */
+.wb-hero .wb-pop.ult{color:#d6a8ff;font-size:44px;text-shadow:0 0 14px #a24bff,0 2px 4px #000}
+.wb-modal.wb-crit{animation:wbCritShake .3s ease-out}
+@keyframes wbCritShake{0%,100%{transform:translate(0,0)}30%{transform:translate(-3px,2px)}60%{transform:translate(3px,-1px)}}
+@media (prefers-reduced-motion: reduce){ .wb-modal.wb-crit{animation:none} }
 .wb-hero .wb-pop.heal{color:var(--xp,#8fd);text-shadow:0 0 12px #8fd,0 2px 4px #000}
 @keyframes wbPop{0%{opacity:0;transform:translate(-50%,10px) scale(.6)}15%{opacity:1;transform:translate(-50%,0) scale(1.1)}100%{opacity:0;transform:translate(-50%,-60px) scale(1)}}
 .wb-hero .wb-tag{position:absolute;left:10px;top:10px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;background:rgba(0,0,0,.6);border:1px solid rgba(255,92,108,.6);color:#ffb3bb;padding:3px 8px;border-radius:7px}
@@ -4920,6 +4925,8 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-list .row.me{color:var(--cyan)}
 .wb-list .row b{font-variant-numeric:tabular-nums}
 .wb-list .row.crit{color:var(--gold)}
+.wb-list .row.ult{color:#d6a8ff}
+.wb-list .row.boss{color:var(--red,#ff5964)}
 .wb-list .row.join{color:var(--text-dim);font-style:italic}
 .wb-modal:not(:has(.wb-fight2)) #wb-feed{max-height:340px;overflow-y:auto}   /* [TILLAGT v5.1314.0] infolaget: loggen rullar */
 .wbr-cards{margin:12px 0 4px;grid-template-columns:repeat(var(--rwn,4),minmax(0,1fr))}   /* [TILLAGT v5.1316.0] */
@@ -48707,9 +48714,15 @@ function wbUltShake(crit){
   wbFxLayer('ult');
   clearTimeout(WB.ultTo); WB.ultTo = setTimeout(() => m.classList.remove('wb-ult', 'crit'), 700);
 }
+/* [TILLAGT gren moln-granskning] CRIT-SKAKNING (Chris 2026-10-28): mindre an ultimatens, sa ultimaten kanns storst. */
+function wbCritShake(){
+  const m = document.querySelector('#wb-overlay .wb-modal'); if (!m || m.classList.contains('wb-ult')) return;
+  m.classList.remove('wb-crit'); void m.offsetWidth; m.classList.add('wb-crit');
+  clearTimeout(WB.critTo); WB.critTo = setTimeout(() => m.classList.remove('wb-crit'), 400);
+}
 /* [TILLAGT moln] for test fran konsolen (spelet ligger i en sluten funktion): med stridsrutan oppen,
    wbFxTest.fx('frost') ... 'stand' spelar hela specialen (text + effekt), wbFxTest.ult(true) skakningen pa crit. */
-window.wbFxTest = {fx: wbFx, layer: wbFxLayer, ult: wbUltShake};
+window.wbFxTest = {fx: wbFx, layer: wbFxLayer, ult: wbUltShake, crit: wbCritShake};
 function wbPop(text, cls){
   const h = document.querySelector('#wb-body .wb-hero'); if (!h) return;
   const p = document.createElement('div'); p.className = 'wb-pop' + (cls ? ' ' + cls : ''); p.textContent = text;
@@ -48776,8 +48789,10 @@ function wbAct(action){
     if (action === 'strike' || action === 'heavy' || action === 'power'){   /* [ANDRAT v5.1056.0] */
       const h = document.querySelector('#wb-body .wb-hero');
       if (h){ h.classList.remove('hit'); void h.offsetWidth; h.classList.add('hit'); }
-      wbPop((r.crit ? 'CRIT ' : '') + fmt(r.damage) + (r.weak ? ' (weak)' : ''), r.crit ? 'crit' : (action === 'power' ? 'crit' : ''));
+      /* [ANDRAT gren moln-granskning] FARGER (Chris 2026-10-28): vanligt slag vitt, crit guld, ultimate lila (aven nar den crittar - da med CRIT och hardare skakning). */
+      wbPop((r.crit ? 'CRIT ' : '') + fmt(r.damage) + (r.weak ? ' (weak)' : ''), action === 'power' ? 'ult' : (r.crit ? 'crit' : ''));
       if (action === 'power') wbUltShake(!!r.crit);   /* [TILLAGT moln] skakning nar ultimaten landar */
+      else if (r.crit) wbCritShake();   /* [TILLAGT gren moln-granskning] liten skakning pa crit (Chris) */
     } else if (action === 'dodge'){
       wbFx('dodge', 'Dodging…');
     } else if (action === 'heal'){
@@ -49135,11 +49150,11 @@ function wbFeedRow(f){
   {
     const k = f.kind;
     if (k === 'join') return '<div class="row join"><span>' + esc(f.name) + ' joined the fight</span></div>';
-    if (k === 'strike' || k === 'heavy' || k === 'power' || k === 'hit') return '<div class="row' + (f.crit ? ' crit' : '') + '"><span>' + esc(f.name) + (k === 'power' ? ' ★' : k === 'heavy' ? ' ⚒' : '') + (f.crit ? ' crit' : '') + '</span><b>' + fmt(f.damage) + '</b></div>';
+    if (k === 'strike' || k === 'heavy' || k === 'power' || k === 'hit') return '<div class="row' + (k === 'power' ? ' ult' : f.crit ? ' crit' : '') + '"><span>' + esc(f.name) + (k === 'power' ? ' ★' : k === 'heavy' ? ' ⚒' : '') + (f.crit ? ' crit' : '') + '</span><b>' + fmt(f.damage) + '</b></div>';
     if (k === 'heal') return '<div class="row join"><span>' + esc(f.name) + ' healed</span><b>+' + fmt(f.damage) + '</b></div>';
     if (k === 'dodge') return '<div class="row join"><span>' + esc(f.name) + ' dodged</span></div>';
-    if (k === 'ko') return '<div class="row crit"><span>' + esc(f.name) + ' was knocked out</span></div>';
-    if (WB_KINDS[k]) return '<div class="row crit"><span>' + WB_KINDS[k].ic + ' ' + esc(f.name) + ' ' + WB_KINDS[k].txt + '</span>' + (f.damage ? '<b>+' + fmt(f.damage) + '</b>' : '') + '</div>';
+    if (k === 'ko') return '<div class="row boss"><span>' + esc(f.name) + ' was knocked out</span></div>';
+    if (WB_KINDS[k]) return '<div class="row boss"><span>' + WB_KINDS[k].ic + ' ' + esc(f.name) + ' ' + WB_KINDS[k].txt + '</span>' + (f.damage ? '<b>+' + fmt(f.damage) + '</b>' : '') + '</div>';
     return '';
   }
 }
