@@ -6009,6 +6009,7 @@ ol.htp-list li::before{content:counter(htp);width:20px;height:20px;margin-top:1p
 .gl-miss{color:var(--text-dim)}
 .pc-book{margin-top:8px;border:1px solid var(--cyan);background:linear-gradient(180deg,rgba(56,180,255,.16),rgba(56,180,255,.04));
   color:var(--cyan);font-weight:800;font-size:12px;padding:8px 12px;border-radius:calc(9px * var(--rnd));cursor:pointer}
+.rr-qbtns{display:flex;gap:10px;flex:none}   /* [TILLAGT v5.1342.0] Add + Fill queue */
 .recipe-row{display:flex;gap:11px;align-items:center;background:var(--bg-row);border:1px solid var(--border-soft);
   border-radius:calc(10px * var(--rnd));padding:10px 12px}
 .recipe-row.locked{opacity:.6}
@@ -12284,7 +12285,13 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
     box-shadow:0 3px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);color:#eafcff}
   .recipe-row > .pp-openbtn.addq:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.2)}
   .recipe-row > .pp-openbtn.addq:disabled{background:rgba(255,255,255,.04);border-color:var(--border);border-bottom-width:1px;box-shadow:none;color:var(--text-dim)}
-  .recipe-row > .pp-openbtn.fillq{grid-row:3}   /* [TILLAGT v5.1342.0] Fill queue under Add to queue pa telefon */
+  /* [TILLAGT v5.1342.0] Add to queue och Fill queue bredvid varandra pa telefon (Chris): delar bredden, mindre luft i knapparna */
+  .recipe-row > .rr-qbtns{grid-column:1 / -1;grid-row:2;display:flex;gap:8px}
+  .rr-qbtns > .pp-openbtn.addq{flex:1 1 0;min-width:0;padding:10px 4px;white-space:nowrap;
+    background:linear-gradient(180deg,rgba(56,232,255,.30),rgba(56,232,255,.12));border:1px solid rgba(56,232,255,.65);border-bottom-width:3px;
+    box-shadow:0 3px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);color:#eafcff}
+  .rr-qbtns > .pp-openbtn.addq:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.2)}
+  .rr-qbtns > .pp-openbtn.addq:disabled{background:rgba(255,255,255,.04);border-color:var(--border);border-bottom-width:1px;box-shadow:none;color:var(--text-dim)}
   .recipe-row > .rr-crafts{flex-direction:row}
   .recipe-row > .rr-crafts .pp-openbtn{flex:1 1 0;min-width:0;padding:8px 6px}
   .recipe-row .rr-name{font-size:13px;margin-bottom:2px;line-height:1.2}
@@ -40663,13 +40670,13 @@ function ppBookRows(profId){
               '<span class="rr-chain">' + esc(chainHintFor(r.id, q)) + '</span>' +
             '</div>';
           })()
-        : '<button class="pp-openbtn addq" data-addq="' + r.id + '" data-qty="1"' +
+        : (free > 1 ? '<span class="rr-qbtns">' : '') + '<button class="pp-openbtn addq" data-addq="' + r.id + '" data-qty="1"' +
             ((afford && free > 0) ? '' : ' disabled') + '>' +
             (free > 0 ? 'Add to queue' : 'Queue full') + '</button>' +
           /* [TILLAGT v5.1342.0] FILL QUEUE (ide #98 PickyPete, Chris ja): fyller alla lediga koplatser med ett tryck -
              sa manga som materialet racker till. Samma vag som Craft N (craftManyNet), ingen ny servervag. */
           (function(){ const fyll = Math.min(Math.max(0, free), craftMaxAfford(r.id) || 0);
-            return free > 1 ? '<button class="pp-openbtn addq fillq" data-addq="' + r.id + '" data-qty="' + Math.max(1, fyll) + '"' + (fyll >= 2 ? '' : ' disabled') + '>Fill queue' + (fyll >= 2 ? ' (' + fyll + ')' : '') + '</button>' : ''; })()) +
+            return free > 1 ? '<button class="pp-openbtn addq fillq" data-addq="' + r.id + '" data-qty="' + Math.max(1, fyll) + '"' + (fyll >= 2 ? '' : ' disabled') + '>Fill queue' + (fyll >= 2 ? ' (' + fyll + ')' : '') + '</button></span>' : ''; })()) +
     '</div>';
   }).join('') || '<div class="shelf-empty">No recipes match.</div>';
 }
