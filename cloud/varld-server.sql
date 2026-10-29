@@ -1,3 +1,4 @@
+-- [INLAGT 2026-10-29] Policyerna varld_lyssna/varld_sanda ar INLAGDA pa servern (migrering varld_privata_kanaler, Chris: bara inloggade). Aven me_hidden() ar inlagd (testkonton skickar ingen position).
 -- ============================================================================
 -- GENESIS v5.1353.0 - VARLDEN (3D-kartan i spelet)  -  serverdel  [TILLAGT v5.1353.0]
 -- Bara CREATE OR REPLACE / villkorade tillagg. Inga DROP. Kors av Claude lokalt efter provkorning.
