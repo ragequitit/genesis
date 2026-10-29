@@ -159,6 +159,11 @@
   body.embed #top, body.embed #bottom, body.embed #zoom, body.embed #feed, body.embed #find{display:none}
   /* [TILLAGT genesis-world-play] */
   #gl.hov{cursor:pointer}
+  /* [ANDRAT v5.1353.0] RUTAN UPPE TILL HOGER (Chris: "ser ingen poang - spara klockan"): spelare online, teckenforklaring, Live feed och
+     Find player ar borta; kvar ar bara klockan med sol/mane, liten i hornet. */
+  #stats > div:not(#upd):not(#dimTog), #legend, #feedBtn, #findBtn, #feed, #find{display:none !important}
+  #stats{padding:5px 10px;border-radius:calc(10px * var(--rnd, 1))}
+  #upd{font-weight:800;font-size:13px;color:var(--ink)}
   #dimTog{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px}
   /* [TILLAGT v5.1353.0] I SPELETS RAM: spelet har vaxeln 2D|3D uppe till vanster och "Close" uppe till hoger pa telefon,
      sa kartans eget huvud flyttas ner en rad och kartans egen vaxel doljs. */
@@ -1507,7 +1512,11 @@ function renderStatus(){
   $('srcTxt').textContent = me.R ? (me.R.namn + (me.zn ? ' · ' + me.zn : '')) : (linked() ? 'Waiting for the game…' : 'World view');
   $('nPl').textContent = data && Array.isArray(data.spelare) ? data.spelare.filter(s => s && REG_BY[s.region] && !REG_BY[s.region].locked).length : 0;
   const u = data && Date.parse(data.uppdaterad || ''); const DI = dayInfo();
-  $('upd').textContent = (DI.day > .5 ? '☀ ' : DI.dusk > .4 ? '🌇 ' : '🌙 ') + (u ? 'updated ' + new Date(u).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'}) : '—'); }
+  clockTick(); }
+/* [TILLAGT v5.1353.0] klockan i hornet: spelets tid (= din klocka, den som styr dag och natt), uppdateras varje halvminut */
+function clockTick(){ const DI = dayInfo(), h = Math.floor(DI.h), m = Math.floor((DI.h - h) * 60);
+  $('upd').textContent = (DI.day > .5 ? '☀ ' : DI.dusk > .4 ? '🌇 ' : '🌙 ') + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); }
+setInterval(clockTick, 30000);
 let chipSig = '';
 function renderChips(){
   const bossChip = boss ? '☠ ' + boss.namn + (boss.lage === 'dod' ? ' (defeated)' : '') : '';
