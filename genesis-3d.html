@@ -1109,9 +1109,7 @@ function drakeFlap(root){
   if (b.max.z - mz > mz - b.min.z) meshes.forEach(o => o.geometry.rotateY(Math.PI));   // svansen ar den langa smala anden - den ska bakat (-z)
   b = box(); s = b.getSize(new V());
   const U = {uT: {value: 0}, uHX: {value: s.x / 2}, uHZ: {value: s.z / 2}};
-  meshes.forEach(o => { const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach(m => { if (m.emissive){ m.emissive.setHex(0xffffff); m.emissiveMap = m.map || null; m.emissiveIntensity = .35; }   /* [TILLAGT v5.1353.0] lyser svagt i sina egna farger - annars en svart siluett pa natten */
-      m.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
+  const flap = m => { m.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
       sh.vertexShader = 'uniform float uT; uniform float uHX; uniform float uHZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', [
         'vec3 transformed = vec3(position);',
         'float sp = clamp(abs(position.x) / uHX, 0.0, 1.0); float w = smoothstep(0.16, 1.0, sp);',
@@ -1124,7 +1122,21 @@ function drakeFlap(root){
         'float fr = smoothstep(0.45, 1.0, clamp(position.z / uHZ, 0.0, 1.0)) * (1.0 - w);',
         'transformed.y += sin(uT * 1.7 + 1.2) * fr * uHZ * 0.07;',
         'transformed.x += sin(uT * 0.9) * fr * uHZ * 0.06;'].join('\n')); };
-      m.needsUpdate = true; }); });
+    m.needsUpdate = true; };
+  meshes.forEach(o => { const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => { if (m.emissive){ m.emissive.setHex(0xffffff); m.emissiveMap = m.map || null; m.emissiveIntensity = .35; }   /* lyser svagt i sina egna farger - annars en svart siluett pa natten */
+      flap(m); }); });
+  /* [TILLAGT v5.1353.0] OGON (Chris: "draken har inga ogon"). Modellen fick inga tydliga ogon, sa tva sma glodande klot satts pa huvudet:
+     en skiva strax bakom nostippen mats upp (bredd och hojd), ogonen hamnar hogt upp pa var sin sida. Samma bojning i grafikkortet,
+     sa de foljer med nar huvudet gungar. */
+  /* bara mitten av kroppen (|x| < 10 % av vingbredden) - vingspetsarna nar lika langt fram som nosen */
+  const L = s.z, mid = s.x * .1; let hz = -1e9; meshes.forEach(o => { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) if (Math.abs(p.getX(i)) < mid && p.getZ(i) > hz) hz = p.getZ(i); });
+  const z0 = hz - .11 * L, z1 = hz - .05 * L; let xa = 1e9, xb = -1e9, ya = 1e9, yb = -1e9, zs = 0, zn = 0;
+  meshes.forEach(o => { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++){ const z = p.getZ(i); if (z < z0 || z > z1 || Math.abs(p.getX(i)) > mid) continue;
+    const x = p.getX(i), y = p.getY(i); if (x < xa) xa = x; if (x > xb) xb = x; if (y < ya) ya = y; if (y > yb) yb = y; zs += z; zn++; } });
+  if (zn){ const hw = (xb - xa) / 2, cx = (xa + xb) / 2, ey = yb - .22 * (yb - ya), ez = zs / zn, er = Math.min(Math.max(hw * .22, L * .009), L * .017);
+    const em = new THREE.MeshBasicMaterial({color: 0xffe066, toneMapped: false}); flap(em);   /* toneMapped false: lyser fullt aven pa natten */
+    [-1, 1].forEach(sd => { const eg = new THREE.SphereGeometry(er, 10, 8); eg.translate(cx + sd * hw * .62, ey, ez); const e = new THREE.Mesh(eg, em); e.renderOrder = 2; g.add(e); }); }
   return {group: g, U, size: s};
 }
 
@@ -2024,7 +2036,7 @@ function drawPois(c, W, H, D, placed){
     const q = toScreen(p.x * K, p.h, p.y * K); if (!q.on || q.x < -30 || q.x > W + 30 || q.y < -30 || q.y > H + 30) return;
     p.vis = true; p.sx = q.x; p.sy = q.y;
     const ik = p.state === 'cooldown' ? 'rest' : p.ico || p.kind, col = POI_COL[p.ico || p.kind] || '#fff', dim = p.state === 'cooldown' || p.state === 'dim' || p.state === 'running' || p.state === 'locked' || zoneState(p.R.id, p.zn) === 'uncharted';
-    const hov = hoverPoi === p, big = D < 80 ? 1 : .8;
+    const hov = !!hoverPoi && hoverPoi.key === p.key, big = D < 80 ? 1 : .8;   /* [ANDRAT v5.1353.0] jamfor pa nyckeln: markena byggs om nar ny data kommer, och da krympte ikonen under musen efter nagon sekund (Chris) */
     c.globalAlpha = dim ? .55 : 1;
     if (p.kind === 'quest'){ const bob = Math.sin(t * 3 + p.x) * 4, fs = (hov ? 30 : 25) * big;
       /* [ANDRAT v5.1353.0] SOM I WOW (Chris): ! = uppdrag att hamta, ? = klart att lamna in; gratt nar man inte kan just nu */
