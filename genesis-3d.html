@@ -831,8 +831,13 @@ LAND.forEach(R => { [false, true].forEach(big => { const L = R.lights.filter(l =
   const pos = new Float32Array(L.length * 3), col = new Float32Array(L.length * 3), c = new THREE.Color();
   L.forEach((l, i) => { pos[i * 3] = l.x * K; pos[i * 3 + 1] = l.h + .15; pos[i * 3 + 2] = l.y * K; c.setHex(l.col); col.set([c.r, c.g, c.b], i * 3); });
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const m = new THREE.PointsMaterial({size: big ? 3.2 : 1.5, map: GLOW, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending});
-  lightMats.push(m); const pts = new THREE.Points(g, m); pts.renderOrder = 3; R.group.add(pts); }); });
+  const m = new THREE.PointsMaterial({size: big ? 4.2 : 2.2, map: GLOW, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending});   /* [ANDRAT v5.1353.0] storre sken */
+  lightMats.push(m); const pts = new THREE.Points(g, m); pts.renderOrder = 3; R.group.add(pts);
+  /* [TILLAGT v5.1353.0] LJUSPOLAR (Chris: "inga lightspots eller ambiance"): ett stort mjukt sken pa marken under varje lampa, bara pa natten */
+  const pg = new THREE.BufferGeometry(), pp = new Float32Array(pos); for (let i = 1; i < pp.length; i += 3) pp[i] = .25;
+  pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const pm = new THREE.PointsMaterial({size: big ? 11 : 6.5, map: GLOW, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending});
+  pm.userData.pool = true; lightMats.push(pm); const pool = new THREE.Points(pg, pm); pool.renderOrder = 2; R.group.add(pool); }); });
 
 /* dungeonportens sken */
 const portalFx = [];
@@ -1087,7 +1092,42 @@ function birdFlock(){ const g = new THREE.Group(), birds = [];
   scene.add(g); return {g, birds}; }
 const flocks = LAND.map((R, i) => Object.assign(birdFlock(), {R, a: Math.random() * 6, r: 14 + i * 2, h: 16 + Math.random() * 4, v: .1 + Math.random() * .06}));
 /* draken over Drakemark */
-const DRAKE_YAW = -Math.PI / 2;   /* [TILLAGT v5.1353.0] Vharok-modellen tittar at +X i bilden; -90 grader vander huvudet mot +Z (fardriktningen) */
+/* [TILLAGT v5.1353.0] DRAKEN RORLIG (Chris 2026-10-29: "den flaxar inte, extremt stelt"). Modellen ar en enda stel bit utan skelett,
+   sa rorelsen gors i grafikkortet: vingarna (langt ut at sidorna) flaxar, svansen slingrar och huvudet gungar.
+   Forst bakas modellens egna nodvridningar in i formen och den centreras, sa att x = vingbredd, z = langd (huvud mot +z), y = upp. */
+function drakeFlap(root){
+  const V = THREE.Vector3;
+  root.updateMatrixWorld(true);
+  const meshes = []; root.traverse(o => { if (o.isMesh) meshes.push(o); });
+  const g = new THREE.Group();
+  meshes.forEach(o => { o.geometry = o.geometry.clone(); o.geometry.applyMatrix4(o.matrixWorld); o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1); g.add(o); });
+  const box = () => new THREE.Box3().setFromObject(g);
+  let b = box(), c = b.getCenter(new V()); meshes.forEach(o => o.geometry.translate(-c.x, -c.y, -c.z));
+  b = box(); let s = b.getSize(new V());
+  if (s.z > s.x){ meshes.forEach(o => o.geometry.rotateY(Math.PI / 2)); b = box(); s = b.getSize(new V()); }   // vingbredden ska ligga langs x
+  let mz = 0, n = 0; meshes.forEach(o => { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 3){ mz += p.getZ(i); n++; } }); mz /= Math.max(1, n);
+  if (b.max.z - mz > mz - b.min.z) meshes.forEach(o => o.geometry.rotateY(Math.PI));   // svansen ar den langa smala anden - den ska bakat (-z)
+  b = box(); s = b.getSize(new V());
+  const U = {uT: {value: 0}, uHX: {value: s.x / 2}, uHZ: {value: s.z / 2}};
+  meshes.forEach(o => { const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => { if (m.emissive){ m.emissive.setHex(0xffffff); m.emissiveMap = m.map || null; m.emissiveIntensity = .35; }   /* [TILLAGT v5.1353.0] lyser svagt i sina egna farger - annars en svart siluett pa natten */
+      m.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
+      sh.vertexShader = 'uniform float uT; uniform float uHX; uniform float uHZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', [
+        'vec3 transformed = vec3(position);',
+        'float sp = clamp(abs(position.x) / uHX, 0.0, 1.0); float w = smoothstep(0.16, 1.0, sp);',
+        'float fl = sin(uT * 3.4);',
+        'transformed.y += fl * w * w * uHX * 0.5;',
+        'transformed.x *= 1.0 - 0.10 * w * w * (0.5 - 0.5 * fl);',
+        'float bk = smoothstep(0.12, 1.0, clamp(-position.z / uHZ, 0.0, 1.0));',
+        'transformed.x += sin(uT * 1.7 - bk * 3.0) * bk * bk * uHZ * 0.22;',
+        'transformed.y += sin(uT * 1.7 - bk * 2.2) * bk * bk * uHZ * 0.07;',
+        'float fr = smoothstep(0.45, 1.0, clamp(position.z / uHZ, 0.0, 1.0)) * (1.0 - w);',
+        'transformed.y += sin(uT * 1.7 + 1.2) * fr * uHZ * 0.07;',
+        'transformed.x += sin(uT * 0.9) * fr * uHZ * 0.06;'].join('\n')); };
+      m.needsUpdate = true; }); });
+  return {group: g, U, size: s};
+}
+
 const dragon = (() => { const g = new THREE.Group(), red = flat(0x7a1f1f), dark = flat(0x3a0d0d);
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(.45, 2, 4, 8), red); body.rotation.x = Math.PI / 2; g.add(body);
   const neck = new THREE.Mesh(new THREE.ConeGeometry(.3, 1.4, 6), red); neck.rotation.x = Math.PI / 2 + .4; neck.position.set(0, .35, 1.6); g.add(neck);
@@ -1103,10 +1143,9 @@ const dragon = (() => { const g = new THREE.Group(), red = flat(0x7a1f1f), dark 
      Vharok-bild (assets/world3d/vharok_fly.glb). Lagd i en egen grupp som vands sa huvudet pekar dit polygondraken pekade (+Z).
      Polygondraken visas tills modellen laddats, och ar kvar som reserv om filen saknas. */
   loader.loadAsync('assets/world3d/vharok_fly.glb').then(gl => {
-    const m = gl.scene, box = new THREE.Box3().setFromObject(m), sz = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-    const sc = 7.5 / Math.max(sz.x, sz.z, .001); m.position.sub(mid); const hold = new THREE.Group(); hold.add(m); hold.scale.setScalar(sc);
-    hold.rotation.y = DRAKE_YAW; m.traverse(o => { if (o.isMesh){ o.castShadow = true; } });
-    g.children.slice().forEach(o => { o.visible = false; }); g.add(hold); }).catch(() => {});
+    const d = drakeFlap(gl.scene), hold = new THREE.Group(); hold.add(d.group); hold.scale.setScalar(7.5 / Math.max(d.size.x, d.size.z, .001));
+    d.group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    g.children.slice().forEach(o => { o.visible = false; }); g.add(hold); dragon.U = d.U; }).catch(() => {});
   return {g, wl, wr, shadow, cx: (c.x + c2.x) / 2 * K, cz: (c.y + c2.y) / 2 * K, a: 0}; })();
 const landers = [], clouds = [], weather = [];
 let worldReady = false;
@@ -1160,14 +1199,14 @@ function dayInfo(){ let h; if (TID != null && TID !== '' && isFinite(+TID)) h = 
   const day = sm(5.5, 8, h) * (1 - sm(18.5, 21, h));
   const dusk = clamp(Math.max(1 - Math.abs(h - 19.6) / 1.5, 1 - Math.abs(h - 6.6) / 1.3), 0, 1);
   return {h, day, dusk}; }
-const C_DAY = new THREE.Color(0x9cc8e0), C_DUSK = new THREE.Color(0xe7a07a), C_NIGHT = new THREE.Color(0x0d1a2e), cTmp = new THREE.Color();
+const C_DAY = new THREE.Color(0x9cc8e0), C_DUSK = new THREE.Color(0xe7a07a), C_NIGHT = new THREE.Color(0x1d3050), cTmp = new THREE.Color();   /* [ANDRAT v5.1353.0] natten 0d1a2e -> 1d3050: "extremt morkt" (Chris) */
 function applyTime(DI){
   const night = 1 - DI.day;
   cTmp.copy(C_DAY).lerp(C_NIGHT, night).lerp(C_DUSK, DI.dusk * .3); scene.fog.color.copy(cTmp); renderer.setClearColor(cTmp);
-  sun.intensity = .7 + 1.8 * DI.day; sun.color.setHex(0xfff1dc).lerp(new THREE.Color(0xffa060), DI.dusk * .8).lerp(new THREE.Color(0x8fb0ff), night * (1 - DI.dusk));
-  hemi.intensity = .85 + .35 * DI.day; hemi.color.setHex(0xcfe8ff).lerp(new THREE.Color(0x5a6ab0), night);
+  sun.intensity = 1.05 + 1.45 * DI.day;   /* [ANDRAT v5.1353.0] ljusare manljus (Chris: "extremt morkt") */ sun.color.setHex(0xfff1dc).lerp(new THREE.Color(0xffa060), DI.dusk * .8).lerp(new THREE.Color(0x8fb0ff), night * (1 - DI.dusk));
+  hemi.intensity = 1.2 + .1 * DI.day; hemi.color.setHex(0xcfe8ff).lerp(new THREE.Color(0x8a9ad8), night);   /* [ANDRAT v5.1353.0] .85 -> 1.2 och ljusare natthimmel */
   waterMat.color.setHex(0x1f6f8f).lerp(new THREE.Color(0x0a2236), night * .8);
-  renderer.toneMappingExposure = 1.05 - night * .05;
+  renderer.toneMappingExposure = 1.05 + night * .2;   /* [ANDRAT v5.1353.0] natten exponeras upp i stallet for ned */
   return night; }
 
 /* ===== KAMERA ===== */
@@ -1322,7 +1361,8 @@ function step(dt, now){
     F.birds.forEach(b => { const fl = Math.sin(t * 9 + b.userData.ph) * .7; b.userData.wl.rotation.z = fl; b.userData.wr.rotation.z = -fl; }); });
   dragon.a += dt * .2; const da = dragon.a, dr = 15 + Math.sin(da * .5) * 4;
   dragon.g.position.set(dragon.cx + Math.cos(da) * dr, 12 + Math.sin(da * 1.7) * 1.5, dragon.cz + Math.sin(da) * dr * .7); dragon.g.rotation.y = -da;
-  const fl = Math.sin(t * 4) * .6; dragon.wl.rotation.z = fl; dragon.wr.rotation.z = -fl; dragon.shadow.position.set(dragon.g.position.x, .06, dragon.g.position.z);
+  const fl = Math.sin(t * 4) * .6; dragon.wl.rotation.z = fl; dragon.wr.rotation.z = -fl; if (dragon.U) dragon.U.uT.value = t;   /* [TILLAGT v5.1353.0] flaxet */
+  dragon.g.rotation.z = Math.sin(da * 1.3) * .12;   /* [TILLAGT v5.1353.0] lutar i svangen */ dragon.shadow.position.set(dragon.g.position.x, .06, dragon.g.position.z);
   landers.forEach(L => { L.a += dt * .15; L.m.position.set(L.cx + Math.cos(L.a) * L.r, L.h + Math.sin(t + L.a) * .5, L.cz + Math.sin(L.a) * L.r * .6); L.m.rotation.y = -L.a; });
   clouds.forEach(m => { m.position.x += m.userData.v * dt; if (m.position.x > m.userData.x1 + 20) m.position.x = m.userData.x0 - 20;
     m.visible = cam.dist > 70; m.traverse(o => { if (o.isMesh) o.material.opacity = clamp((cam.dist - 70) / 60, 0, .85); }); });
@@ -2036,7 +2076,7 @@ function frame(now){
   if (document.hidden) return;
   step(dt, now); directorStep(dt, now);
   const DI = dayInfo(), night = applyTime(DI);
-  lightMats.forEach(m => { m.opacity = clamp(night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)); });
+  lightMats.forEach(m => { m.opacity = clamp(night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
   SUNDIR.set(Math.cos(DI.h / 24 * 6.2832 - 1.6) * .6 + .2, .9, .45).normalize();
   sun.position.set(cam.tx + SUNDIR.x * 90, SUNDIR.y * 90, cam.tz + SUNDIR.z * 90); sun.target.position.set(cam.tx, 0, cam.tz);
   applyCam();
