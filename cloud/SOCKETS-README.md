@@ -1,4 +1,4 @@
-# Sockets och Mod Chips (v1) — GENESIS v5.1357.0 — SOCKETS
+# Sockets och Mod Chips (v1) — GENESIS v5.1358.0 — SOCKETS
 
 Gren: `sockets`. Main ar ororad. Inget ar live forran Chris sett bilderna i `docs-sockets/` och SQL:en korts.
 
@@ -18,7 +18,7 @@ Gren: `sockets`. Main ar ororad. Inget ar live forran Chris sett bilderna i `doc
 - Recept: Jewelcrafter 16 chips (`cr_jc_modchip_*`), Weaponsmith 4 extraktorer (`cr_ws_chip_extractor_*`). Inget guld, inga kits.
 - Sparrar: en pjas med chip i kan inte saljas, atervinnas, auktioneras, handlas eller postas – knappar och menyer sager "Remove the Mod Chip first (needs a Chip Extractor)". Serverns felkoder finns i `SRV_ERRORS`.
 - How to play: nytt kapitel "Sockets & Mod Chips". Patchnotes-post overst i `patchnotes.json` (discord: hold).
-- Versionen `GENESIS v5.1357.0 — SOCKETS` pa de tre stallena.
+- Versionen `GENESIS v5.1358.0 — SOCKETS` pa de tre stallena.
 - **Demo-lage** utan server: `index.html?demo=sockets` fyller karaktaren med exempelgear, chips, borr, extraktorer, papper och Boss Marks, och alla rutor gar att prova lokalt. Rors inte i vanligt spel.
 
 **Servern** – allt i `cloud/sockets-server.sql` (se nedan).
@@ -64,7 +64,7 @@ Hela listan med ankare -> ersattning finns i `cloud/sockets-anchors.md`. Kort:
 
 ## Sa testar Chris pa testkaraktaren
 
-1. Kor `cloud/sockets-server.sql` i SQL Editor. Ladda om spelet (v5.1357.0 ska sta i hornet).
+1. Kor `cloud/sockets-server.sql` i SQL Editor. Ladda om spelet (v5.1358.0 ska sta i hornet).
 2. Ge testkaraktaren saker direkt i SQL (byt `<CHAR>` mot karaktarens id):
    ```sql
    -- ett Epic-chip, ett Salvaged, en borr, en extraktor, ett papper

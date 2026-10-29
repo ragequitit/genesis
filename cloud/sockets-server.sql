@@ -1,17 +1,17 @@
 -- ============================================================================
--- GENESIS v5.1357.0 — SOCKETS: Sockets och Mod Chips (v1)
+-- GENESIS v5.1358.0 — SOCKETS: Sockets och Mod Chips (v1)
 -- ============================================================================
 -- Kors i Supabase SQL Editor pa projektet genesis, i ETT svep (hela filen). Bara CREATE OR REPLACE / INSERT ... ON CONFLICT /
 -- ALTER TABLE ADD COLUMN IF NOT EXISTS - ingen DROP, inget som tar bort data. Gar att kora flera ganger.
 -- Funktionerna som ANDRAS ar byggda ur serverns nuvarande kod (hamtad 2026-10-29) med de rader som laggs till markerade
--- [TILLAGT v5.1357.0] / [ANDRAT v5.1357.0]. Ankarstrangarna star i cloud/SOCKETS-README.md.
+-- [TILLAGT v5.1358.0] / [ANDRAT v5.1358.0]. Ankarstrangarna star i cloud/SOCKETS-README.md.
 -- Nya security definer-funktioner: revoke execute from public, anon; grant execute to authenticated.
 -- ============================================================================
 
 -- ============================================================================
 -- 1. Kolumner och tabeller
 -- ============================================================================
-/* [TILLAGT v5.1357.0] SOCKETS OCH MOD CHIPS (Chris beslut). Varfor egna kolumner och inte items.socket:
+/* [TILLAGT v5.1358.0] SOCKETS OCH MOD CHIPS (Chris beslut). Varfor egna kolumner och inte items.socket:
    items har redan socket_kind/socket_idx som betyder VASKPLATS (en vaska som sitter i ett fack). Att ateranvanda
    ordet hade gett tva olika saker med samma namn i samma tabell. Darfor mod_socket (har pjasen en socket),
    mod_chip (chipet som sitter i: {"key","k","v","r","salv"}) och bound (Bind on Pickup - borrad pjas, Salvaged chip,
@@ -184,7 +184,7 @@ create or replace function public.modchip_gold(p_key text, p_rar integer)
  returns numeric language sql immutable set search_path to 'public', 'pg_temp'
 as $function$ select case when p_key = 'salvaged_modchip' then 8000 else (array[0,0,20000,60000,180000,450000])[least(5, greatest(0, p_rar)) + 1] end $function$;
 
-/* [TILLAGT v5.1357.0] CHIPENS BIDRAG TILL EN EGENSKAP, MED SORTENS TAK. Allt man bar raknas ihop per sort; over taket gor
+/* [TILLAGT v5.1358.0] CHIPENS BIDRAG TILL EN EGENSKAP, MED SORTENS TAK. Allt man bar raknas ihop per sort; over taket gor
    chipet ingenting. Spelets vanliga tak (crit_cap 60, dgspeed_cap 25, gold 100) ligger sedan ovanpa i de funktioner som
    redan har dem. Las av gear_bonus - sa allt som laser gear_bonus (pve_crit_of, gold_find_pct, pve_dungeon_start ...) far
    chipen utan att andras. */
@@ -202,7 +202,7 @@ $function$;
 revoke execute on function public.mod_chip_bonus(uuid, text) from public, anon;
 grant execute on function public.mod_chip_bonus(uuid, text) to authenticated;
 
-/* [TILLAGT v5.1357.0] SOCKETRULLNINGEN. Chans per raritet: Rare 1 %, Epic 2 %, Legendary 4 %, Mythic 8 %. Bara de 12 barbara
+/* [TILLAGT v5.1358.0] SOCKETRULLNINGEN. Chans per raritet: Rare 1 %, Epic 2 %, Legendary 4 %, Mythic 8 %. Bara de 12 barbara
    platserna (aldrig vaska 10, transport 11, sten 14, chip 15). Aldrig pa tillverkat, aldrig pa handlarens hylla.
    Loot Luck paverkar inte. Dolt otursskydd: socket_pity raknar Epic-eller-battre utan socket; vid 150 (idle_config
    socket_pity) far nasta en socket. Raknaren nollas vid traff. */
@@ -228,7 +228,7 @@ end $function$;
 revoke execute on function public.socket_roll(uuid, integer, integer, public.item_location, boolean) from public, anon;
 grant execute on function public.socket_roll(uuid, integer, integer, public.item_location, boolean) to authenticated;
 
-/* [TILLAGT v5.1357.0] SKAPAR ETT CHIP-FOREMAL. p_mode: 'craft' = +-5 % runt grundvardet, obundet; 'salvaged' = -5 % (botten),
+/* [TILLAGT v5.1358.0] SKAPAR ETT CHIP-FOREMAL. p_mode: 'craft' = +-5 % runt grundvardet, obundet; 'salvaged' = -5 % (botten),
    bundet; 'fusion' = exakt grundvardet, bundet; 'extract' = p_val (vardet som satt i pjasen), bundet. Chipets egenskap
    ligger i affixes som pa gear ([{"k":"crit","v":1.72}]) sa kortet kan rita den med samma kod. */
 create or replace function public.modchip_make(p_character uuid, p_key text, p_rar integer, p_sort text, p_mode text, p_location public.item_location default 'bag', p_val numeric default null)
@@ -270,7 +270,7 @@ AS $function$
     cross join lateral jsonb_array_elements(i.affixes) e
     where i.character_id = p_character and i.location = 'equipped' and e->>'k' = p_key
   ), 0)
-  + public.mod_chip_bonus(p_character, p_key)   /* [TILLAGT v5.1357.0] Mod Chips med sortens tak - se mod_chip_bonus */
+  + public.mod_chip_bonus(p_character, p_key)   /* [TILLAGT v5.1358.0] Mod Chips med sortens tak - se mod_chip_bonus */
   + case p_key
       when 'frag'   then public.skill_pct(p_character,'player','p_frag')
                        + public.paragon_pct(p_character,'pg_frag')
@@ -302,7 +302,7 @@ declare
   v_r integer := p_rarity; v_made boolean;
   v_god boolean := false; v_gidx integer; v_ntot integer; v_gk text; v_gcfg public.affix_config;
   v_chance numeric; v_hits integer := 0; v_best numeric;
-  v_sock boolean := false;   /* [TILLAGT v5.1357.0] socket pa pjasen */
+  v_sock boolean := false;   /* [TILLAGT v5.1358.0] socket pa pjasen */
 begin
   if p_level is null then
     raise exception 'roll_item_missing_level' using errcode='P0001', detail = p_item_key;
@@ -319,7 +319,7 @@ begin
   if not (v_r = any(v_item.rarities)) then
     raise exception 'item_not_available_in_rarity' using errcode='P0001';
   end if;
-  /* [TILLAGT v5.1357.0] Ett Mod Chip rullas aldrig som gear - det gors av modchip_make. */
+  /* [TILLAGT v5.1358.0] Ett Mod Chip rullas aldrig som gear - det gors av modchip_make. */
   if v_item.slot_idx = 15 then raise exception 'use_modchip_make' using errcode='P0001'; end if;
 
   v_lm  := public.item_level_mult(v_lvl);
@@ -397,7 +397,7 @@ begin
                        * v_rar.mult * v_lm * (1 + 0.06 * v_fl))::integer
                   else 0 end;
 
-  /* [TILLAGT v5.1357.0] SOCKETEN RULLAS FORE INSERT sa trg_loot_announce_item ser den (chattraden 'with a socket'). */
+  /* [TILLAGT v5.1358.0] SOCKETEN RULLAS FORE INSERT sa trg_loot_announce_item ser den (chattraden 'with a socket'). */
   v_sock := public.socket_roll(p_character, v_r, v_item.slot_idx, p_location, v_made);
   insert into public.items (character_id, item_key, rarity, affixes, hp, gold_value,
                             crafted, location, slot_idx, power, damage, item_level, god_roll, mod_socket)
@@ -420,7 +420,7 @@ AS $function$
    Handlarens lager och adelstenar raknas inte. Ett fel har far aldrig stoppa bytet. sender_tag LOOT = spelets markering. */
 begin
   /* [ANDRAT v5.864.0] Tillverkat annonseras av craft_gear_make nar egenskaperna ar satta. */
-  /* [ANDRAT v5.1357.0] Chips (plats 15) annonseras aldrig - ett tillverkat Epic-chip ar inget fynd. */
+  /* [ANDRAT v5.1358.0] Chips (plats 15) annonseras aldrig - ett tillverkat Epic-chip ar inget fynd. */
   if new.rarity >= 3 and new.location in ('bag','equipped','mail') and new.gem_region is null
      and coalesce(current_setting('genesis.crafting', true), '') <> 'on'
      and not exists (select 1 from public.item_config ic where ic.key = new.item_key and ic.slot_idx = 15) then
@@ -428,7 +428,7 @@ begin
       insert into public.chat_messages (channel, shard, sender_profile, sender_char, sender_name, sender_tag, sender_handle, body, attach)
       select 'general', coalesce((select val from public.chat_config where key = 'shard'), 'main'), c.profile_id, c.id, c.name, 'LOOT',
              (select p.handle from public.profiles p where p.id = c.profile_id),
-             /* [ANDRAT v5.1357.0] Legendary/Mythic MED socket sags i raden (Chris). Epic med socket far bara glimten pa kortet. */
+             /* [ANDRAT v5.1358.0] Legendary/Mythic MED socket sags i raden (Chris). Epic med socket far bara glimten pa kortet. */
              'found ' || case when new.rarity >= 5 then 'a Mythic' when new.rarity = 4 then 'a Legendary' else 'an Epic' end
                       || case when new.mod_socket and new.rarity >= 4 then ' item with a socket: [[item]]!' else ' item: [[item]]!' end,
              jsonb_build_array(jsonb_build_object('kind','gear','key',new.item_key,'rarity',new.rarity,'lvl',new.item_level,
@@ -457,7 +457,7 @@ begin
   return jsonb_build_object('kind','gear','key',v.item_key,'rarity',v.rarity,'lvl',v.item_level,
     'slot',v.slot_idx,'hp',v.hp,'power',v.power,'damage',v.damage,'affixes',coalesce(v.affixes,'[]'::jsonb),
     'pve',v.pve_effect,'socket',v.socket_kind,'tune',v.tune_count,'crafted',v.crafted,'charmed',v.charmed,'apex',v.apex,'skin',v.skin,
-    'mod_socket',v.mod_socket,'mod_chip',v.mod_chip,   /* [TILLAGT v5.1357.0] socket och chip foljer med i chattlanken */
+    'mod_socket',v.mod_socket,'mod_chip',v.mod_chip,   /* [TILLAGT v5.1358.0] socket och chip foljer med i chattlanken */
     'gem',v.gem_region,'gem_pct',v.gem_pct,'gem_good',v.gem_good,'gold',v.gold_value,'god',v.god_roll);
 end $function$;
 
@@ -467,7 +467,7 @@ CREATE OR REPLACE FUNCTION public.can_be_traded(p_item uuid DEFAULT NULL::uuid, 
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-/* EN kalla for auktion, post och byteshandel. [ANDRAT v5.1357.0] Tre nya regler:
+/* EN kalla for auktion, post och byteshandel. [ANDRAT v5.1358.0] Tre nya regler:
    - en BUNDEN pjas (borrad, Salvaged chip, uttaget/fusionerat chip) ar Bind on Pickup;
    - en pjas med ett ISATT chip kan inte lamna kontot forran chipet ar uttaget (chip_inserted);
    - en bunden stapelvara (Socket Drill, stack_item_config.bop) ar ocksa Bind on Pickup. */
@@ -512,7 +512,7 @@ begin
   where id = p_item and character_id = p_character for update;
   if not found then raise exception 'item_not_found' using errcode='P0001'; end if;
   if v_it.favorite then raise exception 'item_favorite' using errcode='P0001'; end if;   /* [TILLAGT v5.1213.0] favoritstjarnan skyddar (Chris) */
-  /* [TILLAGT v5.1357.0] En pjas med isatt chip saljs/skrotas inte forran chipet ar uttaget (Chris). */
+  /* [TILLAGT v5.1358.0] En pjas med isatt chip saljs/skrotas inte forran chipet ar uttaget (Chris). */
   if v_it.mod_chip is not null then raise exception 'chip_inserted' using errcode='P0001'; end if;
   /* [TILLAGT] Den isatta stenen ar inte till salu - ta ur den forst. */
   if v_it.gem_region is not null and v_it.location = 'equipped' then
@@ -556,9 +556,9 @@ begin
   select * into v_it from public.items where id = p_item and character_id = p_character for update;
   if not found then raise exception 'item_not_found' using errcode='P0001'; end if;
   if v_it.favorite then raise exception 'item_favorite' using errcode='P0001'; end if;   /* [TILLAGT v5.1213.0] */
-  /* [TILLAGT v5.1357.0] En pjas med isatt chip saljs/skrotas inte forran chipet ar uttaget (Chris). */
+  /* [TILLAGT v5.1358.0] En pjas med isatt chip saljs/skrotas inte forran chipet ar uttaget (Chris). */
   if v_it.mod_chip is not null then raise exception 'chip_inserted' using errcode='P0001'; end if;
-  /* [TILLAGT v5.1357.0] Ett Mod Chip (plats 15) ar inte gear: det satts i en socket, aldrig pa kroppen. */
+  /* [TILLAGT v5.1358.0] Ett Mod Chip (plats 15) ar inte gear: det satts i en socket, aldrig pa kroppen. */
   if exists (select 1 from public.item_config ic where ic.key = v_it.item_key and ic.slot_idx = 15) then raise exception 'chip_not_gear' using errcode='P0001'; end if;
   if v_it.location <> 'bag' then raise exception 'item_not_in_bag' using errcode='P0001'; end if;
   /* [TILLAGT v5.832.0] En vaska som sitter i en vaskplats gar inte att skrota (buggsvep 14) - ryggsacken
@@ -596,7 +596,7 @@ begin
   select * into v_it from public.items
   where id = p_item and character_id = p_character for update;
   if not found then raise exception 'item_not_found' using errcode='P0001'; end if;
-  /* [TILLAGT v5.1357.0] Ett Mod Chip (plats 15) ar inte gear: det satts i en socket, aldrig pa kroppen. */
+  /* [TILLAGT v5.1358.0] Ett Mod Chip (plats 15) ar inte gear: det satts i en socket, aldrig pa kroppen. */
   if exists (select 1 from public.item_config ic where ic.key = v_it.item_key and ic.slot_idx = 15) then raise exception 'chip_not_gear' using errcode='P0001'; end if;
   if v_it.location <> 'bag' then raise exception 'item_not_in_bag' using errcode='P0001'; end if;
 
@@ -684,7 +684,7 @@ begin
 
   select * into v_it from public.items where id = p_item and character_id = p_character for update;
   if not found then raise exception 'item_not_found' using errcode='P0001'; end if;
-  /* [TILLAGT v5.1357.0] Ett Mod Chip (plats 15) ar inte gear: det satts i en socket, aldrig pa kroppen. */
+  /* [TILLAGT v5.1358.0] Ett Mod Chip (plats 15) ar inte gear: det satts i en socket, aldrig pa kroppen. */
   if exists (select 1 from public.item_config ic where ic.key = v_it.item_key and ic.slot_idx = 15) then raise exception 'chip_not_gear' using errcode='P0001'; end if;
   if v_it.location not in ('bag','equipped') then
     raise exception 'item_must_be_in_bag' using errcode='P0001';
@@ -757,7 +757,7 @@ begin
    where id = p_item and character_id = p_character and location in ('bag', 'equipped') for update;
   if not found then raise exception 'item_not_found' using errcode='P0001'; end if;
   select * into v_ic from public.item_config where key = v_it.item_key;
-  if v_it.gem_region is not null or v_ic.bag_slots is not null or v_ic.slot_idx = 15 then   /* [ANDRAT v5.1357.0] inte pa ett Mod Chip */
+  if v_it.gem_region is not null or v_ic.bag_slots is not null or v_ic.slot_idx = 15 then   /* [ANDRAT v5.1358.0] inte pa ett Mod Chip */
     raise exception 'charm_not_gear' using errcode='P0001';
   end if;
   v_old := least(public.lvl_cap() + 10, greatest(1, coalesce(v_it.item_level, 1)));   /* [ANDRAT tyst 2026-10-24] nivatak + 10 (Balans 2) */
@@ -810,7 +810,7 @@ begin
   select * into v_it from public.items where id = p_item and character_id = p_character and location in ('bag','equipped') for update;
   if not found then raise exception 'item_not_found' using errcode='P0001'; end if;
   select * into v_ic from public.item_config where key = v_it.item_key;
-  if v_ic.bag_slots is not null or v_it.gem_region is not null or v_ic.slot_idx is null or v_ic.slot_idx = 15 then raise exception 'transmog_not_gear' using errcode='P0001'; end if;   /* [ANDRAT v5.1357.0] inte pa ett Mod Chip */
+  if v_ic.bag_slots is not null or v_it.gem_region is not null or v_ic.slot_idx is null or v_ic.slot_idx = 15 then raise exception 'transmog_not_gear' using errcode='P0001'; end if;   /* [ANDRAT v5.1358.0] inte pa ett Mod Chip */
   if p_skin is not null then
     select * into v_sc from public.item_config where key = p_skin;
     if not found or v_sc.bag_slots is not null or v_sc.slot_idx is distinct from v_ic.slot_idx then raise exception 'transmog_wrong_slot' using errcode='P0001'; end if;
@@ -848,7 +848,7 @@ begin
     insert into public.items (character_id, item_key, rarity, affixes, hp, gold_value, crafted,
                               location, power, damage, item_level, pve_effect, tune_count, tune_prev,
                               from_vendor, gem_region, gem_pct, gem_good, god_roll, base_level, charmed, apex,
-                              mod_socket, mod_chip, bound)   /* [TILLAGT v5.1357.0] socket, chip och bindning foljer med vid aterkop */
+                              mod_socket, mod_chip, bound)   /* [TILLAGT v5.1358.0] socket, chip och bindning foljer med vid aterkop */
     select p_character, v_b.item_key, v_b.rarity,
            (v_b.snapshot->'affixes'),
            (v_b.snapshot->>'hp')::integer,
@@ -895,7 +895,7 @@ end $function$;
 -- ============================================================================
 -- 5. Spelarens handlingar (RPC fran klienten)
 -- ============================================================================
-/* [TILLAGT v5.1357.0] SOCKET DRILL. Borren (kops i World Boss-butiken for Boss Marks, bunden) gor en socket i en pjas av Rare
+/* [TILLAGT v5.1358.0] SOCKET DRILL. Borren (kops i World Boss-butiken for Boss Marks, bunden) gor en socket i en pjas av Rare
    eller battre som saknar socket. Misslyckas aldrig. Pjasen blir bunden (Bind on Pickup). Bara de 12 barbara platserna. */
 create or replace function public.socket_drill_use(p_character uuid, p_item uuid)
  returns json language plpgsql security definer set search_path to 'public', 'pg_temp'
@@ -922,7 +922,7 @@ end $function$;
 revoke execute on function public.socket_drill_use(uuid, uuid) from public, anon;
 grant execute on function public.socket_drill_use(uuid, uuid) to authenticated;
 
-/* [TILLAGT v5.1357.0] SATT I ETT CHIP. Gratis. Pjasen maste ha en tom socket, chipet ligga i vaskan, och chipets raritet far inte
+/* [TILLAGT v5.1358.0] SATT I ETT CHIP. Gratis. Pjasen maste ha en tom socket, chipet ligga i vaskan, och chipets raritet far inte
    vara hogre an pjasens. Chipet forsvinner som foremal och bor i items.mod_chip pa pjasen tills det tas ut
    ({"key","k","v","r","salv"}). Ett isatt chip ar bundet - det kommer tillbaka bundet vid uttag. */
 create or replace function public.modchip_insert(p_character uuid, p_item uuid, p_chip uuid)
@@ -959,7 +959,7 @@ end $function$;
 revoke execute on function public.modchip_insert(uuid, uuid, uuid) from public, anon;
 grant execute on function public.modchip_insert(uuid, uuid, uuid) to authenticated;
 
-/* [TILLAGT v5.1357.0] TA UT ETT CHIP. Kraver en Chip Extractor (Weaponsmith) av chipets raritet eller hogre - den lagsta som
+/* [TILLAGT v5.1358.0] TA UT ETT CHIP. Kraver en Chip Extractor (Weaponsmith) av chipets raritet eller hogre - den lagsta som
    racker forbrukas. Chipet kommer tillbaka som ett BUNDET foremal i vaskan med samma varde. Behover en ledig vaskplats.
    Chips forstors aldrig. */
 create or replace function public.modchip_extract(p_character uuid, p_item uuid)
@@ -990,7 +990,7 @@ end $function$;
 revoke execute on function public.modchip_extract(uuid, uuid) from public, anon;
 grant execute on function public.modchip_extract(uuid, uuid) to authenticated;
 
-/* [TILLAGT v5.1357.0] CHIP FUSION HOS HANDLAREN (alla spelare): tre Salvaged Mod Chips -> ett Epic-chip av valfri sort bland de tre,
+/* [TILLAGT v5.1358.0] CHIP FUSION HOS HANDLAREN (alla spelare): tre Salvaged Mod Chips -> ett Epic-chip av valfri sort bland de tre,
    mot guld (idle_config chip_fusion_gold, koppar; 250000 = 25 guld). Man maste sta hos handlaren (som vendor_buy_stack).
    De tre aldsta Salvaged i vaskan tas. Resultatet ar bundet och har exakt Epic-grundvardet. */
 create or replace function public.modchip_fusion(p_character uuid, p_region text, p_sort text)
@@ -1019,7 +1019,7 @@ end $function$;
 revoke execute on function public.modchip_fusion(uuid, text, text) from public, anon;
 grant execute on function public.modchip_fusion(uuid, text, text) to authenticated;
 
-/* [TILLAGT v5.1357.0] LAR ETT MOD CHIP DESIGN (pappret). Bara Jewelcrafters, fran Adept 8 (Epic), Expert 12 (Legendary),
+/* [TILLAGT v5.1358.0] LAR ETT MOD CHIP DESIGN (pappret). Bara Jewelcrafters, fran Adept 8 (Epic), Expert 12 (Legendary),
    Master 16 (Mythic). Mythic-pappret visar tva sorter - p_sort valjer. Pappret forbrukas. */
 create or replace function public.learn_modchip_design(p_character uuid, p_key text, p_sort text default null)
  returns json language plpgsql security definer set search_path to 'public', 'pg_temp'
@@ -1055,7 +1055,7 @@ grant execute on function public.learn_modchip_design(uuid, text, text) to authe
 -- ============================================================================
 -- 6. Droppar: Salvaged Mod Chip, Mod Chip Design, samlad rullning per kalla
 -- ============================================================================
-/* [TILLAGT v5.1357.0] SALVAGED MOD CHIP. Oftast Rare, 1 av 10 Epic, sort slumpad, vardet alltid i botten (-5 %), bundet.
+/* [TILLAGT v5.1358.0] SALVAGED MOD CHIP. Oftast Rare, 1 av 10 Epic, sort slumpad, vardet alltid i botten (-5 %), bundet.
    Vaskan eller posten. Aldrig fran lador eller World Boss - de kallarna anropar aldrig den har. */
 create or replace function public.salvaged_modchip_drop(p_character uuid)
  returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp'
@@ -1079,7 +1079,7 @@ end $function$;
 revoke execute on function public.salvaged_modchip_drop(uuid) from public, anon;
 grant execute on function public.salvaged_modchip_drop(uuid) to authenticated;
 
-/* [TILLAGT v5.1357.0] ETT MOD CHIP DESIGN FALLER. Epic/Legendary: sorten slumpas. Mythic: tva sorter slumpas (den som lar sig
+/* [TILLAGT v5.1358.0] ETT MOD CHIP DESIGN FALLER. Epic/Legendary: sorten slumpas. Mythic: tva sorter slumpas (den som lar sig
    valjer) och en chattrad skrivs i General (sender_tag LOOT, ingen lank). p_deliver=false ger bara nyckeln (World Boss
    lagger den i brevet sjalv). Alla kan hitta - yrket kravs forst nar man laser. */
 create or replace function public.modchip_design_drop(p_character uuid, p_rar integer, p_deliver boolean default true)
@@ -1123,7 +1123,7 @@ end $function$;
 revoke execute on function public.modchip_design_drop(uuid, integer, boolean) from public, anon;
 grant execute on function public.modchip_design_drop(uuid, integer, boolean) to authenticated;
 
-/* [TILLAGT v5.1357.0] EN RULLNING PER KALLA. Laser modchip_drop_config. Loot Luck paverkar inte.
+/* [TILLAGT v5.1358.0] EN RULLNING PER KALLA. Laser modchip_drop_config. Loot Luck paverkar inte.
    encounter:  Salvaged alla regioner; Epic fran tier 1 (Drakemark+), Legendary fran tier 2 (Cutlass Bay+), Mythic fran tier 3 (Nova Command+).
    expedition: talen galler 8 h (480 min) i tier 4 och skalas med langd (min/480, hogst 1) och region (1 + 0.15*tier)/1.6 - som andra papper.
    dungeon:    slutbossen besegrad; Mythic bara tier 3-4.
@@ -1191,7 +1191,7 @@ begin
     perform public.add_stack(p_character, v_rc.item_key, 'flask', 1, v_rc.rarity);
     return json_build_object('crafted', v_rc.item_key, 'kind', 'flask', 'rarity', v_rc.rarity, 'xp_gained', v_xp);
   end if;
-  /* [TILLAGT v5.1357.0] MOD CHIPS gors av modchip_make (eget rullat varde +-5 %, obundet), aldrig av roll_item. */
+  /* [TILLAGT v5.1358.0] MOD CHIPS gors av modchip_make (eget rullat varde +-5 %, obundet), aldrig av roll_item. */
   if v_rc.item_key like 'modchip\_%' then
     v_item := public.modchip_make(p_character, v_rc.item_key, v_rc.rarity, split_part(v_rc.item_key, '_', 2), 'craft', 'bag');
     return json_build_object('crafted', v_rc.item_key, 'kind', 'gear', 'item', v_item.id, 'rarity', v_item.rarity, 'affixes', v_item.affixes, 'xp_gained', v_xp);
@@ -1234,7 +1234,7 @@ begin
   elsif p_what = 'broken_charm_epic' then v_cost := coalesce(public.idle_val('wb_marks_charm_epic'), 5)::integer;
   elsif p_what = 'broken_charm_legendary' then v_cost := coalesce(public.idle_val('wb_marks_charm_legendary'), 7)::integer;
   elsif p_what = 'broken_charm_mythic' then v_cost := coalesce(public.idle_val('wb_marks_charm_mythic'), 10)::integer;
-  elsif p_what = 'socket_drill' then v_cost := coalesce(nullif(public.idle_val('socket_drill_marks'), 0), 15)::integer;   /* [TILLAGT v5.1357.0] Socket Drill 15 marks (Chris), bunden */
+  elsif p_what = 'socket_drill' then v_cost := coalesce(nullif(public.idle_val('socket_drill_marks'), 0), 15)::integer;   /* [TILLAGT v5.1358.0] Socket Drill 15 marks (Chris), bunden */
   else raise exception 'wb_marks_bad' using errcode='P0001'; end if;
   select qty into v_have from public.stacks where character_id = p_character and stack_key = 'boss_mark' limit 1;
   if coalesce(v_have, 0) < v_cost then raise exception 'wb_marks_short' using errcode='P0001', detail = v_cost::text; end if;
@@ -1259,7 +1259,7 @@ begin
       perform public.add_stack(p_character, p_what, 'item', 1, null);
       return json_build_object('kind', 'stack', 'key', p_what, 'mailed', false);
     else
-      perform public.send_mail(p_character, 'World Boss Courier', 'Your Boss Mark reward', 'Your backpack was full, so it waits here.', jsonb_build_array(jsonb_build_object('stack_key', p_what, 'kind', 'item', 'qty', 1)));   /* [ANDRAT v5.1357.0] aven borren */
+      perform public.send_mail(p_character, 'World Boss Courier', 'Your Boss Mark reward', 'Your backpack was full, so it waits here.', jsonb_build_array(jsonb_build_object('stack_key', p_what, 'kind', 'item', 'qty', 1)));   /* [ANDRAT v5.1358.0] aven borren */
       return json_build_object('kind', 'stack', 'key', p_what, 'mailed', true);
     end if;
   end if;
@@ -1282,7 +1282,7 @@ declare
   v_xp numeric := 0; v_scrap_key text; v_scrap_qty integer := 0; v_rep integer := 0;
   v_frags integer := 0; v_cache boolean := false; v_cache_forced boolean := false;
   v_tier integer; v_credits integer := 0; v_em numeric := 1;
-  v_mc jsonb := null;   /* [TILLAGT v5.1357.0] Salvaged Mod Chip / Mod Chip Design */
+  v_mc jsonb := null;   /* [TILLAGT v5.1358.0] Salvaged Mod Chip / Mod Chip Design */
   v_gold numeric := 0;   /* [TILLAGT v5.773.0] koppar ur motet */   /* [ELITE 2026-09-28] belöningsfaktor */
 begin
   v_ch := public.owned_character(p_character);
@@ -1411,7 +1411,7 @@ begin
         end if;
       end if;
     end if;
-    /* [TILLAGT v5.1357.0] MOD CHIPS: Salvaged 0,05 % per vinst (alla regioner), papper Epic 0,05 % (Drakemark+), Legendary 0,015 % (Cutlass Bay+), Mythic 0,003 % (Nova Command+). Loot Luck paverkar inte. */
+    /* [TILLAGT v5.1358.0] MOD CHIPS: Salvaged 0,05 % per vinst (alla regioner), papper Epic 0,05 % (Drakemark+), Legendary 0,015 % (Cutlass Bay+), Mythic 0,003 % (Nova Command+). Loot Luck paverkar inte. */
     begin v_mc := public.modchip_world_drops(p_character, 'encounter', coalesce(v_tier, 0), 0, true); exception when others then v_mc := null; end;
     v_scrap_qty := round(coalesce(public.pve_val('scrap_qty'), 0)
                    * (1 + v_lb / 100.0) * v_em)::integer;
@@ -1492,7 +1492,7 @@ begin
           'credits', v_credits,   /* [2026-10-04] segerrutan laser HAR, inte pa toppnivan */
           'gear', v_gear, 'choice', v_onb,
           'schematic', v_sch_got,
-          'modchips', v_mc) end);   /* [TILLAGT v5.1357.0] */
+          'modchips', v_mc) end);   /* [TILLAGT v5.1358.0] */
 end;
 $function$
 ;
@@ -1516,7 +1516,7 @@ declare
   v_relic_key text; v_relic_rar integer; v_relic_item public.items;
   v_onb jsonb; v_gc numeric; v_gear_n integer := 0; v_gi integer; v_gears jsonb := '[]'::jsonb;
   v_shard text; v_shard_got text := null; v_first_clear boolean; v_lap json;
-  v_mc jsonb := null;   /* [TILLAGT v5.1357.0] Salvaged Mod Chip / Mod Chip Design */
+  v_mc jsonb := null;   /* [TILLAGT v5.1358.0] Salvaged Mod Chip / Mod Chip Design */
 begin
   perform public.owned_character(p_character);
   select * into v_run from public.expedition_runs
@@ -1692,7 +1692,7 @@ begin
       end if;
     end if;
   end if;
-  /* [TILLAGT v5.1357.0] MOD CHIPS: Salvaged 1 %, papper 1,5 / 0,5 / 0,1 % vid 8 h tier 4 - skalar med langd och region. Loot Luck paverkar inte. */
+  /* [TILLAGT v5.1358.0] MOD CHIPS: Salvaged 1 %, papper 1,5 / 0,5 / 0,1 % vid 8 h tier 4 - skalar med langd och region. Loot Luck paverkar inte. */
   begin v_mc := public.modchip_world_drops(p_character, 'expedition', v_tier, v_def.mins, true); exception when others then v_mc := null; end;
   if jsonb_array_length(v_mailed) > 0 then
     perform public.send_mail(p_character, 'Expedition Depot',
@@ -1730,7 +1730,7 @@ begin
   return json_build_object('exp', p_exp, 'credits', v_credits, 'loot', v_loot, 'xp_gained', v_xp,
                            'choice', v_onb,
     'scrap', v_scrap, 'scrap_key', v_scrap_key, 'junk', v_junk, 'cell', v_cell, 'gear', v_gear, 'gears', v_gears,
-    'relic', v_relic, 'recipe', v_rec, 'melon', v_melon, 'modchips', v_mc,   /* [TILLAGT v5.1357.0] */
+    'relic', v_relic, 'recipe', v_rec, 'melon', v_melon, 'modchips', v_mc,   /* [TILLAGT v5.1358.0] */
     'frags', v_frags, 'rep', v_rep, 'gold', v_ch.gold_copper, 'version', v_ch.save_version,
     'missed', to_jsonb(v_missed), 'shard', v_shard_got, 'lap', v_lap, 'mailed', jsonb_array_length(v_mailed) > 0, 'helper_cache', v_hc);
 end;
@@ -1757,7 +1757,7 @@ declare
   v_mail_ids jsonb := '[]'::jsonb; v_to_bag boolean;
   v_sch text; v_sch_tier integer; v_sch_got text := null; v_final_won boolean := false;
   v_dgold numeric := 0; v_lv0 integer;   /* [TILLAGT v5.843.0] nivan fore hamtningen */   /* [TILLAGT v5.776.0] guld for klarat lopp */
-  v_klar boolean := false; v_charms jsonb := '[]'::jsonb; v_ck text; v_mc jsonb := null;   /* [TILLAGT v5.1357.0] Mod Chips */   /* [TILLAGT v5.876.0] */   /* [TILLAGT v5.774.0] loppet KLARAT: slutbossen besegrad och ingen dod */
+  v_klar boolean := false; v_charms jsonb := '[]'::jsonb; v_ck text; v_mc jsonb := null;   /* [TILLAGT v5.1358.0] Mod Chips */   /* [TILLAGT v5.876.0] */   /* [TILLAGT v5.774.0] loppet KLARAT: slutbossen besegrad och ingen dod */
 begin
   perform public.owned_character(p_character);
   select * into v_run from public.pve_dungeon_runs
@@ -1960,7 +1960,7 @@ begin
       perform public.bump_stat(p_character, 'rift_clears', 1);
     end;
   end if;
-  /* [TILLAGT v5.1357.0] MOD CHIPS vid klarat lopp (slutbossen besegrad, ingen dod): Salvaged 3 %, papper Epic 3 % / Legendary 1 % / Mythic 0,4 % (Mythic bara tier 3-4). */
+  /* [TILLAGT v5.1358.0] MOD CHIPS vid klarat lopp (slutbossen besegrad, ingen dod): Salvaged 3 %, papper Epic 3 % / Legendary 1 % / Mythic 0,4 % (Mythic bara tier 3-4). */
   if v_klar then
     begin v_mc := public.modchip_world_drops(p_character, 'dungeon', coalesce(v_sch_tier, 0), 0, true); exception when others then v_mc := null; end;
   end if;
@@ -1969,7 +1969,7 @@ begin
   return json_build_object('rift_first', (coalesce(current_setting('genesis.rift_first', true), '') = '1'), 'rift', coalesce(v_run.rift, 0), 'rift_best', (select rift_best from public.characters where id = p_character), 'xp', round(v_xp), 'rep', v_rep, 'scrap', v_scraps, 'credits', v_credits, 'frags', v_frags, 'gold', v_dgold,
     'helper_caches', v_caches,
     'charms', v_charms, 'charms_mailed', (select count(*) from public.mail where character_id = p_character and subject = 'Held for you - a broken charm' and at = now()), 'boss_loot', v_bosses, 'died', v_died, 'klar', v_klar, 'bosses', v_boss,
-    'schematic', v_sch_got, 'modchips', v_mc,   /* [TILLAGT v5.1357.0] */
+    'schematic', v_sch_got, 'modchips', v_mc,   /* [TILLAGT v5.1358.0] */
     'used', json_build_object('b', v_ub, 'f', v_uf, 'r', v_ur),
     'packed', json_build_object('b', v_run.sup_bandage, 'f', v_run.sup_fak, 'r', v_run.sup_revive),
     'refund', json_build_object('b', greatest(0, v_run.sup_bandage - v_ub),
@@ -1990,7 +1990,7 @@ AS $function$
 declare v_ev public.world_boss_events; v_h public.world_boss_hits; v_top uuid; v_n integer;
   v_rar integer; v_rar2 integer; v_lvl integer; v_key text; v_it public.items; v_gold numeric; v_xp numeric; v_tier integer;
   v_items jsonb; v_body text; v_ck text; v_r numeric; v_we numeric; v_wl numeric; v_wm numeric; v_got_charm boolean; v_got_apex boolean;
-  v_mc jsonb;   /* [TILLAGT v5.1357.0] Mod Chip Design (minst 20 slag) */
+  v_mc jsonb;   /* [TILLAGT v5.1358.0] Mod Chip Design (minst 20 slag) */
   v_dead boolean; v_ch public.characters; v_sig_key text; v_sig_fx text; v_sig_base numeric; v_sig_it public.items; v_paper text; v_rmult numeric; v_top_me boolean;
 begin
   select * into v_ev from public.world_boss_events where id = p_event for update;
@@ -2007,7 +2007,7 @@ begin
     select * into v_ch from public.characters where id = v_h.character_id and deleted_at is null;
     if not found then continue; end if;
     if v_h.damage <= 0 then continue; end if;
-    v_mc := null;   /* [TILLAGT v5.1357.0] per spelare */
+    v_mc := null;   /* [TILLAGT v5.1358.0] per spelare */
     /* [TILLAGT v5.977.0] WORLDSAVER (Chris 2026-10-20): alla som slog far +10 % guld och XP i en timme - aven om bossen flyr. */
     insert into public.active_boosts (character_id, boost, until, pct)
     values (v_h.character_id, 'worldsaver', now() + make_interval(mins => coalesce(public.idle_val('wb_buff_mins'), 60)::integer),
@@ -2045,7 +2045,7 @@ begin
       v_paper := public.pick_paper(v_h.character_id, public.paper_ranks(public.world_tier(v_h.character_id, coalesce(v_tier, 0)), 'heroic', 0), public.boss_paper_perks(1 + floor(random() * 5)::integer));
       if v_paper is not null then v_items := v_items || jsonb_build_array(jsonb_build_object('stack_key', v_paper, 'kind', 'recipe', 'qty', 1)); end if;
     end if;
-    /* [TILLAGT v5.1357.0] MOD CHIP DESIGN fran World Boss: minst 20 slag. Epic 4 % / Legendary 1,5 % / Mythic 0,6 %. Inga Salvaged. Pappret laggs i brevet. */
+    /* [TILLAGT v5.1358.0] MOD CHIP DESIGN fran World Boss: minst 20 slag. Epic 4 % / Legendary 1,5 % / Mythic 0,6 %. Inga Salvaged. Pappret laggs i brevet. */
     if coalesce(v_h.attacks_used, 0) >= 20 then
       begin v_mc := public.modchip_world_drops(v_h.character_id, 'worldboss', public.world_tier(v_h.character_id, coalesce(v_tier, 0)), 0, false); exception when others then v_mc := null; end;
       if v_mc->'design'->>'key' is not null then v_items := v_items || jsonb_build_array(jsonb_build_object('stack_key', v_mc->'design'->>'key', 'kind', 'item', 'qty', 1)); end if;
@@ -2078,7 +2078,7 @@ begin
               || (case when v_got_charm then ' A Broken Charm is in the box.' else '' end)
               || (case when v_sig_key is not null then ' The boss dropped one of its signature pieces!' else '' end)
               || (case when v_paper is not null then ' A schematic is in the box.' else '' end)
-              || (case when v_mc->'design'->>'key' is not null then ' A Mod Chip Design is in the box.' else '' end);   /* [TILLAGT v5.1357.0] */
+              || (case when v_mc->'design'->>'key' is not null then ' A Mod Chip Design is in the box.' else '' end);   /* [TILLAGT v5.1358.0] */
     perform public.send_mail(v_h.character_id, 'World Boss Courier',
       'Spoils of ' || (select name from public.world_boss_config where key = v_ev.boss_key), v_body, v_items);
     update public.world_boss_hits set reward = jsonb_build_object('item_id', v_it.id, 'item_key', v_it.item_key, 'item_rar', v_it.rarity, 'sig_id', v_sig_it.id, 'sig_rar', v_sig_it.rarity, 'charm_key', v_ck, 'mark', v_dead, 'sig', v_sig_key, 'paper', v_paper, 'rarity', v_rar, 'gold', v_gold, 'xp', v_xp, 'charm', v_got_charm, 'apex', v_got_apex, 'modchip_design', v_mc->'design'->>'key', 'top', (v_top is not null and v_h.profile_id = v_top))
