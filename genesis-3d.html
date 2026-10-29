@@ -793,7 +793,7 @@ LAND.forEach(R => {
         if (d < 34 + rad || d > 150 + rad) continue; if (!free(q.x, q.y, rad)) continue;
         put(key, q.x, q.y, Math.atan2(z.c.x - q.x, z.c.y - q.y), 1, rad); break; } });
     /* spritt: vagt slumpat ur listan */
-    const tot = T.sc.reduce((s, x) => s + x[1], 0), want = Math.round(z.pts.length / 16 * (T.n || 1) * 1.6);
+    const tot = T.sc.reduce((s, x) => s + x[1], 0), want = Math.round(z.pts.length / 16 * (T.n || 1) * .6);   /* [ANDRAT v5.1353.0] 1.6 -> .6: for mycket smasaker pa marken (Chris 2026-10-29) */
     for (let t = 0, n = 0; t < want * 5 && n < want; t++){
       let w = r() * tot, key = T.sc[0][0]; for (const [k, wt] of T.sc){ w -= wt; if (w <= 0){ key = k; break; } }
       const q = z.pts[Math.floor(r() * z.pts.length)], x = q.x + (r() - .5) * 8, y = q.y + (r() - .5) * 8, sc = .85 + r() * .3, rad = footprint(key) / 2 * sc;
@@ -1087,6 +1087,7 @@ function birdFlock(){ const g = new THREE.Group(), birds = [];
   scene.add(g); return {g, birds}; }
 const flocks = LAND.map((R, i) => Object.assign(birdFlock(), {R, a: Math.random() * 6, r: 14 + i * 2, h: 16 + Math.random() * 4, v: .1 + Math.random() * .06}));
 /* draken over Drakemark */
+const DRAKE_YAW = -Math.PI / 2;   /* [TILLAGT v5.1353.0] Vharok-modellen tittar at +X i bilden; -90 grader vander huvudet mot +Z (fardriktningen) */
 const dragon = (() => { const g = new THREE.Group(), red = flat(0x7a1f1f), dark = flat(0x3a0d0d);
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(.45, 2, 4, 8), red); body.rotation.x = Math.PI / 2; g.add(body);
   const neck = new THREE.Mesh(new THREE.ConeGeometry(.3, 1.4, 6), red); neck.rotation.x = Math.PI / 2 + .4; neck.position.set(0, .35, 1.6); g.add(neck);
@@ -1098,6 +1099,14 @@ const dragon = (() => { const g = new THREE.Group(), red = flat(0x7a1f1f), dark 
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(2.2, 20), new THREE.MeshBasicMaterial({color: 0x000000, transparent: true, opacity: .18, depthWrite: false}));
   shadow.rotation.x = -Math.PI / 2; scene.add(g, shadow); const R = REG_BY.drakemark, c = R.zones[4].c, c2 = R.zones[5].c;
+  /* [TILLAGT v5.1353.0] VHAROK I 3D (Chris 2026-10-29: "det maste finnas nagot mycket battre"): modellen gjord av spelets egen
+     Vharok-bild (assets/world3d/vharok_fly.glb). Lagd i en egen grupp som vands sa huvudet pekar dit polygondraken pekade (+Z).
+     Polygondraken visas tills modellen laddats, och ar kvar som reserv om filen saknas. */
+  loader.loadAsync('assets/world3d/vharok_fly.glb').then(gl => {
+    const m = gl.scene, box = new THREE.Box3().setFromObject(m), sz = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+    const sc = 7.5 / Math.max(sz.x, sz.z, .001); m.position.sub(mid); const hold = new THREE.Group(); hold.add(m); hold.scale.setScalar(sc);
+    hold.rotation.y = DRAKE_YAW; m.traverse(o => { if (o.isMesh){ o.castShadow = true; } });
+    g.children.slice().forEach(o => { o.visible = false; }); g.add(hold); }).catch(() => {});
   return {g, wl, wr, shadow, cx: (c.x + c2.x) / 2 * K, cz: (c.y + c2.y) / 2 * K, a: 0}; })();
 const landers = [], clouds = [], weather = [];
 let worldReady = false;
@@ -1833,6 +1842,13 @@ function expDefault(){ const out = []; for (const rid in EXP_DEF) for (const zn 
 const POI_COL = {quest: '#fbbf24', encounter: '#ef4444', expedition: '#2dd4bf', gather: '#f59e0b', fiber: '#86efac', vein: '#7dd3fc', landing: '#e2e8f0',
   vendor: '#fbbf24', vault: '#a78bfa', dungeon: '#f43f5e', event: '#f472b6', boss: '#f43f5e'};
 /* ritade ikoner (inga emoji: de ser olika ut pa olika telefoner - samma tanke som spelets egna ikoner) */
+/* [TILLAGT v5.1353.0] KARTIKONERNA (Chris 2026-10-29): de tolv godkanda ikonerna i spelets ikonstil, assets/ui/map3d/<namn>.webp.
+   Strecken i drawIcon finns kvar som reserv tills bilden laddats (eller om den saknas). */
+const MAP_ICO = {};
+['landing', 'vendor', 'vault', 'quest_new', 'quest_done', 'encounter', 'vein', 'gather', 'expedition', 'dungeon', 'worldboss', 'event'].forEach(k => {
+  const im = new Image(); im.decoding = 'async'; im.src = 'assets/ui/map3d/' + k + '.webp'; MAP_ICO[k] = im; });
+const MAP_ICO_KEY = {boss: 'worldboss', rest: 'encounter', fiber: 'gather'};
+function mapIco(kind){ const im = MAP_ICO[MAP_ICO_KEY[kind] || kind]; return im && im.complete && im.naturalWidth > 0 ? im : null; }
 function drawIcon(c, kind, x, y, r, col){
   c.save(); c.translate(x, y); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = Math.max(1.6, r * .16); c.lineCap = 'round'; c.lineJoin = 'round'; const s = r * .55;
   const P = (pts, close, fill) => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0] * s, q[1] * s) : c.moveTo(q[0] * s, q[1] * s)); if (close) c.closePath(); fill ? c.fill() : c.stroke(); };
@@ -1962,10 +1978,17 @@ function drawPois(c, W, H, D, placed){
     if (p.kind === 'quest'){ const bob = Math.sin(t * 3 + p.x) * 4, fs = (hov ? 30 : 25) * big;
       /* [ANDRAT v5.1353.0] SOM I WOW (Chris): ! = uppdrag att hamta, ? = klart att lamna in; gratt nar man inte kan just nu */
       const ch = p.mark === '?' ? '?' : '!', col = p.grey ? '#9ca3af' : (ch === '?' ? '#ffd24a' : '#ffe14a');
-      c.font = '900 ' + fs + 'px Georgia,serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = p.grey ? 'rgba(20,20,24,.9)' : 'rgba(40,24,0,.9)';
-      c.strokeText(ch, q.x, q.y - 6 + bob); c.fillStyle = col; c.fillText(ch, q.x, q.y - 6 + bob); p.sy = q.y - 4; }
-    else { const r = (hov ? 15 : 12) * big; c.fillStyle = 'rgba(10,14,22,.82)'; c.beginPath(); c.arc(q.x, q.y, r, 0, 6.2832); c.fill();
-      c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); }
+      const qim = mapIco(ch === '?' ? 'quest_done' : 'quest_new');
+      if (qim){ const sz = fs * 1.55; if (p.grey) c.filter = 'grayscale(1) brightness(.75)';   /* [TILLAGT v5.1353.0] ikonen i stallet for tecknet; gra nar man inte kan just nu */
+        c.drawImage(qim, q.x - sz / 2, q.y - 6 + bob - sz / 2, sz, sz); c.filter = 'none'; }
+      else { c.font = '900 ' + fs + 'px Georgia,serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = p.grey ? 'rgba(20,20,24,.9)' : 'rgba(40,24,0,.9)';
+      c.strokeText(ch, q.x, q.y - 6 + bob); c.fillStyle = col; c.fillText(ch, q.x, q.y - 6 + bob); }
+      p.sy = q.y - 4; }
+    else { const r = (hov ? 15 : 12) * big, im = mapIco(ik);
+      if (im){ const sz = r * 2.7; if (ik === 'rest') c.filter = 'grayscale(.8) brightness(.8)';   /* [TILLAGT v5.1353.0] ikonen fran arket, utan ring */
+        c.drawImage(im, q.x - sz / 2, q.y - sz / 2, sz, sz); c.filter = 'none'; }
+      else { c.fillStyle = 'rgba(10,14,22,.82)'; c.beginPath(); c.arc(q.x, q.y, r, 0, 6.2832); c.fill();
+      c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
     c.globalAlpha = 1;
     /* namnet OVANFOR ikonen, sa figuren under syns */
     if (D < (p.kind === 'gather' || p.kind === 'vein' ? 45 : 110) || hov){ const ly = q.y - (p.kind === 'quest' ? 34 : 24), txt = p.label + (D < 45 || hov ? ' · ' + p.sub : '');

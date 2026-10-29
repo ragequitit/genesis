@@ -36847,6 +36847,13 @@ function wrldSockStop(){ if (WRLD.hb){ clearInterval(WRLD.hb); WRLD.hb = null; }
 function wrldSockOpen(){
   wrldSockStop();
   if (!NET.on || !SRV.charId || !SRV.token || !S.world.current || !map3dOn()) return;
+  /* [TILLAGT v5.1353.0] TESTKONTON SYNS INTE I REALTID (Chris 2026-10-29: "Pinguu ska doljas dar", som pa topplistan).
+     Servern svarar om just det har kontot ar dolt (me_hidden). Tills svaret kommit skickas ingenting - ett dolt konto
+     ska aldrig synas ens en sekund. Man ser fortfarande andra; det ar bara den egna figuren som inte sands. */
+  if (WRLD.hidden == null && !WRLD.hiddenAsk){
+    WRLD.hiddenAsk = true;
+    srvRpc('me_hidden', {}).then(v => { WRLD.hidden = v === true; }).catch(() => { WRLD.hidden = false; }).finally(() => { WRLD.hiddenAsk = false; });
+  }
   const topic = wrldTopic();
   try {
     const ws = new WebSocket(SRV.url.replace('https', 'wss') + '/realtime/v1/websocket?apikey=' + SRV.key + '&vsn=1.0.0');
@@ -36873,6 +36880,7 @@ function wrldSockOpen(){
   } catch (e){ WRLD.sock = null; }
 }
 function wrldSend(event, payload){ const ws = WRLD.sock; if (!ws || ws.readyState !== 1 || !WRLD.topic) return false;
+  if (WRLD.hidden !== false) return false;   /* [TILLAGT v5.1353.0] dolt konto (eller svaret inte kommit an) - skicka inget */
   try { ws.send(JSON.stringify({topic: WRLD.topic, event: 'broadcast', ref: String(Date.now()), payload: {type: 'broadcast', event: event, payload: payload}})); return true; } catch (e){ return false; } }
 /* Min figurs plats fran kartan (pick kind 'pos'): vidare till regionkanalen. Kartan skickar 4 ggr/s medan jag gar, annars var annan sekund. */
 function wrldMyPos(o){
@@ -47012,7 +47020,7 @@ const SNABBTANGENTER = {
   f: {win: 'friends-overlay',btn: 'qa-friends'},
   q: {win: 'quest-overlay',  btn: 'qa-quests'},
   e: {win: 'node-overlay',   btn: 'qa-expeditions'},
-  d: {win: 'dgc-overlay',    btn: 'qa-dungeons'},
+  /* [BORTTAGET v5.1357.0] D oppnade Dungeons - krockade med WASD i 3D-kartan (Chris 2026-10-29). */
   p: {win: 'prof-overlay',   open: () => openProfessions()}
 };
 document.addEventListener('keydown', e => {
