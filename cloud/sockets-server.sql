@@ -200,7 +200,7 @@ as $function$
   ), 0);
 $function$;
 revoke execute on function public.mod_chip_bonus(uuid, text) from public, anon;
-grant execute on function public.mod_chip_bonus(uuid, text) to authenticated;
+revoke execute on function public.mod_chip_bonus(uuid, text) from authenticated; -- [ANDRAT] intern hjalpare: anropas bara fran andra serverfunktioner, aldrig av spelaren direkt
 
 /* [TILLAGT v5.1358.0] SOCKETRULLNINGEN. Chans per raritet: Rare 1 %, Epic 2 %, Legendary 4 %, Mythic 8 %. Bara de 12 barbara
    platserna (aldrig vaska 10, transport 11, sten 14, chip 15). Aldrig pa tillverkat, aldrig pa handlarens hylla.
@@ -226,7 +226,7 @@ begin
   return v_hit;
 end $function$;
 revoke execute on function public.socket_roll(uuid, integer, integer, public.item_location, boolean) from public, anon;
-grant execute on function public.socket_roll(uuid, integer, integer, public.item_location, boolean) to authenticated;
+revoke execute on function public.socket_roll(uuid, integer, integer, public.item_location, boolean) from authenticated; -- [ANDRAT] intern hjalpare: anropas bara fran andra serverfunktioner, aldrig av spelaren direkt
 
 /* [TILLAGT v5.1358.0] SKAPAR ETT CHIP-FOREMAL. p_mode: 'craft' = +-5 % runt grundvardet, obundet; 'salvaged' = -5 % (botten),
    bundet; 'fusion' = exakt grundvardet, bundet; 'extract' = p_val (vardet som satt i pjasen), bundet. Chipets egenskap
@@ -252,7 +252,7 @@ begin
   return v_row;
 end $function$;
 revoke execute on function public.modchip_make(uuid, text, integer, text, text, public.item_location, numeric) from public, anon;
-grant execute on function public.modchip_make(uuid, text, integer, text, text, public.item_location, numeric) to authenticated;
+revoke execute on function public.modchip_make(uuid, text, integer, text, text, public.item_location, numeric) from authenticated; -- [ANDRAT] intern hjalpare: anropas bara fran andra serverfunktioner, aldrig av spelaren direkt
 
 -- ============================================================================
 -- 3. Andrade funktioner: gear_bonus, roll_item, trg_loot_announce_item, chat_snapshot_item, can_be_traded
@@ -1077,7 +1077,7 @@ begin
   return jsonb_build_object('item', v_it.id, 'key', v_it.item_key, 'r', v_r, 'k', v_sort, 'v', (v_it.affixes->0->>'v')::numeric, 'mailed', v_mailed);
 end $function$;
 revoke execute on function public.salvaged_modchip_drop(uuid) from public, anon;
-grant execute on function public.salvaged_modchip_drop(uuid) to authenticated;
+revoke execute on function public.salvaged_modchip_drop(uuid) from authenticated; -- [ANDRAT] intern hjalpare: anropas bara fran andra serverfunktioner, aldrig av spelaren direkt
 
 /* [TILLAGT v5.1358.0] ETT MOD CHIP DESIGN FALLER. Epic/Legendary: sorten slumpas. Mythic: tva sorter slumpas (den som lar sig
    valjer) och en chattrad skrivs i General (sender_tag LOOT, ingen lank). p_deliver=false ger bara nyckeln (World Boss
@@ -1121,7 +1121,7 @@ begin
   return jsonb_build_object('key', v_key, 'rarity', p_rar, 'mailed', v_mailed);
 end $function$;
 revoke execute on function public.modchip_design_drop(uuid, integer, boolean) from public, anon;
-grant execute on function public.modchip_design_drop(uuid, integer, boolean) to authenticated;
+revoke execute on function public.modchip_design_drop(uuid, integer, boolean) from authenticated; -- [ANDRAT] intern hjalpare: anropas bara fran andra serverfunktioner, aldrig av spelaren direkt
 
 /* [TILLAGT v5.1358.0] EN RULLNING PER KALLA. Laser modchip_drop_config. Loot Luck paverkar inte.
    encounter:  Salvaged alla regioner; Epic fran tier 1 (Drakemark+), Legendary fran tier 2 (Cutlass Bay+), Mythic fran tier 3 (Nova Command+).
@@ -1159,7 +1159,7 @@ begin
   return jsonb_build_object('salvaged', v_salv, 'design', v_des);
 end $function$;
 revoke execute on function public.modchip_world_drops(uuid, text, integer, numeric, boolean) from public, anon;
-grant execute on function public.modchip_world_drops(uuid, text, integer, numeric, boolean) to authenticated;
+revoke execute on function public.modchip_world_drops(uuid, text, integer, numeric, boolean) from authenticated; -- [ANDRAT] intern hjalpare: anropas bara fran andra serverfunktioner, aldrig av spelaren direkt
 
 -- ============================================================================
 -- 7. Andrade: craft_output, wb_marks_redeem, pve_fight, claim_expedition, pve_dungeon_claim, wb_reward
