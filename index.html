@@ -12697,6 +12697,10 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 .mc-hex.big::after{inset:5px}
 .mc-hex.cell{width:34px;height:34px}
 .mc-hex.cell::after{inset:4px}
+/* [TILLAGT v5.1360.0] bildvarianten: ingen sexkant, bilden fyller rutan, rariteten som tunn ram */
+.mc-hex.img::before,.mc-hex.img::after{display:none}
+.mc-hex.img{border-radius:22%;box-shadow:0 0 0 1.5px var(--mcr);background:#0b1226}
+.mc-hex.img img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 /* Vaskans horn: liten sexkant uppe till vanster pa en pjas med socket (tom = mork, fylld = sortens farg). Stjarnan bor till hoger. */
 .inv-slot .mc-badge{position:absolute;left:3px;top:3px;z-index:3;width:13px;height:13px}
 .inv-slot .mc-badge::after{inset:2px}
@@ -23197,11 +23201,17 @@ function isChipItem(it){ return !!(it && it.t && ITEMS[it.t] && ITEMS[it.t].chip
 /* Chipets sort och varde ur ett CHIP-foremal (egenskapen ligger i a[0] som pa gear). */
 function chipSortOf(it){ const x = it && it.a && it.a[0]; return x ? x.k : null; }
 function chipValOf(it){ const x = it && it.a && it.a[0]; return x ? +x.v || 0 : 0; }
-/* Sexkanten (CSS) tills bilder finns. Klassen mc-hex kan bytas mot en <img> i ett svep. */
-function chipHexHTML(sort, r, extra){
-  const col = sort ? perkColor(sort) : 'var(--text)';
-  return '<span class="mc-hex' + (extra ? ' ' + extra : '') + '" style="--mcc:' + col + ';--mcr:' + (r == null ? 'var(--text)' : rarCol(r)) + '"></span>';
+/* [ANDRAT v5.1360.0] CHIPBILDERNA (Chris: bilder till allt nytt). En bild per sort i assets/items/chips/chip_<sort>.webp,
+   skrotchip har egen bild (pic = 'chip_salvaged'), borren och extraktorn likasa. Rariteten syns som en farglinje runt bilden.
+   Den tomma sockeln ar fortfarande CSS-sexkanten - den ar ett hal, inte ett foremal. */
+function chipHexHTML(sort, r, extra, pic){
+  const col = sort ? perkColor(sort) : 'var(--text)', rc = (r == null ? 'var(--text)' : rarCol(r));
+  const src = pic ? 'assets/items/chips/' + pic + '.webp' : (sort && MODCHIP[sort] ? 'assets/items/chips/chip_' + sort + '.webp' : null);
+  if (!src) return '<span class="mc-hex' + (extra ? ' ' + extra : '') + '" style="--mcc:' + col + ';--mcr:' + rc + '"></span>';
+  return '<span class="mc-hex img' + (extra ? ' ' + extra : '') + '" style="--mcc:' + col + ';--mcr:' + rc + '"><img src="' + src + '" alt="" draggable="false" loading="lazy"></span>';
 }
+/* Skrotchip ritas med sin egen bild, vanliga chip med sortens. */
+function chipPicOf(it){ return it && it.t === 'salvaged_modchip' ? 'chip_salvaged' : null; }
 /* ---------- SPECIALPOOLEN (spelarens låsta design, byggd i v0.53.0) ----------
    Ring och halsband har en egen pool: Crit Damage och Expedition Speed. En sådan
    pjäs får ALLTID exakt EN egenskap ur egen pool — garanterad även på en common
@@ -30681,13 +30691,13 @@ function socketLineHTML(it, cls){
     return '<div class="' + cls + ' mc-row empty">' + chipHexHTML(null, null, 'empty') + '<span>\u25c7 Empty socket</span></div>';
   }
   const d = MODCHIP[it.mc.k] || {name: it.mc.k};
-  return '<div class="' + cls + ' mc-row" style="color:' + perkColor(it.mc.k) + '">' + chipHexHTML(it.mc.k, it.mc.r) +
+  return '<div class="' + cls + ' mc-row" style="color:' + perkColor(it.mc.k) + '">' + chipHexHTML(it.mc.k, it.mc.r, '', it.mc.salv ? 'chip_salvaged' : null) +
     '<span>\u25c6 <b>+' + (+it.mc.v).toFixed(2) + '%</b> ' + esc(d.name) + ' <span class="mc-rar">\u00b7 ' + (it.mc.salv ? 'Salvaged' : RARITIES[it.mc.r | 0].name) + ' Mod Chip</span></span></div>';
 }
 /* Hornmarket i vaskan. */
 function socketBadgeHTML(it){
   if (!it || !it.ms) return '';
-  return chipHexHTML(it.mc ? it.mc.k : null, it.mc ? it.mc.r : null, 'mc-badge' + (it.mc ? '' : ' empty'));
+  return chipHexHTML(it.mc ? it.mc.k : null, it.mc ? it.mc.r : null, 'mc-badge' + (it.mc ? '' : ' empty'), it.mc && it.mc.salv ? 'chip_salvaged' : null);
 }
 /* Chipets kort (hovring och fonster): egenskapen, raritetskravet, bindning, saljvarde. */
 function chipTipBody(it){
@@ -30695,7 +30705,7 @@ function chipTipBody(it){
   const salv = !!(ITEMS[it.t] && ITEMS[it.t].chip && ITEMS[it.t].chip.salv);
   return '<div class="gt-rar">' + (salv ? 'Salvaged ' : RARITIES[it.r | 0].name + ' ') + 'Mod Chip</div>' +
     '<div class="gt-sep"></div>' +
-    '<div class="gt-aff mc-row" style="color:' + perkColor(sort) + '">' + chipHexHTML(sort, it.r) + '<span>\u25c6 <b>+' + chipValOf(it).toFixed(2) + '%</b> ' + esc(d.name) + '</span></div>' +
+    '<div class="gt-aff mc-row" style="color:' + perkColor(sort) + '">' + chipHexHTML(sort, it.r, '', chipPicOf(it)) + '<span>\u25c6 <b>+' + chipValOf(it).toFixed(2) + '%</b> ' + esc(d.name) + '</span></div>' +
     '<div class="gt-aff" style="opacity:.75">Fits any socket on ' + RARITIES[it.r | 0].name + ' gear or better \u00b7 cap ' + d.cap + '% for this type</div>' +
     (salv ? '<div class="gt-aff" style="opacity:.75">Three Salvaged chips can be fused into an Epic chip at a vendor</div>' : '') +
     '<div class="gt-sep"></div>' +
@@ -30744,7 +30754,7 @@ function openChipPicker(gear){
   const rows = chips.map((c, i) => {
     const why = chipFitWhy(c.it, gear), warn = why ? '' : chipCapWarn(c.it), sort = chipSortOf(c.it);
     return '<button class="cp-row' + (why ? ' off' : '') + '" data-cp="' + i + '"' + (why ? ' disabled' : '') + ' style="--rc:' + rarCol(c.it.r) + '">' +
-      '<span class="cp-art">' + chipHexHTML(sort, c.it.r, 'big') + '</span>' +
+      '<span class="cp-art">' + chipHexHTML(sort, c.it.r, 'big', chipPicOf(c.it)) + '</span>' +
       '<span class="cp-txt"><b style="color:' + perkColor(sort) + '">+' + chipValOf(c.it).toFixed(2) + '% ' + esc((MODCHIP[sort] || {name: sort}).name) + '</b>' +
       '<i>' + (ITEMS[c.it.t].chip.salv ? 'Salvaged' : RARITIES[c.it.r].name) + ' Mod Chip' + (c.it.bound ? ' \u00b7 bound' : '') +
       (why ? '<span class="cp-why">' + why + '</span>' : (warn ? '<span class="cp-warn">' + warn + '</span>' : '')) + '</i></span></button>';
@@ -30772,7 +30782,7 @@ function openChipTargetPicker(chip){
       (why ? '<span class="cp-why">' + why + '</span>' : '') + '</i></span></button>';
   }).join('');
   const box = chipPickBox('Insert \u00b7 ' + esc(gearName(chip)),
-    '<span class="cp-now">' + chipHexHTML(chipSortOf(chip), chip.r) + '<span><b style="color:' + perkColor(chipSortOf(chip)) + '">+' + chipValOf(chip).toFixed(2) + '% ' + esc((MODCHIP[chipSortOf(chip)] || {}).name || '') + '</b> \u00b7 fits ' + RARITIES[chip.r].name + ' gear or better</span></span>',
+    '<span class="cp-now">' + chipHexHTML(chipSortOf(chip), chip.r, '', chipPicOf(chip)) + '<span><b style="color:' + perkColor(chipSortOf(chip)) + '">+' + chipValOf(chip).toFixed(2) + '% ' + esc((MODCHIP[chipSortOf(chip)] || {}).name || '') + '</b> \u00b7 fits ' + RARITIES[chip.r].name + ' gear or better</span></span>',
     rows, 'No gear with an empty socket. Some gear drops with one; a Socket Drill from the World Boss shop adds one.');
   box.addEventListener('click', e => {
     const b = e.target.closest('[data-cp]'); if (!b || b.disabled) return;
@@ -30936,7 +30946,7 @@ function chipFusionHTML(regionId){
   h += '<div class="fus-box"><div class="fus-chips">';
   for (let i = 0; i < 3; i++){
     const it = tre[i];
-    h += it ? '<div class="fus-chip" style="--rc:' + rarCol(it.r) + '">' + chipHexHTML(chipSortOf(it), it.r) + '<div><b style="color:' + perkColor(chipSortOf(it)) + '">+' + chipValOf(it).toFixed(2) + '% ' + esc(MODCHIP[chipSortOf(it)].name) + '</b><small>Salvaged \u00b7 ' + RARITIES[it.r].name + '</small></div></div>'
+    h += it ? '<div class="fus-chip" style="--rc:' + rarCol(it.r) + '">' + chipHexHTML(chipSortOf(it), it.r, '', 'chip_salvaged') + '<div><b style="color:' + perkColor(chipSortOf(it)) + '">+' + chipValOf(it).toFixed(2) + '% ' + esc(MODCHIP[chipSortOf(it)].name) + '</b><small>Salvaged \u00b7 ' + RARITIES[it.r].name + '</small></div></div>'
              : '<div class="fus-chip empty">' + chipHexHTML(null, null, 'empty') + '<div>Salvaged Mod Chip<small>' + (ch.length ? 'need ' + (3 - ch.length) + ' more' : 'drops from fights, expeditions and dungeons') + '</small></div></div>';
   }
   h += '</div>';
@@ -31706,7 +31716,7 @@ function invCellHTML(i, pos){
     if (isChipItem(it.gear)){
       return '<div class="inv-slot filled gear mc-cell' + gb + (sellPick.has(i) ? ' sell-on' : '') +
         '" data-inv="' + i + '" style="' + at + '--rc:' + gearRarCol(it.gear) + '">' +
-        chipHexHTML(chipSortOf(it.gear), it.gear.r, 'cell') + gtick + favStarHTML(it.gear) + '</div>';
+        chipHexHTML(chipSortOf(it.gear), it.gear.r, 'cell', chipPicOf(it.gear)) + gtick + favStarHTML(it.gear) + '</div>';
     }
     return '<div class="inv-slot filled gear' + gb + (isWhiteRar(it.gear) ? ' rc-w' : '') + (sellPick.has(i) ? ' sell-on' : '') +
       (recPick.has(i) ? ' rec-on' : '') + (it.gear.ms && it.gear.r >= 3 ? ' mc-glint' : '') +
@@ -34680,14 +34690,14 @@ const ITEM_DEFS = {
   /* [TILLAGT v5.1358.0] SOCKETS OCH MOD CHIPS: borren (WB-butiken, bunden), extraktorerna (Weaponsmith) och pappren.
      Saljpriserna ar serverns (stack_item_config). design = {rar, sorts} - Mythic-pappret har tva sorter, den som lar sig valjer. */
   socket_drill: {
-    name: 'Socket Drill', ico: '\ud83d\udd29', kind: 'Tool', hex: 'drill',
+    name: 'Socket Drill', ico: '\ud83d\udd29', kind: 'Tool', hex: 'drill', art: 'assets/items/chips/socket_drill.webp',
     desc: 'Drills one socket into a piece of Rare gear or better that has none. Never fails. The drill and the drilled piece bind to you. From the World Boss shop for ' + SOCKET_DRILL_MARKS + ' Boss Marks.',
     sell: 0, noSell: true, bop: true
   },
-  chip_extractor_rare:      {name: 'Chip Extractor (Rare)',      ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 2, desc: 'Pulls a Rare Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 5000},
-  chip_extractor_epic:      {name: 'Chip Extractor (Epic)',      ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 3, desc: 'Pulls an Epic (or lower) Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 15000},
-  chip_extractor_legendary: {name: 'Chip Extractor (Legendary)', ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 4, desc: 'Pulls a Legendary (or lower) Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 40000},
-  chip_extractor_mythic:    {name: 'Chip Extractor (Mythic)',    ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 5, desc: 'Pulls any Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 100000},
+  chip_extractor_rare:      {name: 'Chip Extractor (Rare)',      ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 2, art: 'assets/items/chips/chip_extractor.webp', desc: 'Pulls a Rare Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 5000},
+  chip_extractor_epic:      {name: 'Chip Extractor (Epic)',      ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 3, art: 'assets/items/chips/chip_extractor.webp', desc: 'Pulls an Epic (or lower) Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 15000},
+  chip_extractor_legendary: {name: 'Chip Extractor (Legendary)', ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 4, art: 'assets/items/chips/chip_extractor.webp', desc: 'Pulls a Legendary (or lower) Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 40000},
+  chip_extractor_mythic:    {name: 'Chip Extractor (Mythic)',    ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 5, art: 'assets/items/chips/chip_extractor.webp', desc: 'Pulls any Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 100000},
   /* [TILLAGT v5.200.0] KONTRAKTSVARORNA (Chris beslut). Fyra saker som bara
      finns i handlarens hylla medan sitt kontrakt ar aktivt. De kostar 2 silver,
      gar bara att aga en at gangen och kan inte saljas - de ska lamnas in.
@@ -35247,7 +35257,7 @@ const SCRAP_WHERE = cardNote('Your core gathers scrap while you idle. The kind f
   const lvl = {3: 8, 4: 12, 5: 16};
   MODCHIP_SORTS.forEach(k => [3, 4].forEach(r => {
     ITEM_DEFS['design_modchip_' + k + '_' + MODCHIP_RAR_KEY[r]] = {
-      name: RARITIES[r].name + ' Mod Chip Design: ' + MODCHIP[k].name, ico: '\ud83d\udcdc', kind: 'Mod Chip Design',
+      name: RARITIES[r].name + ' Mod Chip Design: ' + MODCHIP[k].name, ico: '\ud83d\udcdc', kind: 'Mod Chip Design', art: 'assets/items/chips/chip_design.webp',
       design: {rar: r, sorts: [k], lvl: lvl[r]},
       desc: 'Teaches a Jewelcrafter (' + TIERS[r - 1] + ', level ' + lvl[r] + ') to make ' + RARITIES[r].name + ' ' + MODCHIP[k].name + ' Mod Chips. Found in the world. Used up when read.',
       sell: r === 3 ? 45000 : 120000
@@ -35256,7 +35266,7 @@ const SCRAP_WHERE = cardNote('Your core gathers scrap while you idle. The kind f
   for (let i = 0; i < MODCHIP_SORTS.length; i++) for (let j = i + 1; j < MODCHIP_SORTS.length; j++){
     const a = MODCHIP_SORTS[i], b = MODCHIP_SORTS[j];
     ITEM_DEFS['design_modchip_mythic_' + a + '_' + b] = {
-      name: 'Mythic Mod Chip Design: ' + MODCHIP[a].name + ' or ' + MODCHIP[b].name, ico: '\ud83d\udcdc', kind: 'Mod Chip Design',
+      name: 'Mythic Mod Chip Design: ' + MODCHIP[a].name + ' or ' + MODCHIP[b].name, ico: '\ud83d\udcdc', kind: 'Mod Chip Design', art: 'assets/items/chips/chip_design.webp',
       design: {rar: 5, sorts: [a, b], lvl: 16},
       desc: 'Teaches a Master Jewelcrafter (level 16) ONE of two Mythic Mod Chips - you choose when you read it. A rare find. Used up when read.',
       sell: 320000
@@ -44623,7 +44633,7 @@ function itemWinHTML(it, worn){
   /* [TILLAGT v5.1358.0] Mod Chipets fonster: samma kort som hovringen, knapparna satts av itemWinActions. */
   if (D && D.chip){
     return head +
-      '<div class="item-top"><div class="item-art mc-art">' + chipHexHTML(chipSortOf(it), it.r, 'big') + '</div>' +
+      '<div class="item-top"><div class="item-art mc-art">' + chipHexHTML(chipSortOf(it), it.r, 'big', chipPicOf(it)) + '</div>' +
         '<div class="item-head">' + chipTipBody(it) + '</div>' +
       '</div>' +
       '<div class="item-actions"></div>';
@@ -50059,9 +50069,9 @@ function wbMarksHTML(){
     '<div class="wb-marks-have"><img src="assets/items/boss_mark.webp" alt="" onerror="this.remove()"><b>' + n + '</b><span>' + (n === 1 ? 'Boss Mark' : 'Boss Marks') + ' — one for every World Boss you help bring down</span></div>' +
     '<div class="wb-marks-btns">' + btn('legendary', 'Legendary piece of gear', WB_MARKS_GEAR) + btn('mythic', 'Mythic piece of gear', WB_MARKS_MYTHIC) + btn('broken_charm_epic', 'Broken Epic Charm', WB_MARKS_CHARMS.broken_charm_epic) +
       btn('broken_charm_legendary', 'Broken Legendary Charm', WB_MARKS_CHARMS.broken_charm_legendary) + btn('broken_charm_mythic', 'Broken Mythic Charm', WB_MARKS_CHARMS.broken_charm_mythic) +
-      /* [TILLAGT v5.1358.0] SOCKET DRILL (Chris): 15 marks, bunden. Sexkant i stallet for bild tills bilden finns. */
+      /* [TILLAGT v5.1358.0] SOCKET DRILL (Chris): 15 marks, bunden. [ANDRAT v5.1360.0] egen bild. */
       '<button class="wb-mark-btn" data-wb="marks" data-wbmark="socket_drill"' + (n < SOCKET_DRILL_MARKS ? ' disabled' : '') + '>' +
-        chipHexHTML(null, null, 'empty') + '<span>Socket Drill<small>' + SOCKET_DRILL_MARKS + ' marks \u00b7 adds a socket to Rare+ gear</small></span></button>' +
+        chipHexHTML(null, null, '', 'socket_drill') + '<span>Socket Drill<small>' + SOCKET_DRILL_MARKS + ' marks \u00b7 adds a socket to Rare+ gear</small></span></button>' +
       '</div></div>';
 }
 function wbMarksRedeem(what){
