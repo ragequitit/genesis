@@ -460,7 +460,7 @@ begin
   if not found then raise exception 'chip_not_found' using errcode='P0001'; end if;
   select * into v_cc from public.item_config where key = v_ch.item_key;
   if v_cc.slot_idx is distinct from 15 then raise exception 'not_a_modchip' using errcode='P0001'; end if;
-  if v_ch.rarity > v_it.rarity then raise exception 'chip_rarity_too_high' using errcode='P0001'; end if;
+  /* [ANDRAT v5.1373.0] Ingen raritetssparr: alla chip passar alla sockets (Chris 2026-10-30). */
   select c.sort into v_sort from public.modchip_config c where c.affix = v_ch.affixes->0->>'k';
   v_val := (v_ch.affixes->0->>'v')::numeric;
   if v_sort is null or v_val is null then raise exception 'not_a_modchip' using errcode='P0001'; end if;
