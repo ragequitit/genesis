@@ -20,14 +20,14 @@ on conflict (id) do nothing;
 update public.region_config set adj = array_append(adj, 'windfall')
  where id = 'quarantine' and not ('windfall' = any(adj));
 
--- ---------- 2. Tier 5-rader (regelboken: annars arver tier 5 tier 4:s tal i tysthet) - FORSLAG ----------
-insert into public.cache_weights (tier, weights) values (5, '{400,430,520,480,110,45}') on conflict do nothing;
-insert into public.helper_cache_weights (tier, weights) values (5, '{400,430,520,480,110,45}') on conflict do nothing;
-insert into public.expedition_gold_config (tier, per_hour) values (5, 520000) on conflict do nothing;   -- x1,3 (regelboken efter tier 4)
+-- ---------- 2. Tier 5-rader (regelboken kraver egna rader). Windfall ar en niva 50-region: SAMMA tal som tier 4 / The Quarantine (Chris 2026-10-30) ----------
+insert into public.cache_weights (tier, weights) values (5, '{510,480,500,400,80,30}') on conflict do nothing;
+insert into public.helper_cache_weights (tier, weights) values (5, '{510,480,500,400,80,30}') on conflict do nothing;
+insert into public.expedition_gold_config (tier, per_hour) values (5, 400000) on conflict do nothing;
 insert into public.pve_cooldown_config (tier, secs) values (5, 90) on conflict do nothing;
 insert into public.scrap_weights (tier, rank, pct) values (5,1,5),(5,2,5),(5,3,10),(5,4,80) on conflict do nothing;
-insert into public.travel_config (tier, secs, fuel_step) values (5, 1500, 40) on conflict do nothing;  -- anvands forst for resor vidare fran Windfall
-insert into public.gather_chance (tier, rare, gem) values (5, 0.30, 0.075) on conflict do nothing;
+insert into public.travel_config (tier, secs, fuel_step) values (5, 1200, 35) on conflict do nothing;  -- anvands forst for resor vidare fran Windfall
+insert into public.gather_chance (tier, rare, gem) values (5, 0.24, 0.06) on conflict do nothing;
 
 -- ---------- 3. Zoner (ord 5 = dungeonzonen) ----------
 insert into public.zone_config (region, zone, ord, lvl_offset) values
@@ -93,12 +93,12 @@ insert into public.shard_config (key, exp_id, region_id, name)
 select 'shard_' || id, id, 'windfall', name || ' Shard' from public.expedition_config where region_id = 'windfall'
 on conflict do nothing;
 
--- ---------- 6. Undersokning (dronaren) och handel - FORSLAG x1,3 mot Quarantine ----------
+-- ---------- 6. Undersokning (dronaren) och handel - samma som The Quarantine ----------
 insert into public.survey_cost_config (region, step, cost_copper, secs) values
- ('windfall',0,1900000,3900), ('windfall',1,130000,90), ('windfall',2,270000,105),
- ('windfall',3,270000,120), ('windfall',4,400000,135), ('windfall',5,550000,150)
+ ('windfall',0,1450000,3300), ('windfall',1,100000,90), ('windfall',2,210000,105),
+ ('windfall',3,210000,120), ('windfall',4,310000,135), ('windfall',5,420000,150)
 on conflict do nothing;
-insert into public.survey_xp_config (region, xp) values ('windfall', 520) on conflict do nothing;
+insert into public.survey_xp_config (region, xp) values ('windfall', 400) on conflict do nothing;
 insert into public.credit_trade_config (region, mat_key, qty, credits)
 select 'windfall', mat_key, qty, credits from public.credit_trade_config where region = 'quarantine'
 on conflict do nothing;
@@ -294,6 +294,14 @@ language sql stable security definer set search_path to 'public', 'pg_temp' as $
 $f$;
 revoke execute on function public.region_lvl_lo(text) from public, anon, authenticated;
 revoke execute on function public.region_lvl_hi(text) from public, anon, authenticated;
+-- Guldsteget (ring_mult) foljer nivabandet i stallet for numret: Windfall (niva 50) ger som The Quarantine (Chris 2026-10-30).
+-- For de fem gamla ar (hi-1)/10 = tier, sa inget andras for dem.
+create or replace function public.region_ring_tier(p_region text) returns integer
+language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
+  /* [TILLAGT v5.1378.0 windfall] */
+  select coalesce((select (public.region_lvl_hi(p_region) - 1) / 10 from public.region_config where id = p_region), 0)
+$f$;
+revoke execute on function public.region_ring_tier(text) from public, anon, authenticated;
 create or replace function public.region_level_roll(p_region text)
  returns integer language sql security definer set search_path to 'public', 'pg_temp'
 as $function$ /* [ANDRAT v5.1378.0 windfall] regionens eget band (samma som tier*10+1..+10 for de fem gamla) */
@@ -346,6 +354,28 @@ begin
      'v_level := least(v_lo + 9,',
      'v_level := least(public.region_lvl_hi(p_region),',
      'region_lvl_hi'),
+    -- guldsteget efter nivabandet
+    (null, 'ring_mult',
+     'from (select tier from public.region_config where id = p_region) t',
+     'from (select public.region_ring_tier(p_region) as tier from public.region_config where id = p_region) t   /* [ANDRAT v5.1378.0 windfall] */',
+     'region_ring_tier'),
+    (null, 'ring_mult_for',
+     'coalesce((select tier from public.region_config where id = p_region), 0)',
+     'public.region_ring_tier(p_region)',
+     'region_ring_tier'),
+    -- expeditionens, idle-fyndens och regionvarvets tal raknas pa guldsteget (Windfall = som The Quarantine)
+    (null, 'claim_expedition',
+     'select tier into v_tier from public.region_config where id = v_def.region_id;',
+     'select public.region_ring_tier(v_def.region_id) into v_tier;   /* [ANDRAT v5.1378.0 windfall] guldsteget */',
+     'region_ring_tier(v_def.region_id)'),
+    (null, 'roll_idle_drops',
+     'select r.tier into v_tier from public.region_config r',
+     'select public.region_ring_tier(r.id) into v_tier from public.region_config r   /* [ANDRAT v5.1378.0 windfall] */',
+     'region_ring_tier(r.id)'),
+    (null, 'region_lap_check',
+     'select tier into v_tier from public.region_config where id = p_region;',
+     'select public.region_ring_tier(p_region) into v_tier;   /* [ANDRAT v5.1378.0 windfall] */',
+     'region_ring_tier(p_region)'),
     -- gemmen: hjalpar-XP
     (null, 'grant_pet_xp',
      '+ public.class_bonus(p_character,''petxp'')) / 100);',
