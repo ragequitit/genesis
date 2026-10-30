@@ -49938,10 +49938,13 @@ function evDemoState(){
 function evDemoSkins(){ return EVENT.demoOwned ? Array.from(EVENT.demoOwned) : []; }
 function evDemoSkinApply(it, key){ it.skin = key ? key : null; return Promise.resolve({item: it.sid, skin: it.skin}); }
 function evDemoBuy(e, s){
+  /* [RATTAT v5.1362.0] Demot i en INLOGGAD flik: den riktiga vaskan laddas over demots och marksraden saknas - da raknas
+     demots tal (e.marks) i stallet, annars nekades kopet tyst (Chris 2026-10-30). */
   const row = S.inv.find(r => r && r.key === e.mark.key);
-  const have = row ? row.qty : 0;
-  if (have < s.price) return null;
-  row.qty -= s.price; if (row.qty <= 0){ const i = S.inv.indexOf(row); if (i >= 0) S.inv[i] = null; }
+  const have = row ? row.qty : (e.marks | 0);
+  if (have < s.price){ say('Not enough ' + e.mark.plural + ' (demo).'); return null; }
+  if (row){ row.qty -= s.price; if (row.qty <= 0){ const i = S.inv.indexOf(row); if (i >= 0) S.inv[i] = null; } }
+  e.marks = Math.max(0, have - s.price);
   let got = null;
   if (s.kind === 'appearance'){ s.owned = true; s.bought = 1; EVENT.demoOwned.add(s.payload.item_key); got = {kind: 'appearance', item_key: s.payload.item_key, name: s.name, slot: s.payload.slot}; }
   else if (s.kind === 'gear'){
