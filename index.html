@@ -4968,6 +4968,14 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-shop-have{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
 .wb-shop-have .wb-marks-have{flex:1 1 260px;margin:0}
 .ev-empty.inwb{padding:26px 10px}
+.ev-card .ev-owned.ev-daily{font-size:9px;letter-spacing:.04em;opacity:.85}   /* [TILLAGT v5.1362.0] dagsgransen: mindre text (Chris) */
+/* [TILLAGT v5.1362.0] HOPFALLBAR "How it works" (Chris): en lang knapp med frageteckent; texten falls ner forst nar man trycker. */
+.wb-fold{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:8px 12px;border-radius:calc(9px * var(--rnd));border:1px solid var(--border);background:var(--bg-inset);color:var(--cyan);font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;text-align:left}
+.wb-fold i{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font-size:11px;letter-spacing:0}
+.wb-fold .wb-fold-line{flex:1 1 auto;height:1px;background:var(--border)}
+.wb-fold .wb-fold-arrow{font-size:12px;letter-spacing:0;transition:transform .15s}
+.wb-fold.on .wb-fold-arrow{transform:rotate(180deg)}
+.wb-fold-body{margin-top:10px}
 .wb-sec h4::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(56,232,255,.4),transparent)}
 /* ===== [TILLAGT v5.1000.0] STRIDSKORTET EFTER CHRIS MOCKUP =====
    Titel med WORLD BOSS under, platsraden i bilden, bosshalsan och ditt liv som rutor med fargad kant,
@@ -49032,6 +49040,7 @@ function wbBodyClick(e){
   const evb = tgt && tgt.closest && tgt.closest('[data-ev]'); if (evb){ if (!evb.disabled && evb.dataset.ev === 'buy') eventBuy(evb.dataset.evk); return; }
   const b = tgt && tgt.closest('[data-wb]'); if (!b || b.disabled) return;
   if (b.dataset.wb === 'tab'){ WB.tab = b.dataset.wbtab; WB.sig = ''; renderWorldBoss(); }   /* [TILLAGT v5.1362.0] flikarna */
+  else if (b.dataset.wb === 'rules'){ WB.rulesOpen = !WB.rulesOpen; b.classList.toggle('on', WB.rulesOpen); const bd = b.nextElementSibling; if (bd) bd.style.display = WB.rulesOpen ? '' : 'none'; }   /* [TILLAGT v5.1362.0] How it works */
   else if (b.dataset.wb === 'travel') wbTravel();
   else if (b.dataset.wb === 'report') openWbReport();
   else if (b.dataset.wb === 'fight') openWorldBoss('fight');   /* [TILLAGT v5.982.0] */
@@ -49490,7 +49499,10 @@ function wbSkillsHTML(){
   }).join('') + '</div></div>';
 }
 function wbRulesHTML(){
-  return '<div class="wb-sec"><h4>How it works</h4><div class="wb-grid">' +
+  /* [ANDRAT v5.1362.0] hopfallbar (Chris): stangd tills man trycker; laget minns under sessionen (WB.rulesOpen) */
+  const open = !!WB.rulesOpen;
+  return '<div class="wb-sec"><button type="button" class="wb-fold' + (open ? ' on' : '') + '" data-wb="rules">How it works <i>?</i><span class="wb-fold-line"></span><span class="wb-fold-arrow">\u25be</span></button>' +
+    '<div class="wb-grid wb-fold-body"' + (open ? '' : ' style="display:none"') + '>' +
     '<div class="wb-cell">' + wbIco('clock', '⏰') + '<b>Twice a day</b><span>Weekdays ' + wbLocalClock(12) + ' and ' + wbLocalClock(18) + ', weekends ' + wbLocalClock(11) + ' and ' + wbLocalClock(18) + ' (' + wbLocalZone() + '). A red bar above the map, a skull in that region and a line in chat tell you where, an hour before.</span></div>' +
     '<div class="wb-cell">' + wbIco('flag', '🚩') + '<b>Get there</b><span>The boss lands in one zone of its region. Travel there — the zone opens for everyone while the boss is around, drone or not.</span></div>' +
     '<div class="wb-cell">' + wbIco('swords', '⚔') + '<b>Fight up to 15 minutes</b><span><b>Quick Strike</b> every 3 s and <b>Heavy Strike</b> every 10 s charge your <b>Ultimate</b> (×3). <b>Dodge</b> when the boss winds up, <b>Heal</b> (+40 %) when the shockwaves wear you down.</span></div>' +
@@ -49821,7 +49833,7 @@ function evCardHTML(s, e, have){
   return '<button class="ev-card' + (owned || daily ? ' owned' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + (stk ? ' data-wbstack="' + esc(stk) + '"' : ' title="' + esc(s.descr || s.name) + '"') + '>' +
     '<span class="ev-card-art">' + artWithFallback(artUnlessMissing(s.art || ''), fall) + '</span>' +
     '<b>' + esc(s.name) + '</b><i>' + esc(s.descr || '') + '</i>' +
-    (owned ? '<em class="ev-owned">✓ Owned</em>' : daily ? '<em class="ev-owned">✓ Bought today</em>'
+    (owned ? '<em class="ev-owned">✓ Owned</em>' : daily ? '<em class="ev-owned ev-daily">✓ Bought today</em>'
            : '<span class="ev-price' + (have >= s.price ? '' : ' short') + '"><img src="' + esc(e.mark.art || '') + '" alt="" draggable="false" onerror="this.remove()">' + s.price + ' ' + esc(s.price === 1 ? e.mark.name : e.mark.plural) + '</span>') +
     '</button>';
 }
