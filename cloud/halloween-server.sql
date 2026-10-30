@@ -171,13 +171,13 @@ update public.season_event_shop set per_day = 1 where event_key = 'halloween_202
 update public.season_event_shop set per_day = null where event_key = 'halloween_2026' and key not in ('cache_legendary', 'cache_rare');
 
 /* Droppchanser. Malet: en aktiv spelare har hela setet (175 marks) pa 3-4 dagar, ca 50-60 marks per dag.
-     encounter   25 % per vunnen strid, 1 mark (alla regioner)                   ~15-25 / dag
-     expedition  100 % vid 4 h eller langre, 1-2 marks; kortare skalar (mins/240)  ~15-30 / dag med flera hjalpare
+     encounter   10 % per vunnen strid, 1 mark (alla regioner)                   ~8-10 / dag
+     expedition  2 marks per 4 h, linjart: 8 h = 4, 2 h = 1 (50 % chans)           ~15-30 / dag med flera hjalpare
      dungeon     100 % vid klarat lopp, 2 marks, +1 fran regionsniva 3            ~6-12 / dag
      worldboss   100 % vid dodad boss, 5 marks (i brevet)                         ~10 / dag (tva bossar) */
 insert into public.season_event_drops (event_key, src, chance, qty_min, qty_max, min_tier, full_mins, hi_tier, hi_bonus, first_bonus, note) values
-  ('halloween_2026', 'encounter',  0.25, 1, 1, 0, null, null, 0, 0, '25 % per vunnen strid'),
-  ('halloween_2026', 'expedition', 1.00, 1, 2, 0, 240,  null, 0, 0, 'full chans och fullt antal fran 4 h, kortare skalar'),
+  ('halloween_2026', 'encounter',  0.10, 1, 1, 0, null, null, 0, 0, '10 % per vunnen strid (Chris 2026-10-30: striderna poppar hela tiden)'),
+  ('halloween_2026', 'expedition', 1.00, 2, 2, 0, 240,  null, 0, 0, '2 marks per 4 h: 8 h ger 4, 2 h ger 1 (50 % chans), kortare mindre (Chris 2026-10-30)'),
   ('halloween_2026', 'dungeon',    1.00, 2, 2, 0, null, null, 0, 1, 'klarat lopp: 2 overallt, +1 forsta gangen per dungeon (Chris 2026-10-30: ingen regionbonus - pa niva 50 ar alla overallt)'),
   ('halloween_2026', 'worldboss',  1.00, 5, 5, 0, null, null, 0, 0, 'bara nar bossen dor; laggs i brevet')
 on conflict (event_key, src) do update set chance = excluded.chance, qty_min = excluded.qty_min, qty_max = excluded.qty_max,
@@ -250,12 +250,12 @@ begin
   select * into v_d from public.season_event_drops where event_key = v_e.key and src = p_src;
   if not found then return null; end if;
   if v_t < coalesce(v_d.min_tier, 0) then return null; end if;
-  if p_src = 'expedition' and coalesce(v_d.full_mins, 0) > 0 then
-    v_f := least(1, greatest(0, coalesce(p_mins, 0)) / v_d.full_mins);
-  end if;
-  if v_d.chance * v_f <= 0 or random() >= v_d.chance * v_f then return null; end if;
+  /* [ANDRAT 2026-10-30] expeditioner skalar LINJART med langden aven over full_mins (Chris: 4 h = 2, 8 h = 4);
+     chansen ar dock aldrig over 100 %. Kortare an full_mins: lagre chans OCH farre marks (minst 1 vid traff). */
+  if p_src = 'expedition' and coalesce(v_d.full_mins, 0) > 0 then v_f := greatest(0, coalesce(p_mins, 0)) / v_d.full_mins; end if;
+  if v_d.chance * least(1, v_f) <= 0 or random() >= v_d.chance * least(1, v_f) then return null; end if;
   v_qty := v_d.qty_min + floor(random() * (greatest(v_d.qty_min, v_d.qty_max) - v_d.qty_min + 1))::integer;
-  if v_f < 1 then v_qty := greatest(1, round(v_qty * v_f)::integer); end if;
+  if v_f <> 1 then v_qty := greatest(1, round(v_qty * v_f)::integer); end if;
   if v_d.hi_tier is not null and v_t >= v_d.hi_tier then v_qty := v_qty + coalesce(v_d.hi_bonus, 0); end if;
   /* [TILLAGT 2026-10-30] forsta gangen per sak (p_ref = t ex dungeon-id): +first_bonus, bokfors sa det bara sker en gang */
   if coalesce(v_d.first_bonus, 0) > 0 and p_ref is not null then

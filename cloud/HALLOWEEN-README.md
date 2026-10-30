@@ -40,8 +40,8 @@ Gren: `halloween` (fran `origin/main` = v5.1359.0). Main ar ororad. Inget ar liv
 
 | Kalla | Chans | Marks | Not |
 |---|---|---|---|
-| Vunnen strid (encounter) | 25 % | 1 | alla regioner |
-| Expedition | 100 % fran 4 h | 1–2 | kortare skalar linjart: 2 h = 50 % chans, 1 mark; 8 h = 1–2 |
+| Vunnen strid (encounter) | 10 % | 1 | alla regioner (Chris 2026-10-30: 25 % var for mycket, striderna poppar hela tiden) |
+| Expedition | 100 % fran 4 h | 2 per 4 h | linjart med langden: 8 h = 4, 4 h = 2, 2 h = 1 (50 % chans), 1 h = 1 (25 % chans) (Chris 2026-10-30) |
 | Dungeon (klarat lopp) | 100 % | 2 | +1 FORSTA gangen per dungeon (Chris 2026-10-30), ingen regionbonus |
 | World Boss (dodad) | 100 % | 5 | i brevet; flykt ger inget |
 
