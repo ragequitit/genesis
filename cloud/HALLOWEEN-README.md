@@ -56,8 +56,8 @@ Rakneexempel aktiv spelare per dag: ~80 strider = 20, 4–5 hjalpare x 2–3 exp
 | Jack-o'-Lantern Legs | appearance | 35 | utseende plats 2, en gang |
 | Jack-o'-Lantern Gloves | appearance | 30 | utseende plats 3, en gang |
 | Jack-o'-Lantern Boots | appearance | 30 | utseende plats 4, en gang |
-| Legendary Cache | gear | 25 | en Legendary-pjas for din niva, 10 % Mythic (aldrig en vaska) |
-| Rare Cache | gear | 8 | en Rare-pjas, 25 % Epic |
+| Legendary Cache | gear | 25 | en Legendary-pjas for din niva, 10 % Mythic (aldrig en vaska). MAX 1 PER DAG per karaktar (Chris 2026-10-30, UTC-dygn) |
+| Rare Cache | gear | 8 | en Rare-pjas, 25 % Epic. MAX 1 PER DAG per karaktar |
 | Fortune Vial (Luck Boost) | stack | 10 | handlarens boost (27,5 g) - Chris 2026-10-30: boostar i stallet for guld |
 | Chrono Draft (Expedition Boost) | stack | 8 | handlarens boost (22,5 g) |
 

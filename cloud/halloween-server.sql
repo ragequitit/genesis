@@ -68,10 +68,12 @@ create table if not exists public.season_event_shop (
   art        text,
   descr      text,
   per_char   integer,
+  per_day    integer,   /* [TILLAGT 2026-10-30] max kop per karaktar och UTC-dygn (Chris: ladorna en om dagen) */
   sort       integer not null default 0,
   enabled    boolean not null default true,
   primary key (event_key, key)
 );
+alter table public.season_event_shop add column if not exists per_day integer;
 
 /* Droppchanser per kalla. chance 0..1 (vid full skala), qty_min..qty_max marks per traff.
    min_tier = lagsta regionsniva (0 = alla). expedition: full_mins = langden (minuter) som ger full
@@ -164,6 +166,9 @@ insert into public.season_event_shop (event_key, key, name, kind, price, payload
   ('halloween_2026', 'boost_expspd',    'Chrono Draft',    'stack',  8, '{"stack_key":"boost_expspd","qty":1}', 'assets/ui/boost/chrono_draft.webp',  'An Expedition Boost.', null, 90)
 on conflict (event_key, key) do update set name = excluded.name, kind = excluded.kind, price = excluded.price, payload = excluded.payload,
   art = excluded.art, descr = excluded.descr, per_char = excluded.per_char, sort = excluded.sort;
+/* [TILLAGT 2026-10-30] Chris: ladorna en om dagen per karaktar (dygnet byter 00:00 UTC = 01:00 svensk tid). Boostarna obegransade. */
+update public.season_event_shop set per_day = 1 where event_key = 'halloween_2026' and key in ('cache_legendary', 'cache_rare');
+update public.season_event_shop set per_day = null where event_key = 'halloween_2026' and key not in ('cache_legendary', 'cache_rare');
 
 /* Droppchanser. Malet: en aktiv spelare har hela setet (175 marks) pa 3-4 dagar, ca 50-60 marks per dag.
      encounter   25 % per vunnen strid, 1 mark (alla regioner)                   ~15-25 / dag
@@ -206,8 +211,9 @@ begin
     select coalesce(sum(qty), 0)::integer into v_marks from public.stacks where character_id = p_character and stack_key = v_e.mark_key;
     select coalesce(jsonb_agg(jsonb_build_object(
              'key', s.key, 'name', s.name, 'kind', s.kind, 'price', s.price, 'payload', s.payload, 'art', s.art, 'descr', s.descr,
-             'per_char', s.per_char,
+             'per_char', s.per_char, 'per_day', s.per_day,
              'bought', (select count(*) from public.season_event_purchases p where p.character_id = p_character and p.event_key = s.event_key and p.item_key = s.key),
+             'bought_today', (select count(*) from public.season_event_purchases p where p.character_id = p_character and p.event_key = s.event_key and p.item_key = s.key and p.at >= date_trunc('day', now())),
              'owned', (s.kind = 'appearance' and exists (select 1 from public.character_appearances a where a.character_id = p_character and a.item_key = s.payload->>'item_key'))
            ) order by s.sort, s.key), '[]'::jsonb)
       into v_shop from public.season_event_shop s where s.event_key = v_e.key and s.enabled;
@@ -287,6 +293,10 @@ begin
   if v_s.per_char is not null then
     select count(*) into v_n from public.season_event_purchases where character_id = p_character and event_key = p_event and item_key = p_key;
     if v_n >= v_s.per_char then raise exception 'event_item_owned' using errcode='P0001'; end if;
+  end if;
+  if v_s.per_day is not null then   /* [TILLAGT 2026-10-30] dagsgrans (UTC-dygn) */
+    select count(*) into v_n from public.season_event_purchases where character_id = p_character and event_key = p_event and item_key = p_key and at >= date_trunc('day', now());
+    if v_n >= v_s.per_day then raise exception 'event_daily_limit' using errcode='P0001'; end if;
   end if;
   if v_s.kind = 'appearance' and exists (select 1 from public.character_appearances where character_id = p_character and item_key = v_s.payload->>'item_key') then
     raise exception 'event_item_owned' using errcode='P0001';

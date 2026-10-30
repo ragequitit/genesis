@@ -15209,6 +15209,7 @@ const SRV_ERRORS = {
   event_item_bad:       'That reward does not exist.',
   event_item_owned:     'You already own that.',
   event_marks_short:    'Not enough event marks yet.',
+  event_daily_limit:    'You already bought that today. It is back tomorrow.',   /* [TILLAGT v5.1362.0] */
   event_kind_unknown:   'That reward is not available yet.',
   /* [TILLAGT gren trade] BYTESHANDEL */
   trade_disabled:       'Trading is not open yet.',
@@ -49811,15 +49812,16 @@ function evDropText(d, e){
 }
 function evCardHTML(s, e, have){
   const owned = !!s.owned || (s.per_char != null && (s.bought | 0) >= s.per_char);
+  const daily = !owned && s.per_day != null && (s.bought_today | 0) >= s.per_day;   /* [TILLAGT v5.1362.0] dagsgrans (Chris): utgrad tills i morgon */
   const col = s.kind === 'appearance' ? 'var(--ev)' : s.kind === 'gear' ? ((s.payload && s.payload.rarity >= 4) ? rarCol(4) : rarCol(2)) : s.kind === 'gold' ? 'var(--gold)' : 'var(--cyan)';
   const fall = s.kind === 'gold' ? '🪙' : s.kind === 'gear' ? '📦' : '🎃';
-  const kan = !owned && have >= s.price;
+  const kan = !owned && !daily && have >= s.price;
   /* [ANDRAT v5.1362.0] stapelvaror (boostarna) far samma hovringsruta som i butiken (data-wbstack -> showStackTip), ingen title da */
   const stk = s.kind === 'stack' && s.payload && s.payload.stack_key;
-  return '<button class="ev-card' + (owned ? ' owned' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + (stk ? ' data-wbstack="' + esc(stk) + '"' : ' title="' + esc(s.descr || s.name) + '"') + '>' +
+  return '<button class="ev-card' + (owned || daily ? ' owned' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + (stk ? ' data-wbstack="' + esc(stk) + '"' : ' title="' + esc(s.descr || s.name) + '"') + '>' +
     '<span class="ev-card-art">' + artWithFallback(artUnlessMissing(s.art || ''), fall) + '</span>' +
     '<b>' + esc(s.name) + '</b><i>' + esc(s.descr || '') + '</i>' +
-    (owned ? '<em class="ev-owned">✓ Owned</em>'
+    (owned ? '<em class="ev-owned">✓ Owned</em>' : daily ? '<em class="ev-owned">✓ Bought today</em>'
            : '<span class="ev-price' + (have >= s.price ? '' : ' short') + '"><img src="' + esc(e.mark.art || '') + '" alt="" draggable="false" onerror="this.remove()">' + s.price + ' ' + esc(s.price === 1 ? e.mark.name : e.mark.plural) + '</span>') +
     '</button>';
 }
@@ -49910,8 +49912,8 @@ function evDemoState(){
     mark: {key: 'halloween_mark', name: 'Jack-o’-Mark', plural: 'Jack-o’-Marks', art: 'assets/items/event/halloween_mark.webp'},
     set: {name: 'Jack-o’-Lantern', prefix: 'jack', figure_suffix: 'halloween', min: 5}, accent: '#ff8c1a', flavor: 'Something is grinning in the dark between the nodes.',
     shop: [piece('head', 0, 'Head', 40, 10, true), piece('chest', 1, 'Chest', 40, 20, true), piece('legs', 2, 'Legs', 35, 30, true), piece('gloves', 3, 'Gloves', 30, 40, true), piece('boots', 4, 'Boots', 30, 50, false),
-      {key: 'cache_legendary', name: 'Legendary Cache', kind: 'gear', price: 25, payload: {rarity: 4, up_chance: 0.10}, art: 'assets/items/caches/cache_gear_leg.webp', descr: 'A Legendary piece of gear for your level. 10 % chance it is Mythic.', per_char: null, sort: 60, bought: 0, owned: false},
-      {key: 'cache_rare', name: 'Rare Cache', kind: 'gear', price: 8, payload: {rarity: 2, up_chance: 0.25}, art: 'assets/items/caches/cache_gear_rare.webp', descr: 'A Rare piece of gear for your level. 25 % chance it is Epic.', per_char: null, sort: 70, bought: 0, owned: false},
+      {key: 'cache_legendary', name: 'Legendary Cache', kind: 'gear', price: 25, payload: {rarity: 4, up_chance: 0.10}, art: 'assets/items/caches/cache_gear_leg.webp', descr: 'A Legendary piece of gear for your level. 10 % chance it is Mythic.', per_char: null, per_day: 1, bought_today: 0, sort: 60, bought: 0, owned: false},
+      {key: 'cache_rare', name: 'Rare Cache', kind: 'gear', price: 8, payload: {rarity: 2, up_chance: 0.25}, art: 'assets/items/caches/cache_gear_rare.webp', descr: 'A Rare piece of gear for your level. 25 % chance it is Epic.', per_char: null, per_day: 1, bought_today: 0, sort: 70, bought: 0, owned: false},
       /* [ANDRAT v5.1362.0] handlarens boostar i stallet for guld (Chris 2026-10-30: "lite roligare an att trada in dem for guld") */
       {key: 'boost_luck', name: 'Fortune Vial', kind: 'stack', price: 10, payload: {stack_key: 'boost_luck', qty: 1}, art: 'assets/ui/boost/fortune_vial.webp', descr: 'A Luck Boost.', per_char: null, sort: 80, bought: 0, owned: false},
       {key: 'boost_expspd', name: 'Chrono Draft', kind: 'stack', price: 8, payload: {stack_key: 'boost_expspd', qty: 1}, art: 'assets/ui/boost/chrono_draft.webp', descr: 'An Expedition Boost.', per_char: null, sort: 90, bought: 0, owned: false}],
@@ -49931,6 +49933,7 @@ function evDemoBuy(e, s){
   let got = null;
   if (s.kind === 'appearance'){ s.owned = true; s.bought = 1; EVENT.demoOwned.add(s.payload.item_key); got = {kind: 'appearance', item_key: s.payload.item_key, name: s.name, slot: s.payload.slot}; }
   else if (s.kind === 'gear'){
+    s.bought_today = (s.bought_today | 0) + 1;   /* demo: dagsgransen */
     let r = s.payload.rarity | 0; if (Math.random() < (+s.payload.up_chance || 0)) r = Math.min(5, r + 1);
     const ks = Object.keys(ITEMS).filter(k => ITEMS[k].slot <= 9 && !ITEMS[k].bag && !ITEMS[k].gem && !ITEMS[k].event && ITEMS[k].dropRars && ITEMS[k].dropRars.indexOf(r) >= 0);
     const k = ks[Math.floor(Math.random() * ks.length)];
