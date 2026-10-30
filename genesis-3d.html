@@ -2058,7 +2058,16 @@ function ensureMeAv(){ if (me.av || !CLIPS) return; const C = CLS3D[me.klass]; i
   me.av = makeAvatar(C.f, C.keep, 1.75); if (!me.av) return;
   /* [ANDRAT v5.1373.0] min ring i 2D-kartans "du ar har"-farg (MK.here), lysande */
   const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(MK.here, 2.2), transparent: true, opacity: .95, depthWrite: false, blending: THREE.AdditiveBlending}));
-  ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.scale.setScalar(1.5); me.av.root.add(ring); me.av.ring = ring; scene.add(me.av.root); play(me.av, 'Idle', 0); }
+  ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.scale.setScalar(1.5); me.av.root.add(ring); me.av.ring = ring;
+  /* [TILLAGT v5.1376.0] DU AR HAR (Chris 2026-10-31: svart att hitta sig sjalv): en stor pulserande orange ring pa marken och en ljusstrale
+     uppat. Bada vaxer med kamerans avstand sa de syns aven fran hela varlden; stralen tonas bort nar man ar nara (skymmer annars gubben). */
+  const pulse = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 48), new THREE.MeshBasicMaterial({color: hdr(MK.here, 2), transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}));
+  pulse.rotation.x = -Math.PI / 2; pulse.position.y = .05; me.av.root.add(pulse); me.av.pulse = pulse;
+  const bc = document.createElement('canvas'); bc.width = 4; bc.height = 128; const bg = bc.getContext('2d'), gr = bg.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, 'rgba(255,138,31,0)'); gr.addColorStop(.55, 'rgba(255,138,31,.35)'); gr.addColorStop(1, 'rgba(255,190,110,1)'); bg.fillStyle = gr; bg.fillRect(0, 0, 4, 128);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.22, .32, 1, 16, 1, true), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(bc), color: hdr(MK.here, 1.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}));
+  beam.geometry.translate(0, .5, 0); beam.renderOrder = 3; me.av.root.add(beam); me.av.beam = beam;
+  scene.add(me.av.root); play(me.av, 'Idle', 0); }
 function dropMeAv(){ if (me.av){ freeAv(me.av); me.av = null; } }
 const goalRing = new THREE.Mesh(new THREE.RingGeometry(.5, .7, 32), new THREE.MeshBasicMaterial({color: 0xfde047, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide}));
 goalRing.rotation.x = -Math.PI / 2; goalRing.position.y = .06; goalRing.visible = false; scene.add(goalRing);
@@ -2072,6 +2081,10 @@ function drawMe(dt, t){
   if (me.act && me.actNew){ play(av, me.act, .15, me.actT <= 1.7); me.actNew = false; } else if (!me.act) play(av, anim, .15);
   const cur = av.model.rotation.y; let dl = ((me.face - cur + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; av.model.rotation.y = cur + dl * Math.min(1, dt * 10);
   av.ring.material.opacity = me.fly ? 0 : .95;
+  /* [TILLAGT v5.1376.0] du ar har: storlek efter kamerans avstand, ringen pulserar utat, stralen syns forst lite langre ut */
+  if (av.pulse){ const d = cam.dist, ph = (t * .8) % 1, base = clamp(d * .04, 1.4, 16);
+    av.pulse.scale.setScalar(base * (.6 + ph * .9)); av.pulse.material.opacity = me.fly ? 0 : .85 * (1 - ph);
+    av.beam.scale.set(clamp(d * .015, .5, 5), clamp(3 + d * .225, 4, 70), clamp(d * .015, .5, 5));   /* Chris: halva tjockleken och hojden */ av.beam.material.opacity = me.fly ? 0 : clamp((d - 14) / 30, 0, 1) * (.75 + .25 * Math.sin(t * 3)); }
   if (me.fly && !meDisc){ meDisc = new THREE.Mesh(DISC_GEO, DISC_MAT); meDisc.rotation.x = -Math.PI / 2; meDisc.scale.setScalar(1.3); av.root.add(meDisc); }
   else if (!me.fly && meDisc){ av.root.remove(meDisc); meDisc = null; }
   av.mixer.update(dt);
