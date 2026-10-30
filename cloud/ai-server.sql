@@ -114,3 +114,7 @@ do $p$ declare d text; a text; begin
 end $p$;
 
 select cron.schedule('ai-tick', '* * * * *', 'select public.ai_tick()');
+
+/* [TILLAGT v5.1383.0] Avsandaren ser sitt stoppade meddelande med orsaken (Chris 2026-10-30) - migrering ai_chat_blocked_notice_v5_1383:
+   chat_fetch skickar egna rader med status deleted och deleted_reason 'ai:%' (24 h) med falt blocked = orsaken,
+   och triggern chat_ai_blocked pingar avsandaren (kanal whisper, sender = to = avsandaren) sa chatten hamtar om. */
