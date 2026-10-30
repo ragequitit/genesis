@@ -4968,6 +4968,9 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-shop-have{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
 .wb-shop-have .wb-marks-have{flex:1 1 260px;margin:0}
 .ev-empty.inwb{padding:26px 10px}
+.ev-card.soon{opacity:.8}
+.ev-card.soon .ev-price{filter:grayscale(.6)}
+.wb-marks-have.ev-soonrow b{font-size:13px;white-space:nowrap;line-height:1.2}
 .ev-card .ev-owned.ev-daily{font-size:9px;letter-spacing:.04em;opacity:.85}   /* [TILLAGT v5.1362.0] dagsgransen: mindre text (Chris) */
 /* [TILLAGT v5.1362.0] HOPFALLBAR "How it works" (Chris): en lang knapp med frageteckent; texten falls ner forst nar man trycker. */
 .wb-fold{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:8px 12px;border-radius:calc(9px * var(--rnd));border:1px solid var(--border);background:var(--bg-inset);color:var(--cyan);font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;text-align:left}
@@ -49338,7 +49341,7 @@ function renderWorldBoss(){
   /* [TILLAGT v5.1362.0] FLIKARNA (Chris): Holiday Events | World Bosses | Shop. Oppnas pa Holiday Events nar ett event ar
      igang, annars pa World Bosses. Bara i info-laget - stridskortet ar som forut. */
   if (!fight){
-    if (!WB.tab) WB.tab = evActive() ? 'event' : 'boss';
+    if (!WB.tab) WB.tab = (evActive() || evUpcoming()) ? 'event' : 'boss';
     if (WB.tab !== 'boss'){ body.innerHTML = wbTabsHTML() + (WB.tab === 'shop' ? wbShopTabHTML() : wbEventTabHTML()); wbBindCodex(body); return; }   /* wbBindCodex: hovringsrutor pa boostkorten */
   }
   /* [OMBYGGT v5.903.0] PEDAGOGISK RUTA (Chris): avdelningar med rubriker i stallet for en textklump, och en
@@ -49634,6 +49637,12 @@ ITEM_DEFS.halloween_mark = {
 };
 EVENT_SETS.jack = {file: 'halloween', min: 5, name: 'Jack-o’-Lantern'};
 function evNow(){ return Date.now() + (EVENT.skew || 0); }
+/* [TILLAGT v5.1362.0] Nasta event FORE starten (Chris: hypa upp det): har servern skickat butiken ritas flikarna som vanligt, med lasta kop. */
+function evUpcoming(){
+  const n = EVENT.st && EVENT.st.next; if (!n || !Array.isArray(n.shop)) return null;
+  const a = Date.parse(n.starts_at); return (!isNaN(a) && evNow() < a) ? n : null;
+}
+function evStartsIn(e){ return evLeftText(Date.parse(e.starts_at) - evNow()); }
 function evActive(){
   const e = EVENT.st && EVENT.st.event; if (!e) return null;
   const t = evNow(), a = Date.parse(e.starts_at), b = Date.parse(e.ends_at);
@@ -49719,7 +49728,7 @@ let evTickLast = 0;
 function eventTick(){
   const e = evActive();
   const el = $('ev-left'); if (el && e) el.textContent = evEndsIn(e);
-  const el2 = $('ev-wb-left'); if (el2 && e) el2.textContent = evEndsIn(e);
+  const el2 = $('ev-wb-left'); if (el2){ if (e) el2.textContent = evEndsIn(e); else { const up = evUpcoming(); if (up) el2.textContent = evStartsIn(up); } }   /* [ANDRAT v5.1362.0] aven "starts in" */
   evRenderNav();
   /* eventet tog slut (eller borjade) medan rutan var oppen: rita om */
   const nyckel = e ? e.key : '';
@@ -49767,7 +49776,7 @@ function wbTabsHTML(){
 }
 /* Holiday Events: eventets huvud, dina marks, hur man far dem. Kopen gors i Shop-fliken. */
 function wbEventTabHTML(){
-  const e = evActive(), nx = EVENT.st && EVENT.st.next;
+  const act = evActive(), up = evUpcoming(), e = act || up, nx = EVENT.st && EVENT.st.next;
   if (!e){
     return '<div class="ev-empty inwb"><span class="ev-empty-ico">\ud83c\udf83</span><b>No seasonal event right now.</b>' +
       (nx && !isNaN(Date.parse(nx.starts_at)) ? '<span>' + esc(nx.name) + ' starts in ' + evLeftText(Date.parse(nx.starts_at) - evNow()) + '.</span>' : '<span>The next one is announced here.</span>') + '</div>';
@@ -49776,9 +49785,10 @@ function wbEventTabHTML(){
   return '<div class="ev-hero" style="--ev:' + esc(e.accent || '#ff8c1a') + '">' +
       '<span class="ev-hero-art">' + artWithFallback(artUnlessMissing(e.mark.art || ''), '\ud83c\udf83') + '</span>' +
       '<div class="ev-hero-txt"><div class="ev-name">' + esc(e.name) + '</div><div class="ev-tag">' + esc(e.tagline || '') + '</div>' +
-        '<div class="ev-left-row">Ends in <b id="ev-wb-left">' + evEndsIn(e) + '</b></div></div></div>' +
-    '<div class="wb-marks-have ev-have"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + have + '</b><span>' + esc(have === 1 ? e.mark.name : e.mark.plural) +
-      ' \u2014 spend them in the <b>Shop</b> tab. Bound to you: never sold or traded.</span></div>' +
+        '<div class="ev-left-row">' + (act ? 'Ends in <b id="ev-wb-left">' + evEndsIn(e) + '</b>' : 'Starts in <b id="ev-wb-left">' + evStartsIn(e) + '</b>') + '</div></div></div>' +
+    (act ? '<div class="wb-marks-have ev-have"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + have + '</b><span>' + esc(have === 1 ? e.mark.name : e.mark.plural) +
+      ' \u2014 spend them in the <b>Shop</b> tab. Bound to you: never sold or traded.</span></div>'
+         : '<div class="wb-marks-have ev-have ev-soonrow"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + esc(e.mark.plural) + '</b><span>start dropping when the event begins \u2014 from fights, expeditions, dungeons and World Bosses. Spend them in the <b>Shop</b> tab.</span></div>') +
     evEarnHTML(e) +
     '<div class="wb-sec ev-sec"><button class="ev-open-btn" data-wb="event"><img src="' + esc(e.mark.art || '') + '" alt="" draggable="false" onerror="this.remove()">Open the shop<small>' + esc(e.set && e.set.name ? e.set.name + ' set, gear, gold' : 'gear, gold and more') + '</small></button></div>' +
     (e.flavor ? '<div class="ev-flavor">' + esc(e.flavor) + '</div>' : '');
@@ -49790,7 +49800,7 @@ function evEarnHTML(e){
 }
 /* Shop: Boss Marks-varorna (som forut) och sasongens varor, under varandra. */
 function wbShopTabHTML(){
-  const e = evActive();
+  const act = evActive(), e = act || evUpcoming(), soon = !act;   /* [ANDRAT v5.1362.0] fore starten: allt syns, inget gar att kopa */
   let h = wbMarksHTML();
   if (!e) return h + '<div class="ev-empty inwb"><span class="ev-empty-ico">\ud83c\udf83</span><b>No seasonal goods right now.</b><span>They show up here while a holiday event runs.</span></div>';
   const have = evMarks(e);
@@ -49798,12 +49808,13 @@ function wbShopTabHTML(){
   const setItems = shop.filter(x => x.kind === 'appearance'), rest = shop.filter(x => x.kind !== 'appearance');
   const ownedN = setItems.filter(x => x.owned).length, worn = evSetWornCount(e);
   h += '<div class="wb-sec ev-sec" style="--ev:' + esc(e.accent || '#ff8c1a') + '"><h4>' + esc(e.name) + '</h4>' +
-    '<div class="wb-marks-have ev-have"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + have + '</b><span>' + esc(have === 1 ? e.mark.name : e.mark.plural) + ' \u2014 ends in ' + evEndsIn(e) + '</span></div>' +
+    (soon ? '<div class="wb-marks-have ev-have ev-soonrow"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>Starts in ' + evStartsIn(e) + '</b><span>Nothing can be bought yet \u2014 have a look at what is coming.</span></div>'
+          : '<div class="wb-marks-have ev-have"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + have + '</b><span>' + esc(have === 1 ? e.mark.name : e.mark.plural) + ' \u2014 ends in ' + evEndsIn(e) + '</span></div>') +
     (setItems.length ? '<h4 style="margin-top:12px">' + esc(e.set && e.set.name ? e.set.name + ' set' : 'Appearance set') + ' <small>' + ownedN + ' / ' + setItems.length + ' owned</small></h4>' +
       '<div class="ev-desc">Appearance pieces: buy one and pick it as the look of that slot on any gear, any class. Wear all ' + setItems.length + ' and your character picture becomes the set' +
         (worn ? ' (<b>' + worn + ' / ' + setItems.length + '</b> worn now)' : '') + '.</div>' +
-      '<div class="ev-grid">' + setItems.map(x => evCardHTML(x, e, have)).join('') + '</div>' : '') +
-    (rest.length ? '<h4 style="margin-top:12px">Other rewards</h4><div class="ev-grid">' + rest.map(x => evCardHTML(x, e, have)).join('') + '</div>' : '') +
+      '<div class="ev-grid">' + setItems.map(x => evCardHTML(x, e, have, soon)).join('') + '</div>' : '') +
+    (rest.length ? '<h4 style="margin-top:12px">Other rewards</h4><div class="ev-grid">' + rest.map(x => evCardHTML(x, e, have, soon)).join('') + '</div>' : '') +
     '</div>';
   return h;
 }
@@ -49826,15 +49837,15 @@ function evDropText(d, e){
   if (d.min_tier > 0) t += ' · from region ' + (d.min_tier + 1);
   return t;
 }
-function evCardHTML(s, e, have){
+function evCardHTML(s, e, have, soon){
   const owned = !!s.owned || (s.per_char != null && (s.bought | 0) >= s.per_char);
   const daily = !owned && s.per_day != null && (s.bought_today | 0) >= s.per_day;   /* [TILLAGT v5.1362.0] dagsgrans (Chris): utgrad tills i morgon */
   const col = s.kind === 'appearance' ? 'var(--ev)' : s.kind === 'gear' ? ((s.payload && s.payload.rarity >= 4) ? rarCol(4) : rarCol(2)) : s.kind === 'gold' ? 'var(--gold)' : 'var(--cyan)';
   const fall = s.kind === 'gold' ? '🪙' : s.kind === 'gear' ? '📦' : '🎃';
-  const kan = !owned && !daily && have >= s.price;
+  const kan = !owned && !daily && !soon && have >= s.price;   /* soon: fore starten - visas men lasta */
   /* [ANDRAT v5.1362.0] stapelvaror (boostarna) far samma hovringsruta som i butiken (data-wbstack -> showStackTip), ingen title da */
   const stk = s.kind === 'stack' && s.payload && s.payload.stack_key;
-  return '<button class="ev-card' + (owned || daily ? ' owned' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + (stk ? ' data-wbstack="' + esc(stk) + '"' : ' title="' + esc(s.descr || s.name) + '"') + '>' +
+  return '<button class="ev-card' + (owned || daily ? ' owned' : '') + (soon ? ' soon' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + (stk ? ' data-wbstack="' + esc(stk) + '"' : ' title="' + esc(s.descr || s.name) + '"') + '>' +
     '<span class="ev-card-art">' + artWithFallback(artUnlessMissing(s.art || ''), fall) + '</span>' +
     '<b>' + esc(s.name) + '</b><i>' + esc(s.descr || '') + '</i>' +
     (owned ? '<em class="ev-owned">✓ Owned</em>' : daily ? '<em class="ev-owned ev-daily">✓ Bought today</em>'
@@ -49923,7 +49934,7 @@ function evDemoState(){
   const art = p => 'assets/gear/halloween/jack_' + p + '.webp';
   const piece = (p, slot, nm, pris, sort, owned) => ({key: 'jack_' + p, name: 'Jack-o’-Lantern ' + nm, kind: 'appearance', price: pris, payload: {item_key: 'jack_' + p, slot: slot}, art: art(p),
     descr: 'Appearance for the ' + nm.toLowerCase() + ' slot.'   /* [ANDRAT v5.1362.0] kortare (Chris) */, per_char: 1, sort: sort, bought: owned ? 1 : 0, owned: owned});
-  return {now: new Date(nu).toISOString(), next: null, event: {
+  const st = {now: new Date(nu).toISOString(), next: null, event: {
     key: 'halloween_2026', name: 'Halloween', tagline: 'The grid is haunted. Collect Jack-o’-Marks and dress for the season.', starts_at: starts, ends_at: ends,
     mark: {key: 'halloween_mark', name: 'Jack-o’-Mark', plural: 'Jack-o’-Marks', art: 'assets/items/event/halloween_mark.webp'},
     set: {name: 'Jack-o’-Lantern', prefix: 'jack', figure_suffix: 'halloween', min: 5}, accent: '#ff8c1a', flavor: 'Something is grinning in the dark between the nodes.',
@@ -49938,6 +49949,9 @@ function evDemoState(){
             {src: 'dungeon', chance: 1, qty_min: 2, qty_max: 2, min_tier: 0, full_mins: null, hi_tier: null, hi_bonus: 0, first_bonus: 1},   /* [ANDRAT v5.1362.0] +1 forsta gangen per dungeon, ingen regionbonus (Chris) */
             {src: 'worldboss', chance: 1, qty_min: 5, qty_max: 5, min_tier: 0, full_mins: null, hi_tier: null, hi_bonus: 0}],
     marks: 37}};
+  /* [TILLAGT v5.1362.0] &soon=1: laget FORE starten (eventet ligger i next, startar om 17 h) */
+  if (/[?&]soon=1/.test(location.search)){ st.event.starts_at = new Date(nu + 17 * 3600 * 1000).toISOString(); st.event.marks = 0; st.next = st.event; st.event = null; }
+  return st;
 }
 function evDemoSkins(){ return EVENT.demoOwned ? Array.from(EVENT.demoOwned) : []; }
 function evDemoSkinApply(it, key){ it.skin = key ? key : null; return Promise.resolve({item: it.sid, skin: it.skin}); }

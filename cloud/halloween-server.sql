@@ -227,8 +227,21 @@ begin
   end if;
   select * into v_n from public.season_events where enabled and starts_at > now() order by starts_at limit 1;
   if found then
+    /* [ANDRAT 2026-10-30] Chris: fore starten ska Holiday Events- och Shop-flikarna visa allt som nar eventet ar igang (laste kop).
+       Darfor foljer butiken och dropparna med aven for nasta event. */
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'key', s.key, 'name', s.name, 'kind', s.kind, 'price', s.price, 'payload', s.payload, 'art', s.art, 'descr', s.descr,
+             'per_char', s.per_char, 'per_day', s.per_day, 'bought', 0, 'bought_today', 0,
+             'owned', (s.kind = 'appearance' and exists (select 1 from public.character_appearances a where a.character_id = p_character and a.item_key = s.payload->>'item_key'))
+           ) order by s.sort, s.key), '[]'::jsonb)
+      into v_shop from public.season_event_shop s where s.event_key = v_n.key and s.enabled;
+    select coalesce(jsonb_agg(jsonb_build_object('src', d.src, 'chance', d.chance, 'qty_min', d.qty_min, 'qty_max', d.qty_max,
+             'min_tier', d.min_tier, 'full_mins', d.full_mins, 'hi_tier', d.hi_tier, 'hi_bonus', d.hi_bonus, 'first_bonus', d.first_bonus, 'note', d.note) order by d.src), '[]'::jsonb)
+      into v_drops from public.season_event_drops d where d.event_key = v_n.key;
     v_next := json_build_object('key', v_n.key, 'name', v_n.name, 'tagline', v_n.tagline, 'starts_at', v_n.starts_at, 'ends_at', v_n.ends_at,
-                'mark', json_build_object('key', v_n.mark_key, 'name', v_n.mark_name, 'plural', v_n.mark_plural, 'art', v_n.mark_art), 'accent', v_n.accent);
+                'mark', json_build_object('key', v_n.mark_key, 'name', v_n.mark_name, 'plural', v_n.mark_plural, 'art', v_n.mark_art),
+                'set', json_build_object('name', v_n.set_name, 'prefix', v_n.set_prefix, 'figure_suffix', v_n.figure_suffix, 'min', v_n.set_min),
+                'accent', v_n.accent, 'flavor', v_n.flavor, 'shop', v_shop, 'drops', v_drops, 'marks', 0);
   end if;
   return json_build_object('now', now(), 'event', v_ev, 'next', v_next);
 end $function$;
