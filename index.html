@@ -12844,7 +12844,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
    foljer alla stallen med (kort, vaska, valjare, handlare). --mcc = sortens farg, --mcr = raritetens farg (ramen). */
 .mc-hex{--mcc:var(--cyan);--mcr:var(--text);position:relative;display:inline-block;width:22px;height:22px;flex:0 0 auto !important;vertical-align:middle;
   filter:drop-shadow(0 0 4px color-mix(in srgb, var(--mcc) 55%, transparent))}
-.mc-hex::before,.mc-hex::after{content:'';position:absolute;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.mc-hex::before,.mc-hex::after{content:'';position:absolute;border-radius:22%}   /* [ANDRAT v5.1371.0] fyrkantig som chipen och sockelmarket (Chris), var sexkant */
 .mc-hex::before{inset:0;background:var(--mcr)}
 .mc-hex::after{inset:3px;background:var(--mcc)}
 .mc-hex.empty::after{background:#0b1226}
@@ -12892,7 +12892,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 .chip-pick .cp-sorts button{flex:1 1 40%}
 /* Statsraden */
 .mc-full{color:var(--green, #7bea7b);font-style:normal}
-.mc-stat{color:var(--mcc);white-space:nowrap}
+.mc-stat{color:var(--mcc);white-space:nowrap;margin-right:2px}   /* [ANDRAT v5.1371.0] luft mellan fyrkanterna, annars blev de en stapel */
 .mc-over{color:#8a93ad !important}
 /* Handlarens Chip Fusion */
 .fus-box{display:grid;gap:10px}
@@ -30573,8 +30573,8 @@ function charStatRows(){
     MODCHIP_SORTS.forEach(k => {
       const t = ct[k]; if (!t.n) return;
       const over = t.raw > t.cap;
-      /* Spalten ar smal: en fargad sexkant per sort + "5.3/18" i raden, hela namnen i hovringsrutan. Over taket: gratt. */
-      parts.push('<span class="mc-stat' + (over ? ' mc-over' : '') + '" style="--mcc:' + perkColor(k) + '" title="' + esc(MODCHIP[k].name) + ' ' + t.used + ' / ' + t.cap + ' %">\u2b22' + (t.raw >= t.cap ? '\u2605' : '') + '</span>');
+      /* [ANDRAT v5.1371.0] fyrkant, inte sexkant (Chris). Spalten ar smal: en fargad fyrkant per sort + "5.3/18" i raden, hela namnen i hovringsrutan. Over taket: gratt. */
+      parts.push('<span class="mc-stat' + (over ? ' mc-over' : '') + '" style="--mcc:' + perkColor(k) + '" title="' + esc(MODCHIP[k].name) + ' ' + t.used + ' / ' + t.cap + ' %">\u25a0' + (t.raw >= t.cap ? '\u2605' : '') + '</span>');
       delar.push([MODCHIP[k].name, t.used + ' / ' + t.cap + ' %' + (t.raw >= t.cap ? ' (full)' : '') + (over ? ' \u2014 ' + round(t.raw - t.cap) + ' % over the cap does nothing' : '')]);
       if (k === 'dgspeed') delar.push(['Dungeon Speed in time', '\u2212' + Math.round(45 * 60 * t.used / 100) + ' s per normal run']);
     });
@@ -31177,12 +31177,12 @@ async function askExtractChip(gear){
   const ex = extractorFor(gear.mc.r);
   const d = MODCHIP[gear.mc.k] || {name: gear.mc.k};
   if (!ex){
-    await askConfirm({color: 'var(--red)', ico: '\u2b21', title: 'Needs a Chip Extractor',
+    await askConfirm({color: 'var(--red)', ico: '\u25a2', title: 'Needs a Chip Extractor',
       body: 'Taking out a <b>' + (gear.mc.salv ? 'Salvaged' : RARITIES[gear.mc.r].name) + '</b> chip needs a <b>Chip Extractor (' + RARITIES[gear.mc.r].name + ')</b> or better. Weaponsmiths make them. The chip is never lost.',
       yes: 'OK', no: 'CLOSE'});
     return;
   }
-  const ja = await askConfirm({color: perkColor(gear.mc.k), ico: '\u2b21', title: 'Remove the Mod Chip?',
+  const ja = await askConfirm({color: perkColor(gear.mc.k), ico: '\u25a2', title: 'Remove the Mod Chip?',
     body: 'The <b>+' + (+gear.mc.v).toFixed(2) + '% ' + esc(d.name) + '</b> chip comes out of <b>' + esc(gearName(gear)) + '</b> and goes to your backpack (bound). One <b>' + esc(ITEM_DEFS[ex].name) + '</b> is used up.',
     yes: 'REMOVE', no: 'KEEP'});
   if (!ja) return;
@@ -31192,7 +31192,7 @@ async function askDrillSocket(gear){
   if (!gear || gear.ms){ say(SRV_ERRORS.already_has_socket); return; }
   if (pveOwned('socket_drill') < 1){ say('You need a Socket Press (World Boss shop, ' + SOCKET_DRILL_MARKS + ' Boss Marks).'); return; }
   if (gear.r < 2){ say(SRV_ERRORS.drill_needs_rare); return; }
-  const ja = await askConfirm({color: 'var(--cyan)', ico: '\u2b21', title: 'Press a socket?',
+  const ja = await askConfirm({color: 'var(--cyan)', ico: '\u25a2', title: 'Press a socket?',
     body: '<b>' + esc(gearName(gear)) + '</b> gets one socket. It never fails. The piece <b>binds to you</b> and one Socket Press is used up.',
     yes: 'DRILL', no: 'NO'});
   if (!ja) return;
@@ -31354,7 +31354,7 @@ function socketsDemoSeed(){
     S.equip[12] = mk(keyFor(8), 4, 12, 45, [{k: 'critdmg', v: 10.0}, {k: 'crit', v: 5.0}, {k: 'xp', v: 14.0}], {mod_socket: true, mod_chip: {key: 'modchip_dgspeed_mythic', k: 'dgspeed', v: 2.0, r: 5, salv: false}});
     /* chips, verktyg och papper i vaskan */
     const chips = [['modchip_crit_epic', 3, 'crit', 1.72, false], ['modchip_gold_rare', 2, 'gold', 2.91, false], ['modchip_critdmg_mythic', 5, 'critdmg', 4.31, false],
-                   ['salvaged_modchip', 2, 'crit', 1.24, true], ['salvaged_modchip', 2, 'gold', 2.66, true], ['salvaged_modchip', 3, 'dgspeed', 1.05, true]];
+                   ['modchip_luck_epic', 3, 'luck', 0.98, false], ['salvaged_modchip', 2, 'crit', 1.24, true], ['salvaged_modchip', 2, 'gold', 2.66, true], ['salvaged_modchip', 3, 'dgspeed', 1.05, true]];
     chips.forEach(c => { const g = mk(c[0], c[1], 15, 1, [{k: c[2], v: c[3]}], {bound: c[4], gold_value: c[4] ? 8000 : [0,0,20000,60000,180000,450000][c[1]]}); const f = invFirstFree(); if (f >= 0) S.inv[f] = {gear: g}; });
     const socketless = mk(keyFor(7), 4, 7, 45, [{k: 'gold', v: 8.0}, {k: 'luck', v: 6.0}, {k: 'expspd', v: 7.0}]);
     const f0 = invFirstFree(); if (f0 >= 0) S.inv[f0] = {gear: socketless};
@@ -31369,7 +31369,7 @@ function socketsDemoSeed(){
     /* Krokar for Playwright-testet (bara i demo-laget): spelets kod ligger i en egen rackvidd, sa testet nar den har vagen. */
     window.SOCKDEMO = {get S(){ return S; }, redrawAll, openInventory, spawnItemWin, showGearTip, hideGearTip, openChipPicker, openChipTargetPicker, askExtractChip, openDrillPicker, openDesignLearn,
       charStatRows, renderCharStats, buildTrader, wireTrader, wbMarksHTML, openHowToPlay, chipFusionHTML, chipTotals, pveOwned, findByUid, openGearMenu, $: $,
-      setVendorTab(t){ vendorTab = t; }, setFusion(k){ FUSION_PICK = k; }, bringToFront, showCsPop, hideCsPop, CS_ROWS: () => CS_ROWS, closeChipPicker, invCellHTML, itemWinHTML, gearTipHTML, netChipInsert, netChipExtract, netDrill, netChipFusion, netLearnDesign, isNarrowScreen};
+      setVendorTab(t){ vendorTab = t; }, setFusion(k){ FUSION_PICK = k; }, bringToFront, showCsPop, hideCsPop, CS_ROWS: () => CS_ROWS, closeChipPicker, invCellHTML, itemWinHTML, gearTipHTML, netChipInsert, netChipExtract, openWorldBoss, openNodeWin, setWbTab(t){ WB.tab = t; WB.sig = ''; }, netDrill, netChipFusion, netLearnDesign, isNarrowScreen};
   } catch (e){ console.error('socketsDemoSeed', e); }
 }
 if (SOCKETS_DEMO) window.addEventListener('load', () => setTimeout(socketsDemoSeed, 400));
@@ -37990,7 +37990,7 @@ function wireTrader(root, regionId, rita){
     if (fgo) fgo.addEventListener('click', async () => {
       if (!dubbelSparr('vend:fusion')) return;
       const ch = fusionChips(); if (ch.length < 3 || !FUSION_PICK) return;
-      const ja = await askConfirm({color: perkColor(FUSION_PICK), ico: '\u2b21', title: 'Fuse three chips?',
+      const ja = await askConfirm({color: perkColor(FUSION_PICK), ico: '\u25a2', title: 'Fuse three chips?',
         body: 'Three <b>Salvaged Mod Chips</b> become one <b>Epic ' + MODCHIP[FUSION_PICK].name + ' Mod Chip</b> (+' + modchipBase(FUSION_PICK, 3) + '%). It costs ' + fmtMoney(CHIP_FUSION_GOLD) + ' and the chip binds to you.',
         yes: 'FUSE', no: 'NO'});
       if (!ja) return;
@@ -47088,7 +47088,7 @@ const HTP = [
        'Between bosses the Events window is a <b>codex</b>: every boss, its special attacks and what it drops.'],
    where:'The Events button (it glows until you have opened it once), or the skull on the map while a boss is announced.'},
   /* [TILLAGT v5.1358.0] SOCKETS OCH MOD CHIPS (Chris tre rader + Chip Extractor och Chip Fusion). */
-  {id:'sockets', n:'Sockets & Mod Chips', img:'assets/items/charms/charm_epic.webp',
+  {id:'sockets', n:'Sockets & Mod Chips', img:'assets/items/chips/chip_crit.webp',   /* [ANDRAT v5.1371.0] chipets egen bild */
    intro:'Some gear has a socket. Put a Mod Chip in it for a bonus that stacks with the rest of your gear.',
    li:['Some gear drops with a <b>socket</b>. A <b>Socket Press</b> from the World Boss shop ([[gold:' + SOCKET_DRILL_MARKS + ' Boss Marks]]) adds one to Rare gear or better. Pressed gear binds to you.',
        '<b>Jewelcrafters</b> make Mod Chips, and simple <b>Salvaged</b> ones drop in the world. Any chip fits any socket, up to the item\u2019s rarity.',
@@ -47097,7 +47097,7 @@ const HTP = [
        'A piece with a chip in it cannot be sold, traded, auctioned or recycled until the chip is removed.',
        '<b>Chip Fusion</b> at any vendor: three Salvaged Mod Chips become one Epic chip of a type among the three, for [[gold:' + fmtMoney(CHIP_FUSION_GOLD) + ']]. Anyone can do it.',
        'Epic, Legendary and Mythic chip recipes are found as <b>Mod Chip Designs</b> in the world. Anyone can find and sell them; only Jewelcrafters can read them.'],
-   where:'Right-click a piece with a socket, or open its card. Stats shows a Mod Chips row with every type you wear and its cap.'},
+   where:'A small square in the top-left corner of a piece shows its socket (dark = empty). Right-click it, or open its card. Stats shows a Mod Chips row with every type you wear and its cap.'},   /* [ANDRAT v5.1371.0] sockelmarket */
   {id:'charms', n:'Charms', img:'assets/items/charms/charm_legendary.webp', steps:true,
    intro:'Charms let you keep a favourite piece of gear as you level. A charm raises its level, once.',
    li:['Beat <b>dungeon bosses</b> and you may find a <b>Broken Charm</b> ([[epic:Epic]], [[legendary:Legendary]] or [[mythic:Mythic]]). Never guaranteed, and at most one per run.',
