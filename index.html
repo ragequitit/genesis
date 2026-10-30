@@ -9265,13 +9265,16 @@ html.gate-resuming #gate{visibility:hidden}
 .map-fs-btn{display:none}
 /* [TILLAGT v5.1353.0] VAXELN 2D|3D uppe till vanster pa kartan (Chris 5). Samma stil som kartans egna knappar: fyrkantig,
    tunn ljus ram, mork fond, monospace i versaler. Valet sparas i localStorage (genesis.map3d). */
-.map-dim{position:absolute;left:8px;top:8px;z-index:30;display:flex;border:1px solid rgba(190,230,245,.2);background:rgba(5,9,15,.72);
+/* [ANDRAT v5.1371.0] vaxeln uppe till HOGER (Chris: krockade med Live zone/Enter zone uppe till vanster). World Boss-klockan
+   (ocksa uppe till hoger pa dator) flyttas ner en rad under vaxeln. */
+.map-dim{position:absolute;right:8px;left:auto;top:8px;z-index:30;display:flex;border:1px solid rgba(190,230,245,.2);background:rgba(5,9,15,.72);
   border-radius:0;overflow:hidden}
 .map-dim button{appearance:none;border:0;background:transparent;color:#aebbd7;cursor:pointer;height:30px;padding:0 11px;
   font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:700}
 .map-dim button.on{background:rgba(56,232,255,.16);color:var(--cyan)}
 .map-dim button + button{border-left:1px solid rgba(190,230,245,.2)}
 @media (hover:hover){ .map-dim button:not(.on):hover{color:#e8eef2} }
+@media (min-width:761px){ .wb-mapbar{top:46px} .map-shell.is3d .wb-mapbar{top:92px} }
 @media (max-width:760px){
   /* Rutan tar inte langre en halv skarmhojd i onodan. */
   #panel-network-map{height:auto}
@@ -12865,12 +12868,16 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
   .dgc-frame .dgc-art .dgc-pills:has(.dgc-gs){flex-wrap:wrap}
   .dgc-frame .dgc-art .dgc-pill.dgc-gs{flex:1 1 100%}
 }
-/* [TILLAGT v5.1353.0] vaxeln 2D|3D pa telefon: lika hog som "Open map"-knappen, uppe till vanster, kvar i helskarm */
+/* [TILLAGT v5.1353.0] vaxeln 2D|3D pa telefon: lika hog som "Open map"-knappen, kvar i helskarm */
 @media (max-width:760px){
   .map-dim{height:37px}
-  .map-dim button{height:37px;padding:0 10px}
-  .map-panel.fs .map-dim{top:12px;left:12px;z-index:1310}
+  .map-dim button{height:37px;padding:0 8px}
+  /* [ANDRAT v5.1371.0] till vanster om Open map (106 px) / Close (83 px), som sitter uppe till hoger */
+  .map-dim{right:118px}
+  .map-panel.fs .map-dim{top:12px;right:101px;left:auto;z-index:1310}
 }
+/* [TILLAGT v5.1371.0] minsta telefonerna (360 px): smalare 2D|3D sa den inte nuddar Leave region-rutan */
+@media (max-width:374px){ .map-dim button{padding:0 6px} }
 
 /* ============================================================
    [TILLAGT v5.1358.0] TELEFONSVEP (Chris iPhone). Ett systematiskt svep av alla rutor pa 390, 360 och 1440 px
@@ -36526,7 +36533,8 @@ function gmExpStyle(){
   /* [v5.730.0] Och lika hogt upp som Open map-knappen: 8 px fran kanten (Chris). */
   /* [ANDRAT v5.1169.0] KLASSNAMNET scp0 AR INTE STABILT (Chris iPhone 2026-10-24: rutan jattestor igen). Kartan numrerar sina klasser i den ordning
      de ritas, sa pa hans telefon hamnade rutan pa ett annat nummer - och scp0 krympte nagot annat. Nu kanns rutan igen pa sin egen placering. */
-  try { if (isNarrowScreen()) css += 'div[style*="left: 30px"][style*="top: 26px"]{top:8px !important;left:8px !important;transform:scale(.62);transform-origin:0 0}'; } catch (e){}
+  /* [ANDRAT v5.1371.0] rutan star nu sjalv i hornet (left:8px;top:8px i kartan, Chris) - kanns igen pa den nya platsen + att den gar att trycka pa */
+  try { if (isNarrowScreen()) css += 'div[style*="left: 8px"][style*="top: 8px"][style*="cursor: pointer"]{top:8px !important;left:8px !important;transform:scale(.62);transform-origin:0 0}'; } catch (e){}
   /* [TILLAGT v5.1169.0] FORKLARINGEN UNDER KARTAN tog lika mycket plats som kartan pa telefon (Chris iPhone): 13,5 px text och stora mellanrum
      gav tre rader. Pa smal skarm blir den liten och ryms pa tva rader. Kanns igen pa sina egna stilar, inte pa klassnamn. */
   try { if (isNarrowScreen()) css += 'div[style*="gap: 9px 26px"]{gap:3px 10px !important;padding:4px 0 6px !important}' +
@@ -37196,7 +37204,9 @@ const MAP3D_KEY = 'genesis.map3d';
 function map3dOn(){ try { return localStorage.getItem(MAP3D_KEY) === '1'; } catch (e){ return false; } }
 function gmMapFile(){ return map3dOn() ? 'genesis-3d.html' : ($('map-frame').getAttribute('data-src') || 'genesis-map.html'); }
 function gmIs3d(){ const f = $('map-frame'); return !!(f && /genesis-3d\.html/.test(f.getAttribute('src') || '')); }
-function gmDimRender(){ const on = map3dOn(); const a = $('map-dim-2d'), b = $('map-dim-3d'); if (a) a.classList.toggle('on', !on); if (b) b.classList.toggle('on', on); }
+function gmDimRender(){ const on = map3dOn(); const a = $('map-dim-2d'), b = $('map-dim-3d'); if (a) a.classList.toggle('on', !on); if (b) b.classList.toggle('on', on);
+  /* [TILLAGT v5.1371.0] is3d pa ramen: World Boss-klockan stalls under 3D-kartans egen klocka */
+  const sh = $('map-shell'); if (sh) sh.classList.toggle('is3d', on); }
 /* Bytet: valet sparas, ramen laddas om med den andra filen och kopplingen gors om. Kartan sjalv ror aldrig valet -
    utan WebGL ber 3D-filen om 2D igen ('nowebgl'), da sparas 2D sa den inte studsar vid nasta inloggning. */
 function genesisMapSwitch(mode, why){
