@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* [TILLAGT v5.1371.0] NEON-MATNING OCH BILDGALLERI (VARLDEN, ny look). Bygger pa measure-varld.js (samma server och samma pahittade lage).
+/* [TILLAGT v5.1373.0] NEON-MATNING OCH BILDGALLERI (VARLDEN, ny look). Bygger pa measure-varld.js (samma server och samma pahittade lage).
    Kor:  node .claude/tools/measure-neon.js [prefix]      prefix 'fore' = bilder av nuvarande look (fore), annars 'neon'.
    1) Sex bredder: JS-fel, vagratt spill, 3D laddad, tryck pa mote -> spelets Encounter-ruta, hjalpare synlig, bildfrekvens, bloom pa/av.
    2) Galleri pa 1440x900 (+ mobil 390): oversikt, varje region, natt, hjalpare narbild -> docs-world/<prefix>-*.jpg

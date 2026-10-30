@@ -1,10 +1,10 @@
-# Världen i 3D – inbyggd i spelet (v5.1371.0 — VARLDEN)
+# Världen i 3D – inbyggd i spelet (v5.1373.0 — VARLDEN)
 
 Gren: `genesis-world-live`. Inget är live. Main är orörd.
 
-## Omgång 2 (v5.1371.0): main inslagen, hjälparna i 3D, ny neonlook
+## Omgång 2 (v5.1373.0): main inslagen, hjälparna i 3D, ny neonlook
 
-**Main inslagen.** Grenen har main fram till v5.1370.0 (Halloween, World Boss, Settings, sidomeny …) inslagen med merge. Versionen står en gång på vart och ett av de tre ställena: `GENESIS v5.1371.0 — VARLDEN`. Världens patch notes-post (5.1371.0) ligger överst i `patchnotes.json` med `discord: "hold"`, alla mains poster kvar.
+**Main inslagen.** Grenen har main fram till v5.1372.0 (Halloween, World Boss, Headless Horseman, Settings, sidomeny …) inslagen med merge. Versionen står en gång på vart och ett av de tre ställena: `GENESIS v5.1373.0 — VARLDEN`. Världens patch notes-post (5.1373.0) ligger överst i `patchnotes.json` med `discord: "hold"`, alla mains poster kvar.
 
 **Hjälparna (47 TRELLIS-modeller).**
 - 39 modeller är krympta och ersätter originalen: 74 MB → 3,6 MB totalt (55–190 kB styck, de flesta ~90 kB). Gjort med gltf-transform: dedup + weld, meshopt-förenkling till högst ~6 000 trianglar, texturen omgjord till WebP 512 px, meshopt-komprimering (avkodaren finns redan lokalt i `lib/`). Materialet satt till icke-metall (TRELLIS gav metall = mörka figurer).
