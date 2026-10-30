@@ -50,7 +50,7 @@ const LIVE = () => [{id: 'p1', name: 'Zylnock', x: 0, y: 0, face: 1, zone: 'Gnom
   {id: 'p3', name: 'Kesra', x: 0, y: 0, face: 3, zone: 'Troll Mire', klass: 'runner', niva: 17, helper: null, mv: true}];
 
 const PFX = process.argv[2] || 'neon';
-const HELPERS = ['bloom', 'kage', 'ember', 'morrow', 'prism', 'scuba'];
+const HELPERS = (process.env.HLP || 'bloom,kage,ember,morrow,prism,scuba').split(',');   /* HLP=a,b,c ... och HLPNAME=filnamn: annan uppsattning hjalpare (ONLY_HLP=1 tar bara den bilden) */
 async function open(browser, base, w, h, glow){
   const mobile = w < 760;
   const ctx = await browser.newContext({viewport: {width: w, height: h}, deviceScaleFactor: 1, hasTouch: mobile, isMobile: mobile, userAgent: mobile ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' : undefined});
@@ -67,7 +67,7 @@ async function open(browser, base, w, h, glow){
   let frame = null; for (let i = 0; i < 100 && !frame; i++){ frame = page.frames().find(f => /genesis-3d/.test(f.url())); if (!frame) await page.waitForTimeout(200); }
   if (frame) await frame.waitForFunction(() => window.__gw && window.__gw.ready && window.__gw.me.R, null, {timeout: 90000}).catch(() => {});
   await page.waitForTimeout(1200);
-  if (frame) await frame.evaluate(() => window.__gw.API.setMe({namn: 'Whippen', klass: 'warden', niva: 14, helper: {key: 'bloom', namn: 'Bloom'}}));
+  if (frame) await frame.evaluate((k) => window.__gw.API.setMe({namn: 'Whippen', klass: 'warden', niva: 14, helper: {key: k, namn: k[0].toUpperCase() + k.slice(1)}}), HELPERS[0]);
   if (mobile){ await page.click('#map-fs-open').catch(() => {}); await page.waitForTimeout(800); }
   return {ctx, page, frame, errs, glb, mobile};
 }
@@ -104,22 +104,26 @@ const shotP = (page, name) => page.screenshot({path: path.join(OUT, PFX + '-' + 
       '#panel-network-map #map-frame{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}'});
     await page.evaluate(() => window.dispatchEvent(new Event('resize'))); await page.waitForTimeout(800);
     await g(() => window.__gwTid = 13);
+    if (!process.env.ONLY_HLP){
     await g(() => { window.__gw.unfollow(); window.__gw.overview(50); }); await page.waitForTimeout(1500); await shotP(page, 'oversikt');
     for (const id of ['voxholm', 'drakemark', 'cutlassbay', 'novacommand', 'quarantine']){
       await g(id => { window.__gw.unfollow(); window.__gw.focusRegion(window.__gw.REG_BY[id], 50); }, id); await page.waitForTimeout(1600); await shotP(page, 'region-' + id); }
     await g(() => { const w = window.__gw; w.flyTo({tx: w.me.x * w.K, tz: w.me.y * w.K + 1, dist: 60}, 50); }); await page.waitForTimeout(1200); await shotP(page, 'dag');
     await g(() => window.__gwTid = 23); await page.waitForTimeout(1200); await shotP(page, 'natt');
     await g(() => { window.__gw.unfollow(); window.__gw.overview(50); }); await page.waitForTimeout(1500); await shotP(page, 'natt-oversikt');
+    }
     await g(() => window.__gwTid = 13);
     /* hjalpare narbild: min (bloom) + fem andra spelare med var sin hjalpare, i en ring kring mig */
     await g((H) => { const w = window.__gw, me = w.me; w.API.setLive(H.slice(1).map((k, i) => ({id: 'h' + i, name: ['Zylnock', 'Morla', 'Kesra', 'Toma', 'Ilse'][i], x: Math.round(me.x + Math.cos(i * 1.25 + .4) * 52), y: Math.round(me.y + Math.sin(i * 1.25 + .4) * 30 + 6),
       face: 0, zone: 'Gnome Square', klass: ['breaker', 'fabricator', 'runner', 'warden', 'breaker'][i], niva: 14, helper: {key: k, namn: k[0].toUpperCase() + k.slice(1)}, mv: false}))); }, HELPERS);
     await page.waitForTimeout(3500);
-    await g(() => { const w = window.__gw; w.flyTo({tx: w.me.x * w.K, tz: w.me.y * w.K + 1.2, dist: 17}, 50); }); await page.waitForTimeout(2000); await shotP(page, 'hjalpare');
+    await g(() => { const w = window.__gw; w.flyTo({tx: w.me.x * w.K, tz: w.me.y * w.K + 1.2, dist: 17}, 50); }); await page.waitForTimeout(2000); await shotP(page, process.env.HLPNAME || 'hjalpare');
+    if (!process.env.ONLY_HLP){
     /* 2D-kartan som jamforelse */
-    await page.evaluate(() => window.genesisMapSwitch && window.genesisMapSwitch('2d')); await page.waitForTimeout(3000); if (PFX !== 'fore') await shotP(page, '2d-jamforelse');
+    await page.evaluate(() => window.genesisMapSwitch && window.genesisMapSwitch('2d')); await page.waitForTimeout(3000); if (PFX !== 'fore') await shotP(page, '2d-jamforelse'); }
     report.push({galleri: '1440', errs});
     await ctx.close();
+    if (process.env.ONLY_HLP){ await browser.close(); srv.close(); console.log(JSON.stringify(report)); return; }
     const m = await open(browser, base, 390, 844, PFX === 'fore' ? null : 'on');
     if (m.frame){ await m.frame.evaluate(() => window.__gwTid = 13); await m.page.waitForTimeout(1500); await shotP(m.page, 'mobil-390');
       await m.frame.evaluate(() => window.__gwTid = 23); await m.page.waitForTimeout(1200); await shotP(m.page, 'mobil-390-natt'); }
