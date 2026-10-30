@@ -152,7 +152,9 @@ insert into public.season_event_shop (event_key, key, name, kind, price, payload
   ('halloween_2026', 'jack_boots',  'Jack-o''-Lantern Boots',  'appearance', 30, '{"item_key":"jack_boots","slot":4}',  'assets/gear/halloween/jack_boots.webp',  'Appearance for the feet slot. Any class, forever.', 1, 50),
   ('halloween_2026', 'cache_legendary', 'Legendary Cache', 'gear', 25, '{"rarity":4,"up_chance":0.10}', 'assets/items/caches/cache_gear_leg.webp',  'A Legendary piece of gear for your level. 10 % chance it is Mythic.', null, 60),
   ('halloween_2026', 'cache_rare',      'Rare Cache',      'gear',  8, '{"rarity":2,"up_chance":0.25}', 'assets/items/caches/cache_gear_rare.webp', 'A Rare piece of gear for your level. 25 % chance it is Epic.', null, 70),
-  ('halloween_2026', 'gold_pile',       'Pile of gold',    'gold', 10, '{"copper":250000}',             'assets/ui/ico/gold.webp',                  '25 gold, straight into your purse.', null, 80)
+  /* [ANDRAT 2026-10-30] Chris: handlarens boostar i stallet for guld - samma varde, roligare. Nycklarna finns i stack_item_config (boost_luck 27,5 g, boost_expspd 22,5 g hos handlaren). */
+  ('halloween_2026', 'boost_luck',      'Fortune Vial',    'stack', 10, '{"stack_key":"boost_luck","qty":1}',   'assets/ui/boost/fortune_vial.webp',  'A Luck Boost, the same one the vendor sells for 27.5 gold.', null, 80),
+  ('halloween_2026', 'boost_expspd',    'Chrono Draft',    'stack',  8, '{"stack_key":"boost_expspd","qty":1}', 'assets/ui/boost/chrono_draft.webp',  'An Expedition Boost, the same one the vendor sells for 22.5 gold.', null, 90)
 on conflict (event_key, key) do update set name = excluded.name, kind = excluded.kind, price = excluded.price, payload = excluded.payload,
   art = excluded.art, descr = excluded.descr, per_char = excluded.per_char, sort = excluded.sort;
 
@@ -479,7 +481,7 @@ begin;
     select public.event_shop_buy('<CHAR>'::uuid, 'halloween_2026', 'jack_head');     -- got.kind = appearance, marks_left = 20
     select public.event_shop_buy('<CHAR>'::uuid, 'halloween_2026', 'jack_head');     -- FEL: event_item_owned
     select public.event_shop_buy('<CHAR>'::uuid, 'halloween_2026', 'cache_rare');    -- got.kind = item (Rare/Epic), marks_left = 12
-    select public.event_shop_buy('<CHAR>'::uuid, 'halloween_2026', 'gold_pile');     -- got.copper = 250000, marks_left = 2
+    select public.event_shop_buy('<CHAR>'::uuid, 'halloween_2026', 'boost_luck');    -- got.kind = stack (Fortune Vial), marks_left = 2
     select public.event_shop_buy('<CHAR>'::uuid, 'halloween_2026', 'cache_legendary'); -- FEL: event_marks_short (detail 25)
     -- utseendet: satt jack_head pa den burna hjalmen
     select public.transmog_apply('<CHAR>'::uuid, (select id from public.items where character_id = '<CHAR>'::uuid and location = 'equipped' and slot_idx = 0 limit 1), 'jack_head');

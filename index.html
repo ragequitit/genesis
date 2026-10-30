@@ -4959,6 +4959,15 @@ body.vt-blue #vault-overlay .inv-modal, body.vt-blue .bagwin.vaultbagwin{
 .wb-next em{margin-left:auto;font-style:normal;font-weight:800;color:var(--cyan);font-variant-numeric:tabular-nums}
 .wb-sec{margin-top:14px}
 .wb-sec h4{margin:0 0 8px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:8px}
+/* [TILLAGT v5.1362.0] FLIKAR I EVENTS-RUTAN (Chris 2026-10-30): Holiday Events | World Bosses | Shop. Butiken samlar
+   Boss Marks-varorna och sasongens marks-varor pa ett stalle. Stridskortet (nar bossen ar igang) ar som forut. */
+.wb-tabs{display:flex;gap:6px;margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.wb-tabs button{flex:1 1 0;min-width:0;min-height:40px;padding:6px 8px;border-radius:calc(9px * var(--rnd));border:1px solid var(--border);background:var(--bg-inset);color:var(--text-dim, #9aa3b8);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;line-height:1.2}
+.wb-tabs button.on{color:var(--text);border-color:var(--cyan);background:rgba(61,220,255,.10)}
+.wb-tabs button small{display:block;font-size:9.5px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--text-dim, #9aa3b8);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb-shop-have{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.wb-shop-have .wb-marks-have{flex:1 1 260px;margin:0}
+.ev-empty.inwb{padding:26px 10px}
 .wb-sec h4::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(56,232,255,.4),transparent)}
 /* ===== [TILLAGT v5.1000.0] STRIDSKORTET EFTER CHRIS MOCKUP =====
    Titel med WORLD BOSS under, platsraden i bilden, bosshalsan och ditt liv som rutor med fargad kant,
@@ -49015,12 +49024,15 @@ $('wb-mapbar').addEventListener('click', () => openWorldBoss());
 function wbBodyClick(e){
   /* [RATTAT tyst 2026-10-24] Firefox kan ge ett mal utan closest (client_errors 25) */
   const tgt = (e.target && e.target.closest) ? e.target : (e.target && e.target.parentElement);
+  /* [TILLAGT v5.1362.0] eventbutikens kort ligger nu i Shop-fliken har */
+  const evb = tgt && tgt.closest && tgt.closest('[data-ev]'); if (evb){ if (!evb.disabled && evb.dataset.ev === 'buy') eventBuy(evb.dataset.evk); return; }
   const b = tgt && tgt.closest('[data-wb]'); if (!b || b.disabled) return;
-  if (b.dataset.wb === 'travel') wbTravel();
+  if (b.dataset.wb === 'tab'){ WB.tab = b.dataset.wbtab; WB.sig = ''; renderWorldBoss(); }   /* [TILLAGT v5.1362.0] flikarna */
+  else if (b.dataset.wb === 'travel') wbTravel();
   else if (b.dataset.wb === 'report') openWbReport();
   else if (b.dataset.wb === 'fight') openWorldBoss('fight');   /* [TILLAGT v5.982.0] */
   else if (b.dataset.wb === 'marks') wbMarksRedeem(b.dataset.wbmark);   /* [v5.931.0] Boss Marks */
-  else if (b.dataset.wb === 'event') openEventShop();   /* [TILLAGT v5.1362.0] sasongsevent */
+  else if (b.dataset.wb === 'event'){ WB.tab = 'shop'; WB.sig = ''; renderWorldBoss(); }   /* [ANDRAT v5.1362.0] "Open the shop" = Shop-fliken */
   else wbAct(b.dataset.wb);
 }
 $('wb-body').addEventListener('click', wbBodyClick);
@@ -49303,13 +49315,19 @@ function renderWorldBoss(){
   /* [ANDRAT v5.982.0] Stridslage bara nar bossen ar igang (eller just fallit) och vi har ett event - annars info. */
   const fight = WB.mode === 'fight' && !!ev && ev.state !== 'announced';
   const ttl = document.querySelector('#wb-overlay .inv-title');
-  if (ttl){ if (fight) ttl.innerHTML = esc(ev.name || 'World Boss') + '<i class="wb-tsub">World Boss</i>'; else ttl.textContent = 'World Boss'; }   /* [ANDRAT v5.1000.0] underrad (Chris mockup) */
+  if (ttl){ if (fight) ttl.innerHTML = esc(ev.name || 'World Boss') + '<i class="wb-tsub">World Boss</i>'; else ttl.textContent = 'Events'; }   /* [ANDRAT v5.1362.0] rutan heter Events - bossen ar en flik */   /* [ANDRAT v5.1000.0] underrad (Chris mockup) */
   const mdl = document.querySelector('#wb-overlay .wb-modal'); if (mdl) mdl.classList.toggle('wb-fight', fight);
   const ovl = $('wb-overlay'); if (ovl) ovl.classList.toggle('wbf', fight);   /* [TILLAGT v5.982.0] stridskortet ovanpa chatten */
-  const sig = (fight ? 'F|' : 'I|') + (ev ? [ev.id, ev.state, (st.me && st.me.here), (st.me && st.me.other_character), (wbMe().reward ? 1 : 0), (wbMe().joined ? 1 : 0)].join('|') : 'none|' + (st && st.next ? st.next.starts_at : ''));
+  const sig = (fight ? 'F|' : 'I|' + (WB.tab || '') + '|' + (evActive() ? evActive().key + evMarks(evActive()) : '') + '|' + (typeof pveOwned === 'function' ? (pveOwned('boss_mark') | 0) : 0) + '|') + (ev ? [ev.id, ev.state, (st.me && st.me.here), (st.me && st.me.other_character), (wbMe().reward ? 1 : 0), (wbMe().joined ? 1 : 0)].join('|') : 'none|' + (st && st.next ? st.next.starts_at : ''));
   if (sig === WB.sig) { wbRenderLive(); return; }
   WB.sig = sig;
   if (!st){ body.innerHTML = '<div class="desc">Loading…</div>'; return; }
+  /* [TILLAGT v5.1362.0] FLIKARNA (Chris): Holiday Events | World Bosses | Shop. Oppnas pa Holiday Events nar ett event ar
+     igang, annars pa World Bosses. Bara i info-laget - stridskortet ar som forut. */
+  if (!fight){
+    if (!WB.tab) WB.tab = evActive() ? 'event' : 'boss';
+    if (WB.tab !== 'boss'){ body.innerHTML = wbTabsHTML() + (WB.tab === 'shop' ? wbShopTabHTML() : wbEventTabHTML()); return; }
+  }
   /* [OMBYGGT v5.903.0] PEDAGOGISK RUTA (Chris): avdelningar med rubriker i stallet for en textklump, och en
      BOSSKATALOG dar varje boss gar att oppna - formagor, veckodag, drops (signaturpjaser med pjaskort vid hovring). */
   const rules = wbSkillsHTML() + wbRulesHTML();   /* [ANDRAT v5.983.0] dina skills forst */
@@ -49318,9 +49336,9 @@ function renderWorldBoss(){
     : '';
   if (!ev){
     const nb = (st.bosses || []).find(b => b.name === (st.next && st.next.boss)) || (st.bosses || [])[0];
-    body.innerHTML = '<div class="wb-hero"><img src="' + (nb ? wbBossArt(nb) : 'assets/ui/htp/start.webp') + '" alt=""' + (nb ? ' onerror="this.onerror=null;this.src=\'' + wbBossImg(nb) + '\'"' : '') + '><span class="wb-tag">World Boss</span>' +
+    body.innerHTML = wbTabsHTML() + '<div class="wb-hero"><img src="' + (nb ? wbBossArt(nb) : 'assets/ui/htp/start.webp') + '" alt=""' + (nb ? ' onerror="this.onerror=null;this.src=\'' + wbBossImg(nb) + '\'"' : '') + '><span class="wb-tag">World Boss</span>' +
         '<div class="wb-hero-txt"><div class="wb-name">No World Boss right now</div><div class="wb-where">The next one is announced an hour before it lands.</div></div></div>' +
-      nextLine + eventSeasonHTML() + wbMarksHTML() + wbCodexHTML(st) + rules;   /* [ANDRAT v5.1362.0] sasongsevent forst */   /* [v5.931.0] Boss Marks */
+      nextLine + wbCodexHTML(st) + rules;   /* [ANDRAT v5.1362.0] sasongsevent och Boss Marks ligger i egna flikar */
     wbBindCodex(body);
     return;
   }
@@ -49350,7 +49368,7 @@ function renderWorldBoss(){
       '<div class="wb-state wb-clockrow">' + wbIco('clock', '⏰') + ' <b id="wb-clock">' + fmtDur(wbLeft(ev.ends_at)) + '</b> left · <span id="wb-next-sp"></span></div></div>'   /* [ANDRAT v5.1000.0] ruta med klockan i (Chris mockup) */
     : '<div class="wb-hp"><div class="bar"><i id="wb-hpbar" style="width:' + (ev.hp_max ? (100 * ev.hp_left / ev.hp_max).toFixed(1) : 0) + '%"></i></div><div class="nums"><span>Boss health</span><b id="wb-hpnum">' + fmt(ev.hp_left) + ' / ' + fmt(ev.hp_max) + '</b></div></div>';
   const kolumner = '<div class="wb-cols' + (fight ? ' boxes' : '') + '"><div><h4>' + (fight ? uiIco('achievements') + ' ' : '') + 'Top damage</h4><div class="wb-list" id="wb-top"></div></div><div><h4>' + (fight ? uiIco('card') + ' ' : '') + 'Battle log</h4><div class="wb-list" id="wb-feed"></div></div></div>';
-  let h = hero + (fight ? '' : '<div class="wb-name">' + esc(ev.name) + '</div>') + where;
+  let h = (fight ? '' : wbTabsHTML()) + hero + (fight ? '' : '<div class="wb-name">' + esc(ev.name) + '</div>') + where;   /* [ANDRAT v5.1362.0] flikarna overst i info-laget */
   if (ev.state === 'announced'){
     h += '<div class="wb-blurb">' + esc(ev.blurb || '') + '</div>' +
          '<div class="wb-state">Lands in <b id="wb-clock">' + fmtDur(wbLeft(ev.starts_at)) + '</b>. ' + (me.here ? 'You are here — ready.' : 'Get to ' + esc(ev.zone) + ' before it lands.') + '</div>' +
@@ -49398,7 +49416,7 @@ function renderWorldBoss(){
     h += kolumner + (fight ? '' : nextLine + rules);
   }
   /* Katalogen ligger under aven nar en boss ar igang - man vill kunna se vad den tappar. [ANDRAT v5.982.0] inte i stridskortet. */
-  if (!fight) h += eventSeasonHTML() + wbMarksHTML() + wbCodexHTML(st, ev.boss);   /* [ANDRAT v5.1362.0] sasongsevent */   /* [v5.931.0] Boss Marks */
+  if (!fight) h += wbCodexHTML(st, ev.boss);   /* [ANDRAT v5.1362.0] sasongsevent och Boss Marks i egna flikar */
   body.innerHTML = h;
   wbBindCodex(body);
   wbRenderLists();
@@ -49708,13 +49726,62 @@ function eventSeasonHTML(){
   return '';
 }
 /* ---- eventbutiken ---- */
-function openEventShop(){
-  const w = $('ev-overlay'); if (!w) return;
-  EVENT.open = true;
-  renderEventShop();
-  if (!w.dataset.drag){ w.dataset.drag = '1'; try { makeDraggable(w, [w.querySelector('.inv-titlebar')]); } catch (e){} }
-  w.classList.add('open'); bringToFront(w);
-  if (!EVENT_DEMO) eventPull().catch(() => {});
+/* [ANDRAT v5.1362.0] Eventet bor i Events-rutan (Chris): sidlistens eventknapp oppnar fliken Holiday Events, "shop" oppnar Shop-fliken.
+   Den gamla egna rutan (#ev-overlay) star kvar oanvand. */
+function openEventShop(tab){
+  WB.tab = tab === 'shop' ? 'shop' : 'event';
+  if (typeof wbMarkSeen === 'function') { try { wbMarkSeen(); } catch (e){} }
+  openWorldBoss('info');
+  if (!EVENT_DEMO && NET.on) eventPull().catch(() => {});
+}
+/* ---- flikarna i Events-rutan ---- */
+function wbTabsHTML(){
+  const e = evActive(), t = WB.tab || 'boss';
+  const b = (k, lbl, sub) => '<button type="button" data-wb="tab" data-wbtab="' + k + '"' + (t === k ? ' class="on"' : '') + '>' + lbl + (sub ? '<small>' + sub + '</small>' : '') + '</button>';
+  return '<div class="wb-tabs">' + b('event', 'Holiday Events', e ? esc(e.name) + ' \u00b7 ' + evEndsIn(e) + ' left' : 'none right now') + b('boss', 'World Bosses', '') +
+    b('shop', 'Shop', 'Boss Marks' + (e ? ' \u00b7 ' + esc(e.mark.plural) : '')) + '</div>';
+}
+/* Holiday Events: eventets huvud, dina marks, hur man far dem. Kopen gors i Shop-fliken. */
+function wbEventTabHTML(){
+  const e = evActive(), nx = EVENT.st && EVENT.st.next;
+  if (!e){
+    return '<div class="ev-empty inwb"><span class="ev-empty-ico">\ud83c\udf83</span><b>No seasonal event right now.</b>' +
+      (nx && !isNaN(Date.parse(nx.starts_at)) ? '<span>' + esc(nx.name) + ' starts in ' + evLeftText(Date.parse(nx.starts_at) - evNow()) + '.</span>' : '<span>The next one is announced here.</span>') + '</div>';
+  }
+  const have = evMarks(e);
+  return '<div class="ev-hero" style="--ev:' + esc(e.accent || '#ff8c1a') + '">' +
+      '<span class="ev-hero-art">' + artWithFallback(artUnlessMissing(e.mark.art || ''), '\ud83c\udf83') + '</span>' +
+      '<div class="ev-hero-txt"><div class="ev-name">' + esc(e.name) + '</div><div class="ev-tag">' + esc(e.tagline || '') + '</div>' +
+        '<div class="ev-left-row">Ends in <b id="ev-wb-left">' + evEndsIn(e) + '</b></div></div></div>' +
+    '<div class="wb-marks-have ev-have"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + have + '</b><span>' + esc(have === 1 ? e.mark.name : e.mark.plural) +
+      ' \u2014 spend them in the <b>Shop</b> tab. Bound to you: never sold or traded.</span></div>' +
+    evEarnHTML(e) +
+    '<div class="wb-sec ev-sec"><button class="ev-open-btn" data-wb="event"><img src="' + esc(e.mark.art || '') + '" alt="" draggable="false" onerror="this.remove()">Open the shop<small>' + esc(e.set && e.set.name ? e.set.name + ' set, gear, gold' : 'gear, gold and more') + '</small></button></div>' +
+    (e.flavor ? '<div class="ev-flavor">' + esc(e.flavor) + '</div>' : '');
+}
+function evEarnHTML(e){
+  if (!(e.drops || []).length) return '';
+  return '<div class="wb-sec ev-sec"><h4>How to earn ' + esc(e.mark.plural) + '</h4><div class="ev-drops">' +
+    e.drops.map(d => '<div class="ev-drop"><b>' + esc(EV_SRC_NAME[d.src] || d.src) + '</b><span>' + esc(evDropText(d, e)) + '</span></div>').join('') + '</div></div>';
+}
+/* Shop: Boss Marks-varorna (som forut) och sasongens varor, under varandra. */
+function wbShopTabHTML(){
+  const e = evActive();
+  let h = wbMarksHTML();
+  if (!e) return h + '<div class="ev-empty inwb"><span class="ev-empty-ico">\ud83c\udf83</span><b>No seasonal goods right now.</b><span>They show up here while a holiday event runs.</span></div>';
+  const have = evMarks(e);
+  const shop = (e.shop || []).slice().sort((a, b) => (a.sort | 0) - (b.sort | 0));
+  const setItems = shop.filter(x => x.kind === 'appearance'), rest = shop.filter(x => x.kind !== 'appearance');
+  const ownedN = setItems.filter(x => x.owned).length, worn = evSetWornCount(e);
+  h += '<div class="wb-sec ev-sec" style="--ev:' + esc(e.accent || '#ff8c1a') + '"><h4>' + esc(e.name) + '</h4>' +
+    '<div class="wb-marks-have ev-have"><img src="' + esc(e.mark.art || '') + '" alt="" onerror="this.remove()"><b>' + have + '</b><span>' + esc(have === 1 ? e.mark.name : e.mark.plural) + ' \u2014 ends in ' + evEndsIn(e) + '</span></div>' +
+    (setItems.length ? '<h4 style="margin-top:12px">' + esc(e.set && e.set.name ? e.set.name + ' set' : 'Appearance set') + ' <small>' + ownedN + ' / ' + setItems.length + ' owned</small></h4>' +
+      '<div class="ev-desc">Appearance pieces: buy one and pick it as the look of that slot on any gear, any class. Wear all ' + setItems.length + ' and your character picture becomes the set' +
+        (worn ? ' (<b>' + worn + ' / ' + setItems.length + '</b> worn now)' : '') + '.</div>' +
+      '<div class="ev-grid">' + setItems.map(x => evCardHTML(x, e, have)).join('') + '</div>' : '') +
+    (rest.length ? '<h4 style="margin-top:12px">Other rewards</h4><div class="ev-grid">' + rest.map(x => evCardHTML(x, e, have)).join('') + '</div>' : '') +
+    '</div>';
+  return h;
 }
 function closeEventShop(){ EVENT.open = false; const w = $('ev-overlay'); if (w) w.classList.remove('open'); }
 const EV_SRC_NAME = {encounter: 'Won fights', expedition: 'Expeditions', dungeon: 'Cleared dungeons', worldboss: 'World Boss kills'};
@@ -49835,7 +49902,9 @@ function evDemoState(){
     shop: [piece('head', 0, 'Head', 40, 10, true), piece('chest', 1, 'Chest', 40, 20, true), piece('legs', 2, 'Legs', 35, 30, true), piece('gloves', 3, 'Gloves', 30, 40, true), piece('boots', 4, 'Boots', 30, 50, false),
       {key: 'cache_legendary', name: 'Legendary Cache', kind: 'gear', price: 25, payload: {rarity: 4, up_chance: 0.10}, art: 'assets/items/caches/cache_gear_leg.webp', descr: 'A Legendary piece of gear for your level. 10 % chance it is Mythic.', per_char: null, sort: 60, bought: 0, owned: false},
       {key: 'cache_rare', name: 'Rare Cache', kind: 'gear', price: 8, payload: {rarity: 2, up_chance: 0.25}, art: 'assets/items/caches/cache_gear_rare.webp', descr: 'A Rare piece of gear for your level. 25 % chance it is Epic.', per_char: null, sort: 70, bought: 0, owned: false},
-      {key: 'gold_pile', name: 'Pile of gold', kind: 'gold', price: 10, payload: {copper: 250000}, art: 'assets/ui/ico/gold.webp', descr: '25 gold, straight into your purse.', per_char: null, sort: 80, bought: 0, owned: false}],
+      /* [ANDRAT v5.1362.0] handlarens boostar i stallet for guld (Chris 2026-10-30: "lite roligare an att trada in dem for guld") */
+      {key: 'boost_luck', name: 'Fortune Vial', kind: 'stack', price: 10, payload: {stack_key: 'boost_luck', qty: 1}, art: 'assets/ui/boost/fortune_vial.webp', descr: 'A Luck Boost, the same one the vendor sells for 27.5 gold.', per_char: null, sort: 80, bought: 0, owned: false},
+      {key: 'boost_expspd', name: 'Chrono Draft', kind: 'stack', price: 8, payload: {stack_key: 'boost_expspd', qty: 1}, art: 'assets/ui/boost/chrono_draft.webp', descr: 'An Expedition Boost, the same one the vendor sells for 22.5 gold.', per_char: null, sort: 90, bought: 0, owned: false}],
     drops: [{src: 'encounter', chance: 0.25, qty_min: 1, qty_max: 1, min_tier: 0, full_mins: null, hi_tier: null, hi_bonus: 0},
             {src: 'expedition', chance: 1, qty_min: 1, qty_max: 2, min_tier: 0, full_mins: 240, hi_tier: null, hi_bonus: 0},
             {src: 'dungeon', chance: 1, qty_min: 2, qty_max: 2, min_tier: 0, full_mins: null, hi_tier: 3, hi_bonus: 1},
@@ -49860,6 +49929,7 @@ function evDemoBuy(e, s){
     got = {kind: 'item', item_id: g.sid, item_key: k, name: ITEMS[k].name, rarity: r, mailed: f < 0};
   }
   else if (s.kind === 'gold'){ S.gold = (S.gold || 0) + (s.payload.copper | 0); got = {kind: 'gold', copper: s.payload.copper | 0}; }
+  else if (s.kind === 'stack'){ const d = ITEM_DEFS[s.payload.stack_key] || {name: s.name, ico: '\ud83e\uddea'}; addInvItem({key: s.payload.stack_key, name: d.name, ico: d.ico || '\ud83e\uddea', qty: s.payload.qty | 0 || 1, stack: true}); got = {kind: 'stack', key: s.payload.stack_key, qty: s.payload.qty | 0 || 1, mailed: false}; }   /* [TILLAGT v5.1362.0] boostarna */
   return {ok: true, event: e.key, key: s.key, price: s.price, marks_left: have - s.price, got: got, state: EVENT.st};
 }
 function eventDemoSeed(){

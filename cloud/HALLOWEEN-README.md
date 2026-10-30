@@ -58,7 +58,8 @@ Rakneexempel aktiv spelare per dag: ~80 strider = 20, 4–5 hjalpare x 2–3 exp
 | Jack-o'-Lantern Boots | appearance | 30 | utseende plats 4, en gang |
 | Legendary Cache | gear | 25 | en Legendary-pjas for din niva, 10 % Mythic (aldrig en vaska) |
 | Rare Cache | gear | 8 | en Rare-pjas, 25 % Epic |
-| Pile of gold | gold | 10 | 25 guld (250000 koppar) via `apply_currency` med skalet `sell` |
+| Fortune Vial (Luck Boost) | stack | 10 | handlarens boost (27,5 g) - Chris 2026-10-30: boostar i stallet for guld |
+| Chrono Draft (Expedition Boost) | stack | 8 | handlarens boost (22,5 g) |
 
 Hela setet = 175 marks. "Caches" levererar pjasen direkt (som `wb_marks_redeem`), inte en lada att oppna — enklare och ingen ny lada pa servern.
 
