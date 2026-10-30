@@ -118,12 +118,12 @@ alter table public.stack_item_config add column if not exists bop boolean not nu
 -- 2. RADER: HALLOWEEN 2026
 -- ============================================================================
 
-/* Eventfonstret: 2026-10-31 00:00 UTC till 2026-11-09 23:59:59 UTC (10 dagar). Chris bestammer -
-   andra starts_at/ends_at har, eller stang med enabled=false. */
+/* Eventfonstret: start 2026-10-31 16:00 UTC = 17:00 svensk tid (Chris 2026-10-30: en timme fore kvallens World Boss),
+   slut 2026-11-09 23:59:59 UTC. Andra starts_at/ends_at har, eller stang med enabled=false. */
 insert into public.season_events (key, name, tagline, starts_at, ends_at, enabled, mark_key, mark_name, mark_plural, mark_art,
                                   set_name, set_prefix, figure_suffix, set_min, accent, flavor, sort)
 values ('halloween_2026', 'Halloween', 'The grid is haunted. Collect Jack-o''-Marks and dress for the season.',
-        '2026-10-31 00:00:00+00', '2026-11-09 23:59:59+00', true,
+        '2026-10-31 16:00:00+00', '2026-11-09 23:59:59+00', true,
         'halloween_mark', 'Jack-o''-Mark', 'Jack-o''-Marks', 'assets/items/event/halloween_mark.webp',
         'Jack-o''-Lantern', 'jack', 'halloween', 5, '#ff8c1a',
         'Something is grinning in the dark between the nodes.', 10)

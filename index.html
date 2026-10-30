@@ -49698,19 +49698,22 @@ let evNavKey = null;
    och under ordet Events star eventets namn och nedrakningen. Ingen egen eventknapp langre. */
 function evRenderNav(){
   const b = $('nav-events'); if (!b) return;
-  const e = evActive(), img = $('nav-events-img'), sun = b.querySelector('.qi-events'), sub = $('nav-events-sub');
+  /* [ANDRAT v5.1362.0] Aven FORE starten (Chris): nasta event visas med sin mark och "starts in 18h" sa alla ser att det kommer. */
+  const act = evActive(), nx = !act && EVENT.st && EVENT.st.next && !isNaN(Date.parse(EVENT.st.next.starts_at)) ? EVENT.st.next : null;
+  const e = act || nx, img = $('nav-events-img'), sun = b.querySelector('.qi-events'), sub = $('nav-events-sub');
   if (!e){
     if (evNavKey !== null){ evNavKey = null; b.classList.remove('ev-nav'); if (img) img.style.display = 'none'; if (sun) sun.style.display = ''; if (sub) sub.style.display = 'none'; }
     return;
   }
-  if (evNavKey !== e.key){
-    evNavKey = e.key;
+  const nyckel = e.key + (act ? '|on' : '|soon');
+  if (evNavKey !== nyckel){
+    evNavKey = nyckel;
     b.classList.add('ev-nav'); b.style.setProperty('--ev', e.accent || '#ff8c1a');
-    if (img){ img.style.display = ''; img.src = e.mark.art || ''; }
+    if (img){ img.style.display = ''; img.src = (e.mark && e.mark.art) || ''; }
     if (sun) sun.style.display = 'none';
     if (sub) sub.style.display = '';
   }
-  if (sub) sub.textContent = e.name + ' \u00b7 ' + evEndsIn(e) + ' left';   /* kort nog for sidlisten: "Halloween - 6d 13h left" */
+  if (sub) sub.textContent = act ? e.name + ' \u00b7 ' + evEndsIn(e) + ' left' : e.name + ' \u00b7 starts in ' + evLeftText(Date.parse(e.starts_at) - evNow());   /* "Halloween - 6d 13h left" / "Halloween - starts in 18h" */
 }
 let evTickLast = 0;
 function eventTick(){

@@ -34,7 +34,7 @@ Gren: `halloween` (fran `origin/main` = v5.1359.0). Main ar ororad. Inget ar liv
 
 ## Talen (forslag — Chris bestammer)
 
-**Eventfonster**: 2026-10-31 00:00 UTC — 2026-11-09 23:59:59 UTC (10 dagar). `season_events.starts_at/ends_at`.
+**Eventfonster**: 2026-10-31 16:00 UTC (17:00 svensk tid, Chris 2026-10-30) — 2026-11-09 23:59:59 UTC. `season_events.starts_at/ends_at`. Fore starten visar Events-knappen marken och "starts in".
 
 **Droppar** (`season_event_drops`, Loot Luck paverkar inte):
 
