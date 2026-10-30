@@ -203,7 +203,7 @@ insert into public.item_config (key, name, slot_idx, rarities, bag_slots, drop_r
  ('bag_beacon_keepers_trunk','Beacon Keeper''s Trunk',10,'{5}',14,'{5}',false,'windfall')
 on conflict do nothing;
 
--- signaturpjasernas bossar (3 per boss, slutbossen 2 - som de andra dungeonerna). Effekter FORSLAG.
+-- signaturpjasernas bossar (3 per boss, slutbossen 2 - som de andra dungeonerna). Effekter godkanda av Chris 2026-10-30.
 insert into public.pve_signature_config (dungeon_id, boss_ord, item_key, effect_key) values
  ('beacon',3,'sigb_oilskin','armor'), ('beacon',3,'sigb_keybelt','loot_bonus'), ('beacon',3,'sigb_logbook','heal_received'),
  ('beacon',6,'sigb_monocle','opening_strike'), ('beacon',6,'sigb_waders','armor'), ('beacon',6,'sigb_signal','vs_machine'),
