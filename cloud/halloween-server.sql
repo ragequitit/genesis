@@ -145,11 +145,11 @@ on conflict (key) do update set name = excluded.name, slot_idx = excluded.slot_i
 
 /* Butiken. Setdelarna dyrast (175 marks for hela setet), resten billigare. Alla priser har. */
 insert into public.season_event_shop (event_key, key, name, kind, price, payload, art, descr, per_char, sort) values
-  ('halloween_2026', 'jack_head',   'Jack-o''-Lantern Head',   'appearance', 40, '{"item_key":"jack_head","slot":0}',   'assets/gear/halloween/jack_head.webp',   'Appearance for the head slot. Any class, forever.', 1, 10),
-  ('halloween_2026', 'jack_chest',  'Jack-o''-Lantern Chest',  'appearance', 40, '{"item_key":"jack_chest","slot":1}',  'assets/gear/halloween/jack_chest.webp',  'Appearance for the chest slot. Any class, forever.', 1, 20),
-  ('halloween_2026', 'jack_legs',   'Jack-o''-Lantern Legs',   'appearance', 35, '{"item_key":"jack_legs","slot":2}',   'assets/gear/halloween/jack_legs.webp',   'Appearance for the legs slot. Any class, forever.', 1, 30),
-  ('halloween_2026', 'jack_gloves', 'Jack-o''-Lantern Gloves', 'appearance', 30, '{"item_key":"jack_gloves","slot":3}', 'assets/gear/halloween/jack_gloves.webp', 'Appearance for the gloves slot. Any class, forever.', 1, 40),
-  ('halloween_2026', 'jack_boots',  'Jack-o''-Lantern Boots',  'appearance', 30, '{"item_key":"jack_boots","slot":4}',  'assets/gear/halloween/jack_boots.webp',  'Appearance for the feet slot. Any class, forever.', 1, 50),
+  ('halloween_2026', 'jack_head',   'Jack-o''-Lantern Head',   'appearance', 40, '{"item_key":"jack_head","slot":0}',   'assets/gear/halloween/jack_head.webp',   'Appearance for the head slot.', 1, 10),
+  ('halloween_2026', 'jack_chest',  'Jack-o''-Lantern Chest',  'appearance', 40, '{"item_key":"jack_chest","slot":1}',  'assets/gear/halloween/jack_chest.webp',  'Appearance for the chest slot.', 1, 20),
+  ('halloween_2026', 'jack_legs',   'Jack-o''-Lantern Legs',   'appearance', 35, '{"item_key":"jack_legs","slot":2}',   'assets/gear/halloween/jack_legs.webp',   'Appearance for the legs slot.', 1, 30),
+  ('halloween_2026', 'jack_gloves', 'Jack-o''-Lantern Gloves', 'appearance', 30, '{"item_key":"jack_gloves","slot":3}', 'assets/gear/halloween/jack_gloves.webp', 'Appearance for the gloves slot.', 1, 40),
+  ('halloween_2026', 'jack_boots',  'Jack-o''-Lantern Boots',  'appearance', 30, '{"item_key":"jack_boots","slot":4}',  'assets/gear/halloween/jack_boots.webp',  'Appearance for the feet slot.', 1, 50),
   ('halloween_2026', 'cache_legendary', 'Legendary Cache', 'gear', 25, '{"rarity":4,"up_chance":0.10}', 'assets/items/caches/cache_gear_leg.webp',  'A Legendary piece of gear for your level. 10 % chance it is Mythic.', null, 60),
   ('halloween_2026', 'cache_rare',      'Rare Cache',      'gear',  8, '{"rarity":2,"up_chance":0.25}', 'assets/items/caches/cache_gear_rare.webp', 'A Rare piece of gear for your level. 25 % chance it is Epic.', null, 70),
   /* [ANDRAT 2026-10-30] Chris: handlarens boostar i stallet for guld - samma varde, roligare. Nycklarna finns i stack_item_config (boost_luck 27,5 g, boost_expspd 22,5 g hos handlaren). */
