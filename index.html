@@ -25983,7 +25983,7 @@ function zonForskjutning(zi){ return (zi | 0) - 2; }
 function zonNiva(regionId, zi){
   const R = REGIONS[regionId];
   if (!R) return levelInfo().lvl;
-  const lo = (R.tier | 0) * 10 + 1, hi = lo + 9;
+  const lo = regionLo(regionId), hi = regionHi(regionId);   /* [ANDRAT v5.1378.0 windfall] */
   const min = levelInfo().lvl;
   /* [ANDRAT tyst 2026-10-23] Milstolpen: en region du passerat skalar till varldens niva (ramverket steg 4, som serverns scaled_level). */
   const W = worldLevel();
@@ -25991,8 +25991,8 @@ function zonNiva(regionId, zi){
   return Math.max(lo, Math.min(hi, min + zonForskjutning(zi)));
 }
 function regionLevelRoll(regionId){
-  const t = (REGIONS[regionId] && REGIONS[regionId].tier) | 0;
-  return t * 10 + 1 + Math.floor(Math.random() * 10);
+  const lo = regionLo(regionId), hi = regionHi(regionId);   /* [ANDRAT v5.1378.0 windfall] */
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
 }
 /* [ANDRAT v5.277.0] PJASENS NIVA KOMMER FRAN KALLAN, aldrig fran spelaren.
    Fjarde argumentet ar kallans niva: fienden, dungeonen, receptet, regionen
@@ -29569,25 +29569,25 @@ const EXPEDITIONS = {
       {id:'qua_hospital_3', name:'The Floor Where It Started', mins:480, lvl:50}
     ]
   },
-  /* [TILLAGT v5.1378.0 windfall] samma steg som Quarantine, niva 51-60 (som servern) */
+  /* [TILLAGT v5.1378.0 windfall] samma tider som Quarantine, alla niva 50 (som servern) */
   windfall: {
     'Dawnmeadow': [
-      {id:'win_dawnmead_1', name:'Shear the Cloud Sheep', mins:5, lvl:51}
+      {id:'win_dawnmead_1', name:'Shear the Cloud Sheep', mins:5, lvl:50}
     ],
     'The Kite Yards': [
-      {id:'win_kiteyard_1', name:'Fly the Morning Race', mins:15, lvl:53}
+      {id:'win_kiteyard_1', name:'Fly the Morning Race', mins:15, lvl:50}
     ],
     'Gullmarket': [
-      {id:'win_gullmark_2', name:'Haggle Above the Clouds', mins:45, lvl:55}
+      {id:'win_gullmark_2', name:'Haggle Above the Clouds', mins:45, lvl:50}
     ],
     'The Cloudbanks': [
-      {id:'win_cloudban_2', name:'Fish the Edge of the Haze', mins:120, lvl:57}
+      {id:'win_cloudban_2', name:'Fish the Edge of the Haze', mins:120, lvl:50}
     ],
     'The Windspire': [
-      {id:'win_windspir_3', name:'Read the Winds From the Top', mins:240, lvl:59}
+      {id:'win_windspir_3', name:'Read the Winds From the Top', mins:240, lvl:50}
     ],
     'The Beacon': [
-      {id:'win_beacon_3', name:'Keep the Lamp Lit Till Morning', mins:480, lvl:60}
+      {id:'win_beacon_3', name:'Keep the Lamp Lit Till Morning', mins:480, lvl:50}
     ]
   }
 };
@@ -34694,10 +34694,10 @@ const REGIONS = {
   quarantine: {name:'The Quarantine', ico:'☣️', x:90, y:56, tier:4, band:'41-50', desig:'Safe',
                  adj:['novacommand','windfall'],   /* [ANDRAT v5.1378.0 windfall] grannen ovanfor */
                  zones:['The Wall', 'The Suburbs', 'The Mall', 'The Overpass', 'The Farm', 'The Hospital']},
-  /* [TILLAGT v5.1378.0 windfall] Sjatte regionen, tier 5, niva 51-60. soon:true = inte slappt annu: servern
+  /* [TILLAGT v5.1378.0 windfall] Sjatte regionen, tier 5, men en EXTRA 50-REGION (Chris 2026-10-30): lo/hi = 50, nivataket hojs inte. soon:true = inte slappt annu: servern
      doljer den for alla utom testkontot (netRegionGate tar bort raden), och forstasidan (utloggad) raknar
      den inte. netRegionGate tar bort flaggan nar servern sager att regionen syns. */
-  windfall: {name:'Windfall', ico:'☁️', x:96, y:30, tier:5, band:'51-60', desig:'Safe', soon:true,
+  windfall: {name:'Windfall', ico:'☁️', x:96, y:30, tier:5, band:'50-50', lo:50, hi:50, desig:'Safe', soon:true,
                  adj:['quarantine'],
                  zones:['Dawnmeadow', 'The Kite Yards', 'Gullmarket', 'The Cloudbanks', 'The Windspire', 'The Beacon']},
 };
@@ -39023,8 +39023,10 @@ function discoverReqMet(tier){
   const prev = regionByTier(tier - 1);
   return !prev || isVisited(prev);
 }
-/* Regionens golv - nivan man maste ha for att resa dit (tier*10+1), som servern. */
-function regionMinLevel(id){ return ((REGIONS[id] && REGIONS[id].tier) | 0) * 10 + 1; }
+/* Regionens golv - nivan man maste ha for att resa dit (tier*10+1), som servern. [ANDRAT v5.1378.0 windfall] eget band (lo/hi) gar fore, som serverns region_lvl_lo. */
+function regionLo(id){ const R = REGIONS[id]; return (R && R.lo) || ((R && R.tier) | 0) * 10 + 1; }
+function regionHi(id){ const R = REGIONS[id]; return (R && R.hi) || ((R && R.tier) | 0) * 10 + 10; }
+function regionMinLevel(id){ return regionLo(id); }
 /* [BORTTAGET v5.773.0] discoverReqText() - anropades aldrig (granskningen). */
 function researchTime(id){
   const fran = SURVEY_SECS && SURVEY_SECS[id + ':0'];
@@ -47169,8 +47171,8 @@ const HTP = [
        'The two new abilities per gem: Voxholm expedition rewards / offline earnings, Drakemark crafting costs / recycle fragments, Cutlass Bay dungeon cooldown / elite foe chance, Last Armada World Boss damage / Broken Charm chance, Quarantine healing item power / quest refresh time' + (htpWf() ? ', Windfall travel time / fuel refill' : '') + '.']; },   /* [ANDRAT v5.1378.0 windfall] getter: Windfall namns bara nar regionen syns (htpWf) */
    where:'Any shard in your backpack, or the gem slot above your character.'},
   {id:'regions', n:'Regions & travel', img:'assets/ui/drone/drone_send.webp', steps:true,
-   get intro(){ return (htpWf() ? 'Six' : 'Five') + ' regions, one after the other: Voxholm 1-10, Drakemark 11-20, Cutlass Bay 21-30, The Last Armada 31-40, The Quarantine 41-50' + (htpWf() ? ', Windfall 51-60.' : '.'); },   /* [ANDRAT v5.1378.0 windfall] */
-   get li(){ return ['Reach the region\'s level: [[xp:11]], [[xp:21]], [[xp:31]]' + (htpWf() ? ', [[xp:41]] or [[xp:51]]' : ' or [[xp:41]]') + '. You must have visited the region before it.',
+   get intro(){ return (htpWf() ? 'Six' : 'Five') + ' regions, one after the other: Voxholm 1-10, Drakemark 11-20, Cutlass Bay 21-30, The Last Armada 31-40, The Quarantine 41-50' + (htpWf() ? ', and Windfall, an extra region for level 50.' : '.'); },   /* [ANDRAT v5.1378.0 windfall] */
+   get li(){ return ['Reach the region\'s level: [[xp:11]], [[xp:21]], [[xp:31]]' + (htpWf() ? ', [[xp:41]] or [[xp:50]] (Windfall)' : ' or [[xp:41]]') + '. You must have visited the region before it.',
        'Zoom out on the map and send <b>research drones</b> to survey the region.',
        '<b>Travel</b> there. It costs [[fuel:fuel]] and takes a while. The core keeps working while you fly.',
        'New regions give [[xp:much more XP]] when your level matches them.',
@@ -59054,7 +59056,7 @@ const GD_TIPS = [
      pa 40 minuter. Ett tips per region, nar nivan nar regionens golv och man inte redan ar dar eller
      langre fram. Gar bort av sig sjalvt nar man rest dit. */
   ...['drakemark', 'cutlassbay', 'novacommand', 'quarantine', 'windfall'].map(id => {   /* [ANDRAT v5.1378.0 windfall] + Windfall */
-    const R = REGIONS[id], golv = R.tier * 10 + 1;
+    const R = REGIONS[id], golv = regionLo(id);   /* [ANDRAT v5.1378.0 windfall] */
     /* [ANDRAT v5.810.0] Hogsta region man BESOKT, inte den man star i - forut kom "redo for Drakemark"
        igen nar en niva 25 gick tillbaka till Voxholm. Inget tips under resan, och ingen uppmaning att
        kopa en dronare som inte behovs (buggsvep 12). [ANDRAT v5.820.0] Dronaren behovs igen: undersok forst, res sedan. */

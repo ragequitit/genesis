@@ -6,7 +6,7 @@
 --   gem, hjalpare, set, vaskor, uppdrag + sma tillagg i befintliga funktioner (med ankare - avbryter om
 --   ankaret saknas, hoppar over om redan lappat). region_config.released = false: bara testkontot
 --   (region_released) ser och kan resa till Windfall.
--- DEL B (slappet): achievements + release_expansion(5). Kors separat NAR Chris sager kor (se slutet).
+-- DEL B (slappet): achievements + released = true (INTE release_expansion: nivataket ska vara kvar pa 50). Kors NAR Chris sager kor.
 --
 -- Torrkors med: begin; <DEL A>; <test>; rollback  (eller DO ... RAISE EXCEPTION 'DRY RUN OK').
 -- Inga ord som SQL-verktyget stoppar (se CLAUDE.local.md) - darfor "let fall" i stallet for det vanliga ordet.
@@ -80,14 +80,14 @@ insert into public.pve_name_config (key, ptype, name, blurb, region, zone, famil
  ('win_windborne_spore','creature','Windborne Spore','A spore from The Quarantine that rode the warm air all the way up.','windfall','The Beacon','Drifted In',1,1.25,1.0)
 on conflict do nothing;
 
--- ---------- 5. Expeditioner + shards (niva 51-60, samma steg som Quarantine 41-50) ----------
+-- ---------- 5. Expeditioner + shards (alla niva 50 - Windfall ar en extra 50-region, Chris 2026-10-30) ----------
 insert into public.expedition_config (id, region_id, zone, name, mins, lvl) values
- ('win_dawnmead_1','windfall','Dawnmeadow','Shear the Cloud Sheep',5,51),
- ('win_kiteyard_1','windfall','The Kite Yards','Fly the Morning Race',15,53),
- ('win_gullmark_2','windfall','Gullmarket','Haggle Above the Clouds',45,55),
- ('win_cloudban_2','windfall','The Cloudbanks','Fish the Edge of the Haze',120,57),
- ('win_windspir_3','windfall','The Windspire','Read the Winds From the Top',240,59),
- ('win_beacon_3','windfall','The Beacon','Keep the Lamp Lit Till Morning',480,60)
+ ('win_dawnmead_1','windfall','Dawnmeadow','Shear the Cloud Sheep',5,50),
+ ('win_kiteyard_1','windfall','The Kite Yards','Fly the Morning Race',15,50),
+ ('win_gullmark_2','windfall','Gullmarket','Haggle Above the Clouds',45,50),
+ ('win_cloudban_2','windfall','The Cloudbanks','Fish the Edge of the Haze',120,50),
+ ('win_windspir_3','windfall','The Windspire','Read the Winds From the Top',240,50),
+ ('win_beacon_3','windfall','The Beacon','Keep the Lamp Lit Till Morning',480,50)
 on conflict do nothing;
 insert into public.shard_config (key, exp_id, region_id, name)
 select 'shard_' || id, id, 'windfall', name || ' Shard' from public.expedition_config where region_id = 'windfall'
@@ -117,21 +117,21 @@ select 'beacon', 'windfall', 'The Beacon', 'The Beacon', minutes, revive_max, ge
 from public.pve_dungeon_config where id = 'patientzero'
 on conflict do nothing;
 insert into public.pve_dungeon_fight_config (dungeon_id, ord, minute, kind, name, ptype, level, hp_mult, atk_mult) values
- ('beacon',1,2,'trash','Gallery Gulls','creature',59,0.8,0.5),
- ('beacon',2,5,'trash','Stairwell Echoes','spirit',59,0.8,0.5),
- ('beacon',3,8,'boss','Keeper Hollis Brae','humanoid',60,1.5,0.85),
- ('beacon',4,9,'trash','Loose Prisms','machine',59,0.8,0.5),
- ('beacon',5,12,'trash','Glare Motes','elemental',59,0.8,0.5),
- ('beacon',6,16,'boss','The Great Lens','machine',60,1.5,0.85),
- ('beacon',7,18,'trash','Fog Wisps','elemental',59,0.8,0.5),
- ('beacon',8,21,'trash','Gallery Gulls','creature',59,0.8,0.5),
- ('beacon',9,25,'boss','The Foghorn','machine',60,1.5,0.85),
- ('beacon',10,27,'trash','Stairwell Echoes','spirit',59,0.8,0.5),
- ('beacon',11,30,'trash','Nesting Gulls','creature',59,0.8,0.5),
- ('beacon',12,35,'boss','Gullmother','creature',60,1.5,0.85),
- ('beacon',13,37,'trash','Glare Motes','elemental',59,0.8,0.5),
- ('beacon',14,40,'trash','Lamp Room Echoes','spirit',59,0.8,0.5),
- ('beacon',15,45,'final','The Last Signal','elemental',60,2.5,0.95)
+ ('beacon',1,2,'trash','Gallery Gulls','creature',49,0.8,0.5),
+ ('beacon',2,5,'trash','Stairwell Echoes','spirit',49,0.8,0.5),
+ ('beacon',3,8,'boss','Keeper Hollis Brae','humanoid',50,1.5,0.85),
+ ('beacon',4,9,'trash','Loose Prisms','machine',49,0.8,0.5),
+ ('beacon',5,12,'trash','Glare Motes','elemental',49,0.8,0.5),
+ ('beacon',6,16,'boss','The Great Lens','machine',50,1.5,0.85),
+ ('beacon',7,18,'trash','Fog Wisps','elemental',49,0.8,0.5),
+ ('beacon',8,21,'trash','Gallery Gulls','creature',49,0.8,0.5),
+ ('beacon',9,25,'boss','The Foghorn','machine',50,1.5,0.85),
+ ('beacon',10,27,'trash','Stairwell Echoes','spirit',49,0.8,0.5),
+ ('beacon',11,30,'trash','Nesting Gulls','creature',49,0.8,0.5),
+ ('beacon',12,35,'boss','Gullmother','creature',50,1.5,0.85),
+ ('beacon',13,37,'trash','Glare Motes','elemental',49,0.8,0.5),
+ ('beacon',14,40,'trash','Lamp Room Echoes','spirit',49,0.8,0.5),
+ ('beacon',15,45,'final','The Last Signal','elemental',50,2.5,0.95)
 on conflict do nothing;
 
 -- ---------- 8. Gear: signatursetet (sigb_), slumpseten Skyward + Patchwork (bara i Windfall), 24 vaskor ----------
@@ -240,31 +240,31 @@ on conflict do nothing;
 
 -- ---------- 12. Uppdrag (5 personer x 5; nr 5 = advanced med steg) ----------
 insert into public.quest_config (id, category, tier, name, flavor, obj_kind, obj_key, obj_qty, min_lvl, weight, rew_rep, rew_gold, rew_frags, req_prof, steps, region, zone, giver, regions, giver_role) values
- ('wf_wren_01','travel','standard','Mind the Edge','Wren waves you over the meadow gate. First rule up here: know where the islands end. Visit three different zones and come back with your feet still on the grass.','visit',null,3,51,10,22,1500,0,null,null,'windfall',null,'Wren Halloway','{windfall}','Cloud Shepherd'),
- ('wf_wren_02','pve','standard','Sheep in the Sky','Three of Wren''s cloud sheep have floated off again, and the Cloud Rams are not helping. Win three encounters in Dawnmeadow so she can count heads in peace.','pve_wins','zone',3,52,10,26,1800,0,null,null,'windfall','Dawnmeadow','Wren Halloway','{windfall}','Cloud Shepherd'),
- ('wf_wren_03','travel','standard','Breakfast First','Wren has decided you look like someone who skipped breakfast. Open two gear caches while she fries something golden.','cache','gear',2,53,10,28,2000,0,null,null,'windfall',null,'Wren Halloway','{windfall}','Cloud Shepherd'),
- ('wf_wren_04','deliver','standard','A Sore Little Hoof','A cloud lamb hurt its hoof and Wren''s first-aid kit is nearly empty. Craft three items so she can fill it up again.','craft',null,3,54,10,30,2200,0,null,null,'windfall',null,'Wren Halloway','{windfall}','Cloud Shepherd'),
- ('wf_wren_05','pve','advanced','Addressed: Down','Wren has wrapped a parcel addressed only "Down". Carry it to the edge at The Cloudbanks, clear the jetty so it can be lowered safely, then come back to Dawnmeadow.','deliver',null,1,56,10,38,2900,1,null,'[{"qty":1,"kind":"travel","zone":"The Cloudbanks"},{"key":"zone","qty":2,"kind":"pve_wins","zone":"The Cloudbanks"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','Dawnmeadow','Wren Halloway','{windfall}','Cloud Shepherd'),
- ('wf_dorrit_01','deliver','standard','The Giant Kite','Dorrit''s giant kite needs a frame that will not snap at altitude. Find two pieces of Uncommon quality or better for him to take apart.','find_gear','1',2,51,10,24,1600,0,null,null,'windfall',null,'Dorrit Spindle','{windfall}','Kite Builder'),
- ('wf_dorrit_02','pve','standard','Line Snapped','A kite got loose from The Kite Yards and took three friends with it. Win three encounters there before they start a club.','pve_wins','zone',3,52,10,26,1800,0,null,null,'windfall','The Kite Yards','Dorrit Spindle','{windfall}','Kite Builder'),
- ('wf_dorrit_03','travel','standard','Reading the Streamer','Dorrit measures the wind with a paper streamer and wants a second opinion. Travel to The Windspire and see what the big mast says.','travel',null,1,53,10,26,1900,0,null,null,'windfall','The Windspire','Dorrit Spindle','{windfall}','Kite Builder'),
- ('wf_dorrit_04','deliver','standard','Glue and Feathers','The last test went wrong in a very sticky way. Recycle three pieces of gear so Dorrit has parts for the next attempt.','salvage',null,3,54,10,28,2000,0,null,null,'windfall',null,'Dorrit Spindle','{windfall}','Kite Builder'),
- ('wf_dorrit_05','deliver','advanced','The Morning Race','Dorrit holds the starting flag for the Morning Race, and half the racers still have no tails on their kites. Craft two items for them, then meet him at the start line in The Kite Yards.','deliver',null,1,55,10,36,2700,1,null,'[{"qty":2,"kind":"craft"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Kite Yards','Dorrit Spindle','{windfall}','Kite Builder'),
- ('wf_juno_01','travel','standard','Queen of the Market','"Everything up here is for sale, darling. Go and look at all of it." Visit four different zones and tell Juno what you liked.','visit',null,4,53,10,30,2100,0,null,null,'windfall',null,'Juno Marrow','{windfall}','Balloon Maker'),
- ('wf_juno_02','travel','standard','Three Fingers','Juno holds up three fingers and will not say what they mean. Open three gear caches and she will call it a fair price.','cache','gear',3,54,10,30,2200,0,null,null,'windfall',null,'Juno Marrow','{windfall}','Balloon Maker'),
- ('wf_juno_03','deliver','standard','A Hole in the Envelope','Juno found a hole in her best balloon, and only first-rate material will patch it. Find a piece of Rare quality or better.','find_gear','2',1,55,10,34,2500,1,null,null,'windfall',null,'Juno Marrow','{windfall}','Balloon Maker'),
- ('wf_juno_04','pve','standard','Stop, Thief!','Something was lifted from a Gullmarket stall and the gulls are laughing about it. Win three encounters in Gullmarket until somebody stops laughing.','pve_wins','zone',3,56,10,32,2400,0,null,null,'windfall','Gullmarket','Juno Marrow','{windfall}','Balloon Maker'),
- ('wf_juno_05','pve','advanced','A Letter for a Captain','Juno has a sealed letter for a captain on The Last Armada, who answers every time, just not with words. The only balloon that goes that far down is moored at The Beacon. Clear The Beacon without dying, then come back to Gullmarket.','deliver',null,1,57,10,40,3000,1,null,'[{"key":"beacon","qty":1,"kind":"dungeon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','Gullmarket','Juno Marrow','{windfall}','Balloon Maker'),
- ('wf_pip_01','travel','standard','Special Delivery','Pip delivered a parcel to Dawnmeadow from very high up. Go and check that the parcel, and the islander under it, are fine.','travel',null,1,51,10,20,1400,0,null,null,'windfall','Dawnmeadow','Pip','{windfall}','Lighthouse Courier'),
- ('wf_pip_02','expedition','standard','Mail Call','Pip salutes from the mail post with a stack of letters taller than itself. Run an expedition and collect it, and Pip will deliver the news. Eventually.','expeditions',null,1,52,10,34,2500,1,null,null,'windfall',null,'Pip','{windfall}','Lighthouse Courier'),
- ('wf_pip_03','deliver','standard','Three Parcels for You','Pip has been sorting the post and found three parcels with your name on them, all of them clothes. Equip three pieces of gear so they were worth the trip.','equip',null,3,53,10,28,2000,0,null,null,'windfall',null,'Pip','{windfall}','Lighthouse Courier'),
- ('wf_pip_04','deliver','standard','Shiny Bits','Pip sorts letters on a chimney and keeps every shiny thing that falls by. Gather eight Scrap for the new mail slots in the nest.','gather','scrap',8,54,10,26,1800,0,null,null,'windfall',null,'Pip','{windfall}','Lighthouse Courier'),
- ('wf_pip_05','pve','advanced','No Address','Pip found a letter with no address, only a small drawing of a light pointing down. Clear The Beacon on Heroic without dying, then take it to Oswin at The Windspire.','deliver',null,1,58,10,40,3000,1,null,'[{"key":"h:beacon","qty":1,"kind":"dungeon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Windspire','Pip','{windfall}','Lighthouse Courier'),
- ('wf_oswin_01','travel','standard','A Book of Clear Days','Oswin keeps a book of clear days and needs someone to confirm today''s. Travel to The Beacon and look at the sky for him.','travel',null,1,54,10,28,2000,0,null,null,'windfall','The Beacon','Oswin Tallow','{windfall}','Weather Keeper'),
- ('wf_oswin_02','pve','standard','The Wrong Way','Every vane on the mast points the same wrong way this morning. Win three encounters at The Windspire before anything else decides to change direction.','pve_wins','zone',3,55,10,32,2300,0,null,null,'windfall','The Windspire','Oswin Tallow','{windfall}','Weather Keeper'),
- ('wf_oswin_03','travel','standard','A Gap in the Clouds','Oswin saw something through a gap in the clouds and would rather not say what. Visit five different zones so he can take readings from every side.','visit',null,5,56,10,36,2700,1,null,null,'windfall',null,'Oswin Tallow','{windfall}','Weather Keeper'),
- ('wf_oswin_04','expedition','standard','Closer Every Season','Oswin pins up the map again. The islands have moved closer, as they do every season. Run an expedition and collect it so he can measure how far.','expeditions',null,1,57,10,34,2500,1,null,null,'windfall',null,'Oswin Tallow','{windfall}','Weather Keeper'),
- ('wf_oswin_05','pve','advanced','Signal Sent','Every night for years Oswin has watched the lighthouse beam point downward. Tonight he wants to know who it is talking to. Go to The Beacon, clear the gallery, then come back to the mast.','deliver',null,1,58,10,40,3000,1,null,'[{"qty":1,"kind":"travel","zone":"The Beacon"},{"key":"zone","qty":2,"kind":"pve_wins","zone":"The Beacon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Windspire','Oswin Tallow','{windfall}','Weather Keeper')
+ ('wf_wren_01','travel','standard','Mind the Edge','Wren waves you over the meadow gate. First rule up here: know where the islands end. Visit three different zones and come back with your feet still on the grass.','visit',null,3,50,10,22,1500,0,null,null,'windfall',null,'Wren Halloway','{windfall}','Cloud Shepherd'),
+ ('wf_wren_02','pve','standard','Sheep in the Sky','Three of Wren''s cloud sheep have floated off again, and the Cloud Rams are not helping. Win three encounters in Dawnmeadow so she can count heads in peace.','pve_wins','zone',3,50,10,26,1800,0,null,null,'windfall','Dawnmeadow','Wren Halloway','{windfall}','Cloud Shepherd'),
+ ('wf_wren_03','travel','standard','Breakfast First','Wren has decided you look like someone who skipped breakfast. Open two gear caches while she fries something golden.','cache','gear',2,50,10,28,2000,0,null,null,'windfall',null,'Wren Halloway','{windfall}','Cloud Shepherd'),
+ ('wf_wren_04','deliver','standard','A Sore Little Hoof','A cloud lamb hurt its hoof and Wren''s first-aid kit is nearly empty. Craft three items so she can fill it up again.','craft',null,3,50,10,30,2200,0,null,null,'windfall',null,'Wren Halloway','{windfall}','Cloud Shepherd'),
+ ('wf_wren_05','pve','advanced','Addressed: Down','Wren has wrapped a parcel addressed only "Down". Carry it to the edge at The Cloudbanks, clear the jetty so it can be lowered safely, then come back to Dawnmeadow.','deliver',null,1,50,10,38,2900,1,null,'[{"qty":1,"kind":"travel","zone":"The Cloudbanks"},{"key":"zone","qty":2,"kind":"pve_wins","zone":"The Cloudbanks"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','Dawnmeadow','Wren Halloway','{windfall}','Cloud Shepherd'),
+ ('wf_dorrit_01','deliver','standard','The Giant Kite','Dorrit''s giant kite needs a frame that will not snap at altitude. Find two pieces of Uncommon quality or better for him to take apart.','find_gear','1',2,50,10,24,1600,0,null,null,'windfall',null,'Dorrit Spindle','{windfall}','Kite Builder'),
+ ('wf_dorrit_02','pve','standard','Line Snapped','A kite got loose from The Kite Yards and took three friends with it. Win three encounters there before they start a club.','pve_wins','zone',3,50,10,26,1800,0,null,null,'windfall','The Kite Yards','Dorrit Spindle','{windfall}','Kite Builder'),
+ ('wf_dorrit_03','travel','standard','Reading the Streamer','Dorrit measures the wind with a paper streamer and wants a second opinion. Travel to The Windspire and see what the big mast says.','travel',null,1,50,10,26,1900,0,null,null,'windfall','The Windspire','Dorrit Spindle','{windfall}','Kite Builder'),
+ ('wf_dorrit_04','deliver','standard','Glue and Feathers','The last test went wrong in a very sticky way. Recycle three pieces of gear so Dorrit has parts for the next attempt.','salvage',null,3,50,10,28,2000,0,null,null,'windfall',null,'Dorrit Spindle','{windfall}','Kite Builder'),
+ ('wf_dorrit_05','deliver','advanced','The Morning Race','Dorrit holds the starting flag for the Morning Race, and half the racers still have no tails on their kites. Craft two items for them, then meet him at the start line in The Kite Yards.','deliver',null,1,50,10,36,2700,1,null,'[{"qty":2,"kind":"craft"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Kite Yards','Dorrit Spindle','{windfall}','Kite Builder'),
+ ('wf_juno_01','travel','standard','Queen of the Market','"Everything up here is for sale, darling. Go and look at all of it." Visit four different zones and tell Juno what you liked.','visit',null,4,50,10,30,2100,0,null,null,'windfall',null,'Juno Marrow','{windfall}','Balloon Maker'),
+ ('wf_juno_02','travel','standard','Three Fingers','Juno holds up three fingers and will not say what they mean. Open three gear caches and she will call it a fair price.','cache','gear',3,50,10,30,2200,0,null,null,'windfall',null,'Juno Marrow','{windfall}','Balloon Maker'),
+ ('wf_juno_03','deliver','standard','A Hole in the Envelope','Juno found a hole in her best balloon, and only first-rate material will patch it. Find a piece of Rare quality or better.','find_gear','2',1,50,10,34,2500,1,null,null,'windfall',null,'Juno Marrow','{windfall}','Balloon Maker'),
+ ('wf_juno_04','pve','standard','Stop, Thief!','Something was lifted from a Gullmarket stall and the gulls are laughing about it. Win three encounters in Gullmarket until somebody stops laughing.','pve_wins','zone',3,50,10,32,2400,0,null,null,'windfall','Gullmarket','Juno Marrow','{windfall}','Balloon Maker'),
+ ('wf_juno_05','pve','advanced','A Letter for a Captain','Juno has a sealed letter for a captain on The Last Armada, who answers every time, just not with words. The only balloon that goes that far down is moored at The Beacon. Clear The Beacon without dying, then come back to Gullmarket.','deliver',null,1,50,10,40,3000,1,null,'[{"key":"beacon","qty":1,"kind":"dungeon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','Gullmarket','Juno Marrow','{windfall}','Balloon Maker'),
+ ('wf_pip_01','travel','standard','Special Delivery','Pip delivered a parcel to Dawnmeadow from very high up. Go and check that the parcel, and the islander under it, are fine.','travel',null,1,50,10,20,1400,0,null,null,'windfall','Dawnmeadow','Pip','{windfall}','Lighthouse Courier'),
+ ('wf_pip_02','expedition','standard','Mail Call','Pip salutes from the mail post with a stack of letters taller than itself. Run an expedition and collect it, and Pip will deliver the news. Eventually.','expeditions',null,1,50,10,34,2500,1,null,null,'windfall',null,'Pip','{windfall}','Lighthouse Courier'),
+ ('wf_pip_03','deliver','standard','Three Parcels for You','Pip has been sorting the post and found three parcels with your name on them, all of them clothes. Equip three pieces of gear so they were worth the trip.','equip',null,3,50,10,28,2000,0,null,null,'windfall',null,'Pip','{windfall}','Lighthouse Courier'),
+ ('wf_pip_04','deliver','standard','Shiny Bits','Pip sorts letters on a chimney and keeps every shiny thing that falls by. Gather eight Scrap for the new mail slots in the nest.','gather','scrap',8,50,10,26,1800,0,null,null,'windfall',null,'Pip','{windfall}','Lighthouse Courier'),
+ ('wf_pip_05','pve','advanced','No Address','Pip found a letter with no address, only a small drawing of a light pointing down. Clear The Beacon on Heroic without dying, then take it to Oswin at The Windspire.','deliver',null,1,50,10,40,3000,1,null,'[{"key":"h:beacon","qty":1,"kind":"dungeon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Windspire','Pip','{windfall}','Lighthouse Courier'),
+ ('wf_oswin_01','travel','standard','A Book of Clear Days','Oswin keeps a book of clear days and needs someone to confirm today''s. Travel to The Beacon and look at the sky for him.','travel',null,1,50,10,28,2000,0,null,null,'windfall','The Beacon','Oswin Tallow','{windfall}','Weather Keeper'),
+ ('wf_oswin_02','pve','standard','The Wrong Way','Every vane on the mast points the same wrong way this morning. Win three encounters at The Windspire before anything else decides to change direction.','pve_wins','zone',3,50,10,32,2300,0,null,null,'windfall','The Windspire','Oswin Tallow','{windfall}','Weather Keeper'),
+ ('wf_oswin_03','travel','standard','A Gap in the Clouds','Oswin saw something through a gap in the clouds and would rather not say what. Visit five different zones so he can take readings from every side.','visit',null,5,50,10,36,2700,1,null,null,'windfall',null,'Oswin Tallow','{windfall}','Weather Keeper'),
+ ('wf_oswin_04','expedition','standard','Closer Every Season','Oswin pins up the map again. The islands have moved closer, as they do every season. Run an expedition and collect it so he can measure how far.','expeditions',null,1,50,10,34,2500,1,null,null,'windfall',null,'Oswin Tallow','{windfall}','Weather Keeper'),
+ ('wf_oswin_05','pve','advanced','Signal Sent','Every night for years Oswin has watched the lighthouse beam point downward. Tonight he wants to know who it is talking to. Go to The Beacon, clear the gallery, then come back to the mast.','deliver',null,1,50,10,40,3000,1,null,'[{"qty":1,"kind":"travel","zone":"The Beacon"},{"key":"zone","qty":2,"kind":"pve_wins","zone":"The Beacon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Windspire','Oswin Tallow','{windfall}','Weather Keeper')
 on conflict do nothing;
 
 -- ---------- 13. Hjalpfunktion: gemmens resrabatt (Tailwind) ----------
@@ -278,15 +278,26 @@ language sql stable security definer set search_path to 'public', 'pg_temp' as $
 $f$;
 revoke execute on function public.gem_tailwind_pct(uuid) from public, anon, authenticated;
 
--- Testkontot (samma konto som region_released slapper in) far prova en osläppt region fore släppet,
--- fast nivataket da ar 50 och regionen borjar pa 51: golvet for resa och expeditioner blir nivataket.
-create or replace function public.test_preview(p_character uuid, p_region text) returns boolean
+-- Regionens nivaband. Windfall ar en EXTRA 50-REGION (Chris 2026-10-30): allt ar niva 50, nivataket hojs INTE.
+-- Forut raknades bandet alltid som tier*10+1 .. +10; nu kan en region ha eget band (lvl_lo/lvl_hi), annars som forut.
+alter table public.region_config add column if not exists lvl_lo integer, add column if not exists lvl_hi integer;
+update public.region_config set lvl_lo = 50, lvl_hi = 50 where id = 'windfall';
+create or replace function public.region_lvl_lo(p_region text) returns integer
 language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
-  /* [TILLAGT v5.1378.0 windfall] */
-  select not coalesce((select r.released or r.release_at <= now() from public.region_config r where r.id = p_region), false)
-     and coalesce((select c.profile_id = '8fa27ae5-e0fc-4106-8e8e-737136af78ec'::uuid from public.characters c where c.id = p_character), false)
+  /* [TILLAGT v5.1378.0 windfall] regionens lagsta niva */
+  select coalesce((select coalesce(r.lvl_lo, r.tier * 10 + 1) from public.region_config r where r.id = p_region), 1)
 $f$;
-revoke execute on function public.test_preview(uuid, text) from public, anon, authenticated;
+create or replace function public.region_lvl_hi(p_region text) returns integer
+language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
+  /* [TILLAGT v5.1378.0 windfall] regionens hogsta niva */
+  select coalesce((select coalesce(r.lvl_hi, r.tier * 10 + 10) from public.region_config r where r.id = p_region), 10)
+$f$;
+revoke execute on function public.region_lvl_lo(text) from public, anon, authenticated;
+revoke execute on function public.region_lvl_hi(text) from public, anon, authenticated;
+create or replace function public.region_level_roll(p_region text)
+ returns integer language sql security definer set search_path to 'public', 'pg_temp'
+as $function$ /* [ANDRAT v5.1378.0 windfall] regionens eget band (samma som tier*10+1..+10 for de fem gamla) */
+  select (public.region_lvl_lo(p_region) + floor(random() * (public.region_lvl_hi(p_region) - public.region_lvl_lo(p_region) + 1)))::integer $function$;
 
 -- ---------- 14. Lappar i befintliga funktioner (ankare; avbryter om ankaret saknas, hoppar over om redan lappat) ----------
 do $patch$
@@ -318,16 +329,23 @@ begin
      '+ public.class_bonus(p_character, ''travel'')));',
      '+ public.class_bonus(p_character, ''travel'') + public.gem_pct(p_character, ''travel_time'')));   /* [ANDRAT v5.1378.0 windfall] */',
      'travel_time'),
-    -- testkontot far resa till en osläppt region aven under golvet (nivataket ar 50 tills släppet, Windfall borjar pa 51)
+    -- nivabandet: golvet for resan och zonens niva fran regionens band (Windfall = 50)
     (null, 'travel_to',
      'if public.character_level(v_ch.xp) < coalesce((select tier from public.region_config where id = p_region), 0) * 10 + 1 then',
-     'if public.character_level(v_ch.xp) < coalesce((select tier from public.region_config where id = p_region), 0) * 10 + 1' || chr(10) ||
-     '     and not public.test_preview(p_character, p_region) then   /* [ANDRAT v5.1378.0 windfall] testkontot provar oslappta regioner */',
-     'test_preview'),
-    (null, 'start_expedition',
-     'if public.character_level(v_ch.xp) < v_def.lvl then',
-     'if public.character_level(v_ch.xp) < (case when public.test_preview(p_character, v_def.region_id) then least(v_def.lvl, public.lvl_cap()) else v_def.lvl end) then   /* [ANDRAT v5.1378.0 windfall] */',
-     'test_preview'),
+     'if public.character_level(v_ch.xp) < public.region_lvl_lo(p_region) then   /* [ANDRAT v5.1378.0 windfall] regionens band */',
+     'region_lvl_lo(p_region) then'),
+    (null, 'travel_to',
+     'detail = ((select tier from public.region_config where id = p_region) * 10 + 1)::text;',
+     'detail = public.region_lvl_lo(p_region)::text;',
+     'detail = public.region_lvl_lo'),
+    (null, 'zone_level_roll',
+     'v_lo := coalesce(v_tier,0) * 10 + 1;',
+     'v_lo := public.region_lvl_lo(p_region);   /* [ANDRAT v5.1378.0 windfall] regionens band */',
+     'region_lvl_lo'),
+    (null, 'zone_level_roll',
+     'v_level := least(v_lo + 9,',
+     'v_level := least(public.region_lvl_hi(p_region),',
+     'region_lvl_hi'),
     -- gemmen: hjalpar-XP
     (null, 'grant_pet_xp',
      '+ public.class_bonus(p_character,''petxp'')) / 100);',
@@ -398,5 +416,5 @@ on conflict do nothing;
 select public.vendor_restock('1272a327-0109-4b39-a7df-4a87e9b619de'::uuid, 'windfall')
  where not exists (select 1 from public.vendor_stock where region_id = 'windfall');
 select public.expansion_check(5);          -- ska vara ok:true
-select public.release_expansion(5);        -- slapper Windfall: released=true, nivataket 60, paragonpris, Rift-krav 60
+update public.region_config set released = true, release_at = coalesce(release_at, now()) where id = 'windfall';   -- nivataket kvar pa 50 (Chris 2026-10-30)
 */

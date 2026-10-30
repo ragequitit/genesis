@@ -1,7 +1,7 @@
 -- Torrkorning av Windfall som testkaraktaren Pinguu. Kors EFTER DEL A i windfall-server.sql i SAMMA anrop.
 -- Slutar alltid med RAISE EXCEPTION 'DRY RUN OK: ...' sa att allt rullas tillbaka.
--- Resultat 2026-10-30 (DEL A + detta block): rattigheter stangda (anon/authenticated = f), resa 35 bransle,
--- strid vunnen, expedition nivå 51 startad och hamtad pa nivataket 50 (testkontot), Cumulo syns bara for testkontot,
+-- Resultat 2026-10-30 (DEL A + detta block): rattigheter stangda, resa 35 bransle (niva 50 kravs, 43 nekas),
+-- strid vunnen, expedition (niva 50) startad och hamtad, alla Windfall-niva 50, Cumulo syns bara for testkontot,
 -- set Skyward/Patchwork faller i Windfall, ingen annan karaktar ser regionen, expansion_check(5) ok efter handlarbesok.
 do $t$
 declare
