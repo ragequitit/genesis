@@ -12692,7 +12692,8 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 .sn-nav .nav-btn.ev-nav{--ev:#ff8c1a;border-color:color-mix(in srgb,var(--ev) 55%,var(--border))}
 .sn-nav .nav-btn.ev-nav .ico{--hxc:var(--ev)}
 .sn-nav .nav-btn.ev-nav .ev-nav-img{width:26px;height:26px;object-fit:contain;position:relative;z-index:1}
-.sn-nav .nav-btn.ev-nav .lbl small{color:var(--ev)}
+.sn-nav .nav-btn.ev-nav .lbl small{display:block;color:var(--ev);font-size:8.5px;font-weight:700;letter-spacing:.02em;text-transform:none;line-height:1.25;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.sn-nav .nav-btn.ev-nav .lbl{min-width:0}
 #ev-overlay .modal.ev-modal{width:min(620px,96vw);max-width:96vw}
 .ev-hero{--ev:#ff8c1a;display:flex;align-items:center;gap:14px;padding:14px;border-radius:calc(12px * var(--rnd));border:1px solid color-mix(in srgb,var(--ev) 55%,transparent);
   background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--ev) 28%,transparent),transparent 60%),var(--bg-inset);box-shadow:0 0 24px color-mix(in srgb,var(--ev) 22%,transparent)}
@@ -13101,10 +13102,9 @@ setTimeout(function(){document.documentElement.classList.remove('gate-resuming')
              (Chris, slapplistan). En nedrakning som star stilla ar ett lofte spelet
              inte kan halla. Knappen ar kvar sa platsen finns nar Events byggs efter
              release, men den sager nu sanningen nar man trycker. -->
-        <div class="nav-btn" id="nav-events"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-events"></span></span><span class="lbl">Events</span><span class="notif" id="nav-events-n" style="display:none">0</span></div>
+        <div class="nav-btn" id="nav-events"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-events"></span><img class="ev-nav-img" id="nav-events-img" src="" alt="" draggable="false" style="display:none" onerror="this.style.display='none'"></span><span class="lbl" id="nav-events-lbl">Events<small id="nav-events-sub" style="display:none"></small></span><span class="notif" id="nav-events-n" style="display:none">0</span></div>   <!-- [ANDRAT v5.1362.0] under ett event: markens bild i stallet for solen + underrad "Halloween - ends in 6d 13h" (Chris: en knapp, inte tva) -->
         <!-- [TILLAGT v5.1362.0] SASONGSEVENT (Chris): knappen syns BARA under ett aktivt event. Ikonen ar eventets
              markbild och raden under namnet ar nedrakningen. Fylls av evRenderNav(). -->
-        <div class="nav-btn ev-nav" id="nav-event" style="display:none" title="Seasonal event"><span class="ico sn-hex"><img class="ev-nav-img" id="nav-event-img" src="" alt="" draggable="false" onerror="this.style.display='none'"></span><span class="lbl" id="nav-event-lbl">Event<small id="nav-event-left"></small></span></div>
         <div class="nav-btn" id="nav-daily"><span class="ico sn-hex" style="--hxc:var(--gold)"><span class="qi qi-daily"></span></span><span class="lbl">Transmissions</span><span class="notif" id="daily-badge" style="display:none">1</span></div>
         <div class="nav-btn" id="nav-shop"><span class="ico sn-hex" style="--hxc:var(--cyan)"><span class="qi qi-shop"></span></span><span class="lbl">Shop</span></div>
         <!-- [ANDRAT v5.477.0] Fick ett id (Chris). Se lyssnaren langre ner. -->
@@ -49329,7 +49329,7 @@ function renderWorldBoss(){
      igang, annars pa World Bosses. Bara i info-laget - stridskortet ar som forut. */
   if (!fight){
     if (!WB.tab) WB.tab = evActive() ? 'event' : 'boss';
-    if (WB.tab !== 'boss'){ body.innerHTML = wbTabsHTML() + (WB.tab === 'shop' ? wbShopTabHTML() : wbEventTabHTML()); return; }
+    if (WB.tab !== 'boss'){ body.innerHTML = wbTabsHTML() + (WB.tab === 'shop' ? wbShopTabHTML() : wbEventTabHTML()); wbBindCodex(body); return; }   /* wbBindCodex: hovringsrutor pa boostkorten */
   }
   /* [OMBYGGT v5.903.0] PEDAGOGISK RUTA (Chris): avdelningar med rubriker i stallet for en textklump, och en
      BOSSKATALOG dar varje boss gar att oppna - formagor, veckodag, drops (signaturpjaser med pjaskort vid hovring). */
@@ -49681,18 +49681,23 @@ function evMarks(e){
 }
 /* ---- sidlistens eventknapp: syns bara under ett aktivt event ---- */
 let evNavKey = null;
+/* [ANDRAT v5.1362.0] EN KNAPP (Chris 2026-10-30): Events-knappen i sidlisten. Under ett event byts solen mot markens bild,
+   och under ordet Events star eventets namn och nedrakningen. Ingen egen eventknapp langre. */
 function evRenderNav(){
-  const b = $('nav-event'); if (!b) return;
-  const e = evActive();
-  if (!e){ b.style.display = 'none'; evNavKey = null; return; }
+  const b = $('nav-events'); if (!b) return;
+  const e = evActive(), img = $('nav-events-img'), sun = b.querySelector('.qi-events'), sub = $('nav-events-sub');
+  if (!e){
+    if (evNavKey !== null){ evNavKey = null; b.classList.remove('ev-nav'); if (img) img.style.display = 'none'; if (sun) sun.style.display = ''; if (sub) sub.style.display = 'none'; }
+    return;
+  }
   if (evNavKey !== e.key){
     evNavKey = e.key;
-    const img = $('nav-event-img'); if (img){ img.style.display = ''; img.src = e.mark.art || ''; }
-    const lbl = $('nav-event-lbl'); if (lbl) lbl.firstChild.textContent = e.name;
-    b.style.setProperty('--ev', e.accent || '#ff8c1a');
-    b.style.display = '';
+    b.classList.add('ev-nav'); b.style.setProperty('--ev', e.accent || '#ff8c1a');
+    if (img){ img.style.display = ''; img.src = e.mark.art || ''; }
+    if (sun) sun.style.display = 'none';
+    if (sub) sub.style.display = '';
   }
-  const left = $('nav-event-left'); if (left) left.textContent = 'ends in ' + evEndsIn(e);
+  if (sub) sub.textContent = e.name + ' \u00b7 ' + evEndsIn(e) + ' left';   /* kort nog for sidlisten: "Halloween - 6d 13h left" */
 }
 let evTickLast = 0;
 function eventTick(){
@@ -49809,7 +49814,9 @@ function evCardHTML(s, e, have){
   const col = s.kind === 'appearance' ? 'var(--ev)' : s.kind === 'gear' ? ((s.payload && s.payload.rarity >= 4) ? rarCol(4) : rarCol(2)) : s.kind === 'gold' ? 'var(--gold)' : 'var(--cyan)';
   const fall = s.kind === 'gold' ? '🪙' : s.kind === 'gear' ? '📦' : '🎃';
   const kan = !owned && have >= s.price;
-  return '<button class="ev-card' + (owned ? ' owned' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + ' title="' + esc(s.descr || s.name) + '">' +
+  /* [ANDRAT v5.1362.0] stapelvaror (boostarna) far samma hovringsruta som i butiken (data-wbstack -> showStackTip), ingen title da */
+  const stk = s.kind === 'stack' && s.payload && s.payload.stack_key;
+  return '<button class="ev-card' + (owned ? ' owned' : '') + '" data-ev="buy" data-evk="' + esc(s.key) + '" style="--rc:' + col + '"' + (kan ? '' : ' disabled') + (stk ? ' data-wbstack="' + esc(stk) + '"' : ' title="' + esc(s.descr || s.name) + '"') + '>' +
     '<span class="ev-card-art">' + artWithFallback(artUnlessMissing(s.art || ''), fall) + '</span>' +
     '<b>' + esc(s.name) + '</b><i>' + esc(s.descr || '') + '</i>' +
     (owned ? '<em class="ev-owned">✓ Owned</em>'
@@ -49889,7 +49896,6 @@ function evMarksArt(m){ return m && m.art ? artUnlessMissing(m.art) : ''; }
     if (b.dataset.ev === 'buy') eventBuy(b.dataset.evk);
   });
   if (x) x.addEventListener('click', closeEventShop);
-  const nav = $('nav-event'); if (nav) nav.addEventListener('click', openEventShop);
 })();
 /* ---- DEMO-LAGET (?demo=halloween): butik, marks i vaskan, nedrakning, eventknapp och klassbild utan server.
    Rors inte i vanligt spel. ---- */
