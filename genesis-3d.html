@@ -677,7 +677,7 @@ const BASE = 'assets/world3d/';
 /* [TILLAGT v5.1374.0] NEON-PALETT (Chris: "farga om ALLA modeller sa 3D ser ut som 2D-kartan").
    KayKit-modellerna far sina farger fran ett farkart (32 rutor med toningar). Arket fargas om har nar filen laddas:
    gra/brunt dras mot morkt blalila (som 2D-kartans mark), starka farger knuffas till narmaste neonfarg och lyser (glod).
-   Gubbar (hud, klader) fargas mildare sa ansikten inte blir lila. TRELLIS-filerna (vharok_fly, cliff_drake) ar bilder, inte farkart - lamnas.
+   Gubbar (hud, klader) fargas mildare sa ansikten inte blir lila. TRELLIS-filerna (vharok_fly, cliff_drake) och rymdskeppen (ship_*) har riktiga bilder, inte farkart - lamnas.
    genesis.map3dPal = 'off' stanger av (for jamforelse). */
 const PAL_OFF = (() => { try { return localStorage.getItem('genesis.map3dPal') === 'off'; } catch (e) { return false; } })();
 const NEON_HUES = [188, 205, 265, 295, 330, 42, 95, 160];   /* cyan, bla, violett, lila, rosa, guld, lime, turkos */
@@ -713,7 +713,7 @@ function neonize(root, char){ if (PAL_OFF) return; root.traverse(o => { if (!o.i
     m.userData.neon = 1; m.needsUpdate = true; }); }); }
 const _loadAsync = loader.loadAsync.bind(loader);
 loader.loadAsync = (url, ...a) => _loadAsync(url, ...a).then(gl => {
-  const f = String(url); if (f.indexOf(BASE) === 0 && !/vharok|cliff_drake/.test(f)) neonize(gl.scene, /knight|barbarian|mage|rogue|skel_/.test(f)); return gl; });
+  const f = String(url); if (f.indexOf(BASE) === 0 && !/vharok|cliff_drake|ship_/.test(f)) neonize(gl.scene, /knight|barbarian|mage|rogue|skel_/.test(f)); return gl; });
 /* storlek i 3D-enheter: ['w', bredd] eller ['h', hojd] */
 const SIZE = {
   tree_single_A: ['h', 2.3], tree_single_B: ['h', 2.4], trees_A_large: ['w', 3.0], trees_A_medium: ['w', 2.7], trees_A_small: ['w', 2.2], trees_B_large: ['w', 3.0],
@@ -1291,6 +1291,23 @@ const dragon = (() => { const g = new THREE.Group(), red = flat(0x7a1f1f), dark 
     d.group.traverse(o => { if (o.isMesh) o.castShadow = true; });
     g.children.slice().forEach(o => { o.visible = false; }); g.add(hold); dragon.U = d.U; }).catch(() => {});
   return {g, wl, wr, shadow, cx: (c.x + c2.x) / 2 * K, cz: (c.y + c2.y) / 2 * K, a: 0}; })();
+/* [TILLAGT v5.1375.0] RYMDSKEPP over The Last Armada (Chris 2026-10-31: "bygg in nagot rymdskepp"). Quaternius Ultimate Spaceships (CC0),
+   gjorda till sma GLB med cloud/tools/skepp_till_glb.py. Fyra jagare flyger fria banor (samma slags sinusbana som Vharok) och lutar i svangarna;
+   kryssaren Imperial glider langsamt runt hogt over on. Motorerna har ett lysande sken bakom sig som glodet tar. */
+const SHIP_FWD = 0;
+const ships = [];
+(() => { const R = REG_BY.novacommand; if (!R || !R.bb) return;
+  const cx = (R.bb.x0 + R.bb.x1) / 2 * K, cz = (R.bb.y0 + R.bb.y1) / 2 * K, rx = (R.bb.x1 - R.bb.x0) * K * .34, rz = (R.bb.y1 - R.bb.y0) * K * .32;
+  const DEF = [['striker', 3.6, 10, '#22d3ee'], ['dispatcher', 3.2, 8.5, '#c084fc'], ['executioner', 3.9, 11.5, '#38bdf8'], ['omen', 3.4, 9.5, '#fb923c'], ['imperial', 7.5, 17, '#f43f5e']];
+  DEF.forEach(([k, len, h, glow], i) => loader.loadAsync(BASE + 'ship_' + k + '.glb').then(gl => {
+    const s = gl.scene, sz = new THREE.Box3().setFromObject(s).getSize(new THREE.Vector3()), hold = new THREE.Group(), g = new THREE.Group();
+    if (sz.x > sz.z) s.rotation.y = Math.PI / 2;   /* langsta axeln langs z (nosen mot +z, SHIP_FWD vander om den pekar bakat) */
+    s.rotation.y += SHIP_FWD; hold.add(s); hold.scale.setScalar(len / Math.max(sz.x, sz.z, .001));
+    const c = new THREE.Box3().setFromObject(hold).getCenter(new THREE.Vector3()); hold.position.sub(c); g.add(hold);
+    s.traverse(o => { if (o.isMesh){ o.castShadow = true; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.map){ m.emissive = new THREE.Color(0xffffff); m.emissiveMap = m.map; m.emissiveIntensity = .5; } }); } });
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(len * .045, len * .26, 10, 1, true), new THREE.MeshBasicMaterial({color: hdr(glow, 1.8), transparent: true, opacity: .45, depthWrite: false, blending: THREE.AdditiveBlending}));
+    fl.rotation.x = -Math.PI / 2; fl.position.z = -len * .6; g.add(fl);   /* spetsen bakat */
+    scene.add(g); ships.push({g, fl, cx, cz, rx, rz, h, big: k === 'imperial', a: i * 1.9, ph: i * 2.3, v: k === 'imperial' ? .035 : .11 + i * .012}); }).catch(e => console.warn('skepp', k, e && e.message))); })();
 const landers = [], clouds = [], weather = [];
 let worldReady = false;
 function onPackLoaded(name){
@@ -1524,6 +1541,15 @@ function step(dt, now){
   dragon.g.rotation.order = 'YXZ'; dragon.g.position.set(p0[0], p0[1] + bob, p0[2]);
   dragon.g.rotation.y = yaw; dragon.g.rotation.x = clamp(-Math.atan2(vy, hv) * .9, -.5, .5); dragon.g.rotation.z = dragon.roll;
   const fl = Math.sin(t * 4) * .6; dragon.wl.rotation.z = fl; dragon.wr.rotation.z = -fl; if (dragon.U) dragon.U.uT.value = dragon.ph; dragon.shadow.position.set(dragon.g.position.x, .06, dragon.g.position.z);
+  /* [TILLAGT v5.1375.0] rymdskeppen: jagarna fria banor med svang-lutning, kryssaren en langsam cirkel */
+  ships.forEach(S => { S.a += dt * S.v; const T = S.a;
+    const P = T => S.big ? [S.cx + Math.cos(T) * S.rx * .7, S.h + Math.sin(T * 3) * .4, S.cz + Math.sin(T) * S.rz * .7]
+      : [S.cx + S.rx * Math.sin(T * 1.9 + S.ph) + S.rx * .35 * Math.sin(T * 4.3 + S.ph * 2), S.h + 2.2 * Math.sin(T * 2.7 + S.ph), S.cz + S.rz * Math.sin(T * 1.3 + S.ph * .7) + S.rz * .3 * Math.cos(T * 3.7)];
+    const p0 = P(T), p1 = P(T + .01), vx = p1[0] - p0[0], vy = p1[1] - p0[1], vz = p1[2] - p0[2], hv = Math.hypot(vx, vz) || 1e-4, yaw = Math.atan2(vx, vz);
+    let dy = yaw - (S.yaw == null ? yaw : S.yaw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); S.yaw = yaw;
+    S.roll = (S.roll || 0) + (clamp(-dy / Math.max(dt, 1e-3) * (S.big ? 2 : .5), -.7, .7) - (S.roll || 0)) * Math.min(1, dt * 3);
+    S.g.rotation.order = 'YXZ'; S.g.position.set(p0[0], p0[1], p0[2]); S.g.rotation.y = yaw; S.g.rotation.x = clamp(-Math.atan2(vy, hv), -.4, .4); S.g.rotation.z = S.roll;
+    S.fl.scale.set(1, .8 + Math.sin(t * 23 + S.ph) * .2, 1); });
   landers.forEach(L => { L.a += dt * .15; L.m.position.set(L.cx + Math.cos(L.a) * L.r, L.h + Math.sin(t + L.a) * .5, L.cz + Math.sin(L.a) * L.r * .6); L.m.rotation.y = -L.a; });
   clouds.forEach(m => { m.position.x += m.userData.v * dt; if (m.position.x > m.userData.x1 + 20) m.position.x = m.userData.x0 - 20;
     m.visible = cam.dist > 70; m.traverse(o => { if (o.isMesh) o.material.opacity = clamp((cam.dist - 70) / 60, 0, .85); }); });
@@ -2271,7 +2297,7 @@ function frame(now){
   else if (newsT <= 0 && newsT > -dt * 1.5){ $('news').className = ''; }
   statusT -= dt; if (statusT <= 0){ statusT = 1; if (selected) renderCard(); renderStatus(); }
 }
-window.__gw = {unfollow(){ follow = null; touched = true; }, ents, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
+window.__gw = {unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
 requestAnimationFrame(frame);
 </script>
 </body>
