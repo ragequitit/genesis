@@ -94,9 +94,9 @@ insert into public.modchip_design_config (key, rarity, sorts, lvl) values
   ('design_modchip_mythic_dgspeed_luck',    5, array['dgspeed','luck'],    16)
   on conflict (key) do update set rarity = excluded.rarity, sorts = excluded.sorts, lvl = excluded.lvl;
 
-/* Rattar: chip_fusion_gold i KOPPAR (250000 = 25 guld, Chris satter talet senare), socket_drill_marks = pris i Boss Marks,
+/* Rattar: chip_fusion_gold i KOPPAR (2500000 = 250 guld, Chris 2026-10-30), socket_drill_marks = pris i Boss Marks,
    socket_pity = otursskyddets langd. */
-insert into public.idle_config (key, value) values ('chip_fusion_gold', 250000) on conflict (key) do nothing;
+insert into public.idle_config (key, value) values ('chip_fusion_gold', 2500000) on conflict (key) do update set value = excluded.value;
 insert into public.idle_config (key, value) values ('socket_drill_marks', 15) on conflict (key) do nothing;
 insert into public.idle_config (key, value) values ('socket_pity', 150) on conflict (key) do nothing;
 
@@ -508,7 +508,7 @@ revoke execute on function public.modchip_extract(uuid, uuid) from public, anon;
 grant execute on function public.modchip_extract(uuid, uuid) to authenticated;
 
 /* [TILLAGT v5.1358.0] CHIP FUSION HOS HANDLAREN (alla spelare): tre Salvaged Mod Chips -> ett Epic-chip av valfri sort bland de tre,
-   mot guld (idle_config chip_fusion_gold, koppar; 250000 = 25 guld). Man maste sta hos handlaren (som vendor_buy_stack).
+   mot guld (idle_config chip_fusion_gold, koppar; 2500000 = 250 guld). Man maste sta hos handlaren (som vendor_buy_stack).
    De tre aldsta Salvaged i vaskan tas. Resultatet ar bundet och har exakt Epic-grundvardet. */
 create or replace function public.modchip_fusion(p_character uuid, p_region text, p_sort text)
  returns json language plpgsql security definer set search_path to 'public', 'pg_temp'
@@ -519,7 +519,7 @@ begin
   if v_ch.region <> p_region then raise exception 'not_at_this_vendor' using errcode='P0001'; end if;
   if v_ch.travel_ends is not null and v_ch.travel_ends > now() then raise exception 'still_travelling' using errcode='P0001'; end if;
   if not exists (select 1 from public.modchip_config where sort = p_sort) then raise exception 'modchip_bad_sort' using errcode='P0001'; end if;
-  v_gold := coalesce(nullif(public.idle_val('chip_fusion_gold'), 0), 250000);
+  v_gold := coalesce(nullif(public.idle_val('chip_fusion_gold'), 0), 2500000);
   select array_agg(id), array_agg(s) into v_ids, v_sorts
     from (select i.id, c.sort as s from public.items i join public.modchip_config c on c.affix = i.affixes->0->>'k'
            where i.character_id = p_character and i.location = 'bag' and i.item_key = 'salvaged_modchip'
