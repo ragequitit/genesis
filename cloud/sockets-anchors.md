@@ -318,30 +318,26 @@ Ersatts med:
 
 ### pve_fight
 
-Ankare:
+Ankare ([ANDRAT 2026-10-30] Halloween lade 'event_marks' mellan raderna, sa ankaret ar nu bara sista raden):
 ```
-          'gear', v_gear, 'choice', v_onb,
           'schematic', v_sch_got) end);
 ```
 Ersatts med:
 ```
-          'gear', v_gear, 'choice', v_onb,
           'schematic', v_sch_got,
           'modchips', v_mc) end);   /* [TILLAGT v5.1358.0] */
 ```
 
 ### claim_expedition
 
-Ankare:
+Ankare ([ANDRAT 2026-10-30] Halloween lade v_evm fore begin, sa ankaret ar nu bara raden):
 ```
   v_shard text; v_shard_got text := null; v_first_clear boolean; v_lap json;
-begin
 ```
 Ersatts med:
 ```
   v_shard text; v_shard_got text := null; v_first_clear boolean; v_lap json;
   v_mc jsonb := null;   /* [TILLAGT v5.1358.0] Salvaged Mod Chip / Mod Chip Design */
-begin
 ```
 
 ### claim_expedition
@@ -361,15 +357,13 @@ Ersatts med:
 
 ### claim_expedition
 
-Ankare:
+Ankare ([ANDRAT 2026-10-30] Halloween lade 'event_marks' pa samma rad):
 ```
     'relic', v_relic, 'recipe', v_rec, 'melon', v_melon,
-
 ```
 Ersatts med:
 ```
-    'relic', v_relic, 'recipe', v_rec, 'melon', v_melon, 'modchips', v_mc,   /* [TILLAGT v5.1358.0] */
-
+    'relic', v_relic, 'recipe', v_rec, 'melon', v_melon, 'modchips', v_mc,
 ```
 
 ### pve_dungeon_claim
@@ -400,15 +394,13 @@ Ersatts med:
 
 ### pve_dungeon_claim
 
-Ankare:
+Ankare ([ANDRAT 2026-10-30] Halloween lade 'event_marks' pa samma rad):
 ```
     'schematic', v_sch_got,
-    'used', json_build_object
 ```
 Ersatts med:
 ```
-    'schematic', v_sch_got, 'modchips', v_mc,   /* [TILLAGT v5.1358.0] */
-    'used', json_build_object
+    'schematic', v_sch_got, 'modchips', v_mc,
 ```
 
 ### wb_reward
@@ -455,14 +447,14 @@ Ersatts med:
 
 ### wb_reward
 
-Ankare:
+Ankare ([ANDRAT 2026-10-30] Halloween lade en rad om event marks efter, sa satsen slutar inte langre har):
 ```
-              || (case when v_paper is not null then ' A schematic is in the box.' else '' end);
+              || (case when v_paper is not null then ' A schematic is in the box.' else '' end)
 ```
 Ersatts med:
 ```
               || (case when v_paper is not null then ' A schematic is in the box.' else '' end)
-              || (case when v_mc->'design'->>'key' is not null then ' A Mod Chip Design is in the box.' else '' end);   /* [TILLAGT v5.1358.0] */
+              || (case when v_mc->'design'->>'key' is not null then ' A Mod Chip Design is in the box.' else '' end)   /* [TILLAGT v5.1358.0] */
 ```
 
 ### wb_reward
