@@ -87,8 +87,15 @@ create table if not exists public.season_event_drops (
   full_mins  numeric,
   hi_tier    integer,
   hi_bonus   integer not null default 0,
+  first_bonus integer not null default 0,   /* [TILLAGT 2026-10-30] +marks FORSTA gangen per sak (dungeon-id) - Chris: "plus en forsta gangen man kor dungeonen" */
   note       text,
   primary key (event_key, src)
+);
+alter table public.season_event_drops add column if not exists first_bonus integer not null default 0;
+/* Forsta-gangen-bokforing: en rad per karaktar, event, kalla och sak (t ex dungeon-id). Finns raden ar det inte forsta gangen. */
+create table if not exists public.season_event_firsts (
+  character_id uuid not null, event_key text not null, src text not null, ref text not null, at timestamptz not null default now(),
+  primary key (character_id, event_key, src, ref)
 );
 
 /* Kopbok: en rad per kop. Anvands for per_char-granser och for att se vad som salts. */
@@ -163,13 +170,13 @@ on conflict (event_key, key) do update set name = excluded.name, kind = excluded
      expedition  100 % vid 4 h eller langre, 1-2 marks; kortare skalar (mins/240)  ~15-30 / dag med flera hjalpare
      dungeon     100 % vid klarat lopp, 2 marks, +1 fran regionsniva 3            ~6-12 / dag
      worldboss   100 % vid dodad boss, 5 marks (i brevet)                         ~10 / dag (tva bossar) */
-insert into public.season_event_drops (event_key, src, chance, qty_min, qty_max, min_tier, full_mins, hi_tier, hi_bonus, note) values
-  ('halloween_2026', 'encounter',  0.25, 1, 1, 0, null, null, 0, '25 % per vunnen strid'),
-  ('halloween_2026', 'expedition', 1.00, 1, 2, 0, 240,  null, 0, 'full chans och fullt antal fran 4 h, kortare skalar'),
-  ('halloween_2026', 'dungeon',    1.00, 2, 2, 0, null, 3,    1, 'klarat lopp; +1 fran regionsniva 3'),
-  ('halloween_2026', 'worldboss',  1.00, 5, 5, 0, null, null, 0, 'bara nar bossen dor; laggs i brevet')
+insert into public.season_event_drops (event_key, src, chance, qty_min, qty_max, min_tier, full_mins, hi_tier, hi_bonus, first_bonus, note) values
+  ('halloween_2026', 'encounter',  0.25, 1, 1, 0, null, null, 0, 0, '25 % per vunnen strid'),
+  ('halloween_2026', 'expedition', 1.00, 1, 2, 0, 240,  null, 0, 0, 'full chans och fullt antal fran 4 h, kortare skalar'),
+  ('halloween_2026', 'dungeon',    1.00, 2, 2, 0, null, null, 0, 1, 'klarat lopp: 2 overallt, +1 forsta gangen per dungeon (Chris 2026-10-30: ingen regionbonus - pa niva 50 ar alla overallt)'),
+  ('halloween_2026', 'worldboss',  1.00, 5, 5, 0, null, null, 0, 0, 'bara nar bossen dor; laggs i brevet')
 on conflict (event_key, src) do update set chance = excluded.chance, qty_min = excluded.qty_min, qty_max = excluded.qty_max,
-  min_tier = excluded.min_tier, full_mins = excluded.full_mins, hi_tier = excluded.hi_tier, hi_bonus = excluded.hi_bonus, note = excluded.note;
+  min_tier = excluded.min_tier, full_mins = excluded.full_mins, hi_tier = excluded.hi_tier, hi_bonus = excluded.hi_bonus, first_bonus = excluded.first_bonus, note = excluded.note;
 
 -- ============================================================================
 -- 3. NYA FUNKTIONER
@@ -205,7 +212,7 @@ begin
            ) order by s.sort, s.key), '[]'::jsonb)
       into v_shop from public.season_event_shop s where s.event_key = v_e.key and s.enabled;
     select coalesce(jsonb_agg(jsonb_build_object('src', d.src, 'chance', d.chance, 'qty_min', d.qty_min, 'qty_max', d.qty_max,
-             'min_tier', d.min_tier, 'full_mins', d.full_mins, 'hi_tier', d.hi_tier, 'hi_bonus', d.hi_bonus, 'note', d.note) order by d.src), '[]'::jsonb)
+             'min_tier', d.min_tier, 'full_mins', d.full_mins, 'hi_tier', d.hi_tier, 'hi_bonus', d.hi_bonus, 'first_bonus', d.first_bonus, 'note', d.note) order by d.src), '[]'::jsonb)
       into v_drops from public.season_event_drops d where d.event_key = v_e.key;
     v_ev := json_build_object('key', v_e.key, 'name', v_e.name, 'tagline', v_e.tagline, 'starts_at', v_e.starts_at, 'ends_at', v_e.ends_at,
               'mark', json_build_object('key', v_e.mark_key, 'name', v_e.mark_name, 'plural', v_e.mark_plural, 'art', v_e.mark_art),
@@ -226,11 +233,11 @@ grant execute on function public.event_state(uuid) to authenticated;
    {"event","key","qty","name","plural","art","mailed"}. p_deliver=true lagger marken i vaskan (eller i
    posten om vaskan ar full och spelaren inte redan har en stapel); false = bara svaret, anroparen levererar
    (wb_reward lagger dem i brevet). Loot Luck paverkar inte. Alla tal ur season_event_drops. */
-create or replace function public.event_mark_drop(p_character uuid, p_src text, p_tier integer, p_mins numeric default 0, p_deliver boolean default true)
+create or replace function public.event_mark_drop(p_character uuid, p_src text, p_tier integer, p_mins numeric default 0, p_deliver boolean default true, p_ref text default null)
  returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp'
 as $function$
 declare v_e public.season_events; v_d public.season_event_drops; v_f numeric := 1; v_t integer := greatest(0, coalesce(p_tier, 0));
-        v_qty integer; v_mailed boolean := false;
+        v_qty integer; v_mailed boolean := false; v_first boolean := false;
 begin
   select * into v_e from public.season_events where key = public.event_now_key();
   if not found then return null; end if;
@@ -244,6 +251,11 @@ begin
   v_qty := v_d.qty_min + floor(random() * (greatest(v_d.qty_min, v_d.qty_max) - v_d.qty_min + 1))::integer;
   if v_f < 1 then v_qty := greatest(1, round(v_qty * v_f)::integer); end if;
   if v_d.hi_tier is not null and v_t >= v_d.hi_tier then v_qty := v_qty + coalesce(v_d.hi_bonus, 0); end if;
+  /* [TILLAGT 2026-10-30] forsta gangen per sak (p_ref = t ex dungeon-id): +first_bonus, bokfors sa det bara sker en gang */
+  if coalesce(v_d.first_bonus, 0) > 0 and p_ref is not null then
+    insert into public.season_event_firsts (character_id, event_key, src, ref) values (p_character, v_e.key, p_src, p_ref) on conflict do nothing;
+    if found then v_first := true; v_qty := v_qty + v_d.first_bonus; end if;
+  end if;
   if v_qty <= 0 then return null; end if;
   if p_deliver then
     if public.bag_free(p_character) > 0 or exists (select 1 from public.stacks where character_id = p_character and stack_key = v_e.mark_key) then
@@ -254,10 +266,10 @@ begin
       v_mailed := true;
     end if;
   end if;
-  return jsonb_build_object('event', v_e.key, 'key', v_e.mark_key, 'qty', v_qty, 'name', v_e.mark_name, 'plural', v_e.mark_plural, 'art', v_e.mark_art, 'mailed', v_mailed);
+  return jsonb_build_object('event', v_e.key, 'key', v_e.mark_key, 'qty', v_qty, 'name', v_e.mark_name, 'plural', v_e.mark_plural, 'art', v_e.mark_art, 'mailed', v_mailed, 'first', v_first);
 end $function$;
-revoke execute on function public.event_mark_drop(uuid, text, integer, numeric, boolean) from public, anon;
-revoke execute on function public.event_mark_drop(uuid, text, integer, numeric, boolean) from authenticated; -- intern hjalpare: anropas bara fran andra serverfunktioner
+revoke execute on function public.event_mark_drop(uuid, text, integer, numeric, boolean, text) from public, anon;
+revoke execute on function public.event_mark_drop(uuid, text, integer, numeric, boolean, text) from authenticated; -- intern hjalpare: anropas bara fran andra serverfunktioner
 
 /* KOPET. Drar marks, levererar varan, bokfor, returnerar nytt lage. Klienten spelar bara upp svaret.
    Felkoder: event_closed, event_item_bad, event_item_owned, event_marks_short (detail = priset), event_kind_unknown. */
@@ -408,7 +420,7 @@ select public.event_patch_fn('public.pve_dungeon_claim(uuid)',
   $a$  update public.pve_dungeon_runs set state = 'claimed', claimed_at = now(),$a$,
   $b$  /* [TILLAGT v5.1362.0] EVENT-MARKS vid klarat lopp (slutbossen besegrad, ingen dod). Talen i season_event_drops (dungeon). */
   if v_klar then
-    begin v_evm := public.event_mark_drop(p_character, 'dungeon', coalesce(v_sch_tier, 0), 0, true); exception when others then v_evm := null; end;
+    begin v_evm := public.event_mark_drop(p_character, 'dungeon', coalesce(v_sch_tier, 0), 0, true, v_run.dungeon_id::text); exception when others then v_evm := null; end;   /* p_ref = dungeonen: +1 forsta gangen */
   end if;
   update public.pve_dungeon_runs set state = 'claimed', claimed_at = now(),$b$,
   'v5.1362.0] EVENT-MARKS vid klarat lopp');
@@ -445,7 +457,7 @@ select public.event_patch_fn('public.wb_reward(bigint)',
 -- 5. REVOKES (samlat - de star aven vid varje funktion ovan)
 -- ============================================================================
 revoke execute on function public.event_now_key() from public, anon, authenticated;
-revoke execute on function public.event_mark_drop(uuid, text, integer, numeric, boolean) from public, anon, authenticated;
+revoke execute on function public.event_mark_drop(uuid, text, integer, numeric, boolean, text) from public, anon, authenticated;
 revoke execute on function public.event_patch_fn(regprocedure, text, text, text) from public, anon, authenticated;
 revoke execute on function public.event_state(uuid) from public, anon;
 revoke execute on function public.event_shop_buy(uuid, text, text) from public, anon;
@@ -470,7 +482,7 @@ begin;
   select public.event_mark_drop('<CHAR>'::uuid, 'encounter', 0, 0, true);     -- 25 %: null eller {"qty":1,...}
   select public.event_mark_drop('<CHAR>'::uuid, 'expedition', 2, 480, true);  -- alltid 1-2
   select public.event_mark_drop('<CHAR>'::uuid, 'expedition', 2, 60, true);   -- 25 % chans, 1 mark
-  select public.event_mark_drop('<CHAR>'::uuid, 'dungeon', 3, 0, true);       -- alltid 3 (2 + 1)
+  select public.event_mark_drop('<CHAR>'::uuid, 'dungeon', 3, 0, true, 'vox_d1');  -- 3 forsta gangen for den dungeonen (2 + 1), sedan 2
   select public.event_mark_drop('<CHAR>'::uuid, 'worldboss', 1, 0, false);    -- alltid 5, levereras inte
 
   -- som spelare

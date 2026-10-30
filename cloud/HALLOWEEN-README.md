@@ -42,7 +42,7 @@ Gren: `halloween` (fran `origin/main` = v5.1359.0). Main ar ororad. Inget ar liv
 |---|---|---|---|
 | Vunnen strid (encounter) | 25 % | 1 | alla regioner |
 | Expedition | 100 % fran 4 h | 1–2 | kortare skalar linjart: 2 h = 50 % chans, 1 mark; 8 h = 1–2 |
-| Dungeon (klarat lopp) | 100 % | 2 | +1 fran regionsniva 3 (Cutlass Bay+) |
+| Dungeon (klarat lopp) | 100 % | 2 | +1 FORSTA gangen per dungeon (Chris 2026-10-30), ingen regionbonus |
 | World Boss (dodad) | 100 % | 5 | i brevet; flykt ger inget |
 
 Rakneexempel aktiv spelare per dag: ~80 strider = 20, 4–5 hjalpare x 2–3 expeditioner = 15–25, 4 dungeons = 8–12, 2 bossar = 10 -> **ca 55–65 marks/dag**. Hela setet (175) pa **3 dagar**; en vanlig spelare pa 5–7 dagar; eventet ar 10 dagar.
