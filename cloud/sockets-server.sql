@@ -21,7 +21,7 @@ alter table public.items add column if not exists mod_chip jsonb;
 alter table public.items add column if not exists bound boolean not null default false;
 /* Dolt otursskydd: pjaser i rad (Epic eller battre) utan socket. Syns aldrig for spelaren. */
 alter table public.characters add column if not exists socket_pity integer not null default 0;
-/* Stapelvaror kan vara bundna (Socket Drill). Materialen hade bop redan; stapelvarorna saknade det. */
+/* Stapelvaror kan vara bundna (Socket Press). Materialen hade bop redan; stapelvarorna saknade det. */
 alter table public.stack_item_config add column if not exists bop boolean not null default false;
 
 /* Chipens egen "plats" i slot_config: items.slot_idx och item_config.slot_idx har FK hit. 15 ar ledigt (14 = Character Gem).
@@ -116,7 +116,7 @@ insert into public.item_config (key, name, slot_idx, rarities, bag_slots, drop_r
 
 /* Stapelvarorna: borren (bunden, saljs inte = kan inte laggas pa auktion), extraktorerna (saljbara) och pappren (saljbara). */
 insert into public.stack_item_config (key, name, sell, vendor_sells, bop) values
-  ('socket_drill',             'Socket Drill',             0,      false, true),
+  ('socket_drill',             'Socket Press',             0,      false, true),
   ('chip_extractor_rare',      'Chip Extractor (Rare)',      5000,  false, false),
   ('chip_extractor_epic',      'Chip Extractor (Epic)',      15000, false, false),
   ('chip_extractor_legendary', 'Chip Extractor (Legendary)', 40000, false, false),
@@ -470,7 +470,7 @@ AS $function$
 /* EN kalla for auktion, post och byteshandel. [ANDRAT v5.1358.0] Tre nya regler:
    - en BUNDEN pjas (borrad, Salvaged chip, uttaget/fusionerat chip) ar Bind on Pickup;
    - en pjas med ett ISATT chip kan inte lamna kontot forran chipet ar uttaget (chip_inserted);
-   - en bunden stapelvara (Socket Drill, stack_item_config.bop) ar ocksa Bind on Pickup. */
+   - en bunden stapelvara (Socket Press, stack_item_config.bop) ar ocksa Bind on Pickup. */
 declare v_it public.items;
 begin
   if p_stack_key is not null then
@@ -1234,7 +1234,7 @@ begin
   elsif p_what = 'broken_charm_epic' then v_cost := coalesce(public.idle_val('wb_marks_charm_epic'), 5)::integer;
   elsif p_what = 'broken_charm_legendary' then v_cost := coalesce(public.idle_val('wb_marks_charm_legendary'), 7)::integer;
   elsif p_what = 'broken_charm_mythic' then v_cost := coalesce(public.idle_val('wb_marks_charm_mythic'), 10)::integer;
-  elsif p_what = 'socket_drill' then v_cost := coalesce(nullif(public.idle_val('socket_drill_marks'), 0), 15)::integer;   /* [TILLAGT v5.1358.0] Socket Drill 15 marks (Chris), bunden */
+  elsif p_what = 'socket_drill' then v_cost := coalesce(nullif(public.idle_val('socket_drill_marks'), 0), 15)::integer;   /* [TILLAGT v5.1358.0] Socket Press 15 marks (Chris), bunden */
   else raise exception 'wb_marks_bad' using errcode='P0001'; end if;
   select qty into v_have from public.stacks where character_id = p_character and stack_key = 'boss_mark' limit 1;
   if coalesce(v_have, 0) < v_cost then raise exception 'wb_marks_short' using errcode='P0001', detail = v_cost::text; end if;

@@ -6412,7 +6412,7 @@ ol.htp-list li::before{content:counter(htp);width:20px;height:20px;margin-top:1p
 .inv-toolbar .inv-capline{margin-left:auto}
 /* Bocken i hornet pa en ruta som gar att salja. */
 .inv-slot .sell-tick{
-  position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;
+  position:absolute;left:3px;top:auto;bottom:3px;width:15px;height:15px;border-radius:50%;   /* [ANDRAT v5.1360.0] NERE till vanster - sockelmarket tog hornet uppe (Chris 2026-10-30) */
   border:1px solid rgba(255,197,66,.7);background:rgba(4,8,20,.85);
   display:flex;align-items:center;justify-content:center;
   font-size:10px;color:var(--gold);line-height:1;
@@ -12707,7 +12707,7 @@ div.modal.dgc-modal{width:min(1120px,96vw);max-width:96vw}
 .inv-slot .mc-hex.img.cell{width:46px;height:46px;box-shadow:none;background:transparent}   /* i vaskan: rutan har redan raritetsramen - ingen inre ram */
 /* [ANDRAT v5.1360.0] SOCKELMARKET (Chris 2026-10-30): en liten RUND ring nere till vanster pa pjasen - bade i vaskan och pa
    kroppens rutor - som stjarnan fast pa andra sidan. Tom sockel = mork ring, fylld = chipets bild i ringen. */
-.mc-badge{position:absolute;left:3px;bottom:3px;top:auto;z-index:3;width:12px;height:12px;border-radius:2px;clip-path:none}   /* [ANDRAT] FYRKANTIG som chipen (Chris 2026-10-30) */   /* [ANDRAT] lite mindre (Chris 2026-10-30) */
+.mc-badge{position:absolute;left:3px;top:3px;bottom:auto;   /* [ANDRAT] UPPE till vanster (Chris 2026-10-30) - bocken for salj/atervinn flyttade ner */ z-index:3;width:12px;height:12px;border-radius:2px;clip-path:none}   /* [ANDRAT] FYRKANTIG som chipen (Chris 2026-10-30) */   /* [ANDRAT] lite mindre (Chris 2026-10-30) */
 .mc-badge::before,.mc-badge::after{clip-path:none;border-radius:2px}
 .mc-badge::before{inset:0;background:#cfd6e6;box-shadow:0 0 3px #000}
 .mc-badge::after{inset:2px;background:#0b1226}
@@ -15184,8 +15184,8 @@ const SRV_ERRORS = {
   not_a_modchip:            'That is not a Mod Chip.',
   needs_chip_extractor:     'You need a Chip Extractor of the chip\u2019s rarity or better (a Weaponsmith makes them).',
   no_chip:                  'There is no Mod Chip in this piece.',
-  drill_not_gear:           'A Socket Drill only works on the 12 wearable gear slots.',
-  drill_needs_rare:         'A Socket Drill needs Rare gear or better.',
+  drill_not_gear:           'A Socket Press only works on the 12 wearable gear slots.',
+  drill_needs_rare:         'A Socket Press needs Rare gear or better.',
   already_has_socket:       'This piece already has a socket.',
   chip_not_gear:            'A Mod Chip goes into a socket, not on your body.',
   need_three_salvaged:      'Chip Fusion needs three Salvaged Mod Chips in your backpack.',
@@ -23204,7 +23204,7 @@ const MODCHIP_SORTS = ['crit', 'critdmg', 'gold', 'dgspeed'];
 const MODCHIP_RAR_KEY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 /* Chip Fusion hos handlaren: pris i KOPPAR (25 guld). Servern ager talet (idle_config chip_fusion_gold) - detta ar bara texten pa knappen. */
 const CHIP_FUSION_GOLD = 250000;
-const SOCKET_DRILL_MARKS = 15;   /* Socket Drill i World Boss-butiken (servern: idle_config socket_drill_marks) */
+const SOCKET_DRILL_MARKS = 15;   /* Socket Press i World Boss-butiken (servern: idle_config socket_drill_marks) */
 function modchipBase(sort, r){ const d = MODCHIP[sort]; return d ? d.vals[Math.max(2, Math.min(5, r | 0)) - 2] : 0; }
 /* Ar foremalet ett Mod Chip (loose, i vaskan)? */
 function isChipItem(it){ return !!(it && it.t && ITEMS[it.t] && ITEMS[it.t].chip); }
@@ -30793,7 +30793,7 @@ function openChipTargetPicker(chip){
   }).join('');
   const box = chipPickBox('Insert \u00b7 ' + esc(gearName(chip)),
     '<span class="cp-now">' + chipHexHTML(chipSortOf(chip), chip.r, '', chipPicOf(chip)) + '<span><b style="color:' + perkColor(chipSortOf(chip)) + '">+' + chipValOf(chip).toFixed(2) + '% ' + esc((MODCHIP[chipSortOf(chip)] || {}).name || '') + '</b> \u00b7 fits ' + RARITIES[chip.r].name + ' gear or better</span></span>',
-    rows, 'No gear with an empty socket. Some gear drops with one; a Socket Drill from the World Boss shop adds one.');
+    rows, 'No gear with an empty socket. Some gear drops with one; a Socket Press from the World Boss shop adds one.');
   box.addEventListener('click', e => {
     const b = e.target.closest('[data-cp]'); if (!b || b.disabled) return;
     if (b.dataset.cp === 'x'){ closeChipPicker(); return; }
@@ -30826,13 +30826,13 @@ async function askExtractChip(gear){
 }
 async function askDrillSocket(gear){
   if (!gear || gear.ms){ say(SRV_ERRORS.already_has_socket); return; }
-  if (pveOwned('socket_drill') < 1){ say('You need a Socket Drill (World Boss shop, ' + SOCKET_DRILL_MARKS + ' Boss Marks).'); return; }
+  if (pveOwned('socket_drill') < 1){ say('You need a Socket Press (World Boss shop, ' + SOCKET_DRILL_MARKS + ' Boss Marks).'); return; }
   if (gear.r < 2){ say(SRV_ERRORS.drill_needs_rare); return; }
-  const ja = await askConfirm({color: 'var(--cyan)', ico: '\u2b21', title: 'Drill a socket?',
-    body: '<b>' + esc(gearName(gear)) + '</b> gets one socket. It never fails. The piece <b>binds to you</b> and one Socket Drill is used up.',
+  const ja = await askConfirm({color: 'var(--cyan)', ico: '\u2b21', title: 'Press a socket?',
+    body: '<b>' + esc(gearName(gear)) + '</b> gets one socket. It never fails. The piece <b>binds to you</b> and one Socket Press is used up.',
     yes: 'DRILL', no: 'NO'});
   if (!ja) return;
-  netDrill(gear).then(() => spawnFloat({text: 'Socket added'})).catch(err => say(srvErrText(err, 'Could not drill.')));
+  netDrill(gear).then(() => spawnFloat({text: 'Socket added'})).catch(err => say(srvErrText(err, 'Could not press.')));
 }
 /* Borren fran vaskan: valj pjas (Rare+, utan socket, barbar plats). */
 function openDrillPicker(){
@@ -30842,8 +30842,8 @@ function openDrillPicker(){
   const rows = c.map((x, i) => '<button class="cp-row" data-cp="' + i + '" style="--rc:' + gearRarCol(x.it) + '">' +
       '<span class="cp-art">' + artWithFallback(gearArt(x.it), '\ud83d\udce6') + '</span>' +
       '<span class="cp-txt"><b style="color:' + gearRarCol(x.it) + '">' + esc(gearName(x.it)) + '</b><i>' + RARITIES[x.it.r].name + ' \u00b7 ' + x.where + '</i></span></button>').join('');
-  const box = chipPickBox('Socket Drill', 'Pick a piece of Rare gear or better without a socket. It gets one socket, never fails, and the piece binds to you.',
-    rows, 'Nothing to drill: you need Rare gear or better that has no socket yet.');
+  const box = chipPickBox('Socket Press', 'Pick a piece of Rare gear or better without a socket. It gets one socket, never fails, and the piece binds to you.',
+    rows, 'Nothing to press: you need Rare gear or better that has no socket yet.');
   box.addEventListener('click', e => {
     const b = e.target.closest('[data-cp]'); if (!b || b.disabled) return;
     if (b.dataset.cp === 'x'){ closeChipPicker(); return; }
@@ -34700,8 +34700,8 @@ const ITEM_DEFS = {
   /* [TILLAGT v5.1358.0] SOCKETS OCH MOD CHIPS: borren (WB-butiken, bunden), extraktorerna (Weaponsmith) och pappren.
      Saljpriserna ar serverns (stack_item_config). design = {rar, sorts} - Mythic-pappret har tva sorter, den som lar sig valjer. */
   socket_drill: {
-    name: 'Socket Drill', ico: '\ud83d\udd29', kind: 'Tool', hex: 'drill', art: 'assets/items/chips/socket_drill.webp',
-    desc: 'Drills one socket into a piece of Rare gear or better that has none. Never fails. The drill and the drilled piece bind to you. From the World Boss shop for ' + SOCKET_DRILL_MARKS + ' Boss Marks.',
+    name: 'Socket Press', ico: '\ud83d\udd29', kind: 'Tool', hex: 'drill', art: 'assets/items/chips/socket_drill.webp',
+    desc: 'Presses one socket into a piece of Rare gear or better that has none. Never fails. The press and the pressed piece bind to you. From the World Boss shop for ' + SOCKET_DRILL_MARKS + ' Boss Marks.',
     sell: 0, noSell: true, bop: true
   },
   chip_extractor_rare:      {name: 'Chip Extractor (Rare)',      ico: '\ud83e\ude9b', kind: 'Tool', hex: 'extractor', extractor: 2, art: 'assets/items/chips/chip_extractor.webp', desc: 'Pulls a Rare Mod Chip out of its socket. Used up when you do. Made by Weaponsmiths.', sell: 5000},
@@ -44748,7 +44748,7 @@ function itemWinActions(win, uid){
       /* [TILLAGT v5.1358.0] SOCKETEN: tom -> valj chip, fylld -> ta ut (kraver Chip Extractor). Ingen socket, Rare+ -> borren om man har en. */
       (found.it.ms && !found.it.mc ? '<button class="ia-equip" data-act="socket">Mod Chip<span>pick a chip</span></button>' : '') +
       (found.it.ms && found.it.mc ? '<button class="ia-cancel" data-act="extract">Remove chip</button>' : '') +
-      (!found.it.ms && found.it.r >= 2 && pveOwned('socket_drill') > 0 ? '<button class="ia-cancel" data-act="drill">Drill a socket</button>' : '') +
+      (!found.it.ms && found.it.r >= 2 && pveOwned('socket_drill') > 0 ? '<button class="ia-cancel" data-act="drill">Press a socket</button>' : '') +
       (NET.on && found.it.sid ? '<button class="ia-cancel" data-act="fav">' + (found.it.fav ? 'Remove favorite' : '\u2605 Favorite') + '</button>' : '') +   /* [TILLAGT v5.1213.0] */
       (NET.on && found.it.sid ? '<button class="ia-cancel" data-act="favtag" style="color:' + favCol(found.it) + '">\u2605 Star type</button>' : '') +   /* [TILLAGT v5.1252.0] */
       (NET.on && found.it.sid && skinnable(found.it) ? '<button class="ia-cancel" data-act="skin">Appearance</button>' : '') +   /* [TILLAGT v5.889.0] */
@@ -45179,10 +45179,10 @@ function openGearMenu(uid, x, y){
          inte i telefonens fonster. Nu Equip - den hamnar i forsta lediga vaskplats. */
       h += '<button class="pm-item" data-act="equipbag">Equip \u00b7 Bag slot</button>';
     }
-    /* [TILLAGT v5.1358.0] SOCKETEN i menyn: valj chip / ta ut chip / borra (om man har en Socket Drill). */
+    /* [TILLAGT v5.1358.0] SOCKETEN i menyn: valj chip / ta ut chip / borra (om man har en Socket Press). */
     if (it.ms && !it.mc) h += '<button class="pm-item" data-act="socket">Mod Chip \u00b7 empty socket</button>';
     if (it.ms && it.mc) h += '<button class="pm-item" data-act="extract">Remove Mod Chip \u00b7 needs a Chip Extractor</button>';
-    if (!it.ms && !isBag && !isGemItem(it) && !isChipItem(it) && it.r >= 2 && it.s !== 11 && pveOwned('socket_drill') > 0) h += '<button class="pm-item" data-act="drill">Drill a socket \u00b7 Socket Drill</button>';
+    if (!it.ms && !isBag && !isGemItem(it) && !isChipItem(it) && it.r >= 2 && it.s !== 11 && pveOwned('socket_drill') > 0) h += '<button class="pm-item" data-act="drill">Press a socket \u00b7 Socket Press</button>';
     /* Tuning oppnar kortet - dar syns bade det gamla och det nya talet. */
     if (NET.on && tuneReady(it)){
       h += '<button class="pm-item" data-act="tune">Reroll \u00b7 ' + moneyText(tunePrice(it.r, it.tune || 0)) + '</button>';   /* [ANDRAT v5.1041.0] */
@@ -46716,7 +46716,7 @@ const HTP = [
   /* [TILLAGT v5.1358.0] SOCKETS OCH MOD CHIPS (Chris tre rader + Chip Extractor och Chip Fusion). */
   {id:'sockets', n:'Sockets & Mod Chips', img:'assets/items/charms/charm_epic.webp',
    intro:'Some gear has a socket. Put a Mod Chip in it for a bonus that stacks with the rest of your gear.',
-   li:['Some gear drops with a <b>socket</b>. A <b>Socket Drill</b> from the World Boss shop ([[gold:' + SOCKET_DRILL_MARKS + ' Boss Marks]]) adds one to Rare gear or better. Drilled gear binds to you.',
+   li:['Some gear drops with a <b>socket</b>. A <b>Socket Press</b> from the World Boss shop ([[gold:' + SOCKET_DRILL_MARKS + ' Boss Marks]]) adds one to Rare gear or better. Pressed gear binds to you.',
        '<b>Jewelcrafters</b> make Mod Chips, and simple <b>Salvaged</b> ones drop in the world. Any chip fits any socket, up to the item\u2019s rarity.',
        'Each chip type has a <b>cap</b>: Crit Chance [[xp:18 %]], Crit Damage [[xp:25 %]], Gold Find [[xp:40 %]], Dungeon Speed [[xp:12 %]]. Mix types to get the most out of your sockets.',
        'Putting a chip in is free. Taking it out needs a <b>Chip Extractor</b>, made by Weaponsmiths. The extractor is used up, the chip is never lost - it comes back bound to you.',
@@ -50081,7 +50081,7 @@ function wbMarksHTML(){
       btn('broken_charm_legendary', 'Broken Legendary Charm', WB_MARKS_CHARMS.broken_charm_legendary) + btn('broken_charm_mythic', 'Broken Mythic Charm', WB_MARKS_CHARMS.broken_charm_mythic) +
       /* [TILLAGT v5.1358.0] SOCKET DRILL (Chris): 15 marks, bunden. [ANDRAT v5.1360.0] egen bild. */
       '<button class="wb-mark-btn" data-wb="marks" data-wbmark="socket_drill"' + (n < SOCKET_DRILL_MARKS ? ' disabled' : '') + '>' +
-        chipHexHTML(null, null, '', 'socket_drill') + '<span>Socket Drill<small>' + SOCKET_DRILL_MARKS + ' marks \u00b7 adds a socket to Rare+ gear</small></span></button>' +
+        chipHexHTML(null, null, '', 'socket_drill') + '<span>Socket Press<small>' + SOCKET_DRILL_MARKS + ' marks \u00b7 adds a socket to Rare+ gear</small></span></button>' +
       '</div></div>';
 }
 function wbMarksRedeem(what){
@@ -50090,7 +50090,7 @@ function wbMarksRedeem(what){
   srvRpc('wb_marks_redeem', {p_character: SRV.charId, p_what: what}).then(r => {
     WB.busy = false;
     if (!r) return;
-    const nm = r.kind === 'item' ? (r.name || 'a piece of gear') : ((ITEM_DEFS[r.key] || {}).name || 'a charm');   /* [ANDRAT v5.1358.0] aven Socket Drill (ITEM_DEFS) */
+    const nm = r.kind === 'item' ? (r.name || 'a piece of gear') : ((ITEM_DEFS[r.key] || {}).name || 'a charm');   /* [ANDRAT v5.1358.0] aven Socket Press (ITEM_DEFS) */
     say('Boss Marks spent: ' + nm + (r.mailed ? ' — in your mailbox (backpack full).' : ' is in your backpack.'));
     Promise.all([netPullItems ? netPullItems() : null, typeof netPull === 'function' ? netPull() : null].filter(Boolean)).catch(() => {}).then(() => { WB.sig = ''; renderWorldBoss(); redrawAll(); });
   }).catch(e => { WB.busy = false; say(srvErrText(e)); });

@@ -12,7 +12,7 @@ Gren: `sockets`. Main ar ororad. Inget ar live forran Chris sett bilderna i `doc
 - Stats: chipens bidrag raknas in i Crit Chance, Crit Damage, Gold Find och Dungeon Speed (med taket, som servern), plus en egen rad **Mod Chips** (en sexkant per sort, stjarna = full; hovringen visar `Crit Chance 12 / 18 %`, over taket i gratt, Dungeon Speed i sekunder per run).
 - Chipsvaljaren (tryck pa socketen / hogerklick / kortets knapp): chips som inte passar i gratt med skal ("Chip rarity too high"), "Cap reached" bara som varning. Omvant: ett chip i vaskan visar vilka pjaser med tom socket det passar.
 - Uttag: "Remove chip" – kraver Chip Extractor (Weaponsmith) av chipets raritet eller hogre, den lagsta som racker forbrukas. Chipet kommer tillbaka bundet.
-- Socket Drill: kops i World Boss-butiken (15 Boss Marks), anvands fran vaskan eller fran pjasens kort/meny. Pjasen blir bunden.
+- Socket Press: kops i World Boss-butiken (15 Boss Marks), anvands fran vaskan eller fran pjasens kort/meny. Pjasen blir bunden.
 - Handlaren har en femte flik **Chip Fusion**: tre Salvaged -> ett Epic-chip av valfri sort bland de tre, 25 guld (`CHIP_FUSION_GOLD` i klienten, `idle_config.chip_fusion_gold` pa servern – koppar, 250000 = 25 g).
 - Mod Chip Design (pappren): `design_modchip_<sort>_<epic|legendary>` och `design_modchip_mythic_<a>_<b>` (Mythic visar tva sorter, man valjer). Lars via `learn_modchip_design`. Yrke och niva kollas i klienten forst.
 - Recept: Jewelcrafter 16 chips (`cr_jc_modchip_*`), Weaponsmith 4 extraktorer (`cr_ws_chip_extractor_*`). Inget guld, inga kits.
@@ -60,7 +60,7 @@ Hela listan med ankare -> ersattning finns i `cloud/sockets-anchors.md`. Kort:
 - Salvaged Mod Chip: 90 % Rare / 10 % Epic, sort slumpad, alltid -5 %, bundet. Strid 0,05 % per vinst (alla regioner), expedition 1 % vid 8 h tier 4 (skalar), dungeon slutboss 3 %. Aldrig lador, aldrig World Boss.
 - Mod Chip Design: strid Epic 0,05 % (Drakemark+), Legendary 0,015 % (Cutlass Bay+), Mythic 0,003 % (Nova Command+); expedition 1,5 / 0,5 / 0,1 % vid 8 h tier 4, skalar med langd (min/480) och region ((1+0,15*tier)/1,6); dungeon slutboss 3 / 1 / 0,4 % (Mythic bara tier 3-4); World Boss minst 20 slag 4 / 1,5 / 0,6 %. Allt i `modchip_drop_config`.
 - Chipvarden/tak: se ovan. Craftade +-5 %. Fusion ger exakt Epic-grundvardet.
-- Priser: Socket Drill 15 marks. Chip Fusion 25 guld. Extraktorer: Phase Scrap 50/100/200/400 + Charged Scrap 0/10/20/40. Chips: Rare 10 adelstenar + 10 Quartz Crystal + 4 Charged Scrap; Epic 25 + 10 Prism Crystal + 4 Phase Scrap; Legendary 60 + 10 Signal Crystal + 5 Phase Crystal + 8 Phase Scrap; Mythic 140 + 10 Phase Crystal + 4 Genesis Crystal + 16 Phase Scrap. Adelsten: Crit Chance Ruby, Crit Damage Sapphire, Gold Find Diamond, Dungeon Speed Sapphire.
+- Priser: Socket Press 15 marks. Chip Fusion 25 guld. Extraktorer: Phase Scrap 50/100/200/400 + Charged Scrap 0/10/20/40. Chips: Rare 10 adelstenar + 10 Quartz Crystal + 4 Charged Scrap; Epic 25 + 10 Prism Crystal + 4 Phase Scrap; Legendary 60 + 10 Signal Crystal + 5 Phase Crystal + 8 Phase Scrap; Mythic 140 + 10 Phase Crystal + 4 Genesis Crystal + 16 Phase Scrap. Adelsten: Crit Chance Ruby, Crit Damage Sapphire, Gold Find Diamond, Dungeon Speed Sapphire.
 
 ## Sa testar Chris pa testkaraktaren
 
@@ -77,8 +77,8 @@ Hela listan med ankare -> ersattning finns i `cloud/sockets-anchors.md`. Kort:
    update public.items set mod_socket = true where character_id = '<CHAR>' and location = 'equipped' and slot_idx = 0;
    ```
 3. I spelet: oppna kortet pa hjalmen -> "Mod Chip" -> valj chipet. Stats ska visa raden Mod Chips och Crit Chance ska ha okat med chipets tal. Forsok salja hjalmen: sparren ska synas. "Remove chip" -> extraktorn forbrukas, chipet ligger i vaskan (bundet).
-4. Borren: hogerklick pa en Rare+ pjas utan socket -> "Drill a socket". Pjasen ska bli bunden (kan inte laggas pa auktion).
-5. World Boss-butiken: Socket Drill for 15 marks. Handlaren: fliken Chip Fusion (tre Salvaged behovs; ge tre med `modchip_make ... 'salvaged'`).
+4. Borren: hogerklick pa en Rare+ pjas utan socket -> "Press a socket". Pjasen ska bli bunden (kan inte laggas pa auktion).
+5. World Boss-butiken: Socket Press for 15 marks. Handlaren: fliken Chip Fusion (tre Salvaged behovs; ge tre med `modchip_make ... 'salvaged'`).
 6. Pappret: tryck pa det i vaskan -> valj sort -> receptet syns i Jewelcrafter-boken (kraver Jewelcrafter 16).
 7. Droppar: `select public.modchip_world_drops('<CHAR>', 'dungeon', 4, 0, true);` nagra ganger ger forr eller senare ett Salvaged-chip/papper (3 % resp. 4,4 %).
 8. Att kolla i databasen: `select item_key, rarity, mod_socket, mod_chip, bound from public.items where character_id = '<CHAR>';`
