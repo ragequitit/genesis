@@ -190,6 +190,19 @@ insert into public.season_event_drops (event_key, src, chance, qty_min, qty_max,
 on conflict (event_key, src) do update set chance = excluded.chance, qty_min = excluded.qty_min, qty_max = excluded.qty_max,
   min_tier = excluded.min_tier, full_mins = excluded.full_mins, hi_tier = excluded.hi_tier, hi_bonus = excluded.hi_bonus, first_bonus = excluded.first_bonus, note = excluded.note;
 
+/* [TILLAGT 2026-10-30] ACHIEVEMENTS (Chris): kategorin World Boss blir "Events" och far sasongens prestationer.
+   Statistiken satts i event_mark_drop och event_shop_buy; check_achievements laser den som vanligt. */
+update public.achievement_config set grp = 'Events' where grp = 'World Boss';
+insert into public.achievement_config (id, grp, name, descr, reward_kind, reward_amt, stat, threshold, reward_text, hidden, first) values
+  ('ev_mark_1',     'Events', 'Trick or Treat',  'Find your first event mark.',                              'credits',    10,  'event_marks_found',        1,   null, false, false),
+  ('ev_mark_100',   'Events', 'Candy Hoarder',   'Collect 100 event marks, across all seasonal events.',     'cache_gear', 1,   'event_marks_found',        100, null, false, false),
+  ('ev_mark_300',   'Events', 'Sweet Tooth',     'Collect 300 event marks, across all seasonal events.',     'cache_gear', 2,   'event_marks_found',        300, null, false, false),
+  ('ev_shop_1',     'Events', 'Seasonal Shopper','Buy something in a seasonal event shop.',                  'credits',    10,  'event_shop_buys',          1,   null, false, false),
+  ('hw26_set',      'Events', 'Pumpkin Royalty', 'Own all five pieces of the Jack-o''-Lantern set.',         'title',      1,   'ev_halloween_2026_set',    5,   'Pumpkin Royalty', false, false),
+  ('hw26_looks',    'Events', 'Full Harvest',    'Own all eight Halloween looks, scythe, lantern and hoverpod included.', 'cache_gear', 2, 'ev_halloween_2026_looks', 8, null, false, false)
+on conflict (id) do update set grp = excluded.grp, name = excluded.name, descr = excluded.descr, reward_kind = excluded.reward_kind, reward_amt = excluded.reward_amt,
+  stat = excluded.stat, threshold = excluded.threshold, reward_text = excluded.reward_text, hidden = excluded.hidden;
+
 -- ============================================================================
 -- 3. NYA FUNKTIONER
 -- ============================================================================
@@ -283,6 +296,7 @@ begin
     if found then v_first := true; v_qty := v_qty + v_d.first_bonus; end if;
   end if;
   if v_qty <= 0 then return null; end if;
+  perform public.bump_stat(p_character, 'event_marks_found', v_qty);   /* [TILLAGT 2026-10-30] achievements (Events) */
   if p_deliver then
     if public.bag_free(p_character) > 0 or exists (select 1 from public.stacks where character_id = p_character and stack_key = v_e.mark_key) then
       perform public.add_stack(p_character, v_e.mark_key, 'item', v_qty, null);
@@ -374,6 +388,12 @@ begin
   end if;
 
   insert into public.season_event_purchases (character_id, event_key, item_key, price) values (p_character, p_event, p_key, v_s.price);
+  /* [TILLAGT 2026-10-30] achievements (Events): kop, setdelar (plats 0-4) och alla utseenden, per event */
+  perform public.bump_stat(p_character, 'event_shop_buys', 1);
+  if v_s.kind = 'appearance' then
+    perform public.bump_stat(p_character, 'ev_' || p_event || '_looks', 1);
+    if not coalesce((v_s.payload->>'extra')::boolean, false) then perform public.bump_stat(p_character, 'ev_' || p_event || '_set', 1); end if;
+  end if;
   update public.characters set save_version = save_version + 1, last_seen_at = now() where id = p_character;
   select coalesce(sum(qty), 0)::integer into v_have from public.stacks where character_id = p_character and stack_key = v_e.mark_key;
   return json_build_object('ok', true, 'event', p_event, 'key', p_key, 'price', v_s.price, 'marks_left', v_have, 'got', v_res,

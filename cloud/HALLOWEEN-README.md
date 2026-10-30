@@ -64,6 +64,9 @@ Rakneexempel aktiv spelare per dag: ~80 strider = 20, 4–5 hjalpare x 2–3 exp
 
 Hela setet = 175 marks. "Caches" levererar pjasen direkt (som `wb_marks_redeem`), inte en lada att oppna — enklare och ingen ny lada pa servern.
 
+## Achievements (Chris 2026-10-30)
+Kategorin **World Boss** heter nu **Events** (samma rader). Nya: Trick or Treat (forsta marken), Candy Hoarder (100 marks, alla event), Sweet Tooth (300), Seasonal Shopper (forsta kopet), Pumpkin Royalty (alla fem setdelar, TITEL "Pumpkin Royalty"), Full Harvest (alla atta Halloween-utseenden). Statistik: event_marks_found, event_shop_buys, ev_<event>_set, ev_<event>_looks.
+
 ## Sa slar man pa/av eventet
 
 - **Pa**: det gar igang av sig sjalvt nar `now()` ar inom `starts_at..ends_at` och `enabled = true`. Klienten fragar `event_state` vid inloggning och var femte minut; eventknappen dyker upp utan omladdning.
