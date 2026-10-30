@@ -22183,6 +22183,11 @@ const RECIPES = [
   {id:"cr_jc_modchip_critdmg_mythic",    prof:"jewelcrafter", name:"Mythic Crit Damage Mod Chip",      item:"modchip_critdmg_mythic",    rank:5, rar:5, lvl:16, source:"drop",  cost:{sapphire:140,phase_crystal:10,genesis_crystal:4,phase_scrap:16}},
   {id:"cr_jc_modchip_gold_mythic",       prof:"jewelcrafter", name:"Mythic Gold Find Mod Chip",        item:"modchip_gold_mythic",       rank:5, rar:5, lvl:16, source:"drop",  cost:{diamond:140,phase_crystal:10,genesis_crystal:4,phase_scrap:16}},
   {id:"cr_jc_modchip_dgspeed_mythic",    prof:"jewelcrafter", name:"Mythic Dungeon Speed Mod Chip",    item:"modchip_dgspeed_mythic",    rank:5, rar:5, lvl:16, source:"drop",  cost:{sapphire:140,phase_crystal:10,genesis_crystal:4,phase_scrap:16}},
+  /* [TILLAGT v5.1360.0] Loot Luck-chip (Chris): amethyst. Rare kan alla, Epic och uppat kraver papper. */
+  {id:"cr_jc_modchip_luck_rare",         prof:"jewelcrafter", name:"Rare Loot Luck Mod Chip",          item:"modchip_luck_rare",         rank:2, rar:2, lvl:1,  source:"known", cost:{amethyst:10,quartz_crystal:10,charged_scrap:4}},
+  {id:"cr_jc_modchip_luck_epic",         prof:"jewelcrafter", name:"Epic Loot Luck Mod Chip",          item:"modchip_luck_epic",         rank:3, rar:3, lvl:8,  source:"drop",  cost:{amethyst:25,prism_crystal:10,phase_scrap:4}},
+  {id:"cr_jc_modchip_luck_legendary",    prof:"jewelcrafter", name:"Legendary Loot Luck Mod Chip",     item:"modchip_luck_legendary",    rank:4, rar:4, lvl:12, source:"drop",  cost:{amethyst:60,signal_crystal:10,phase_crystal:5,phase_scrap:8}},
+  {id:"cr_jc_modchip_luck_mythic",       prof:"jewelcrafter", name:"Mythic Loot Luck Mod Chip",        item:"modchip_luck_mythic",       rank:5, rar:5, lvl:16, source:"drop",  cost:{amethyst:140,phase_crystal:10,genesis_crystal:4,phase_scrap:16}},
   /* [TILLAGT v5.1358.0] CHIP EXTRACTOR (Weaponsmith): verktyget som tar ut ett chip ur en socket. Forbrukas. Inget guld. Saljbar pa auktionen. */
   {id:"cr_ws_chip_extractor_rare",      prof:"weaponsmith", name:"Chip Extractor (Rare)",      item:"chip_extractor_rare",      rank:2, rar:2, lvl:1,  source:"known", cost:{phase_scrap:50}},
   {id:"cr_ws_chip_extractor_epic",      prof:"weaponsmith", name:"Chip Extractor (Epic)",      item:"chip_extractor_epic",      rank:3, rar:3, lvl:8,  source:"known", cost:{phase_scrap:100,charged_scrap:10}},
@@ -23198,9 +23203,11 @@ const MODCHIP = {
   crit:    {name:'Crit Chance',   gem:'ruby',     cap:18, vals:[1.3, 1.7, 2.3, 3.0]},
   critdmg: {name:'Crit Damage',   gem:'sapphire', cap:25, vals:[1.8, 2.4, 3.2, 4.2]},
   gold:    {name:'Gold Find',     gem:'diamond',  cap:40, vals:[2.8, 3.7, 5.0, 6.5]},
-  dgspeed: {name:'Dungeon Speed', gem:'sapphire', cap:12, vals:[0.9, 1.1, 1.5, 2.0]}
+  dgspeed: {name:'Dungeon Speed', gem:'sapphire', cap:12, vals:[0.9, 1.1, 1.5, 2.0]},
+  /* [TILLAGT v5.1360.0] LOOT LUCK-CHIP (Chris 2026-10-30): lagre tal an de andra - 0,5 / 1 / 1,5 / 2 % - och tak 20 % fran chip. */
+  luck:    {name:'Loot Luck',     gem:'amethyst', cap:20, vals:[0.5, 1.0, 1.5, 2.0]}
 };
-const MODCHIP_SORTS = ['crit', 'critdmg', 'gold', 'dgspeed'];
+const MODCHIP_SORTS = ['crit', 'critdmg', 'gold', 'dgspeed', 'luck'];   /* [ANDRAT v5.1360.0] + luck (ordningen styr Mythic-pappren, samma som serverns v_ord) */
 const MODCHIP_RAR_KEY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 /* Chip Fusion hos handlaren: pris i KOPPAR (25 guld). Servern ager talet (idle_config chip_fusion_gold) - detta ar bara texten pa knappen. */
 const CHIP_FUSION_GOLD = 250000;
@@ -30280,7 +30287,7 @@ function charStatRows(){
   /* [ANDRAT v5.1114.0] HJALPARNA OVANPA LUCK (Chris): Loot Luck raknas hogst 70, hjalparna laggs ovanpa, totaltak 100 -
      som serverns gear_weights_for, cache_weights_for och open_gear_cache. Gear Rarity visar nu ocksa Loot Luck. */
   /* [ANDRAT tyst 2026-10-23] all tur raknas nu (inget tak) - som servern */
-  const luckCapped = gearPer('luck').reduce((s2, p) => s2 + (+p[1] || 0), 0) + skillPct('player', 'p_luck') + boostPct('luck');
+  const luckCapped = gearPer('luck').reduce((s2, p) => s2 + (+p[1] || 0), 0) + chipTotal('luck') + skillPct('player', 'p_luck') + boostPct('luck');   /* [ANDRAT v5.1360.0] + Loot Luck-chip (serverns loot_luck gar via gear_bonus, som raknar chipen) */
   up('loot', 'Helper Cache Odds', [['Helpers', helperBonus('cacheluck')], ['Loot Luck', luckCapped]]);
   up('loot', 'Gear Cache Odds', [['Helpers', helperBonus('cacheluck') + helperBonus('gearrar')], ['Loot Luck', luckCapped]]);
   up('loot', 'Gear Rarity', [['Helpers', helperBonus('gearrar')], ['Loot Luck', luckCapped]]);
@@ -46718,7 +46725,7 @@ const HTP = [
    intro:'Some gear has a socket. Put a Mod Chip in it for a bonus that stacks with the rest of your gear.',
    li:['Some gear drops with a <b>socket</b>. A <b>Socket Press</b> from the World Boss shop ([[gold:' + SOCKET_DRILL_MARKS + ' Boss Marks]]) adds one to Rare gear or better. Pressed gear binds to you.',
        '<b>Jewelcrafters</b> make Mod Chips, and simple <b>Salvaged</b> ones drop in the world. Any chip fits any socket, up to the item\u2019s rarity.',
-       'Each chip type has a <b>cap</b>: Crit Chance [[xp:18 %]], Crit Damage [[xp:25 %]], Gold Find [[xp:40 %]], Dungeon Speed [[xp:12 %]]. Mix types to get the most out of your sockets.',
+       'Each chip type has a <b>cap</b>: Crit Chance [[xp:18 %]], Crit Damage [[xp:25 %]], Gold Find [[xp:40 %]], Dungeon Speed [[xp:12 %]], Loot Luck [[xp:20 %]]. Mix types to get the most out of your sockets.',
        'Putting a chip in is free. Taking it out needs a <b>Chip Extractor</b>, made by Weaponsmiths. The extractor is used up, the chip is never lost - it comes back bound to you.',
        'A piece with a chip in it cannot be sold, traded, auctioned or recycled until the chip is removed.',
        '<b>Chip Fusion</b> at any vendor: three Salvaged Mod Chips become one Epic chip of a type among the three, for [[gold:' + fmtMoney(CHIP_FUSION_GOLD) + ']]. Anyone can do it.',

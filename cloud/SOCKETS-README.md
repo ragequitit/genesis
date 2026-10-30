@@ -1,3 +1,5 @@
+> **2026-10-30 (Chris):** femte chipsorten **Loot Luck** (amethyst): 0,5 / 1 / 1,5 / 2 % for Rare/Epic/Legendary/Mythic, tak 20 % fran chip. Lagre tal an de andra med flit. Servern raknar den automatiskt (loot_luck gar via gear_bonus). Verktyget heter **Socket Press** (fd Socket Drill), bilderna ar fyrkantiga (v2).
+
 # Sockets och Mod Chips (v1) — GENESIS v5.1358.0 — SOCKETS
 
 Gren: `sockets`. Main ar ororad. Inget ar live forran Chris sett bilderna i `docs-sockets/` och SQL:en korts.

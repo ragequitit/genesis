@@ -43,7 +43,8 @@ insert into public.modchip_config (sort, affix, name, gem, cap, vals) values
   ('crit',    'crit',    'Crit Chance',   'ruby',     18, array[1.3, 1.7, 2.3, 3.0]),
   ('critdmg', 'critdmg', 'Crit Damage',   'sapphire', 25, array[1.8, 2.4, 3.2, 4.2]),
   ('gold',    'gold',    'Gold Find',     'diamond',  40, array[2.8, 3.7, 5.0, 6.5]),
-  ('dgspeed', 'dgspeed', 'Dungeon Speed', 'sapphire', 12, array[0.9, 1.1, 1.5, 2.0])
+  ('dgspeed', 'dgspeed', 'Dungeon Speed', 'sapphire', 12, array[0.9, 1.1, 1.5, 2.0]),
+  ('luck',    'luck',    'Loot Luck',     'amethyst', 20, array[0.5, 1.0, 1.5, 2.0])   /* [TILLAGT 2026-10-30] Chris: lagre tal, tak 20 % fran chip */
   on conflict (sort) do update set affix = excluded.affix, name = excluded.name, gem = excluded.gem, cap = excluded.cap, vals = excluded.vals;
 
 /* Droppchanser per kalla (andel 0-1). Loot Luck paverkar INTE. expedition = vid 8 h tier 4, skalas i modchip_world_drops. */
@@ -73,16 +74,22 @@ insert into public.modchip_design_config (key, rarity, sorts, lvl) values
   ('design_modchip_critdmg_epic',      3, array['critdmg'], 8),
   ('design_modchip_gold_epic',         3, array['gold'],    8),
   ('design_modchip_dgspeed_epic',      3, array['dgspeed'], 8),
+  ('design_modchip_luck_epic',         3, array['luck'],    8),
   ('design_modchip_crit_legendary',    4, array['crit'],    12),
   ('design_modchip_critdmg_legendary', 4, array['critdmg'], 12),
   ('design_modchip_gold_legendary',    4, array['gold'],    12),
   ('design_modchip_dgspeed_legendary', 4, array['dgspeed'], 12),
+  ('design_modchip_luck_legendary',    4, array['luck'],    12),
   ('design_modchip_mythic_crit_critdmg',    5, array['crit','critdmg'],    16),
   ('design_modchip_mythic_crit_gold',       5, array['crit','gold'],       16),
   ('design_modchip_mythic_crit_dgspeed',    5, array['crit','dgspeed'],    16),
   ('design_modchip_mythic_critdmg_gold',    5, array['critdmg','gold'],    16),
   ('design_modchip_mythic_critdmg_dgspeed', 5, array['critdmg','dgspeed'], 16),
-  ('design_modchip_mythic_gold_dgspeed',    5, array['gold','dgspeed'],    16)
+  ('design_modchip_mythic_gold_dgspeed',    5, array['gold','dgspeed'],    16),
+  ('design_modchip_mythic_crit_luck',       5, array['crit','luck'],       16),
+  ('design_modchip_mythic_critdmg_luck',    5, array['critdmg','luck'],    16),
+  ('design_modchip_mythic_gold_luck',       5, array['gold','luck'],       16),
+  ('design_modchip_mythic_dgspeed_luck',    5, array['dgspeed','luck'],    16)
   on conflict (key) do update set rarity = excluded.rarity, sorts = excluded.sorts, lvl = excluded.lvl;
 
 /* Rattar: chip_fusion_gold i KOPPAR (250000 = 25 guld, Chris satter talet senare), socket_drill_marks = pris i Boss Marks,
@@ -111,6 +118,10 @@ insert into public.item_config (key, name, slot_idx, rarities, bag_slots, drop_r
   ('modchip_dgspeed_epic',      'Dungeon Speed Mod Chip', 15, '{3}', null, '{}', false, null),
   ('modchip_dgspeed_legendary', 'Dungeon Speed Mod Chip', 15, '{4}', null, '{}', false, null),
   ('modchip_dgspeed_mythic',    'Dungeon Speed Mod Chip', 15, '{5}', null, '{}', false, null),
+  ('modchip_luck_rare',         'Loot Luck Mod Chip',     15, '{2}', null, '{}', false, null),
+  ('modchip_luck_epic',         'Loot Luck Mod Chip',     15, '{3}', null, '{}', false, null),
+  ('modchip_luck_legendary',    'Loot Luck Mod Chip',     15, '{4}', null, '{}', false, null),
+  ('modchip_luck_mythic',       'Loot Luck Mod Chip',     15, '{5}', null, '{}', false, null),
   ('salvaged_modchip',          'Salvaged Mod Chip',      15, '{2,3}', null, '{}', false, null)
   on conflict (key) do nothing;
 
@@ -125,16 +136,22 @@ insert into public.stack_item_config (key, name, sell, vendor_sells, bop) values
   ('design_modchip_critdmg_epic',      'Epic Mod Chip Design: Crit Damage',        45000,  false, false),
   ('design_modchip_gold_epic',         'Epic Mod Chip Design: Gold Find',          45000,  false, false),
   ('design_modchip_dgspeed_epic',      'Epic Mod Chip Design: Dungeon Speed',      45000,  false, false),
+  ('design_modchip_luck_epic',         'Epic Mod Chip Design: Loot Luck',          45000,  false, false),
   ('design_modchip_crit_legendary',    'Legendary Mod Chip Design: Crit Chance',   120000, false, false),
   ('design_modchip_critdmg_legendary', 'Legendary Mod Chip Design: Crit Damage',   120000, false, false),
   ('design_modchip_gold_legendary',    'Legendary Mod Chip Design: Gold Find',     120000, false, false),
   ('design_modchip_dgspeed_legendary', 'Legendary Mod Chip Design: Dungeon Speed', 120000, false, false),
+  ('design_modchip_luck_legendary',    'Legendary Mod Chip Design: Loot Luck',     120000, false, false),
   ('design_modchip_mythic_crit_critdmg',    'Mythic Mod Chip Design: Crit Chance or Crit Damage',   320000, false, false),
   ('design_modchip_mythic_crit_gold',       'Mythic Mod Chip Design: Crit Chance or Gold Find',     320000, false, false),
   ('design_modchip_mythic_crit_dgspeed',    'Mythic Mod Chip Design: Crit Chance or Dungeon Speed', 320000, false, false),
   ('design_modchip_mythic_critdmg_gold',    'Mythic Mod Chip Design: Crit Damage or Gold Find',     320000, false, false),
   ('design_modchip_mythic_critdmg_dgspeed', 'Mythic Mod Chip Design: Crit Damage or Dungeon Speed', 320000, false, false),
-  ('design_modchip_mythic_gold_dgspeed',    'Mythic Mod Chip Design: Gold Find or Dungeon Speed',   320000, false, false)
+  ('design_modchip_mythic_gold_dgspeed',    'Mythic Mod Chip Design: Gold Find or Dungeon Speed',   320000, false, false),
+  ('design_modchip_mythic_crit_luck',       'Mythic Mod Chip Design: Crit Chance or Loot Luck',     320000, false, false),
+  ('design_modchip_mythic_critdmg_luck',    'Mythic Mod Chip Design: Crit Damage or Loot Luck',     320000, false, false),
+  ('design_modchip_mythic_gold_luck',       'Mythic Mod Chip Design: Gold Find or Loot Luck',       320000, false, false),
+  ('design_modchip_mythic_dgspeed_luck',    'Mythic Mod Chip Design: Dungeon Speed or Loot Luck',   320000, false, false)
   on conflict (key) do update set name = excluded.name, sell = excluded.sell, bop = excluded.bop;
 update public.stack_item_config set bop = true where key = 'socket_drill';
 
@@ -159,6 +176,10 @@ insert into public.recipe_config (id, prof, name, item_key, rarity, source, cost
   ('cr_jc_modchip_critdmg_mythic',    'jewelcrafter', 'Mythic Crit Damage Mod Chip',      'modchip_critdmg_mythic',    5, 'drop',  '{"sapphire":140,"phase_crystal":10,"genesis_crystal":4,"phase_scrap":16}', 16, null, 5, null, 1500, 1),
   ('cr_jc_modchip_gold_mythic',       'jewelcrafter', 'Mythic Gold Find Mod Chip',        'modchip_gold_mythic',       5, 'drop',  '{"diamond":140,"phase_crystal":10,"genesis_crystal":4,"phase_scrap":16}',  16, null, 5, null, 1500, 1),
   ('cr_jc_modchip_dgspeed_mythic',    'jewelcrafter', 'Mythic Dungeon Speed Mod Chip',    'modchip_dgspeed_mythic',    5, 'drop',  '{"sapphire":140,"phase_crystal":10,"genesis_crystal":4,"phase_scrap":16}', 16, null, 5, null, 1500, 1),
+  ('cr_jc_modchip_luck_rare',         'jewelcrafter', 'Rare Loot Luck Mod Chip',          'modchip_luck_rare',         2, 'known', '{"amethyst":10,"quartz_crystal":10,"charged_scrap":4}', 1,  null, 2, null, 150,  1),
+  ('cr_jc_modchip_luck_epic',         'jewelcrafter', 'Epic Loot Luck Mod Chip',          'modchip_luck_epic',         3, 'drop',  '{"amethyst":25,"prism_crystal":10,"phase_scrap":4}',    8,  null, 3, null, 350,  1),
+  ('cr_jc_modchip_luck_legendary',    'jewelcrafter', 'Legendary Loot Luck Mod Chip',     'modchip_luck_legendary',    4, 'drop',  '{"amethyst":60,"signal_crystal":10,"phase_crystal":5,"phase_scrap":8}', 12, null, 4, null, 800,  1),
+  ('cr_jc_modchip_luck_mythic',       'jewelcrafter', 'Mythic Loot Luck Mod Chip',        'modchip_luck_mythic',       5, 'drop',  '{"amethyst":140,"phase_crystal":10,"genesis_crystal":4,"phase_scrap":16}', 16, null, 5, null, 1500, 1),
   ('cr_ws_chip_extractor_rare',      'weaponsmith', 'Chip Extractor (Rare)',      'chip_extractor_rare',      2, 'known', '{"phase_scrap":50}',                       1,  null, 2, null, 100, 1),
   ('cr_ws_chip_extractor_epic',      'weaponsmith', 'Chip Extractor (Epic)',      'chip_extractor_epic',      3, 'known', '{"phase_scrap":100,"charged_scrap":10}',   8,  null, 3, null, 200, 1),
   ('cr_ws_chip_extractor_legendary', 'weaponsmith', 'Chip Extractor (Legendary)', 'chip_extractor_legendary', 4, 'known', '{"phase_scrap":200,"charged_scrap":20}',   12, null, 4, null, 400, 1),
@@ -1085,7 +1106,7 @@ revoke execute on function public.salvaged_modchip_drop(uuid) from authenticated
 create or replace function public.modchip_design_drop(p_character uuid, p_rar integer, p_deliver boolean default true)
  returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp'
 as $function$
-declare v_key text; v_a text; v_b text; v_mailed boolean := false; v_ord text[] := array['crit','critdmg','gold','dgspeed'];
+declare v_key text; v_a text; v_b text; v_mailed boolean := false; v_ord text[] := array['crit','critdmg','gold','dgspeed','luck'];   /* [ANDRAT 2026-10-30] + luck, samma ordning som klientens MODCHIP_SORTS */
 begin
   if p_rar = 5 then
     /* tva olika sorter, i kanonisk ordning (crit, critdmg, gold, dgspeed) sa nyckeln alltid finns i modchip_design_config */
