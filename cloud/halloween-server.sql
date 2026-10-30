@@ -153,8 +153,8 @@ insert into public.season_event_shop (event_key, key, name, kind, price, payload
   ('halloween_2026', 'cache_legendary', 'Legendary Cache', 'gear', 25, '{"rarity":4,"up_chance":0.10}', 'assets/items/caches/cache_gear_leg.webp',  'A Legendary piece of gear for your level. 10 % chance it is Mythic.', null, 60),
   ('halloween_2026', 'cache_rare',      'Rare Cache',      'gear',  8, '{"rarity":2,"up_chance":0.25}', 'assets/items/caches/cache_gear_rare.webp', 'A Rare piece of gear for your level. 25 % chance it is Epic.', null, 70),
   /* [ANDRAT 2026-10-30] Chris: handlarens boostar i stallet for guld - samma varde, roligare. Nycklarna finns i stack_item_config (boost_luck 27,5 g, boost_expspd 22,5 g hos handlaren). */
-  ('halloween_2026', 'boost_luck',      'Fortune Vial',    'stack', 10, '{"stack_key":"boost_luck","qty":1}',   'assets/ui/boost/fortune_vial.webp',  'A Luck Boost, the same one the vendor sells for 27.5 gold.', null, 80),
-  ('halloween_2026', 'boost_expspd',    'Chrono Draft',    'stack',  8, '{"stack_key":"boost_expspd","qty":1}', 'assets/ui/boost/chrono_draft.webp',  'An Expedition Boost, the same one the vendor sells for 22.5 gold.', null, 90)
+  ('halloween_2026', 'boost_luck',      'Fortune Vial',    'stack', 10, '{"stack_key":"boost_luck","qty":1}',   'assets/ui/boost/fortune_vial.webp',  'A Luck Boost.', null, 80),
+  ('halloween_2026', 'boost_expspd',    'Chrono Draft',    'stack',  8, '{"stack_key":"boost_expspd","qty":1}', 'assets/ui/boost/chrono_draft.webp',  'An Expedition Boost.', null, 90)
 on conflict (event_key, key) do update set name = excluded.name, kind = excluded.kind, price = excluded.price, payload = excluded.payload,
   art = excluded.art, descr = excluded.descr, per_char = excluded.per_char, sort = excluded.sort;
 
