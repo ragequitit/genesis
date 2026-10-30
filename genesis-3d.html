@@ -638,7 +638,9 @@ function glowTexture(R, x0, y0, w, h){
 function extrudeLand(pp, depth, matTop, matSide){
   const sh = new THREE.Shape(pp.map(q => new THREE.Vector2(q.x * K, -q.y * K)));
   const geo = new THREE.ExtrudeGeometry(sh, {depth, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.3, bevelSegments: 2, curveSegments: 1, steps: 1});
-  geo.rotateX(-Math.PI / 2); geo.translate(0, -depth, 0);
+  /* [ANDRAT v5.1377.0] -0.25: avfasningen (bevelThickness) lyfte marken till y=0.25 medan allt stalls pa y=0 - bilar, hus och ringar
+     sjonk 0.25 ned i marken (uppmatt pa alla 1543 saker, Chris: "bilarna och husen star langt ner"). Nu ar markens topp y=0. */
+  geo.rotateX(-Math.PI / 2); geo.translate(0, -depth - .25, 0);
   const m = new THREE.Mesh(geo, [matTop, matSide]); m.receiveShadow = true; m.castShadow = false; return m; }
 function flatRing(pp, y, color, opacity, add){ const sh = new THREE.Shape(pp.map(q => new THREE.Vector2(q.x * K, -q.y * K)));
   const geo = new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI / 2);
@@ -681,7 +683,7 @@ const BASE = 'assets/world3d/';
    genesis.map3dPal = 'off' stanger av (for jamforelse). */
 const PAL_OFF = (() => { try { return localStorage.getItem('genesis.map3dPal') === 'off'; } catch (e) { return false; } })();
 const NEON_HUES = [188, 205, 265, 295, 330, 42, 95, 160];   /* cyan, bla, violett, lila, rosa, guld, lime, turkos */
-const palCache = new Map();
+const palCache = new WeakMap();   /* [ANDRAT v5.1377.0] nyckel = bildkallan, inte url: Chrome laddar GLB-bilder som ImageBitmap utan src - alla paket fick samma farkart (buggsvep) */
 function hsl(r, g, b){ const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0;
   if (mx !== mn){ const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
     h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; }
@@ -689,7 +691,7 @@ function hsl(r, g, b){ const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l =
 function rgbOf(h, s, l){ const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return [f(0), f(8), f(4)]; }
 const nearHue = h => NEON_HUES.reduce((b, x) => { const d = Math.min(Math.abs(x - h), 360 - Math.abs(x - h)); return d < b[1] ? [x, d] : b; }, [0, 999])[0];
 function neonPal(img, char){
-  const key = (img.currentSrc || img.src || '') + (char ? '|c' : '|w'); if (palCache.has(key)) return palCache.get(key);
+  const per = palCache.get(img) || {}; if (!palCache.has(img)) palCache.set(img, per); const key = char ? 'c' : 'w'; if (per[key]) return per[key];
   const W = 512, c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d'); g.drawImage(img, 0, 0, W, W);
   const im = g.getImageData(0, 0, W, W), d = im.data, gc = document.createElement('canvas'); gc.width = gc.height = W;
   const gg = gc.getContext('2d'), gm = gg.createImageData(W, W), e = gm.data;
@@ -699,14 +701,14 @@ function neonPal(img, char){
     if (char){
       if (s > .45 && !brown){ h = nearHue(h); s = Math.min(1, s * 1.25 + .1); glow = l > .35 ? .55 : 0; }
       else if (s < .15){ h = 235; s = .28; l = l * .9 + .03; }
-    } else if (s < .16){ h = 245 - l * 40; s = .16 + l * .1; l = .07 + l * .74; glow = l > .82 ? .25 : 0; }   /* gra/vitt -> morkt blalila .. ljust isbla */
-    else if (brown){ h = 280 - (h - 8) * .6; s = .38; l = l * .62; }   /* tra, tak, jord -> plommon/lila */
-    else { h = nearHue(h); s = Math.min(1, s * 1.3 + .15); l = Math.min(.68, l * 1.05 + .04); glow = .7; }   /* starka farger -> neon och lyser */
+    } else if (s < .16){ h = 245 - l * 40; s = .16 + l * .1; l = .14 + l * .68;   /* [ANDRAT v5.1377.0] ljusare golv - morka saker blev svarta hal (kritiker) */ glow = l > .82 ? .25 : 0; }   /* gra/vitt -> morkt blalila .. ljust isbla */
+    else if (brown){ h = 280 - (h - 8) * .6; s = .38; l = Math.max(.24, l * .72); }   /* [ANDRAT v5.1377.0] staket/plank var nastan svarta */   /* tra, tak, jord -> plommon/lila */
+    else { h = nearHue(h); s = Math.min(1, s * 1.3 + .15); l = Math.min(.62, l * 1.05 + .04); glow = .7 - Math.max(0, l - .45) * 1.6; }   /* [ANDRAT v5.1377.0] ljusa ytor lyste upp till vita fyrkanter (kritiker) */   /* starka farger -> neon och lyser */
     const [r, gr, b] = rgbOf(h, s, l); d[i] = r * 255; d[i + 1] = gr * 255; d[i + 2] = b * 255;
     e[i] = r * 255 * glow; e[i + 1] = gr * 255 * glow; e[i + 2] = b * 255 * glow; e[i + 3] = 255; }
   g.putImageData(im, 0, 0); gg.putImageData(gm, 0, 0);
   const mk = cv => { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; return t; };
-  const out = {map: mk(c), glow: mk(gc)}; palCache.set(key, out); return out; }
+  const out = {map: mk(c), glow: mk(gc)}; per[key] = out; return out; }
 function neonize(root, char){ if (PAL_OFF) return; root.traverse(o => { if (!o.isMesh) return;
   (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (!m.map || !m.map.image || m.userData.neon) return;
     const p = neonPal(m.map.image, char); m.map = p.map; m.emissive = new THREE.Color(0xffffff); m.emissiveMap = p.glow; m.emissiveIntensity = char ? .9 : 1.1;
@@ -966,7 +968,7 @@ LAND.forEach(R => { [false, true].forEach(big => { const L = R.lights.filter(l =
   const m = new THREE.PointsMaterial({size: big ? 4.2 : 2.2, map: GLOW, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending});   /* [ANDRAT v5.1353.0] storre sken */
   lightMats.push(m); const pts = new THREE.Points(g, m); pts.renderOrder = 3; R.group.add(pts);
   /* [TILLAGT v5.1353.0] LJUSPOLAR (Chris: "inga lightspots eller ambiance"): ett stort mjukt sken pa marken under varje lampa, bara pa natten */
-  const pg = new THREE.BufferGeometry(), pp = new Float32Array(pos); for (let i = 1; i < pp.length; i += 3) pp[i] = .25;
+  const pg = new THREE.BufferGeometry(), pp = new Float32Array(pos); for (let i = 1; i < pp.length; i += 3) pp[i] = .02;   /* [ANDRAT v5.1377.0] marken ar nu y=0 */
   pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const pm = new THREE.PointsMaterial({size: big ? 11 : 6.5, map: GLOW, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending});
   pm.userData.pool = true; lightMats.push(pm); const pool = new THREE.Points(pg, pm); pool.renderOrder = 2; R.group.add(pool); }); });
@@ -1096,7 +1098,9 @@ const HELP_MAT = new THREE.MeshStandardMaterial({color: 0xfbbf24, emissive: 0xff
 /* en klon har egna skelett (med egen bentextur pa GPU) - de maste slappas, annars fylls iPhonens minne */
 function freeAv(av){ if (!av) return; scene.remove(av.root); av.mixer.stopAllAction(); av.mixer.uncacheRoot(av.model);
   av.model.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); if (o.isMesh && o.userData.ownMat) o.material.dispose(); });
-  if (av.ring) av.ring.material.dispose(); if (av.trail){ scene.remove(av.trail); av.trail.geometry.dispose(); } }
+  if (av.ring) av.ring.material.dispose();
+  [av.pulse, av.beam].forEach(m => { if (!m) return; m.geometry.dispose(); if (m.material.map) m.material.map.dispose(); m.material.dispose(); });   /* [TILLAGT v5.1377.0] du ar har-ringen och stralen frigors (buggsvep: lackte vid klassbyte) */
+  if (av.trail){ scene.remove(av.trail); av.trail.geometry.dispose(); } }
 function dropAvatar(e){ if (!e.av) return; freeAv(e.av); e.av = null; }
 
 /* monster: ett skelett mittemot spelaren som slass; dor, ligger, och ett nytt reser sig */
@@ -1298,7 +1302,7 @@ const SHIP_FWD = 0;
 const ships = [];
 (() => { const R = REG_BY.novacommand; if (!R || !R.bb) return;
   const cx = (R.bb.x0 + R.bb.x1) / 2 * K, cz = (R.bb.y0 + R.bb.y1) / 2 * K, rx = (R.bb.x1 - R.bb.x0) * K * .34, rz = (R.bb.y1 - R.bb.y0) * K * .32;
-  const DEF = [['striker', 3.6, 10, '#22d3ee'], ['dispatcher', 3.2, 8.5, '#c084fc'], ['executioner', 3.9, 11.5, '#38bdf8'], ['omen', 3.4, 9.5, '#fb923c'], ['imperial', 7.5, 17, '#f43f5e']];
+  const DEF = [['striker', 3.6, 13.5, '#22d3ee'], ['dispatcher', 3.2, 12.5, '#c084fc'], ['executioner', 3.9, 15, '#38bdf8'], ['omen', 3.4, 14, '#fb923c'],   /* [ANDRAT v5.1377.0] over landarna (h 6-8), flog genom dem (buggsvep) */ ['imperial', 7.5, 20, '#f43f5e']];
   DEF.forEach(([k, len, h, glow], i) => loader.loadAsync(BASE + 'ship_' + k + '.glb').then(gl => {
     const s = gl.scene, sz = new THREE.Box3().setFromObject(s).getSize(new THREE.Vector3()), hold = new THREE.Group(), g = new THREE.Group();
     if (sz.x > sz.z) s.rotation.y = Math.PI / 2;   /* langsta axeln langs z (nosen mot +z, SHIP_FWD vander om den pekar bakat) */
@@ -2068,7 +2072,7 @@ function ensureMeAv(){ if (me.av || !CLIPS) return; const C = CLS3D[me.klass]; i
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.22, .32, 1, 16, 1, true), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(bc), color: hdr(MK.here, 1.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}));
   beam.geometry.translate(0, .5, 0); beam.renderOrder = 3; me.av.root.add(beam); me.av.beam = beam;
   scene.add(me.av.root); play(me.av, 'Idle', 0); }
-function dropMeAv(){ if (me.av){ freeAv(me.av); me.av = null; } }
+function dropMeAv(){ if (me.av){ freeAv(me.av); me.av = null; } meDisc = null; }   /* [ANDRAT v5.1377.0] skivan foljer med nya gubben vid klassbyte under flygning */
 const goalRing = new THREE.Mesh(new THREE.RingGeometry(.5, .7, 32), new THREE.MeshBasicMaterial({color: 0xfde047, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide}));
 goalRing.rotation.x = -Math.PI / 2; goalRing.position.y = .06; goalRing.visible = false; scene.add(goalRing);
 let meDisc = null;
@@ -2294,6 +2298,9 @@ function frame(now){
   requestAnimationFrame(frame);
   const dt = Math.min(.1, (now - lastT) / 1000); lastT = now; fpsAcc += dt; fpsN++; if (fpsAcc > 1){ fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   if (document.hidden) return;
+  /* [TILLAGT v5.1377.0] spelet satter __gpOff nar kartan inte syns och __gpLow i stromsparlage (som 2D-kartan): ingen ritning da, inget glod i sparlage (buggsvep) */
+  if (window.__gpOff) return;
+  if (window.__gpLow && FX.on) fxSet(false, 'low'); else if (!window.__gpLow && !FX.on && FX.why === 'low') fxSet(true, GLOWPREF);
   step(dt, now); directorStep(dt, now);
   const DI = dayInfo(), night = applyTime(DI);
   lightMats.forEach(m => { m.opacity = clamp(.22 + night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1373.0] lite sken aven pa dagen */   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
