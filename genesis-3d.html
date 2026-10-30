@@ -44,13 +44,19 @@
  "three/addons/":"./lib/three-0.170.0/addons/"}}
 </script>
 <style>
+  /* [ANDRAT v5.1371.0] NEON: samma typsnitt och farger som spelet (index.html: --bg-panel, --border-glow, --cyan, --text, Orbitron/Inter) */
+  @font-face{font-family:'Orbitron';font-style:normal;font-display:swap;font-weight:700;src:url(assets/fonts/orbitron-latin-700-normal.woff2) format('woff2')}
+  @font-face{font-family:'Orbitron';font-style:normal;font-display:swap;font-weight:900;src:url(assets/fonts/orbitron-latin-900-normal.woff2) format('woff2')}
+  @font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:600;src:url(assets/fonts/inter-latin-600-normal.woff2) format('woff2')}
+  @font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:800;src:url(assets/fonts/inter-latin-800-normal.woff2) format('woff2')}
   :root{
-    --ink:#e8f1f5; --ink2:#9fb3c0; --panel:rgba(8,14,22,.8); --line:rgba(160,200,220,.18);
-    --demo:#ff8a1f; --live:#34d399; --off:#f43f5e; --chip:rgba(12,20,30,.84); --chipOn:#2dd4bf;
+    --ink:#e8ecff; --ink2:#8a93b8; --panel:rgba(10,13,24,.86); --line:#2a3670;
+    --demo:#ff8a1f; --live:#3dff9e; --off:#ff4d6d; --chip:rgba(10,13,24,.88); --chipOn:#38e8ff;
+    --cyan:#38e8ff; --magenta:#ff4fd8; --gold:#ffc542; --glow:0 0 14px rgba(56,232,255,.18);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{width:100%;height:100%;overflow:hidden;background:#0b1a26;color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+  html,body{width:100%;height:100%;overflow:hidden;background:#05060d;color:var(--ink);
+    font-family:'Segoe UI','Inter',system-ui,sans-serif;-webkit-text-size-adjust:100%}
   #gl,#ov{position:fixed;inset:0;width:100%;height:100%;display:block}
   #gl{touch-action:none;cursor:grab}
   #gl.drag{cursor:grabbing}
@@ -61,11 +67,15 @@
     padding:max(10px,env(safe-area-inset-top)) 14px 0 14px}
   #brand{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;backdrop-filter:blur(6px);
     -webkit-backdrop-filter:blur(6px);min-width:0}
-  #brand b{font-size:13px;letter-spacing:.14em;display:block;white-space:nowrap}
+  #brand b{font-size:13px;letter-spacing:.14em;display:block;white-space:nowrap;font-family:'Orbitron','Segoe UI',sans-serif;font-weight:900;color:var(--cyan);text-shadow:0 0 10px rgba(56,232,255,.45)}
   #brand small{font-size:11px;color:var(--ink2);letter-spacing:.06em}
   .badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.12em;border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:1px}
   .badge.live{background:var(--live);color:#012015}
   .badge.off{background:var(--off);color:#fff}
+  /* [TILLAGT v5.1371.0] panelerna som spelets: mork panel, bla-lila kant, svagt cyan sken */
+  #brand,#stats,#card,#travel,#note,#loading{box-shadow:var(--glow)}
+  #zoom button{box-shadow:var(--glow);color:var(--cyan)}
+  #card h3{font-family:'Orbitron','Segoe UI',sans-serif;font-weight:900;letter-spacing:.06em}
   /* [TILLAGT v5.1353.0] inga hovringseffekter pa pekskarm */
   @media (hover:none){ #gl.hov{cursor:default} }
   #stats{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;text-align:right;
@@ -162,8 +172,11 @@
   /* [ANDRAT v5.1353.0] RUTAN UPPE TILL HOGER (Chris: "ser ingen poang - spara klockan"): spelare online, teckenforklaring, Live feed och
      Find player ar borta; kvar ar bara klockan med sol/mane, liten i hornet. */
   #stats > div:not(#upd):not(#dimTog), #legend, #feedBtn, #findBtn, #feed, #find{display:none !important}
-  #stats{padding:5px 10px;border-radius:calc(10px * var(--rnd, 1))}
-  #upd{font-weight:800;font-size:13px;color:var(--ink)}
+  #stats{padding:5px 10px;border-radius:calc(10px * var(--rnd, 1));display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+  #upd{font-weight:800;font-size:13px;color:var(--ink);font-family:'Orbitron','Segoe UI',sans-serif;letter-spacing:.06em}
+  /* [TILLAGT v5.1371.0] glodknappen vid klockan */
+  #glowBtn{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--ink2);font-size:14px;line-height:1;cursor:pointer;padding:0;font-family:inherit}
+  #glowBtn.on{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(56,232,255,.45);text-shadow:0 0 8px var(--cyan)}
   #dimTog{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px}
   /* [TILLAGT v5.1353.0] I SPELETS RAM: spelet har vaxeln 2D|3D uppe till vanster och "Close" uppe till hoger pa telefon,
      sa kartans eget huvud flyttas ner en rad och kartans egen vaxel doljs. */
@@ -232,7 +245,7 @@
 <div class="hud" id="top">
   <div id="brand"><b><span class="long">PROJECT </span>GENESIS · 3D<span class="badge off" id="badge" style="display:none">OFFLINE</span></b><small id="srcTxt">Loading the world…</small></div>
   <div id="stats"><div id="dimTog" role="group" aria-label="Map view"><button id="d2">2D</button><button id="d3" class="on">3D</button></div>
-    <div><b id="nPl">0</b> <span class="wide">players </span>online</div><div id="upd">—</div>
+    <button id="glowBtn" aria-label="Glow on/off" title="Glow">✦</button><div><b id="nPl">0</b> <span class="wide">players </span>online</div><div id="upd">—</div>
     <div id="legend">⚔ fighting · 🧭 expedition · 🏰 dungeon · ✈ travelling · ⚒ crafting</div>
     <button id="feedBtn">Live feed</button> <button id="findBtn">Find player</button></div>
 </div>
@@ -267,6 +280,11 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+/* [TILLAGT v5.1371.0] NEON (Chris: "samma kansla som 2D-kartan"): glod/bloom fran three.js egna tillagg, lokalt i lib/ (ingen CDN) */
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 /* ===== INSTALLNINGAR ===== */
 /* [ANDRAT genesis-world] riktig data: serverns skrivskyddade world_view() (bara spelnamn, testkonton bortfiltrerade).
@@ -325,6 +343,20 @@ const REG = [
     th:{ground:'#dfe8f0', cliff:'#9fb0c0', sand:'#eef3f7', edge:'#7dd3fc', path:'#ccd'}}
 ];
 const REG_BY = Object.create(null); REG.forEach(r => REG_BY[r.id] = r);   // ingen prototyp: "constructor" i datan traffar inget
+/* [TILLAGT v5.1371.0] NEON-FARGERNA - samma som 2D-kartan (genesis-map.html: REGIONS.hue, THEMES.edge/landDark/sky) och spelets MK-farger.
+   hue = regionens lysfarg (kust, namn, glod), dark = morka marken, sky = himlens topp. */
+const NEON = {
+  voxholm:     {hue: '#7ddc5a', edge: '#8ee06a', dark: '#16240f', sky: '#0a2230'},
+  drakemark:   {hue: '#a78bfa', edge: '#e0b64f', dark: '#1d1230', sky: '#1a0f36'},
+  cutlassbay:  {hue: '#2dd4bf', edge: '#5fe3cf', dark: '#123f49', sky: '#072b3c'},
+  novacommand: {hue: '#cfe6ff', edge: '#9fd8ff', dark: '#121e2c', sky: '#0b1d38'},
+  quarantine:  {hue: '#f0b64a', edge: '#f0b64a', dark: '#221c12', sky: '#2b1c06'},
+  windfall:    {hue: '#7dd3fc', edge: '#7dd3fc', dark: '#3a4a5c', sky: '#0b1d38'}};
+REG.forEach(r => { r.neon = NEON[r.id]; });
+/* MK i 2D-kartan: expedition, dungeon, quest, vault, vendor, encounter, world boss, "du ar har" */
+const MK = {exp: '#22d3ee', dungeon: '#f43f5e', quest: '#facc15', vault: '#a78bfa', vendor: '#22c55e', enc: '#ffffff', boss: '#ff2a2a', here: '#ff8a1f'};
+/* farg med "overstyrka" (>1) sa den lyser igenom glodet (bloom tar bara det som ar starkare an 1) */
+const hdr = (c, k) => new THREE.Color(c).multiplyScalar(k);
 
 /* Kartans tre uppdelningar (genesis-map.html, LAYOUTS) - kopierade ordagrant. */
 const LAYOUTS = {
@@ -485,9 +517,25 @@ renderer.setPixelRatio(Math.min(devicePixelRatio || 1, MOBILE ? 1.5 : 2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x9cc8e0, 160, 520);
+/* [TILLAGT v5.1371.0] GLOD (bloom). Lage sparas i genesis.map3dGlow: 'auto' (standard), 'on', 'off'.
+   auto: fullt pa dator; pa telefon/liten skarm svagare och i kvarts upplosning; rasar bildfrekvensen (under 32 bilder/s i 4 s) stangs glodet
+   av sjalv for resten av besoket. Knappen ✦ vid klockan slar av/pa. */
+let GLOWPREF = 'auto'; try { GLOWPREF = localStorage.getItem('genesis.map3dGlow') || 'auto'; } catch (e){}
+const FX = {on: false, small: MOBILE || Math.min(innerWidth, innerHeight) < 600, auto: true, slowT: 0, why: ''};
+let composer = null, bloomPass = null;
+function fxBuild(){ if (composer) return;
+  const rt = new THREE.WebGLRenderTarget(1, 1, {type: THREE.HalfFloatType, samples: FX.small ? 0 : 4});
+  const c = new EffectComposer(renderer, rt); c.addPass(new RenderPass(scene, camera));
+  const bp = new UnrealBloomPass(new THREE.Vector2(256, 256), FX.small ? .6 : .95, FX.small ? .35 : .5, .92); c.addPass(bp);
+  c.addPass(new OutputPass()); composer = c; bloomPass = bp; fxSize(); }
+function fxSize(){ if (!composer) return; const pr = renderer.getPixelRatio(); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
+  /* glodet raknar sjalvt i halv upplosning och nedat; pa telefon halveras det en gang till (sparar mycket, syns knappt) */
+  if (FX.small) bloomPass.setSize(Math.max(64, Math.round(innerWidth * pr * .5)), Math.max(64, Math.round(innerHeight * pr * .5))); }
+function fxSet(on, why){ FX.on = !!on; FX.why = why || ''; if (FX.on){ try { fxBuild(); } catch (e){ FX.on = false; FX.why = 'error'; } } const b = document.getElementById('glowBtn'); if (b) b.classList.toggle('on', FX.on); }
+scene.fog = new THREE.Fog(0x1e2c5c, 160, 520);   /* [ANDRAT v5.1371.0] neon: djupbla/lila himmel i stallet for ljusbla */
 const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 4200);
-const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x4b5a3a, 1.1); scene.add(hemi);
+fxSet(GLOWPREF !== 'off', GLOWPREF);   /* [TILLAGT v5.1371.0] glodet startas nar kameran finns */
+const hemi = new THREE.HemisphereLight(0xc4ccff, 0x2a1f4a, 1.1); scene.add(hemi);   /* [ANDRAT v5.1371.0] kall lila himmel, violett mark */
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.castShadow = true;
 sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048); sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
 scene.add(sun); scene.add(sun.target);
@@ -501,7 +549,15 @@ function makeWaterNormals(){ const n = 256, c = document.createElement('canvas')
     const nx = -dx * .35, ny = -dy * .35, nz = 1, L = Math.hypot(nx, ny, nz); im.data[i] = (nx / L * .5 + .5) * 255; im.data[i + 1] = (ny / L * .5 + .5) * 255; im.data[i + 2] = (nz / L * .5 + .5) * 255; im.data[i + 3] = 255; }
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(60 * BIG, 60 * BIG); return t; }
 const waterNormal = makeWaterNormals();
-const waterMat = new THREE.MeshStandardMaterial({color: 0x1f6f8f, roughness: 0.22, metalness: 0.1, normalMap: waterNormal, normalScale: new THREE.Vector2(.5, .5)});
+/* [ANDRAT v5.1371.0] NEON-HAV: morkt blalila, blankt, med glimmande cyan/magenta reflexer (emissiveMap) som glodet tar */
+function makeWaterGlints(){ const n = 256, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), r = rng(7);
+  g.fillStyle = '#000'; g.fillRect(0, 0, n, n); g.lineCap = 'round';
+  for (let i = 0; i < 34; i++){ const x = r() * n, y = r() * n, L = 2 + r() * 7, col = r() < .7 ? '56,232,255' : '255,79,216';
+    g.strokeStyle = 'rgba(' + col + ',' + (.25 + r() * .5) + ')'; g.lineWidth = .7 + r() * .8; g.beginPath(); g.moveTo(x, y); g.lineTo(x + L, y + (r() - .5) * 2); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(220 * BIG, 220 * BIG); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const waterGlint = makeWaterGlints();
+const waterMat = new THREE.MeshStandardMaterial({color: 0x0d2050, roughness: 0.16, metalness: 0.35, normalMap: waterNormal, normalScale: new THREE.Vector2(.5, .5),
+  emissive: 0xffffff, emissiveMap: waterGlint, emissiveIntensity: 1});
 const water = new THREE.Mesh(new THREE.PlaneGeometry(3000 * BIG, 3000 * BIG), waterMat); water.rotation.x = -Math.PI / 2; water.position.y = WATER_Y; water.receiveShadow = true; scene.add(water);
 
 /* ===== LAND: utdragen kustform, marken ar en malad bild per region ===== */
@@ -515,7 +571,8 @@ function groundTexture(R){
   if (R.locked){ g.fillStyle = th.ground; R.polys.forEach(pp => { poly(pp); g.fill(); }); }
   else {
     g.save(); poly(R.outline); g.clip();
-    R.zones.forEach(z => { const base = mix(th.ground, R.acc[z.i], z.i === 5 ? .2 : .13);
+    /* [ANDRAT v5.1371.0] NEON: marken dras mot 2D-kartans morka regionfarg och varje zon far tydligt sin egen accentfarg (som zonerna i 2D) */
+    R.zones.forEach(z => { const base = mix(mix(th.ground, R.neon.dark, .42), R.acc[z.i], z.i === 5 ? .38 : .34);
       poly(z.poly); g.fillStyle = z.i === 5 ? mix(base, '#2a1f2e', .3) : mix(base, z.i % 2 ? '#000000' : '#ffffff', .05); g.fill(); });
     /* sarskilda markslag per zon */
     const zf = (i, col, a) => { const z = R.zones[i]; g.save(); poly(z.poly); g.clip(); g.fillStyle = rgba(col, a); g.fillRect(x0, y0, w, h); g.restore(); };
@@ -550,24 +607,47 @@ function groundTexture(R){
     /* hamnplanen */
     { const L = R.landing; g.fillStyle = rgba(th.path, .95); g.beginPath(); g.ellipse(L.x, L.y, L.r * .8, L.r * .62, Math.atan2(L.uy, L.ux), 0, 6.2832); g.fill();
       g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 2; g.stroke(); }
-    /* zongranser: svag streckad linje */
-    g.setLineDash([7, 6]); g.lineWidth = 1.6; g.strokeStyle = 'rgba(20,20,10,.28)'; R.zones.forEach(z => { poly(z.poly); g.stroke(); }); g.setLineDash([]);
+    /* [ANDRAT v5.1371.0] zongranser: lysande neonlinje i zonens farg (som 2D-kartan) i stallet for svag streckad linje */
+    R.zones.forEach(z => { poly(z.poly); g.lineWidth = 5; g.strokeStyle = rgba(R.acc[z.i], .35); g.stroke(); g.lineWidth = 1.8; g.strokeStyle = mix(R.acc[z.i], '#ffffff', .35); g.stroke(); });
     g.restore();
     /* strand innanfor kusten */
-    poly(R.outline); g.strokeStyle = th.sand; g.lineWidth = 16; g.stroke();
+    poly(R.outline); g.strokeStyle = mix(th.sand, R.neon.dark, .35); g.lineWidth = 16; g.stroke();   /* [ANDRAT v5.1371.0] stranden mattare */
+    g.strokeStyle = mix(R.neon.hue, '#ffffff', .25); g.lineWidth = 2.2; g.stroke();   /* [TILLAGT v5.1371.0] neonkontur langs kusten */
   }
   R.polys.slice(1).forEach(pp => { poly(pp); g.fillStyle = th.sand; g.fill(); });
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  return {tex: t, x0, y0, w, h}; }
+  return {tex: t, x0, y0, w, h, glow: R.locked ? null : glowTexture(R, x0, y0, w, h)}; }
+/* [TILLAGT v5.1371.0] LYSKARTAN: svart bild med bara det som ska lysa - zongranser, kusten, stigarnas mittlinje, dammar och lava.
+   Laggs som emissiveMap pa marken sa glodet (bloom) tar den. Halv upplosning (sparar minne pa iPhone; ljus far vara mjukt). */
+function glowTexture(R, x0, y0, w, h){
+  const sc = Math.min(.5, (MOBILE ? 1024 : 1536) / w), c = document.createElement('canvas'); c.width = Math.ceil(w * sc); c.height = Math.ceil(h * sc);
+  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height); g.setTransform(sc, 0, 0, sc, -x0 * sc, -y0 * sc);
+  const poly = (pp) => { g.beginPath(); g.moveTo(pp[0].x, pp[0].y); for (let i = 1; i < pp.length; i++) g.lineTo(pp[i].x, pp[i].y); g.closePath(); };
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.save(); poly(R.outline); g.clip();
+  R.zones.forEach(z => { poly(z.poly); g.fillStyle = rgba(R.acc[z.i], .05); g.fill(); g.lineWidth = 7; g.strokeStyle = rgba(R.acc[z.i], .45); g.stroke(); g.lineWidth = 2.4; g.strokeStyle = mix(R.acc[z.i], '#ffffff', .4); g.stroke(); });
+  R.paths.forEach(([a, b]) => { g.strokeStyle = rgba(R.neon.hue, .35); g.lineWidth = 2; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); });
+  (R.flat || []).forEach(f => { const gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 1.3); gr.addColorStop(0, f.type === 'lava' ? 'rgba(255,120,30,.95)' : 'rgba(56,232,255,.55)');
+    gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(f.x, f.y, f.r * 1.3, 0, 6.2832); g.fill(); });
+  g.restore();
+  R.polys.forEach(pp => { poly(pp); g.lineWidth = 22; g.strokeStyle = rgba(R.neon.hue, .4); g.stroke(); g.lineWidth = 6; g.strokeStyle = mix(R.neon.hue, '#ffffff', .4); g.stroke(); });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 
 function extrudeLand(pp, depth, matTop, matSide){
   const sh = new THREE.Shape(pp.map(q => new THREE.Vector2(q.x * K, -q.y * K)));
   const geo = new THREE.ExtrudeGeometry(sh, {depth, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.3, bevelSegments: 2, curveSegments: 1, steps: 1});
   geo.rotateX(-Math.PI / 2); geo.translate(0, -depth, 0);
   const m = new THREE.Mesh(geo, [matTop, matSide]); m.receiveShadow = true; m.castShadow = false; return m; }
-function flatRing(pp, y, color, opacity){ const sh = new THREE.Shape(pp.map(q => new THREE.Vector2(q.x * K, -q.y * K)));
+function flatRing(pp, y, color, opacity, add){ const sh = new THREE.Shape(pp.map(q => new THREE.Vector2(q.x * K, -q.y * K)));
   const geo = new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI / 2);
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color, transparent: true, opacity, depthWrite: false})); m.position.y = y; m.renderOrder = 1; return m; }
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color, transparent: true, opacity, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending})); m.position.y = y; m.renderOrder = 1; return m; }
+/* [TILLAGT v5.1371.0] NEONKANTEN: ett lysande band runt on vid vattenlinjen (som konturen i 2D-kartan). Fargen ar "overstark" sa glodet tar den. */
+const groundMats = [], edgeMats = [];
+function neonEdge(pp, hue){ const n = pp.length, pos = [], idx = [], o = offsetPoly(pp, 8), y0 = WATER_Y - .02, y1 = WATER_Y + .62;
+  for (let i = 0; i < n; i++){ pos.push(o[i].x * K, y0, o[i].y * K, o[i].x * K, y1, o[i].y * K); const a = i * 2, b = ((i + 1) % n) * 2; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  const m = new THREE.MeshBasicMaterial({color: hdr(hue, 1.7), side: THREE.DoubleSide, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending});
+  m.userData.base = m.color.clone(); edgeMats.push(m); const mesh = new THREE.Mesh(g, m); mesh.renderOrder = 2; return mesh; }
 
 REG.forEach(R => {
   R.group = new THREE.Group(); scene.add(R.group);
@@ -575,11 +655,16 @@ REG.forEach(R => {
   // takets UV ar formens (x, -y)*K: skala om sa bilden tacker regionens ruta
   tex.repeat.set(1 / (gt.w * K), 1 / (gt.h * K)); tex.offset.set(-gt.x0 * K / (gt.w * K), (gt.y0 + gt.h) * K / (gt.h * K));
   const top = new THREE.MeshStandardMaterial({map: tex, roughness: .95, metalness: 0, transparent: !!R.locked, opacity: R.locked ? .9 : 1});
-  const side = new THREE.MeshStandardMaterial({color: R.th.cliff, roughness: .9, flatShading: true, transparent: !!R.locked, opacity: R.locked ? .75 : 1});
+  /* [TILLAGT v5.1371.0] marken lyser i zongranser/kust (lyskartan) - starkare pa natten (frame) */
+  if (gt.glow){ gt.glow.repeat.copy(tex.repeat); gt.glow.offset.copy(tex.offset); top.emissive = new THREE.Color(0xffffff); top.emissiveMap = gt.glow; top.emissiveIntensity = 1; groundMats.push(top); }
+  /* [ANDRAT v5.1371.0] klippan: mork regionfarg med svagt sken i regionens lysfarg */
+  const side = new THREE.MeshStandardMaterial({color: mix(R.neon.dark, R.th.cliff, .45), emissive: new THREE.Color(R.neon.hue), emissiveIntensity: .12, roughness: .9, flatShading: true, transparent: !!R.locked, opacity: R.locked ? .75 : 1});
   R.polys.forEach((pp, i) => {
     R.group.add(extrudeLand(pp, i ? CLIFF * .6 : CLIFF, top, side));
-    R.group.add(flatRing(offsetPoly(pp, i ? 18 : 34), WATER_Y + .02, R.locked ? 0xcfe3f0 : 0x46c3c8, R.locked ? .12 : .32));
-    R.group.add(flatRing(offsetPoly(pp, i ? 6 : 10), WATER_Y + .04, 0xffffff, .25));
+    /* [ANDRAT v5.1371.0] grunt vatten och skum lyser i regionens farg (additivt) i stallet for turkos/vitt */
+    R.group.add(flatRing(offsetPoly(pp, i ? 18 : 34), WATER_Y + .02, R.neon.hue, R.locked ? .1 : .2, true));
+    R.group.add(flatRing(offsetPoly(pp, i ? 6 : 10), WATER_Y + .04, mix(R.neon.hue, '#ffffff', .5), .55, true));
+    if (!R.locked) R.group.add(neonEdge(pp, R.neon.hue));
   });
   if (R.locked) R.group.position.y = 1.2;   // Windfall svavar lite
 });
@@ -644,7 +729,7 @@ function procTemplate(key, build){ const g = new THREE.Group(); build(g); g.upda
   g.traverse(o => { if (o.isMesh) parts.push({geo: o.geometry, mat: o.material, m: o.matrixWorld.clone()}); });
   const box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()); TPL[key] = {parts, h: sz.y, w: Math.max(sz.x, sz.z)}; }
 const M_TRUNK = flat(0x8a6a3e), M_LEAF = flat(0x3f9d4a), M_LEAF2 = flat(0x2f7f3a), M_WOOD = flat(0x6b4a2a), M_WOOD2 = flat(0x4a321c),
-  M_SAIL = flat(0xeee6d0), M_SAILB = flat(0x24222a), M_IRON = flat(0x55585e), M_FIRE = new THREE.MeshBasicMaterial({color: 0xffa040}), M_STONE = flat(0x8d8f94);
+  M_SAIL = flat(0xeee6d0), M_SAILB = flat(0x24222a), M_IRON = flat(0x55585e), M_FIRE = new THREE.MeshBasicMaterial({color: hdr(0xffa040, 2.2)}), M_STONE = flat(0x8d8f94);
 function hullGeo(L, Wd, D){ const s = new THREE.Shape(); s.moveTo(-L / 2, 0); s.quadraticCurveTo(-L * .2, Wd, L * .25, Wd * .8); s.quadraticCurveTo(L * .5, Wd * .4, L * .55, 0);
   s.quadraticCurveTo(L * .5, -Wd * .4, L * .25, -Wd * .8); s.quadraticCurveTo(-L * .2, -Wd, -L / 2, 0);
   const g = new THREE.ExtrudeGeometry(s, {depth: D, bevelEnabled: true, bevelThickness: D * .3, bevelSize: Wd * .15, bevelSegments: 1}); g.rotateX(-Math.PI / 2); return g; }
@@ -679,8 +764,8 @@ const M_PEAK = new THREE.MeshStandardMaterial({vertexColors: true, flatShading: 
   .forEach(([k, w, h, gr, sn], i) => procTemplate(k, g => { const m = new THREE.Mesh(peakGeo(77 + i, w, h, gr, sn), M_PEAK); g.add(m);
     if (k.startsWith('peak')){ const m2 = new THREE.Mesh(peakGeo(91 + i, w * .55, h * .7, gr, sn), M_PEAK); m2.position.set(w * .35, 0, w * .1); g.add(m2); } }));
 /* [TILLAGT genesis-world-play] brygga, valv, malmnod, fibernod och expeditionsskylt */
-const M_GOLD = flat(0xe0b040, 0x3a2800), M_VSTONE = flat(0x9aa0a8), M_VROOF = flat(0x3b4a63), M_ORE = flat(0x6a6e75), M_CRY = new THREE.MeshStandardMaterial({color: 0x7dd3fc, emissive: 0x1d6a8a, roughness: .3, flatShading: true}),
-  M_FIB = flat(0x86c25a), M_FIB2 = flat(0xc084fc, 0x2a0a40), M_SIGN = flat(0xd9b46a);
+const M_GOLD = new THREE.MeshStandardMaterial({color: 0xe0b040, emissive: 0xa78bfa, emissiveIntensity: .9, roughness: .5, flatShading: true}), M_VSTONE = flat(0x9aa0a8), M_VROOF = flat(0x3b4a63), M_ORE = flat(0x6a6e75), M_CRY = new THREE.MeshStandardMaterial({color: 0x7dd3fc, emissive: 0x22d3ee, emissiveIntensity: 1.6, roughness: .3, flatShading: true}),   /* [ANDRAT v5.1371.0] neon */
+  M_FIB = flat(0x86c25a, 0x1a4a10), M_FIB2 = new THREE.MeshStandardMaterial({color: 0xc084fc, emissive: 0xd946ef, emissiveIntensity: 1.3, roughness: .6, flatShading: true}), M_SIGN = flat(0xd9b46a);
 procTemplate('pier', g => { const d = new THREE.Mesh(new THREE.BoxGeometry(1.1, .12, 6), M_WOOD); d.position.y = -.12; g.add(d);
   for (let i = 0; i < 6; i++) for (const sx of [-.5, .5]){ const p = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 1.2, 5), M_WOOD2); p.position.set(sx, -.6, -2.7 + i * 1.08); g.add(p); }
   const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, .1, 1.4), M_WOOD); b.position.set(0, -.12, -3.2); g.add(b); });
@@ -694,7 +779,7 @@ procTemplate('fiber_node', g => { for (let i = 0; i < 7; i++){ const c = new THR
   c.position.set(Math.cos(a) * .25, .45, Math.sin(a) * .25); c.rotation.set(Math.sin(a) * .3, 0, Math.cos(a) * .3); g.add(c); } });
 procTemplate('signpost', g => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1.6, 5), M_WOOD2); p.position.y = .8; g.add(p);
   const a = new THREE.Mesh(new THREE.BoxGeometry(.8, .22, .05), M_SIGN); a.position.set(.25, 1.35, 0); g.add(a); const b = new THREE.Mesh(new THREE.BoxGeometry(.7, .2, .05), M_SIGN); b.position.set(-.2, 1.05, 0); b.rotation.y = .5; g.add(b);
-  const f = new THREE.Mesh(new THREE.PlaneGeometry(.5, .32), new THREE.MeshStandardMaterial({color: 0x2dd4bf, side: THREE.DoubleSide})); f.position.set(.25, 1.75, 0); g.add(f); });
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(.5, .32), new THREE.MeshStandardMaterial({color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.4, side: THREE.DoubleSide}));   /* [ANDRAT v5.1371.0] expeditionsflaggan i MK.exp, lyser */ f.position.set(.25, 1.75, 0); g.add(f); });
 ['palm', 'wreck', 'wreck_big', 'campfire', 'anvil', 'peak_a', 'peak_b', 'peak_c', 'peak_bare', 'hill_g', 'hill_s', 'pier', 'vault_house', 'ore_node', 'fiber_node', 'signpost'].forEach(k => { PACK_OF[k] = 'proc'; });
 Object.assign(SIZE, {pier: ['w', 2.2], vault_house: ['w', 3.0], ore_node: ['w', 1.2], fiber_node: ['w', .9], signpost: ['w', .9]});
 Object.assign(SIZE, {peak_a: ['w', 8.5], peak_b: ['w', 7], peak_c: ['w', 10], peak_bare: ['w', 7.5], hill_g: ['w', 4], hill_s: ['w', 3], palm: ['w', 1.4], wreck: ['w', 2.8], wreck_big: ['w', 6], campfire: ['w', .6], anvil: ['w', .45]});
@@ -846,7 +931,7 @@ LAND.forEach(R => { [false, true].forEach(big => { const L = R.lights.filter(l =
 
 /* dungeonportens sken */
 const portalFx = [];
-LAND.forEach(R => { const m = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), new THREE.MeshBasicMaterial({color: new THREE.Color(R.acc[5]), transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide}));
+LAND.forEach(R => { const m = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), new THREE.MeshBasicMaterial({color: hdr(R.acc[5], 2), transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide}));   /* [ANDRAT v5.1371.0] lyser */
   m.position.set(R.portal.x * K, 1.2, R.portal.y * K); R.group.add(m); portalFx.push(m); });
 
 /* ladda paketen; procedurmodellerna finns redan */
@@ -959,13 +1044,13 @@ function applyPlayer(e, s){
 function ensureAvatar(e){
   if (e.av || !CLIPS) return; const C = CLS3D[e.klass]; if (!CHAR[C.f]) return;
   e.av = makeAvatar(C.f, C.keep, 1.35); if (!e.av) return;
-  const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: new THREE.Color(e.col), transparent: true, opacity: .85, depthWrite: false}));
+  const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(e.col, 1.8), transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending}));   /* [ANDRAT v5.1371.0] lysande ring */
   ring.rotation.x = -Math.PI / 2; ring.position.y = .03; e.av.root.add(ring); e.av.ring = ring;
   scene.add(e.av.root); play(e.av, 'Idle', 0); }
 const RING_GEO = new THREE.RingGeometry(.32, .42, 24), DISC_GEO = new THREE.CircleGeometry(.55, 20), HELP_GEO = new THREE.SphereGeometry(.18, 10, 8);
-const DISC_MAT = new THREE.MeshBasicMaterial({color: 0x7dd3fc, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide});
+const DISC_MAT = new THREE.MeshBasicMaterial({color: hdr(0x38e8ff, 1.6), transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide});
 const TRAIL_MAT = new THREE.LineBasicMaterial({color: 0x7dd3fc, transparent: true, opacity: .6});
-const HELP_MAT = new THREE.MeshStandardMaterial({color: 0xfbbf24, emissive: 0x7a4a00, roughness: .4});
+const HELP_MAT = new THREE.MeshStandardMaterial({color: 0xfbbf24, emissive: 0xffc542, emissiveIntensity: 1.4, roughness: .4});
 /* en klon har egna skelett (med egen bentextur pa GPU) - de maste slappas, annars fylls iPhonens minne */
 function freeAv(av){ if (!av) return; scene.remove(av.root); av.mixer.stopAllAction(); av.mixer.uncacheRoot(av.model);
   av.model.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); if (o.isMesh && o.userData.ownMat) o.material.dispose(); });
@@ -1217,13 +1302,18 @@ function dayInfo(){ let h; const tid = window.__gwTid != null ? window.__gwTid :
   const day = sm(5.5, 8, h) * (1 - sm(18.5, 21, h));
   const dusk = clamp(Math.max(1 - Math.abs(h - 19.6) / 1.5, 1 - Math.abs(h - 6.6) / 1.3), 0, 1);
   return {h, day, dusk}; }
-const C_DAY = new THREE.Color(0x9cc8e0), C_DUSK = new THREE.Color(0xe7a07a), C_NIGHT = new THREE.Color(0x1d3050), cTmp = new THREE.Color();   /* [ANDRAT v5.1353.0] natten 0d1a2e -> 1d3050: "extremt morkt" (Chris) */
+/* [ANDRAT v5.1371.0] NEON-HIMMEL: dag = djupt blalila, skymning = magenta, natt = morkblaa men inte svart (natten ska fortfarande vara ljus nog, Chris) */
+const C_DAY = new THREE.Color(0x24306a), C_DUSK = new THREE.Color(0x5a2a6e), C_NIGHT = new THREE.Color(0x141c44), cTmp = new THREE.Color();   /* [ANDRAT v5.1353.0] natten 0d1a2e -> 1d3050: "extremt morkt" (Chris) */
 function applyTime(DI){
   const night = 1 - DI.day;
   cTmp.copy(C_DAY).lerp(C_NIGHT, night).lerp(C_DUSK, DI.dusk * .3); scene.fog.color.copy(cTmp); renderer.setClearColor(cTmp);
   sun.intensity = 1.05 + 1.45 * DI.day;   /* [ANDRAT v5.1353.0] ljusare manljus (Chris: "extremt morkt") */ sun.color.setHex(0xfff1dc).lerp(new THREE.Color(0xffa060), DI.dusk * .8).lerp(new THREE.Color(0x8fb0ff), night * (1 - DI.dusk));
-  hemi.intensity = 1.2 + .1 * DI.day; hemi.color.setHex(0xcfe8ff).lerp(new THREE.Color(0x8a9ad8), night);   /* [ANDRAT v5.1353.0] .85 -> 1.2 och ljusare natthimmel */
-  waterMat.color.setHex(0x1f6f8f).lerp(new THREE.Color(0x0a2236), night * .8);
+  hemi.intensity = 1.2 + .1 * DI.day; hemi.color.setHex(0xc4ccff).lerp(new THREE.Color(0x8a9ad8), night);   /* [ANDRAT v5.1353.0] .85 -> 1.2 och ljusare natthimmel */
+  waterMat.color.setHex(0x0d2050).lerp(new THREE.Color(0x060d2a), night * .8);
+  /* [TILLAGT v5.1371.0] neon lyser mer pa natten: marken, kanten och vattenglimtarna */
+  waterMat.emissiveIntensity = .4 + night * .5;
+  groundMats.forEach(m => { m.emissiveIntensity = 1.05 + night * .7; });
+  edgeMats.forEach(m => { m.color.copy(m.userData.base).multiplyScalar(.8 + night * .5); });
   renderer.toneMappingExposure = 1.05 + night * .2;   /* [ANDRAT v5.1353.0] natten exponeras upp i stallet for ned */
   return night; }
 
@@ -1437,11 +1527,14 @@ $('findIn').addEventListener('input', renderFind);
 $('feedBtn').addEventListener('click', () => $('find').classList.remove('on'));
 
 /* ===== ETIKETTER (2D ovanpa 3D) ===== */
-function label(c, txt, x, y, o){ o = o || {}; c.font = (o.w || 600) + ' ' + (o.size || 12) + 'px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+/* [ANDRAT v5.1371.0] o.f = 'o' ger spelets rubriktypsnitt (Orbitron), o.glow = lysande kant i den fargen, o.edge = tunn neonram runt bakgrunden */
+function label(c, txt, x, y, o){ o = o || {}; c.font = (o.w || 600) + ' ' + (o.size || 12) + 'px ' + (o.f === 'o' ? 'Orbitron,"Segoe UI",sans-serif' : '"Segoe UI",Inter,-apple-system,BlinkMacSystemFont,Roboto,sans-serif');
   c.textAlign = 'center'; c.textBaseline = 'middle'; const w = c.measureText(txt).width;
-  if (o.bg){ c.fillStyle = o.bg; const ph = (o.size || 12) + 6; c.beginPath(); c.roundRect ? c.roundRect(x - w / 2 - 6, y - ph / 2, w + 12, ph, ph / 2) : c.rect(x - w / 2 - 6, y - ph / 2, w + 12, ph); c.fill(); }
-  else { c.lineWidth = o.stroke || 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText(txt, x, y); }
-  c.fillStyle = o.col || '#fff'; c.fillText(txt, x, y); return w; }
+  if (o.bg){ c.fillStyle = o.bg; const ph = (o.size || 12) + 6; c.beginPath(); c.roundRect ? c.roundRect(x - w / 2 - 6, y - ph / 2, w + 12, ph, ph / 2) : c.rect(x - w / 2 - 6, y - ph / 2, w + 12, ph); c.fill();
+    if (o.edge){ c.lineWidth = 1; c.strokeStyle = o.edge; c.stroke(); } }
+  else { c.lineWidth = o.stroke || 3; c.strokeStyle = 'rgba(5,6,13,.8)'; c.strokeText(txt, x, y); }
+  if (o.glow){ c.shadowColor = o.glow; c.shadowBlur = o.glowR || 10; }
+  c.fillStyle = o.col || '#fff'; c.fillText(txt, x, y); c.shadowBlur = 0; c.shadowColor = 'transparent'; return w; }
 function drawOverlay(){
   const c = octx, W = innerWidth, H = innerHeight, D = cam.dist; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
   const counts = {}, act = {}; ents.forEach(e => { if (e.gone) return; counts[e.R.id] = (counts[e.R.id] || 0) + 1;
@@ -1451,14 +1544,14 @@ function drawOverlay(){
     /* [ANDRAT genesis-world-play] zonnamnen ritas aven nar regionens mitt ar utanfor bild (regionerna ar stora nu) */
     if (D < 260 && !R.locked) R.zones.forEach(z => { const q = toScreen(z.c.x * K, .3, z.c.y * K); if (!q.on || q.x < -150 || q.x > W + 150 || q.y < -20 || q.y > H + 20) return;
       const txt = z.namn.toUpperCase() + (z.i === 5 ? ' · DUNGEON' : '') + (zoneState(R.id, z.namn) === 'uncharted' ? ' · UNCHARTED' : ''), fz = clamp(1600 / D, 10, 14);
-      const w = label(c, txt, q.x, q.y + 10, {size: fz, w: 700, col: 'rgba(255,255,255,.92)', bg: 'rgba(10,16,24,.45)'}); placed.push({x: q.x - w / 2 - 6, y: q.y + 10 - fz / 2 - 3, w: w + 12, h: fz + 6}); });
+      const w = label(c, txt, q.x, q.y + 10, {size: fz * .9, w: 700, f: 'o', col: mix(R.acc[z.i], '#ffffff', .55), bg: 'rgba(5,6,13,.62)', edge: rgba(R.acc[z.i], .55)});   /* [ANDRAT v5.1371.0] zonens neonfarg, spelets typsnitt */ placed.push({x: q.x - w / 2 - 6, y: q.y + 10 - fz / 2 - 3, w: w + 12, h: fz + 6}); });
     if (D < 130) return;   // inzoomad: regionens stora namn behovs inte
     const cs = [[R.bb.x0, R.bb.y0], [R.bb.x1, R.bb.y0], [R.bb.x0, R.bb.y1], [R.bb.x1, R.bb.y1]].map(q => toScreen(q[0] * K, 1, q[1] * K)), cc = toScreen((R.bb.x0 + R.bb.x1) / 2 * K, 1, (R.bb.y0 + R.bb.y1) / 2 * K);
     const p = {x: cc.x, y: Math.max(Math.min(...cs.map(q => q.y)) - 26, 70), on: cc.on}; if (!p.on || p.x < -200 || p.x > W + 200 || p.y > H + 60 || cc.y < 40) return;
     const fs = clamp(2600 * BIG / D, 13, 26);
-    if (R.locked){ label(c, R.namn.toUpperCase(), p.x, p.y + 30, {size: fs * .8, w: 800, col: '#e2e8f0'}); label(c, 'COMING SOON', p.x, p.y + 30 + fs, {size: 10, w: 700, col: '#cbd5e1'}); return; }
-    label(c, R.namn.toUpperCase(), p.x, p.y, {size: fs, w: 800, col: mix(R.th.edge, '#ffffff', .35), stroke: 4});
-    label(c, 'LVL ' + R.band + ' · ' + (counts[R.id] || 0) + ' online', p.x, p.y + fs * .9, {size: clamp(fs * .5, 10, 13), w: 600, col: '#e6f2f7'});
+    if (R.locked){ label(c, R.namn.toUpperCase(), p.x, p.y + 30, {size: fs * .7, w: 900, f: 'o', col: '#e2e8f0', glow: R.neon.hue}); label(c, 'COMING SOON', p.x, p.y + 30 + fs, {size: 10, w: 700, col: '#cbd5e1'}); return; }
+    label(c, R.namn.toUpperCase(), p.x, p.y, {size: fs * .9, w: 900, f: 'o', col: mix(R.neon.hue, '#ffffff', .25), stroke: 4, glow: R.neon.hue, glowR: 14});   /* [ANDRAT v5.1371.0] neon som 2D-kartan */
+    label(c, 'LVL ' + R.band + ' · ' + (counts[R.id] || 0) + ' online', p.x, p.y + fs * .9, {size: clamp(fs * .5, 10, 13), w: 600, col: '#e8ecff'});
     const ac = act[R.id]; if (ac){ const s = [['⚔', ac.strid], ['🏰', ac.dungeon], ['⚒', ac.yrke], ['🧭', ac.expedition], ['✈', ac.resa]].filter(x => x[1]).map(x => x[0] + ' ' + x[1]).join('   ');
       if (s) label(c, s, p.x, p.y + fs * .9 + 16, {size: 11, w: 600, col: '#fde68a'}); }
  });
@@ -1648,7 +1741,7 @@ addEventListener('keydown', e => { if (e.key === '+' || e.key === '=') zoomAt(in
   else if (e.key === 'q' || e.key === 'Q') cam.yaw -= .3; else if (e.key === 'e' || e.key === 'E') cam.yaw += .3;
   else if (e.key === 'Escape'){ selected = null; selRegion = null; follow = null; renderCard(); } });
 let DPR = 1;
-function resize(){ DPR = Math.min(2, devicePixelRatio || 1); renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+function resize(){ DPR = Math.min(2, devicePixelRatio || 1); renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); fxSize();
   ov.width = Math.round(innerWidth * DPR); ov.height = Math.round(innerHeight * DPR);
   if (!touched && !camAnim.on){ Object.assign(cam, viewOverview()); } }
 addEventListener('resize', resize);
@@ -1895,7 +1988,8 @@ let posSentAt = 0, posMvSent = false;
 function meAct(name, secs){ me.act = name; me.actT = secs; me.actNew = true; }
 function ensureMeAv(){ if (me.av || !CLIPS) return; const C = CLS3D[me.klass]; if (!CHAR[C.f]) return;
   me.av = makeAvatar(C.f, C.keep, 1.75); if (!me.av) return;
-  const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: 0xfde047, transparent: true, opacity: .95, depthWrite: false}));
+  /* [ANDRAT v5.1371.0] min ring i 2D-kartans "du ar har"-farg (MK.here), lysande */
+  const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(MK.here, 2.2), transparent: true, opacity: .95, depthWrite: false, blending: THREE.AdditiveBlending}));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.scale.setScalar(1.5); me.av.root.add(ring); me.av.ring = ring; scene.add(me.av.root); play(me.av, 'Idle', 0); }
 function dropMeAv(){ if (me.av){ freeAv(me.av); me.av = null; } }
 const goalRing = new THREE.Mesh(new THREE.RingGeometry(.5, .7, 32), new THREE.MeshBasicMaterial({color: 0xfde047, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide}));
@@ -1918,8 +2012,9 @@ function drawMe(dt, t){
 /* ===== KLICKBARA PLATSER (POI) ===== */
 const EXP_DEF = {"voxholm":{"The Grasslands":[["vox_grasslan_1","Break the First Cube",5,1]],"The Village":[["vox_village_1","Settle a Plot Dispute",15,3]],"The Mineshaft":[["vox_mineshaf_2","Chase the Glowing Seam",45,5]],"The Lava Layer":[["vox_lavalaye_2","Salvage a Failed Build",120,7]],"The Skybuild":[["vox_skybuild_3","Finish the Half-Built Bridge",240,9]],"The Deepshaft":[["vox_deepshaf_3","Whatever Dug Here First",480,10]]},"drakemark":{"Gnome Square":[["dra_gnomesqu_1","Catch a Runaway Invention",5,11]],"Troll Mire":[["dra_trollmir_1","Pay the Crossing Toll",15,13]],"Sand Valley":[["dra_sandvall_2","Ride Out With the Caravan",45,15]],"The Black Keep":[["dra_blackkee_2","Dine at the Long Table",120,17]],"The Spine":[["dra_spine_3","Cross the Ridge at Night",240,19]],"The Dragon Nest":[["dra_dragonne_3","Climb to the Nest",480,20]]},"cutlassbay":{"Port Town":[["cut_porttown_1","Buy the Same Map Twice",5,21]],"The Shallows":[["cut_shallows_1","Wade the Clear Water",15,23]],"Jungle Climb":[["cut_junglecl_2","Take the Canopy Road",45,25]],"Wreck Reef":[["cut_wreckree_2","The People Living Below",120,27]],"Smuggler's Cove":[["cut_smuggler_3","Trade Where the Port Cannot Hear",240,29]],"The Black Hull":[["cut_blackhul_3","Nobody Comes Back",480,30]]},"novacommand":{"The Dock Ring":[["nov_dockring_1","Find a Berth in the Chaos",5,31]],"The Garrison":[["nov_garrison_1","Stand the Last Muster",15,33]],"Alien Bazaar":[["nov_alienbaz_2","Trade Without Words",45,35]],"Asteroid Field":[["nov_asteroid_2","The Rocks Are Moving",120,37]],"The Silent Cruiser":[["nov_silentcr_3","Walk the Whole Hull",240,39]],"The Flagship":[["nov_flagship_3","All the Way to the Bridge",480,40]]},"quarantine":{"The Wall":[["qua_wall_1","Trade Under the Guns",5,41]],"The Suburbs":[["qua_suburbs_1","Walk the Quiet Street",15,43]],"The Mall":[["qua_mall_2","Take a Cut of the Mall",45,45]],"The Overpass":[["qua_overpass_2","Run a Looter Route",120,47]],"The Farm":[["qua_farm_3","Bring In the Guarded Harvest",240,49]],"The Hospital":[["qua_hospital_3","The Floor Where It Started",480,50]]}};   // kopia av EXPEDITIONS i index.html (id, namn, minuter, niva) - anvands bara tills spelet skickar setExpeditions
 function expDefault(){ const out = []; for (const rid in EXP_DEF) for (const zn in EXP_DEF[rid]) EXP_DEF[rid][zn].forEach(d => out.push({id: d[0], zone: rid + '|' + zn, label: d[1], mins: d[2], lvl: d[3], state: 'ready'})); return out; }
-const POI_COL = {quest: '#fbbf24', encounter: '#ef4444', expedition: '#2dd4bf', gather: '#f59e0b', fiber: '#86efac', vein: '#7dd3fc', landing: '#e2e8f0',
-  vendor: '#fbbf24', vault: '#a78bfa', dungeon: '#f43f5e', event: '#f472b6', boss: '#f43f5e'};
+/* [ANDRAT v5.1371.0] samma farger som 2D-kartans markorer (MK) */
+const POI_COL = {quest: MK.quest, encounter: '#ff4d6d', expedition: MK.exp, gather: '#f59e0b', fiber: '#d946ef', vein: '#38e8ff', landing: '#e8ecff',
+  vendor: MK.vendor, vault: MK.vault, dungeon: MK.dungeon, event: '#ff4fd8', boss: MK.boss};
 /* ritade ikoner (inga emoji: de ser olika ut pa olika telefoner - samma tanke som spelets egna ikoner) */
 /* [TILLAGT v5.1353.0] KARTIKONERNA (Chris 2026-10-29): de tolv godkanda ikonerna i spelets ikonstil, assets/ui/map3d/<namn>.webp.
    Strecken i drawIcon finns kvar som reserv tills bilden laddats (eller om den saknas). */
@@ -2009,7 +2104,7 @@ function makePoiAv(p){
       p.av = makeAvatar(f, null, troll ? 2.3 : 1.5); if (!p.av) return;
       if (troll){ const tint = new THREE.Color(0x4d7c3a); p.av.model.traverse(o => { if (o.isMesh){ o.material = o.material.clone(); o.userData.ownMat = true; o.material.color.lerp(tint, .55); } }); }
       play(p.av, 'Idle_Combat', 0); }
-    const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: 0xef4444, transparent: true, opacity: .8, depthWrite: false})); ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.scale.setScalar(1.6);
+    const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(MK.dungeon, 2), transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending})); ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.scale.setScalar(1.6);   /* [ANDRAT v5.1371.0] lysande */
     p.av.root.add(ring); p.av.ring = ring; }
   if (!p.av) return; p.face = (hash(p.key) % 628) / 100; p.av.root.position.set(p.x * K, 0, p.y * K); scene.add(p.av.root); }
 function stepPois(dt, t){
@@ -2100,6 +2195,9 @@ $('trBtn').onclick = () => { if (me.R && me.zn) pick({kind: 'travel', region: me
 $('d2').onclick = () => { try { if (parent !== window && typeof parent.genesisMapSwitch === 'function'){ parent.genesisMapSwitch('2d'); return; } } catch (err){}
   location.href = 'genesis-map.html'; };
 $('meBtn').onclick = () => camToMe();
+/* [TILLAGT v5.1371.0] glodknappen vid klockan: av/pa, sparas (auto -> av -> pa -> av ...) */
+$('glowBtn').onclick = () => { GLOWPREF = FX.on ? 'off' : 'on'; try { localStorage.setItem('genesis.map3dGlow', GLOWPREF); } catch (e){} fxSet(GLOWPREF === 'on', GLOWPREF); };
+$('glowBtn').classList.toggle('on', FX.on);
 if (MOBILE || Q.get('joy') === '1') document.body.classList.add('joyon');
 
 /* ===== START ===== */
@@ -2117,19 +2215,21 @@ function frame(now){
   if (document.hidden) return;
   step(dt, now); directorStep(dt, now);
   const DI = dayInfo(), night = applyTime(DI);
-  lightMats.forEach(m => { m.opacity = clamp(night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
+  lightMats.forEach(m => { m.opacity = clamp(.22 + night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1371.0] lite sken aven pa dagen */   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
   SUNDIR.set(Math.cos(DI.h / 24 * 6.2832 - 1.6) * .6 + .2, .9, .45).normalize();
   sun.position.set(cam.tx + SUNDIR.x * 90, SUNDIR.y * 90, cam.tz + SUNDIR.z * 90); sun.target.position.set(cam.tx, 0, cam.tz);
   applyCam();
   scene.fog.near = Math.max(160, cam.dist * 1.1); scene.fog.far = Math.max(520, cam.dist * 3.2);   // [TILLAGT genesis-world-play] storre varld
-  renderer.render(scene, camera);
+  /* [TILLAGT v5.1371.0] glodet: auto stanger av det om bildfrekvensen rasar (svag telefon) */
+  if (FX.on && GLOWPREF === 'auto' && worldReady){ FX.slowT = fps < 32 ? FX.slowT + dt : Math.max(0, FX.slowT - dt); if (FX.slowT > 4) fxSet(false, 'slow'); }
+  if (FX.on && composer) composer.render(dt); else renderer.render(scene, camera);
   drawOverlay();
   /* nyhetsraden: en i taget */
   newsT -= dt; if (newsT <= 0 && newsQ.length){ const it = newsQ.shift(), n = $('news'); n.textContent = it.ic + ' ' + it.text; n.className = 'on'; newsT = 5; }
   else if (newsT <= 0 && newsT > -dt * 1.5){ $('news').className = ''; }
   statusT -= dt; if (statusT <= 0){ statusT = 1; if (selected) renderCard(); renderStatus(); }
 }
-window.__gw = {ents, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, renderer, scene, TPL, get ready(){ return worldReady; }, API};
+window.__gw = {unfollow(){ follow = null; touched = true; }, ents, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
 requestAnimationFrame(frame);
 </script>
 </body>

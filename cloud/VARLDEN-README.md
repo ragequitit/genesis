@@ -1,6 +1,31 @@
-# Världen i 3D – inbyggd i spelet (v5.1353.0 — VARLDEN)
+# Världen i 3D – inbyggd i spelet (v5.1371.0 — VARLDEN)
 
 Gren: `genesis-world-live`. Inget är live. Main är orörd.
+
+## Omgång 2 (v5.1371.0): main inslagen, hjälparna i 3D, ny neonlook
+
+**Main inslagen.** Grenen har main fram till v5.1370.0 (Halloween, World Boss, Settings, sidomeny …) inslagen med merge. Versionen står en gång på vart och ett av de tre ställena: `GENESIS v5.1371.0 — VARLDEN`. Världens patch notes-post (5.1371.0) ligger överst i `patchnotes.json` med `discord: "hold"`, alla mains poster kvar.
+
+**Hjälparna (47 TRELLIS-modeller).**
+- 39 modeller är krympta och ersätter originalen: 74 MB → 3,6 MB totalt (55–190 kB styck, de flesta ~90 kB). Gjort med gltf-transform: dedup + weld, meshopt-förenkling till högst ~6 000 trianglar, texturen omgjord till WebP 512 px, meshopt-komprimering (avkodaren finns redan lokalt i `lib/`). Materialet satt till icke-metall (TRELLIS gav metall = mörka figurer).
+- Alla står nu rätt: fötterna på y = 0, mitten på x/z = 0, höjd 1, vända mot +Z (kontrollerat med bilder framifrån/sidan/ovan). I kartan blir de 0,9 enheter – ungefär till spelarfigurens midja.
+- **8 modeller var trasiga** (TRELLIS gjorde ett platt kort med bakgrund): aquo, drip, ember, nix, phase, sprout, stormi, wisp. De är borttagna ur `assets/helpers3d/` och visas i stället som en stående bild av hjälparen (`assets/pets/<art>.webp`) som alltid vänder sig mot kameran. Listan står under `"sprites"` i `index.json`. Originalen finns i git-historiken (commit 1b882f0) om Chris vill göra om dem i TRELLIS.
+- Bara hjälpare som faktiskt syns hämtas (första gången en figur med den hjälparen dyker upp).
+
+**Neonlooken (Chris: "inte två helt olika spel").** Färgerna kommer direkt från 2D-kartan (`genesis-map.html`: REGIONS.hue, THEMES.edge/landDark) och spelet (`index.html`: panelfärger, cyan, Orbitron/Inter):
+- Djupt blålila himmel och hav (dag), magenta skymning, mörkblå natt – natten är fortfarande ljus nog och ljusstolparna lyser som förut.
+- Marken dras mot regionens mörka färg och varje zon får sin accentfärg (som zonerna i 2D). Zongränser och kust är lysande neonlinjer; ett lysande band i regionens färg går runt varje ö vid vattenlinjen; grunt vatten och skum lyser i regionens färg.
+- Havet glittrar med små cyan/magenta-reflexer. Malmkristaller, fiber, expeditionsflaggan, valvet, dungeonporten, ringarna under figurerna (din i 2D-kartans "du är här"-orange) lyser.
+- Ikonfärger som 2D-kartans markörer (MK). Regionnamn i Orbitron med glöd i regionens färg, zonnamn i zonens färg. Rutorna (rubrik, klocka, kort, knappar) har spelets panelfärger och typsnitt.
+- **Glöd (bloom)** med three.js `UnrealBloomPass` – tilläggen ligger nu lokalt i `lib/three-0.170.0/addons/postprocessing` och `shaders` (ingen CDN). Bara det som lyser starkare än 1 glöder, så resten förblir skarpt.
+- **iPhone/svaga enheter:** på telefon och små skärmar räknas glödet i en fjärdedels upplösning och svagare, utan kantutjämning. Läget "auto" stänger av glödet för resten av besöket om bildfrekvensen ligger under 32 bilder/s i 4 sekunder. Knappen **✦** vid klockan slår av/på (sparas i `genesis.map3dGlow`). Utan glöd är färgerna desamma, bara utan sken.
+- Allt beslutat är kvar: draken med lysande ögon och fri flygbana, ljusare natt med ljusstolpar, kartikonerna, klockan.
+
+**Rättat på vägen:** `genesisMapSwitch` låg inne i spelets slutna funktion, så 3D-ramens "tillbaka till 2D" (utan WebGL / 2D-knappen) nådde den aldrig – nu `window.genesisMapSwitch`.
+
+**Bilder:** `docs-world/neon-*.jpg` (ny look) och `docs-world/fore-*.jpg` (samma vyer i förra looken): översikt, varje region, dag, natt, natt-översikt, hjälpare närbild, mobil 390 px (dag/natt), samt `neon-2d-jamforelse.jpg` (2D-kartan). Mätverktyg: `node .claude/tools/measure-neon.js [neon|fore]`.
+
+**Inte provat:** riktig inloggning, realtid mellan två spelare och riktiga RPC-anrop (Supabase blockeras i mätningen). Bildfrekvens på riktig iPhone – mätningen kör programvaru-WebGL, så siffrorna där säger inget om telefonen; auto-läget är skyddet.
 
 ## Vad som byggts
 

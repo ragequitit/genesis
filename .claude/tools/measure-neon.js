@@ -51,7 +51,7 @@ const LIVE = () => [{id: 'p1', name: 'Zylnock', x: 0, y: 0, face: 1, zone: 'Gnom
 
 const PFX = process.argv[2] || 'neon';
 const HELPERS = ['bloom', 'kage', 'ember', 'morrow', 'prism', 'scuba'];
-async function open(browser, base, w, h){
+async function open(browser, base, w, h, glow){
   const mobile = w < 760;
   const ctx = await browser.newContext({viewport: {width: w, height: h}, deviceScaleFactor: 1, hasTouch: mobile, isMobile: mobile, userAgent: mobile ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' : undefined});
   await ctx.route('**/*.supabase.co/**', r => r.abort());
@@ -61,6 +61,8 @@ async function open(browser, base, w, h){
   page.on('response', r => { if (r.status() === 404) errs.push('404: ' + r.url().replace(base, '')); });
   const glb = []; page.on('request', r => { if (/helpers3d\/.*\.glb|assets\/pets\//.test(r.url())) glb.push(r.url().split('/').pop()); });
   await page.goto(base + 'index.html', {waitUntil: 'load'});
+  /* galleriet: glodet tvingas pa (programvaru-WebGL i matningen ar for langsam for auto-laget, som annars stanger av det) */
+  await page.evaluate(g => { try { if (g) localStorage.setItem('genesis.map3dGlow', g); else localStorage.removeItem('genesis.map3dGlow'); } catch (e){} }, glow || null);
   await page.evaluate(src => window.__eval(src), SETUP);
   let frame = null; for (let i = 0; i < 100 && !frame; i++){ frame = page.frames().find(f => /genesis-3d/.test(f.url())); if (!frame) await page.waitForTimeout(200); }
   if (frame) await frame.waitForFunction(() => window.__gw && window.__gw.ready && window.__gw.me.R, null, {timeout: 90000}).catch(() => {});
@@ -81,6 +83,7 @@ const shotP = (page, name) => page.screenshot({path: path.join(OUT, PFX + '-' + 
     if (!frame){ report.push({w, h, err: 'ingen 3D-ram'}); await ctx.close(); continue; }
     await frame.evaluate(() => { const g = window.__gw; g.flyTo({tx: g.me.x * g.K, tz: g.me.y * g.K + 1, dist: 30}, 50); });
     await page.waitForTimeout(1500);
+    await frame.waitForFunction(() => { const H = window.__gw.me.hlp; return H && H.obj && H.obj.visible; }, null, {timeout: 15000}).catch(() => {});
     const hlp = await frame.evaluate(() => { const H = window.__gw.me.hlp; return H && H.obj ? H.kind + (H.obj.visible ? ' synlig' : ' dold') : 'ingen'; });
     const enc = await frame.evaluate(() => { const g = window.__gw; const p = g.pois.find(p => p.kind === 'encounter' && p.zn === 'Gnome Square'); if (!p) return null; g.onPoi(p); return p.label; });
     await page.waitForTimeout(700);
@@ -94,28 +97,30 @@ const shotP = (page, name) => page.screenshot({path: path.join(OUT, PFX + '-' + 
   }
   /* 2) galleri */
   if (!process.env.NO_GALLERY){
-    const {ctx, page, frame, errs} = await open(browser, base, 1440, 900);
+    const {ctx, page, frame, errs} = await open(browser, base, 1440, 900, PFX === 'fore' ? null : 'on');
     const g = (fn, a) => frame.evaluate(fn, a);
     /* kartan i helskarm aven pa dator (samma knapp som "Open map" pa telefon) sa bilderna visar varlden stort */
-    await page.evaluate(() => document.getElementById('map-fs-open').click()); await page.waitForTimeout(800);
+    await page.addStyleTag({content: '#panel-network-map{position:fixed!important;inset:0!important;z-index:99999!important;margin:0!important;max-width:none!important;width:100vw!important;height:100vh!important}' +
+      '#panel-network-map #map-frame{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}'});
+    await page.evaluate(() => window.dispatchEvent(new Event('resize'))); await page.waitForTimeout(800);
     await g(() => window.__gwTid = 13);
-    await g(() => window.__gw.overview(50)); await page.waitForTimeout(1500); await shotP(page, 'oversikt');
+    await g(() => { window.__gw.unfollow(); window.__gw.overview(50); }); await page.waitForTimeout(1500); await shotP(page, 'oversikt');
     for (const id of ['voxholm', 'drakemark', 'cutlassbay', 'novacommand', 'quarantine']){
-      await g(id => window.__gw.focusRegion(window.__gw.REG_BY[id], 50), id); await page.waitForTimeout(1600); await shotP(page, 'region-' + id); }
+      await g(id => { window.__gw.unfollow(); window.__gw.focusRegion(window.__gw.REG_BY[id], 50); }, id); await page.waitForTimeout(1600); await shotP(page, 'region-' + id); }
     await g(() => { const w = window.__gw; w.flyTo({tx: w.me.x * w.K, tz: w.me.y * w.K + 1, dist: 60}, 50); }); await page.waitForTimeout(1200); await shotP(page, 'dag');
     await g(() => window.__gwTid = 23); await page.waitForTimeout(1200); await shotP(page, 'natt');
-    await g(() => window.__gw.overview(50)); await page.waitForTimeout(1500); await shotP(page, 'natt-oversikt');
+    await g(() => { window.__gw.unfollow(); window.__gw.overview(50); }); await page.waitForTimeout(1500); await shotP(page, 'natt-oversikt');
     await g(() => window.__gwTid = 13);
     /* hjalpare narbild: min (bloom) + fem andra spelare med var sin hjalpare, i en ring kring mig */
-    await g((H) => { const w = window.__gw, me = w.me; w.API.setLive(H.slice(1).map((k, i) => ({id: 'h' + i, name: ['Zylnock', 'Morla', 'Kesra', 'Toma', 'Ilse'][i], x: Math.round(me.x + Math.cos(i * 1.25 + .4) * 30), y: Math.round(me.y + Math.sin(i * 1.25 + .4) * 18 + 8),
+    await g((H) => { const w = window.__gw, me = w.me; w.API.setLive(H.slice(1).map((k, i) => ({id: 'h' + i, name: ['Zylnock', 'Morla', 'Kesra', 'Toma', 'Ilse'][i], x: Math.round(me.x + Math.cos(i * 1.25 + .4) * 52), y: Math.round(me.y + Math.sin(i * 1.25 + .4) * 30 + 6),
       face: 0, zone: 'Gnome Square', klass: ['breaker', 'fabricator', 'runner', 'warden', 'breaker'][i], niva: 14, helper: {key: k, namn: k[0].toUpperCase() + k.slice(1)}, mv: false}))); }, HELPERS);
     await page.waitForTimeout(3500);
-    await g(() => { const w = window.__gw; w.flyTo({tx: w.me.x * w.K, tz: w.me.y * w.K + 1.2, dist: 13}, 50); }); await page.waitForTimeout(2000); await shotP(page, 'hjalpare');
+    await g(() => { const w = window.__gw; w.flyTo({tx: w.me.x * w.K, tz: w.me.y * w.K + 1.2, dist: 17}, 50); }); await page.waitForTimeout(2000); await shotP(page, 'hjalpare');
     /* 2D-kartan som jamforelse */
-    await page.evaluate(() => window.genesisMapSwitch && window.genesisMapSwitch('2d')); await page.waitForTimeout(3000); await shotP(page, '2d-jamforelse');
+    await page.evaluate(() => window.genesisMapSwitch && window.genesisMapSwitch('2d')); await page.waitForTimeout(3000); if (PFX !== 'fore') await shotP(page, '2d-jamforelse');
     report.push({galleri: '1440', errs});
     await ctx.close();
-    const m = await open(browser, base, 390, 844);
+    const m = await open(browser, base, 390, 844, PFX === 'fore' ? null : 'on');
     if (m.frame){ await m.frame.evaluate(() => window.__gwTid = 13); await m.page.waitForTimeout(1500); await shotP(m.page, 'mobil-390');
       await m.frame.evaluate(() => window.__gwTid = 23); await m.page.waitForTimeout(1200); await shotP(m.page, 'mobil-390-natt'); }
     report.push({galleri: '390', errs: m.errs, fx: m.frame && await m.frame.evaluate(() => window.__gw.fx ? window.__gw.fx() : null)});
