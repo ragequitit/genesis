@@ -1211,7 +1211,8 @@ function goldBurst(){ if (!boss) return; const n = 160, pos = new Float32Array(n
 
 /* ===== DAG OCH NATT ===== */
 const TID = Q.get('tid');
-function dayInfo(){ let h; if (TID != null && TID !== '' && isFinite(+TID)) h = +TID % 24; else { const d = new Date(); h = d.getHours() + d.getMinutes() / 60; }
+function dayInfo(){ let h; const tid = window.__gwTid != null ? window.__gwTid : TID;   /* [ANDRAT v5.1371.0] __gwTid: matverktyget kan stalla klockan */
+  if (tid != null && tid !== '' && isFinite(+tid)) h = +tid % 24; else { const d = new Date(); h = d.getHours() + d.getMinutes() / 60; }
   const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const day = sm(5.5, 8, h) * (1 - sm(18.5, 21, h));
   const dusk = clamp(Math.max(1 - Math.abs(h - 19.6) / 1.5, 1 - Math.abs(h - 6.6) / 1.3), 0, 1);
@@ -1741,23 +1742,29 @@ function drawBubble(c, e, x, y, h, W){ if (Date.now() > e.bub.until){ e.bub = nu
 const HELPER_TPL = {};   // art -> {scene, h} | false (saknas)
 /* Listan over vilka hjalpare som HAR en modell ligger i assets/helpers3d/index.json ({"models":["bit","aeris",...]}) - da
    hamtas bara filer som finns, och ingen 404 loggas for de ovriga. Saknas listan helt: alla far platshallaren. */
-let HELPER_LIST = null;
-const helperListP = fetch('assets/helpers3d/index.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { HELPER_LIST = (j && Array.isArray(j.models)) ? j.models.map(String) : []; }).catch(() => { HELPER_LIST = []; });
+let HELPER_LIST = null, HELPER_SPR = [];
+/* [ANDRAT v5.1371.0] modellerna ar krympta (meshopt + WebP 512 px, ca 100 kB) och normaliserade: fotter pa y=0, hojd 1, vand mot +z.
+   "sprites" = arter vars TRELLIS-modell blev platt - de visas som en staende bild (assets/pets/<art>.webp) som alltid vander sig mot kameran.
+   Inget hamtas forran hjalparen faktiskt syns (helperTpl anropas forst nar en figur har hjalparen). */
+const helperListP = fetch('assets/helpers3d/index.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { HELPER_LIST = (j && Array.isArray(j.models)) ? j.models.map(String) : []; HELPER_SPR = (j && Array.isArray(j.sprites)) ? j.sprites.map(String) : []; }).catch(() => { HELPER_LIST = []; });
 function helperTpl(key){ if (!key || HELPER_TPL[key] !== undefined) return; HELPER_TPL[key] = null;
-  helperListP.then(() => { if (HELPER_LIST.indexOf(key) < 0){ HELPER_TPL[key] = false; return null; } return loader.loadAsync('assets/helpers3d/' + key + '.glb'); }).then(g => { if (!g) return; const sc = g.scene; sc.traverse(o => { if (o.isMesh){ o.castShadow = true; o.frustumCulled = false; } });
+  helperListP.then(() => { if (HELPER_SPR.indexOf(key) >= 0) return new THREE.TextureLoader().loadAsync('assets/pets/' + key + '.webp').then(tx => { tx.colorSpace = THREE.SRGBColorSpace;
+      HELPER_TPL[key] = {spr: new THREE.SpriteMaterial({map: tx, alphaTest: .15, transparent: true}), h: 1, clips: []}; return null; });
+    if (HELPER_LIST.indexOf(key) < 0){ HELPER_TPL[key] = false; return null; } return loader.loadAsync('assets/helpers3d/' + key + '.glb'); }).then(g => { if (!g) return; const sc = g.scene; sc.traverse(o => { if (o.isMesh){ o.castShadow = true; o.frustumCulled = false; } });
     const b = new THREE.Box3().setFromObject(sc); HELPER_TPL[key] = {scene: sc, h: b.getSize(new THREE.Vector3()).y || 1, clips: g.animations || []}; }).catch(() => { HELPER_TPL[key] = false; }); }
 function setHelperOf(e, h){ const key = h && typeof h === 'object' ? String(h.key || '').toLowerCase().replace(/[^a-z0-9_\-]/g, '') : (typeof h === 'string' ? h.toLowerCase().replace(/[^a-z0-9_\-]/g, '') : '');
   const namn = h && typeof h === 'object' ? str(h.namn, 20) : ''; if (!key){ dropHelper(e); return; }
   if (e.hlp && e.hlp.key === key){ e.hlp.namn = namn || e.hlp.namn; return; } dropHelper(e); e.hlp = {key, namn, obj: null, kind: '', ang: (hash(key + (e.namn || '')) % 628) / 100}; helperTpl(key); }
 function dropHelper(e){ if (!e.hlp) return; if (e.hlp.obj){ scene.remove(e.hlp.obj); if (e.hlp.mixer) e.hlp.mixer.stopAllAction(); } e.hlp = null; }
 function stepHelper(e, dt, t, vis){ const H = e.hlp; if (!H) return; const T = HELPER_TPL[H.key];
-  if (!H.obj && T !== null){ if (T){ H.obj = SkeletonUtils.clone(T.scene); H.obj.scale.setScalar(.9 / T.h); H.kind = 'glb';
+  if (!H.obj && T !== null){ if (T && T.spr){ H.obj = new THREE.Sprite(T.spr); H.obj.center.set(.5, .04); H.obj.scale.set(1.15, 1.15, 1); H.kind = 'spr'; }
+    else if (T){ H.obj = SkeletonUtils.clone(T.scene); H.obj.scale.setScalar(.9 / T.h); H.kind = 'glb';
       if (T.clips.length){ H.mixer = new THREE.AnimationMixer(H.obj); H.mixer.clipAction(T.clips.find(a => /idle/i.test(a.name)) || T.clips[0]).play(); } }
     else { H.obj = new THREE.Mesh(HELP_GEO, HELP_MAT); H.obj.castShadow = true; H.kind = 'orb'; } scene.add(H.obj); }
   if (!H.obj) return; H.obj.visible = !!vis && !e.fly; if (!H.obj.visible) return;
   const side = e.face + 2.2, tx = e.x - Math.sin(side) * 9, ty = e.y - Math.cos(side) * 9, dx = tx - (H.x == null ? tx : H.x), dy = ty - (H.y == null ? ty : H.y), d = Math.hypot(dx, dy);
   if (H.x == null){ H.x = tx; H.y = ty; } else if (d > 1.5){ const k = Math.min(1, dt * 4); H.x += dx * k; H.y += dy * k; H.fc = Math.atan2(dx, dy); }
-  H.obj.position.set(H.x * K, H.kind === 'orb' ? .3 + Math.abs(Math.sin(t * 4 + H.ang)) * .25 : 0, H.y * K);
+  H.obj.position.set(H.x * K, H.kind === 'orb' ? .3 + Math.abs(Math.sin(t * 4 + H.ang)) * .25 : (H.kind === 'spr' ? Math.abs(Math.sin(t * 3 + H.ang)) * .08 : 0), H.y * K);
   if (H.kind === 'glb'){ H.obj.rotation.y = H.fc != null ? H.fc : e.face; if (H.mixer) H.mixer.update(dt); } }
 
 /* ===== DIN FIGUR ===== */
