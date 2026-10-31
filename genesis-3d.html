@@ -2528,7 +2528,7 @@ function rebuildPois(){
   poisDirty = false; const old = new Map(pois.map(p => [p.key, p])), out = [], used = new Map();
   const slotFor = (z, id) => { let u = used.get(z); if (!u){ u = new Set(); z.nodes.forEach(n => u.add(z.slots.indexOf(z.slots.find(q => q.x === n.x && q.y === n.y)))); used.set(z, u); }
     const n = z.slots.length; let k = hash(String(id)) % n; for (let i = 0; i < n && u.has(k); i++) k = (k + 1) % n; u.add(k); return z.slots[k]; };
-  const add = p => { const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
+  const add = p => { const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
   LAND.forEach(R => { const L = R.landing, dz = R.zones[5];
     add({key: R.id + '#landing', kind: 'landing', R, zn: LANDING, x: L.pad.x, y: L.pad.y, h: .6, label: 'The Landing', sub: R.namn + ' · harbour', pick: {kind: 'zone', region: R.id, zone: LANDING}});
     add({key: R.id + '#vendor', kind: 'vendor', R, zn: LANDING, x: L.vendor.x, y: L.vendor.y, h: 3.2, label: 'Vendor', sub: 'Regional trader', pick: {kind: 'vendor', region: R.id, zone: LANDING}});
@@ -2558,7 +2558,31 @@ function rebuildPois(){
   if (!boss) (Array.isArray(st.bosses) ? st.bosses : []).forEach(b => { if (!b) return; const [rid, zn] = splitKey(b.zone), z = zoneOf(rid, zn); if (!z) return;
     add({key: 'b#' + b.id, kind: 'boss', R: z.R, zn: z.namn, x: z.c.x, y: z.c.y, h: 3, label: str(b.label, 30) || 'World Boss', sub: 'World Boss', pick: {kind: 'boss', region: rid, zone: z.namn}}); });
   old.forEach(freePoi); pois = out; }
-function freePoi(p){ if (p.av){ if (p.av.static) scene.remove(p.av.root); else freeAv(p.av); p.av = null; } if (p.mesh){ scene.remove(p.mesh); p.mesh = null; } }
+function freePoi(p){ if (p.av){ if (p.av.static) scene.remove(p.av.root); else freeAv(p.av); p.av = null; } if (p.mesh){ scene.remove(p.mesh); p.mesh = null; } if (p.bc){ scene.remove(p.bc); p.bc.children.forEach(m => m.material.dispose()); p.bc = null; } }
+/* [TILLAGT v5.1383.0] LJUSPELARE (Chris 2026-10-31: svart att se ikonerna och vad de betyder): quests, moten och expeditioner far samma
+   ljusstrale och pulsring som "du ar har", i sin egen farg (gul / rod / turkos). Smalare och lagre an din egen sa du syns forst.
+   Gra/svag nar den inte gar att ta just nu, borta nar motet vilar. Bara platser nara kameran ritas (manga dragningar annars). */
+const BC_TXT = (() => { const bc = document.createElement('canvas'); bc.width = 4; bc.height = 128; const g = bc.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.55, 'rgba(255,255,255,.3)'); gr.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); return new THREE.CanvasTexture(bc); })();
+const BC_BEAM = new THREE.CylinderGeometry(.22, .32, 1, 12, 1, true).translate(0, .5, 0), BC_RING = new THREE.RingGeometry(.86, 1, 40);
+const BC_KIND = {quest: 1, encounter: 1, expedition: 1};
+function beaconMesh(){ const g = new THREE.Group();
+  const mk = (geo, o) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial(Object.assign({transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}, o)));
+  const fix = mk(BC_RING, {}), pulse = mk(BC_RING, {}), beam = mk(BC_BEAM, {map: BC_TXT});
+  fix.rotation.x = pulse.rotation.x = -Math.PI / 2; fix.position.y = .05; pulse.position.y = .06; beam.renderOrder = 3; g.add(fix, pulse, beam);
+  g.userData = {fix, pulse, beam, col: ''}; return g; }
+function stepBeacon(p, t){
+  const d = cam.dist, near = !GLB.on && d < 460 && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
+  if (!near){ if (p.bc) p.bc.visible = false; return; }
+  if (!p.bc){ p.bc = beaconMesh(); p.bc.position.set(p.x * K, 0, p.y * K); scene.add(p.bc); }
+  const u = p.bc.userData, dim = p.grey || p.state === 'locked' || p.state === 'running' || zoneState(p.R.id, p.zn) === 'uncharted';
+  const col = dim ? '#8b93a7' : p.kind === 'quest' ? (p.mark === '?' ? '#ffd24a' : MK.quest) : POI_COL[p.kind];
+  if (u.col !== col){ u.col = col; [u.fix, u.pulse, u.beam].forEach(m => m.material.color.copy(hdr(col, dim ? .9 : 1.8))); }
+  p.bc.visible = true; const ph = (t * .7 + (p.x % 7) / 7) % 1, base = clamp(d * .028, 1.1, 10), a = dim ? .45 : 1;
+  u.fix.scale.setScalar(base * .55); u.fix.material.opacity = .7 * a;
+  u.pulse.scale.setScalar(base * (.5 + ph * .7)); u.pulse.material.opacity = .75 * (1 - ph) * a;
+  u.beam.scale.set(clamp(d * .01, .35, 3), clamp(2 + d * .14, 3, 45), clamp(d * .01, .35, 3));
+  u.beam.material.opacity = clamp((d - 10) / 30, 0, 1) * (.6 + .2 * Math.sin(t * 2.5 + p.x)) * a; }
 /* sma egna figurer: varg och kristallader */
 const M_WOLF = flat(0x6b7280), M_WOLF2 = flat(0x4b5563), M_EYE = new THREE.MeshBasicMaterial({color: 0xfde047});
 function wolfMesh(){ const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
@@ -2595,6 +2619,7 @@ function stepPois(dt, t){
   if (poisDirty) rebuildPois();
   const near = cam.dist < 150;
   pois.forEach(p => {
+    if (BC_KIND[p.kind]) stepBeacon(p, t);   /* [TILLAGT v5.1383.0] */
     if (p.kind === 'quest' || p.kind === 'encounter'){
       const vis = near && inView(p.x, p.y, 0) && p.state !== 'cooldown';
       if (vis){ p.farT = 0; if (!p.av) makePoiAv(p); } else if (p.av && (p.farT = (p.farT || 0) + dt) > 6) freePoi(p);
@@ -2627,7 +2652,7 @@ function drawPois(c, W, H, D, placed){
   const t = performance.now() / 1000;
   pois.forEach(p => {
     if (D > 300 && (p.R !== me.R ? p.kind !== 'landing' : !/landing|quest|dungeon|boss/.test(p.kind))) return;
-    if (D > 160 && (p.kind === 'gather' || p.kind === 'expedition')) return;
+    if (D > (p.kind === 'expedition' ? 300 : 160) && (p.kind === 'gather' || p.kind === 'expedition')) return;   /* [ANDRAT v5.1383.0] expeditioner syns lika langt som quests */
     const q = toScreen(p.x * K, p.h, p.y * K); if (!q.on || q.x < -30 || q.x > W + 30 || q.y < -30 || q.y > H + 30) return;
     p.vis = true; p.sx = q.x; p.sy = q.y;
     const ik = p.state === 'cooldown' ? 'rest' : p.ico || p.kind, col = POI_COL[p.ico || p.kind] || '#fff', dim = p.state === 'cooldown' || p.state === 'dim' || p.state === 'running' || p.state === 'locked' || zoneState(p.R.id, p.zn) === 'uncharted';
@@ -2650,6 +2675,11 @@ function drawPois(c, W, H, D, placed){
       else { c.fillStyle = 'rgba(10,14,22,.82)'; c.beginPath(); c.arc(q.x, q.y, r, 0, 6.2832); c.fill();
       c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
     c.globalAlpha = 1;
+    /* [TILLAGT v5.1383.0] VAD AR DET (Chris: som 2D-kartans noder): ett kort ord i platsens farg under ikonen */
+    if (BC_KIND[p.kind] && D < 300){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : 'EXPEDITION';
+      const ty = q.y + (p.kind === 'quest' ? 20 : 22); c.font = '800 9px sans-serif'; const tw = c.measureText(tag).width + 10, tr = {x: q.x - tw / 2, y: ty - 7, w: tw, h: 14};
+      if (hov || !placed.some(o => tr.x < o.x + o.w && tr.x + tr.w > o.x && tr.y < o.y + o.h && tr.y + tr.h > o.y)){ placed.push(tr);
+        label(c, tag, q.x, ty, {size: 9, w: 800, col: dim || p.grey ? '#9ca3af' : p.kind === 'quest' ? MK.quest : POI_COL[p.kind], bg: 'rgba(0,0,0,.7)'}); } }
     /* namnet OVANFOR ikonen, sa figuren under syns */
     if (D < (p.kind === 'gather' || p.kind === 'vein' ? 45 : 110) || hov){ const ly = q.y - (p.kind === 'quest' ? 34 : 24), txt = p.label + (D < 45 || hov ? ' · ' + p.sub : '');
       c.font = '700 11px sans-serif'; const w = c.measureText(txt).width + 12, r = {x: q.x - w / 2, y: ly - 9, w, h: 18};
