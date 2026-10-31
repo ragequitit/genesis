@@ -200,10 +200,12 @@
   #toast{left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 72px);background:rgba(8,14,22,.88);border:1px solid var(--line);border-radius:999px;
     padding:7px 14px;font-size:12.5px;font-weight:600;white-space:nowrap;max-width:calc(100vw - 28px);overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .3s;pointer-events:none}
   #toast.on{opacity:1}
-  #joy{left:18px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 62px);width:112px;height:112px;border-radius:50%;background:rgba(8,14,22,.35);border:2px solid rgba(255,255,255,.25);
-    display:none;touch-action:none;pointer-events:auto}
+  /* [ANDRAT v5.1379.0] styrspaken mindre och genomskinlig (Chris: "stor och klumpig") - tydligare medan man haller i den */
+  #joy{left:16px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 62px);width:84px;height:84px;border-radius:50%;background:rgba(8,14,22,.16);border:1.5px solid rgba(255,255,255,.16);
+    display:none;touch-action:none;pointer-events:auto;opacity:.6;transition:opacity .2s}
+  #joy:active{opacity:1}
   body.joyon #joy{display:block}
-  #joyK{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(253,224,71,.85);box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
+  #joyK{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(253,224,71,.6);box-shadow:0 1px 5px rgba(0,0,0,.3);pointer-events:none}
   #help{left:14px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 58px);font-size:11px;color:var(--ink2);background:rgba(8,14,22,.6);border-radius:8px;padding:5px 9px;pointer-events:none}
   body.joyon #help{display:none}
   body.tr-on #news{display:none}
@@ -235,7 +237,7 @@
     body.card-on #news{display:none}
     #travel{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 52px);left:14px;right:14px;transform:none}
     #dimTog button{padding:5px 8px}
-    body.joyon #joy{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 118px);width:100px;height:100px}
+    body.joyon #joy{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 118px);width:80px;height:80px}
   }
 </style>
 </head>
@@ -485,19 +487,30 @@ function buildRegion(R){
   const dz = R.zones[5]; R.portal = {x: dz.c.x, y: dz.c.y - 10};
   /* [TILLAGT genesis-world-play] THE LANDING: hamnen vid kusten narmast forsta zonen - landningsplats, handlare och valv.
      I spelet ar det en egen zon ("The Landing", TRADE_ZONE/VAULT_ZONE i index.html) i varje region. */
-  { const z0 = R.zones[0]; let best = R.outline[0], bd = 1e9;
-    R.outline.forEach(q => { const d = Math.hypot(q.x - z0.c.x, q.y - z0.c.y); if (d < bd){ bd = d; best = q; } });
-    const dx = z0.c.x - best.x, dy = z0.c.y - best.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    let k = 95; while (k < 260 && !(inPoly(R.outline, best.x + ux * k, best.y + uy * k) && inPoly(R.outline, best.x + ux * (k - 70), best.y + uy * (k - 70)))) k += 10;
-    R.landing = {x: best.x + ux * k, y: best.y + uy * k, sx: best.x, sy: best.y, ux, uy, r: 95};
-    R.landing.vendor = {x: R.landing.x - uy * 52 + ux * 18, y: R.landing.y + ux * 52 + uy * 18};
-    R.landing.vault = {x: R.landing.x + uy * 52 + ux * 18, y: R.landing.y - ux * 52 + uy * 18};
-    R.landing.pad = {x: R.landing.x - ux * 22, y: R.landing.y - uy * 22}; }
-  /* stigar mellan zonernas torg (narmaste tva) och till dungeonporten */
-  R.paths = []; const seen = {};
-  R.zones.forEach(z => { R.zones.filter(o => o !== z).sort((p, q) => Math.hypot(p.c.x - z.c.x, p.c.y - z.c.y) - Math.hypot(q.c.x - z.c.x, q.c.y - z.c.y)).slice(0, 2)
-    .forEach(o => { const k = Math.min(z.i, o.i) + '-' + Math.max(z.i, o.i); if (seen[k]) return; seen[k] = 1; R.paths.push([z.c, o.c]); }); });
-  R.paths.push([R.landing, R.zones[0].c]);
+  /* [ANDRAT v5.1379.0] THE LANDING AR EN EGEN LITEN O utanfor huvudon, som i 2D-kartan (TOWN-polygonen i genesis-map.html),
+     i stallet for en plats inne i forsta zonen (Chris: "sa att inte man blandar in The Landing i zonerna").
+     Samma form som 2D, flyttad vasterut tills det ar vatten emellan. En lysande gangbro gar over till fastlandet. */
+  R.isles = R.polys.slice(1);
+  { const TOWN = [[56, 92], [214, 82], [226, 266], [66, 280]], SPUR = [[158, 306], [202, 301], [208, 338], [164, 344]];
+    const shape = (pp, dx, seed) => coast(smoothClosed(closedResample(pp.map(p => toW(p[0] - dx, p[1])), 8), 2), R.kind === 'blocky' ? 'blocky' : 'clouds', seed);
+    const clash = isl => isl.some(q => inPoly(R.outline, q.x, q.y)) || R.outline.some(q => inPoly(isl, q.x, q.y)) ||
+      isl.some((q, i) => i % 3 === 0 && R.outline.some((o, j) => j % 3 === 0 && Math.hypot(o.x - q.x, o.y - q.y) < 46));
+    let dx = 0, isl = shape(TOWN, dx, hash(R.id + '|town'));
+    while (dx < 160 && clash(isl)){ dx += 10; isl = shape(TOWN, dx, hash(R.id + '|town')); }
+    const spur = shape(SPUR, dx, hash(R.id + '|spur'));
+    let cx = 0, cy = 0; isl.forEach(q => { cx += q.x; cy += q.y; }); cx /= isl.length; cy /= isl.length;
+    /* bron: kortaste avstandet mellan on och fastlandet */
+    let A = isl[0], B = R.outline[0], bd = 1e9;
+    isl.forEach(q => R.outline.forEach(o => { const d = Math.hypot(o.x - q.x, o.y - q.y); if (d < bd){ bd = d; A = q; B = o; } }));
+    const L0 = Math.hypot(B.x - A.x, B.y - A.y) || 1, ux = (B.x - A.x) / L0, uy = (B.y - A.y) / L0;
+    let W = isl[0], wd = 1e9; isl.forEach(q => { const d = (q.x - cx) * ux + (q.y - cy) * uy; if (d < wd){ wd = d; W = q; } });
+    const S1 = S;   // kartenheter -> varldsenheter
+    R.landing = {poly: isl, spur, x: cx, y: cy, ux, uy,
+      bridge: {a: {x: A.x - ux * 30, y: A.y - uy * 30}, b: {x: B.x + ux * 30, y: B.y + uy * 30}},
+      sx: W.x, sy: W.y, vendor: {x: cx - 40 * S1, y: cy + 14 * S1}, vault: {x: cx + 42 * S1, y: cy + 14 * S1}, pad: {x: cx, y: cy - 34 * S1}};
+    R.polys.push(isl, spur); bbox(R); }
+  /* [ANDRAT v5.1379.0] stigarna borta: de finns inte pa 2D-kartan (Chris) - zongranserna ar det som delar upp on */
+  R.paths = [];
 }
 function bbox(R){ let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   R.polys.forEach(pp => pp.forEach(q => { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }));
@@ -583,9 +596,9 @@ function groundTexture(R){
     if (R.id === 'cutlassbay'){ zf(4, '#d9c48a', .4); zf(3, '#c9b47e', .35); }
     if (R.id === 'quarantine'){ zf(2, '#6a6a66', .45); zf(3, '#5d5c58', .45); zf(0, '#7a7466', .3); }
     /* flackar, smasten och gras-prickar sa marken inte ar enfargad */
-    for (let i = 0; i < 900 * BIG * BIG; i++){ const z = R.zones[i % 6], q = z.pts[Math.floor(r() * z.pts.length)];
+    for (let i = 0; i < 450 * BIG * BIG; i++){   /* [ANDRAT v5.1379.0] halva flackarna: lugnare mark som i 2D (kritiker) */ const z = R.zones[i % 6], q = z.pts[Math.floor(r() * z.pts.length)];
       g.fillStyle = r() < .5 ? 'rgba(255,255,230,.06)' : 'rgba(0,30,0,.07)'; g.beginPath(); g.ellipse(q.x + (r() - .5) * 20, q.y + (r() - .5) * 20, 10 + r() * 40, 8 + r() * 28, r() * 3, 0, 6.2832); g.fill(); }
-    for (let i = 0; i < 2600 * BIG * BIG * .6; i++){ const z = R.zones[i % 6], q = z.pts[Math.floor(r() * z.pts.length)];
+    for (let i = 0; i < 1300 * BIG * BIG * .6; i++){ const z = R.zones[i % 6], q = z.pts[Math.floor(r() * z.pts.length)];
       g.fillStyle = r() < .5 ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)'; g.fillRect(q.x + (r() - .5) * 14, q.y + (r() - .5) * 14, 1.6, 1.6); }
     /* plattor i rymdregionen, rutnat i klossvarlden */
     if (R.kind === 'plated' || R.kind === 'blocky'){ g.strokeStyle = R.kind === 'plated' ? 'rgba(20,30,40,.28)' : 'rgba(0,40,0,.12)'; g.lineWidth = 1;
@@ -600,15 +613,8 @@ function groundTexture(R){
     if (R.id === 'voxholm'){ const z = R.zones[3]; for (let k = 0; k < 16; k++){ const q = z.wild[Math.floor(r() * z.wild.length)], s = 10 + r() * 10;
       g.fillStyle = '#ff6a1a'; g.fillRect(q.x - s, q.y - s * .7, s * 2, s * 1.4); g.fillStyle = '#ffd04a'; g.fillRect(q.x - s * .5, q.y - s * .3, s, s * .6);
       R.flat.push({type: 'lava', x: q.x, y: q.y, r: s}); } }
-    /* stigar */
-    g.lineCap = 'round'; g.lineJoin = 'round';
-    R.paths.forEach(([a, b]) => { g.strokeStyle = rgba(th.path, R.kind === 'city' ? .95 : .8); g.lineWidth = R.kind === 'city' ? 16 : 11; g.beginPath(); g.moveTo(a.x, a.y);
-      const mx = (a.x + b.x) / 2 + (r() - .5) * 30, my = (a.y + b.y) / 2 + (r() - .5) * 30; g.quadraticCurveTo(mx, my, b.x, b.y); g.stroke();
-      if (R.kind === 'city'){ g.setLineDash([8, 9]); g.strokeStyle = 'rgba(250,220,120,.7)'; g.lineWidth = 1.4; g.stroke(); g.setLineDash([]); } });
-    R.zones.forEach(z => { g.fillStyle = rgba(th.path, .85); g.beginPath(); g.ellipse(z.c.x, z.c.y, 26, 20, 0, 0, 6.2832); g.fill(); });
-    /* hamnplanen */
-    { const L = R.landing; g.fillStyle = rgba(th.path, .95); g.beginPath(); g.ellipse(L.x, L.y, L.r * .8, L.r * .62, Math.atan2(L.uy, L.ux), 0, 6.2832); g.fill();
-      g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 2; g.stroke(); }
+    /* [ANDRAT v5.1379.0] stigarna och hamnplanen borta (Chris) - bara torget mitt i varje zon ar kvar, svagare */
+    R.zones.forEach(z => { g.fillStyle = rgba(th.path, .45); g.beginPath(); g.ellipse(z.c.x, z.c.y, 26, 20, 0, 0, 6.2832); g.fill(); });
     /* [ANDRAT v5.1373.0] zongranser: lysande neonlinje i zonens farg (som 2D-kartan) i stallet for svag streckad linje */
     R.zones.forEach(z => { poly(z.poly); g.lineWidth = 5; g.strokeStyle = rgba(R.acc[z.i], .35); g.stroke(); g.lineWidth = 1.8; g.strokeStyle = mix(R.acc[z.i], '#ffffff', .35); g.stroke(); });
     g.restore();
@@ -616,7 +622,15 @@ function groundTexture(R){
     poly(R.outline); g.strokeStyle = mix(th.sand, R.neon.dark, .35); g.lineWidth = 16; g.stroke();   /* [ANDRAT v5.1373.0] stranden mattare */
     g.strokeStyle = mix(R.neon.hue, '#ffffff', .25); g.lineWidth = 2.2; g.stroke();   /* [TILLAGT v5.1373.0] neonkontur langs kusten */
   }
-  R.polys.slice(1).forEach(pp => { poly(pp); g.fillStyle = th.sand; g.fill(); });
+  (R.isles || R.polys.slice(1)).forEach(pp => { poly(pp); g.fillStyle = th.sand; g.fill(); });
+  /* [TILLAGT v5.1379.0] The Landing-on och skaret: mork regionfarg, stranden runt, tunn neonkant och en hamnplan i mitten */
+  if (R.landing){ const L = R.landing, base = mix(mix(th.ground, R.neon.dark, .5), R.neon.hue, .22);
+    [L.poly, L.spur].forEach(pp => { poly(pp); g.fillStyle = base; g.fill(); g.strokeStyle = mix(th.sand, R.neon.dark, .35); g.lineWidth = 14; g.stroke(); g.strokeStyle = mix(R.neon.hue, '#ffffff', .25); g.lineWidth = 2; g.stroke(); });
+    g.save(); poly(L.poly); g.clip();
+    for (let i = 0; i < 160; i++){ const q = L.poly[Math.floor(r() * L.poly.length)], k = r() * .8;
+      g.fillStyle = r() < .5 ? 'rgba(255,255,230,.04)' : 'rgba(0,0,0,.06)'; g.beginPath(); g.ellipse(L.x + (q.x - L.x) * k, L.y + (q.y - L.y) * k, 10 + r() * 30, 8 + r() * 20, r() * 3, 0, 6.2832); g.fill(); }
+    g.fillStyle = rgba(th.path, .5); g.beginPath(); g.ellipse(L.x, L.y + 4, 120, 80, 0, 0, 6.2832); g.fill();
+    g.restore(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   return {tex: t, x0, y0, w, h, glow: R.locked ? null : glowTexture(R, x0, y0, w, h)}; }
 /* [TILLAGT v5.1373.0] LYSKARTAN: svart bild med bara det som ska lysa - zongranser, kusten, stigarnas mittlinje, dammar och lava.
@@ -628,7 +642,6 @@ function glowTexture(R, x0, y0, w, h){
   g.lineCap = 'round'; g.lineJoin = 'round';
   g.save(); poly(R.outline); g.clip();
   R.zones.forEach(z => { poly(z.poly); g.fillStyle = rgba(R.acc[z.i], .05); g.fill(); g.lineWidth = 7; g.strokeStyle = rgba(R.acc[z.i], .45); g.stroke(); g.lineWidth = 2.4; g.strokeStyle = mix(R.acc[z.i], '#ffffff', .4); g.stroke(); });
-  R.paths.forEach(([a, b]) => { g.strokeStyle = rgba(R.neon.hue, .35); g.lineWidth = 2; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); });
   (R.flat || []).forEach(f => { const gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 1.3); gr.addColorStop(0, f.type === 'lava' ? 'rgba(255,120,30,.95)' : 'rgba(56,232,255,.55)');
     gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(f.x, f.y, f.r * 1.3, 0, 6.2832); g.fill(); });
   g.restore();
@@ -647,6 +660,7 @@ function flatRing(pp, y, color, opacity, add){ const sh = new THREE.Shape(pp.map
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color, transparent: true, opacity, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending})); m.position.y = y; m.renderOrder = 1; return m; }
 /* [TILLAGT v5.1373.0] NEONKANTEN: ett lysande band runt on vid vattenlinjen (som konturen i 2D-kartan). Fargen ar "overstark" sa glodet tar den. */
 const groundMats = [], edgeMats = [];
+const M_BPOST = new THREE.MeshStandardMaterial({color: 0x2a2440, roughness: .9, flatShading: true});   /* [TILLAGT v5.1379.0] brons stolpar */
 function neonEdge(pp, hue){ const n = pp.length, pos = [], idx = [], o = offsetPoly(pp, 8), y0 = WATER_Y - .02, y1 = WATER_Y + .62;
   for (let i = 0; i < n; i++){ pos.push(o[i].x * K, y0, o[i].y * K, o[i].x * K, y1, o[i].y * K); const a = i * 2, b = ((i + 1) % n) * 2; idx.push(a, b, a + 1, b, b + 1, a + 1); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
@@ -664,13 +678,23 @@ REG.forEach(R => {
   /* [ANDRAT v5.1373.0] klippan: mork regionfarg med svagt sken i regionens lysfarg */
   const side = new THREE.MeshStandardMaterial({color: mix(R.neon.dark, R.th.cliff, .45), emissive: new THREE.Color(R.neon.hue), emissiveIntensity: .12, roughness: .9, flatShading: true, transparent: !!R.locked, opacity: R.locked ? .75 : 1});
   R.polys.forEach((pp, i) => {
-    R.group.add(extrudeLand(pp, i ? CLIFF * .6 : CLIFF, top, side));
+    R.group.add(extrudeLand(pp, i && !(R.landing && pp === R.landing.poly) ? CLIFF * .6 : CLIFF, top, side));
     /* [ANDRAT v5.1373.0] grunt vatten och skum lyser i regionens farg (additivt) i stallet for turkos/vitt */
     R.group.add(flatRing(offsetPoly(pp, i ? 18 : 34), WATER_Y + .02, R.neon.hue, R.locked ? .1 : .2, true));
     R.group.add(flatRing(offsetPoly(pp, i ? 6 : 10), WATER_Y + .04, mix(R.neon.hue, '#ffffff', .5), .55, true));
     if (!R.locked) R.group.add(neonEdge(pp, R.neon.hue));
   });
   if (R.locked) R.group.position.y = 1.2;   // Windfall svavar lite
+  /* [TILLAGT v5.1379.0] gangbron mellan The Landing och fastlandet: mork brada med lysande racken i regionens farg */
+  if (R.landing){ const B = R.landing.bridge, ax = B.a.x * K, az = B.a.y * K, bx = B.b.x * K, bz = B.b.y * K, len = Math.hypot(bx - ax, bz - az), rot = Math.atan2(bx - ax, bz - az);
+    const g = new THREE.Group(); g.position.set((ax + bx) / 2, 0, (az + bz) / 2); g.rotation.y = rot;
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.5, .16, len), new THREE.MeshStandardMaterial({color: mix(R.neon.dark, '#3a3550', .5), roughness: .8, flatShading: true}));
+    deck.position.y = -.06; deck.receiveShadow = true; g.add(deck);
+    const railM = new THREE.MeshBasicMaterial({color: hdr(R.neon.hue, 1.3)});
+    for (const sx of [-.72, .72]){ const rl = new THREE.Mesh(new THREE.BoxGeometry(.06, .06, len), railM); rl.position.set(sx, .42, 0); g.add(rl);
+      for (let z = -len / 2 + .6; z < len / 2; z += 1.6){ const p = new THREE.Mesh(new THREE.BoxGeometry(.08, .45, .08), M_BPOST); p.position.set(sx, .2, z); g.add(p); } }
+    for (let z = -len / 2 + 2; z < len / 2 - 1; z += 2.6){ const p = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 1.4, 6), M_BPOST); p.position.set(0, -.8, z); g.add(p); }
+    R.group.add(g); }
 });
 
 /* ===== MODELLER ===== */
@@ -783,10 +807,15 @@ procTemplate('palm', g => {
   for (let k = 0; k < 7; k++){ const leaf = new THREE.Mesh(new THREE.ConeGeometry(.16, 1.3, 4), k % 2 ? M_LEAF : M_LEAF2);
     const a = k / 7 * 6.2832; leaf.position.set(x + Math.cos(a) * .5, y - .05, Math.sin(a) * .5); leaf.rotation.set(Math.sin(a) * 1.9, 0, -Math.cos(a) * 1.9); leaf.scale.set(1, 1, .25); g.add(leaf); }
 });
-procTemplate('wreck', g => { const h = new THREE.Mesh(hullGeo(2.6, .7, .5), M_WOOD); h.rotation.set(.35, .5, .25); h.position.y = .1; g.add(h);
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .06, 1.6, 5), M_WOOD2); m.position.set(.2, .8, 0); m.rotation.z = .5; g.add(m); });
-procTemplate('wreck_big', g => { const h = new THREE.Mesh(hullGeo(6, 1.6, 1.2), M_WOOD2); h.rotation.set(.25, .3, .3); h.position.y = .2; g.add(h);
-  for (let i = 0; i < 2; i++){ const m = new THREE.Mesh(new THREE.CylinderGeometry(.09, .1, 3.2 - i, 5), M_WOOD); m.position.set(-.8 + i * 1.8, 1.6, .2); m.rotation.z = .35 + i * .2; g.add(m); }
+/* [TILLAGT v5.1379.0] vrakens egna material: lyser svagt (turkos skrov, magenta segel) pa natten - se nightMats i applyTime */
+const nightMats = [];
+const nightMat = (c, e, k) => { const m = flat(c, e); m.userData.nightK = k; nightMats.push(m); return m; };
+const M_WRK = nightMat(0x6b4a2a, 0x2bd4ff, .35), M_WRK2 = nightMat(0x4a321c, 0x2bd4ff, .3);
+M_SAILB.emissive.setHex(0xff3dcc); M_SAILB.userData.nightK = .6; nightMats.push(M_SAILB);
+procTemplate('wreck', g => { const h = new THREE.Mesh(hullGeo(2.6, .7, .5), M_WRK); h.rotation.set(.35, .5, .25); h.position.y = .1; g.add(h);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .06, 1.6, 5), M_WRK2); m.position.set(.2, .8, 0); m.rotation.z = .5; g.add(m); });
+procTemplate('wreck_big', g => { const h = new THREE.Mesh(hullGeo(6, 1.6, 1.2), M_WRK2); h.rotation.set(.25, .3, .3); h.position.y = .2; g.add(h);
+  for (let i = 0; i < 2; i++){ const m = new THREE.Mesh(new THREE.CylinderGeometry(.09, .1, 3.2 - i, 5), M_WRK); m.position.set(-.8 + i * 1.8, 1.6, .2); m.rotation.z = .35 + i * .2; g.add(m); }
   const s = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.1), M_SAILB); s.material.side = THREE.DoubleSide; s.position.set(-.5, 2.2, .3); s.rotation.set(.2, .5, .5); g.add(s); });
 procTemplate('campfire', g => { for (let i = 0; i < 4; i++){ const l = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .5, 5), M_WOOD2); l.rotation.set(Math.PI / 2, 0, i * .8); l.position.y = .05; g.add(l); }
   const f = new THREE.Mesh(new THREE.ConeGeometry(.14, .34, 5), M_FIRE); f.position.y = .2; g.add(f);
@@ -880,8 +909,19 @@ const LIGHTS = {building_home_A_red: [.9, 0xffc766, 1], building_home_A_blue: [.
   building_A_withoutBase: [1.6, 0xffe2a0, 1], building_B_withoutBase: [1.6, 0xffe2a0, 1], building_C_withoutBase: [2.2, 0xffe2a0, 1], building_D_withoutBase: [2.2, 0xffe2a0, 1],
   building_E_withoutBase: [2.2, 0xffe2a0, 2], building_F_withoutBase: [2.2, 0xffe2a0, 2], building_G_withoutBase: [2.2, 0xffe2a0, 2], building_H_withoutBase: [3, 0xffe2a0, 2],
   pumpkin_orange_jackolantern: [.3, 0xff9a2a, 1], skull_candle: [.5, 0xffcf6a, 1], chest_gold: [.5, 0xffd75a, 1], coin_stack_large: [.3, 0xffd75a, 1]};
+const JUNK = /barrel|crate|sack|pallet|fence|wheelbarrow|trash|box_|bone_|dumpster|keg|trunk_|weaponrack|target|flag_|banner|firehydrant|bucket|resource_lumber|cargo_|containers_|tree_single_A_cut|skull$|coffin/;   /* [TILLAGT v5.1379.0] */
 const footprint = key => { const s = SIZE[key] || ['w', 1]; return (s[0] === 'w' ? s[1] : s[1] * .55) / K; };   // diameter i varldsenheter
 
+/* [TILLAGT v5.1379.0] CHRIS EGNA PLACERINGAR (editorn, ?edit=1): assets/world3d/placering.json
+   {add:[{r, k, x, y, rot, sc}], del:["region|nyckel|x|y"]} - saker han lagt till och saker han tagit bort. Laggs ovanpa det automatiska. */
+const EDIT = Q.get('edit') === '1';
+let PLACE = {add: [], del: []};
+const okPlace = j => j && typeof j === 'object' ? {add: Array.isArray(j.add) ? j.add : [], del: Array.isArray(j.del) ? j.del : []} : null;
+try { const pr = await fetch('assets/world3d/placering.json', {cache: 'no-store'}); if (pr.ok) PLACE = okPlace(await pr.json()) || PLACE; } catch (e){}
+/* i editorn: ett osparat utkast (fran forra gangen eller fore Angra) vinner over filen */
+if (EDIT){ try { const d = okPlace(JSON.parse(localStorage.getItem('genesis.edDraft') || 'null')); if (d) PLACE = d; } catch (e){} }
+let edTap = null;
+const itemId = (R, it) => R.id + '|' + it.key + '|' + Math.round(it.x) + '|' + Math.round(it.y);
 /* placera allt i varje region (fore modellerna laddats - storleken kommer fran SIZE) */
 LAND.forEach(R => {
   R.items = []; R.lights = [];
@@ -901,14 +941,15 @@ LAND.forEach(R => {
     z.slots.forEach(q => addOcc({x: q.x, y: q.y, r: 16})); });
   addOcc({x: R.portal.x, y: R.portal.y, r: 40});
   /* [TILLAGT genesis-world-play] hamnen: brygga ut i vattnet, handlarens bod, valvet */
-  { const L = R.landing, rot = Math.atan2(L.ux, L.uy);
-    addOcc({x: L.x, y: L.y, r: L.r});
+  /* [ANDRAT v5.1379.0] allt ligger nu pa The Landing-on: handlaren och valvet vanda mot hamnplanen, landningsplatta, lyktor langs bron */
+  { const L = R.landing, rot = Math.atan2(L.ux, L.uy), face = (p) => Math.atan2(L.x - p.x, L.y + 4 - p.y);
+    addOcc({x: L.bridge.b.x, y: L.bridge.b.y, r: 40});
     put('pier', L.sx - L.ux * 10, L.sy - L.uy * 10, rot, 1, 0);
-    put(R.id === 'novacommand' ? 'cargodepot_A' : 'building_market_blue', L.vendor.x, L.vendor.y, rot + Math.PI, 1, 0);
-    put('vault_house', L.vault.x, L.vault.y, rot + Math.PI, 1, 0);
+    put(R.id === 'novacommand' ? 'cargodepot_A' : 'building_market_blue', L.vendor.x, L.vendor.y, face(L.vendor), 1, 0);
+    put('vault_house', L.vault.x, L.vault.y, face(L.vault), 1, 0);
     put(R.id === 'novacommand' ? 'landingpad_large' : 'landingpad_small', L.pad.x, L.pad.y, 0, 1, 0);
-    put('barrel', L.vendor.x + L.ux * 30, L.vendor.y + L.uy * 30, 1, 1, 0); put('crates_stacked', L.vendor.x + L.ux * 30 + L.uy * 12, L.vendor.y + L.uy * 30 - L.ux * 12, 2, 1, 0);
-    put('post_lantern', L.x + L.uy * 20, L.y - L.ux * 20, 0, 1, 0); put('post_lantern', L.x - L.uy * 20, L.y + L.ux * 20, 0, 1, 0); }
+    put('barrel', L.vendor.x - 24, L.vendor.y + 20, 1, 1, 0); put('crates_stacked', L.vendor.x - 34, L.vendor.y + 4, 2, 1, 0);
+    [L.bridge.a, L.bridge.b].forEach(p => { put('post_lantern', p.x + L.uy * 18, p.y - L.ux * 18, 0, 1, 0); put('post_lantern', p.x - L.uy * 18, p.y + L.ux * 18, 0, 1, 0); }); }
   /* noder att samla vid: tva malmnoder och en fibernod per zon (inte i dungeonzonen) */
   R.zones.forEach(z => { z.nodes = [];
     if (z.i < 5) [['mining', 'ore_node'], ['mining', 'ore_node'], ['synthetics', 'fiber_node']].forEach(([prof, key], k) => { const q = z.slots[(k * 5 + 2) % z.slots.length];
@@ -928,13 +969,22 @@ LAND.forEach(R => {
         put(key, q.x, q.y, Math.atan2(z.c.x - q.x, z.c.y - q.y), 1, rad); break; } });
     /* spritt: vagt slumpat ur listan */
     const tot = T.sc.reduce((s, x) => s + x[1], 0), want = Math.round(z.pts.length / 16 * (T.n || 1) * .6);   /* [ANDRAT v5.1353.0] 1.6 -> .6: for mycket smasaker pa marken (Chris 2026-10-29) */
+    /* [ANDRAT v5.1379.0] SKRAP: tunnor, ladar, staket, plankor, soptunnor m.m. far bara sta nara torget (byn), hogst sex per zon.
+       Ute i zonen blir det bara natur (trad, sten, kullar). Chris: "det ar valdigt mycket skrap pa marken". */
+    let junk = 0;
     for (let t = 0, n = 0; t < want * 5 && n < want; t++){
       let w = r() * tot, key = T.sc[0][0]; for (const [k, wt] of T.sc){ w -= wt; if (w <= 0){ key = k; break; } }
       const q = z.pts[Math.floor(r() * z.pts.length)], x = q.x + (r() - .5) * 8, y = q.y + (r() - .5) * 8, sc = .85 + r() * .3, rad = footprint(key) / 2 * sc;
-      if (!free(x, y, rad)) continue; put(key, x, y, r() * 6.28, sc, rad); n++; }
+      if (JUNK.test(key) && (junk >= 6 || Math.hypot(x - z.c.x, y - z.c.y) > 90)){ n++; continue; }
+      if (!free(x, y, rad)) continue; put(key, x, y, r() * 6.28, sc, rad); n++; if (JUNK.test(key)) junk++; }
   });
   /* smaholmarna far palmer */
-  if (R.id === 'cutlassbay') R.polys.slice(1).forEach(pp => { let sx = 0, sy = 0; pp.forEach(q => { sx += q.x; sy += q.y; }); put('palm', sx / pp.length, sy / pp.length, r() * 6, 1, 0); });
+  if (R.id === 'cutlassbay') R.isles.forEach(pp => { let sx = 0, sy = 0; pp.forEach(q => { sx += q.x; sy += q.y; }); put('palm', sx / pp.length, sy / pp.length, r() * 6, 1, 0); });
+  /* [TILLAGT v5.1379.0] Chris placeringar: ta bort det han tagit bort (och dess ljus), lagg till det han satt ut */
+  { const del = new Set(PLACE.del.map(String)); if (del.size){ const gone = R.items.filter(it => del.has(itemId(R, it)));
+      R.items = R.items.filter(it => !del.has(itemId(R, it))); R.lights = R.lights.filter(l => !gone.some(it => Math.abs(it.x - l.x) < .5 && Math.abs(it.y - l.y) < .5)); }
+    PLACE.add.forEach(a => { if (!a || a.r !== R.id || typeof a.k !== 'string' || !isFinite(+a.x) || !isFinite(+a.y)) return;
+      put(a.k, +a.x, +a.y, +a.rot || 0, clamp(+a.sc || 1, .2, 6), 0); R.items[R.items.length - 1].ed = 1; }); }
   const bigItems = R.items.filter(it => footprint(it.key) / 2 * it.sc > 6).map(it => ({x: it.x, y: it.y, r: footprint(it.key) / 2 * it.sc * .9 + 7}));
   const blocked = (x, y) => bigItems.some(it => Math.abs(it.x - x) < it.r && Math.abs(it.y - y) < it.r && Math.hypot(it.x - x, it.y - y) < it.r);
   R.zones.forEach(z => { const fr = z.pts.filter(q => !blocked(q.x, q.y)); if (fr.length > 8) z.pts = fr; const fw = z.wild.filter(q => !blocked(q.x, q.y)); z.wild = fw.length > 4 ? fw : z.pts; });
@@ -946,10 +996,12 @@ LAND.forEach(R => {
 
 /* instanser: en InstancedMesh per del och modell och region (hela regionen kan skippas nar den ar utanfor bild) */
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+const INST = {};   /* [TILLAGT v5.1379.0] nyckel -> instansmeshar, sa editorn kan bygga om en modell */
 function buildInstances(key){
+  (INST[key] || []).forEach(im => { scene.remove(im); im.dispose(); }); INST[key] = [];
   const T = TPL[key], list = []; LAND.forEach(R => R.items.forEach(i => { if (i.key === key) list.push(i); })); if (!T || !list.length) return;
   T.parts.forEach(p => {
-    const im = new THREE.InstancedMesh(p.geo, p.mat, list.length);
+    const im = new THREE.InstancedMesh(p.geo, p.mat, list.length); INST[key].push(im);
     list.forEach((it, i) => { tmpP.set(it.x * K, 0, it.y * K); tmpQ.setFromAxisAngle(UP, it.rot); tmpS.setScalar(it.sc);
       tmpM.compose(tmpP, tmpQ, tmpS).multiply(p.m); im.setMatrixAt(i, tmpM); });
     im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); im.castShadow = T.h > .7; im.receiveShadow = true;
@@ -1319,7 +1371,8 @@ function onPackLoaded(name){
   if (name === 'space' && TPL.lander_A){ const R = REG_BY.novacommand; for (let i = 0; i < 2; i++){ const m = modelInstance('lander_A'); if (!m) break; scene.add(m);
     landers.push({m, cx: (R.bb.x0 + R.bb.x1) / 2 * K, cz: (R.bb.y0 + R.bb.y1) / 2 * K, a: i * 3, r: 12 + i * 6, h: 6 + i * 2}); } }
   if (name === 'nature' && TPL.cloud_big){ for (let i = 0; i < 22; i++){ const m = modelInstance(i % 3 ? 'cloud_small' : 'cloud_big'); if (!m) break;
-    m.traverse(o => { if (o.isMesh){ o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .85; o.castShadow = false; } });
+    m.traverse(o => { if (o.isMesh){ o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .85; o.castShadow = false;
+      /* [TILLAGT v5.1379.0] molnen lyser svagt lila pa natten (var bla stenar) */ o.material.emissive = new THREE.Color(0x9a7bff); o.material.emissiveMap = null; o.material.userData.nightK = .32; nightMats.push(o.material); } });
     const x0 = Math.min(...REG.map(R => R.bb.x0)) * K, x1 = Math.max(...REG.map(R => R.bb.x1)) * K;
     m.position.set(x0 + Math.random() * (x1 - x0), 30 + Math.random() * 14, (Math.random() - .5) * 90 * BIG); m.userData = {x0, x1, v: .4 + Math.random() * .5}; scene.add(m); clouds.push(m); } }
   const total = Object.keys(PACKS).length + 1;
@@ -1370,14 +1423,19 @@ const C_DAY = new THREE.Color(0x24306a), C_DUSK = new THREE.Color(0x5a2a6e), C_N
 function applyTime(DI){
   const night = 1 - DI.day;
   cTmp.copy(C_DAY).lerp(C_NIGHT, night).lerp(C_DUSK, DI.dusk * .3); scene.fog.color.copy(cTmp); renderer.setClearColor(cTmp);
-  sun.intensity = 1.05 + 1.45 * DI.day;   /* [ANDRAT v5.1353.0] ljusare manljus (Chris: "extremt morkt") */ sun.color.setHex(0xfff1dc).lerp(new THREE.Color(0xffa060), DI.dusk * .8).lerp(new THREE.Color(0x8fb0ff), night * (1 - DI.dusk));
-  hemi.intensity = 1.2 + .1 * DI.day; hemi.color.setHex(0xc4ccff).lerp(new THREE.Color(0x8a9ad8), night);   /* [ANDRAT v5.1353.0] .85 -> 1.2 och ljusare natthimmel */
-  waterMat.color.setHex(0x0d2050).lerp(new THREE.Color(0x060d2a), night * .8);
+  /* [ANDRAT v5.1379.0] DAGEN MORKARE OCH MER NEON (Chris: "lite samma feeling" som natten och 2D-kartan): svagare, lite lila sol,
+     marken lyser nastan som pa natten. Natten ar oforandrad. */
+  sun.intensity = 1.05 + .55 * DI.day; sun.color.setHex(0xe6dcff).lerp(new THREE.Color(0xffa060), DI.dusk * .8).lerp(new THREE.Color(0x8fb0ff), night * (1 - DI.dusk));
+  hemi.intensity = 1.2 - .05 * DI.day; hemi.color.setHex(0xa8b0f0).lerp(new THREE.Color(0x8a9ad8), night);
+  waterMat.color.setHex(0x0b1a46).lerp(new THREE.Color(0x060d2a), night * .8);
   /* [TILLAGT v5.1373.0] neon lyser mer pa natten: marken, kanten och vattenglimtarna */
-  waterMat.emissiveIntensity = .4 + night * .5;
-  groundMats.forEach(m => { m.emissiveIntensity = 1.05 + night * .7; });
-  edgeMats.forEach(m => { m.color.copy(m.userData.base).multiplyScalar(.8 + night * .5); });
-  renderer.toneMappingExposure = 1.05 + night * .2;   /* [ANDRAT v5.1353.0] natten exponeras upp i stallet for ned */
+  /* [ANDRAT v5.1379.0] zongranser och kanten runt on 10 % svagare (Chris) */
+  waterMat.emissiveIntensity = .55 + night * .35;
+  groundMats.forEach(m => { m.emissiveIntensity = (1.4 + night * .35) * .9; });
+  edgeMats.forEach(m => { m.color.copy(m.userData.base).multiplyScalar((1 + night * .3) * .9); });
+  /* [TILLAGT v5.1379.0] skeppsvrak och moln far eget svagt sken pa natten (var svarta klumpar och bla stenar) */
+  nightMats.forEach(m => { m.emissiveIntensity = night * m.userData.nightK; });
+  renderer.toneMappingExposure = 1.12 + night * .13;   /* [ANDRAT v5.1353.0] natten exponeras upp i stallet for ned */
   return night; }
 
 /* ===== KAMERA ===== */
@@ -1614,9 +1672,24 @@ function drawOverlay(){
   const placed = [];
   REG.forEach(R => { /* namnet ovanfor regionens hogsta punkt pa skarmen, oavsett hur kartan ar vriden */
     /* [ANDRAT genesis-world-play] zonnamnen ritas aven nar regionens mitt ar utanfor bild (regionerna ar stora nu) */
-    if (D < 260 && !R.locked) R.zones.forEach(z => { const q = toScreen(z.c.x * K, .3, z.c.y * K); if (!q.on || q.x < -150 || q.x > W + 150 || q.y < -20 || q.y > H + 20) return;
-      const txt = z.namn.toUpperCase() + (z.i === 5 ? ' · DUNGEON' : '') + (zoneState(R.id, z.namn) === 'uncharted' ? ' · UNCHARTED' : ''), fz = clamp(1600 / D, 10, 14);
-      const w = label(c, txt, q.x, q.y + 10, {size: fz * .9, w: 700, f: 'o', col: mix(R.acc[z.i], '#ffffff', .55), bg: 'rgba(5,6,13,.62)', edge: rgba(R.acc[z.i], .55)});   /* [ANDRAT v5.1373.0] zonens neonfarg, spelets typsnitt */ placed.push({x: q.x - w / 2 - 6, y: q.y + 10 - fz / 2 - 3, w: w + 12, h: fz + 6}); });
+    /* [ANDRAT v5.1379.0] ZONNAMNEN som i 2D-kartan: stora, lysande i zonens farg, utan ruta. Tydliga utzoomat; tonas bort nar man
+       zoomar in sa att man ser vad som hander pa marken (Chris). Ritas aven over The Landing-on. */
+    const za = clamp((D - 38) / 70, 0, 1) * clamp((820 - D) / 220, 0, 1);   /* hela varlden: bara regionernas namn */
+    if (za > .02 && !R.locked){ c.globalAlpha = za * .92; if ('letterSpacing' in c) c.letterSpacing = '2px';
+      const fz = clamp(5200 / D, MOBILE ? 12 : 13, MOBILE ? 24 : 30);
+      const zl = R.zones.map(z => ({x: z.c.x, y: z.c.y, txt: z.namn.toUpperCase(), sub: z.i === 5 ? 'DUNGEON' : (zoneState(R.id, z.namn) === 'uncharted' ? 'UNCHARTED' : ''), col: R.acc[z.i]}));
+      zl.push({x: R.landing.x, y: Math.min(...R.landing.poly.map(q => q.y)) + 60, txt: 'THE LANDING', sub: '', col: R.neon.hue});
+      const zbox = [];
+      zl.forEach(z => { const q = toScreen(z.x * K, .3, z.y * K); if (!q.on || q.x < -200 || q.x > W + 200 || q.y < -30 || q.y > H + 30) return;
+        /* krockar namnet med ett annat zonnamn: flytta det en rad upp eller ned, annars mindre */
+        let size = fz; c.font = '800 ' + size + 'px Orbitron,"Segoe UI",sans-serif';
+        const hit = (y, s) => { const ww = c.measureText(z.txt).width + (z.txt.length * 2); return zbox.some(b => Math.abs(b.x - q.x) < (b.w + ww) / 2 + 8 && Math.abs(b.y - y) < (b.h + s) / 2 + 4); };
+        for (const dy of [0, size * 1.15, -size * 1.15, size * 2.3]){ if (!hit(q.y + dy, size)){ q.y += dy; break; } if (dy === size * 2.3){ size *= .72; } }
+        const w = label(c, z.txt, q.x, q.y, {size, w: 800, f: 'o', col: mix(z.col, '#ffffff', .35), stroke: 3, glow: z.col, glowR: 12});
+        zbox.push({x: q.x, y: q.y, w: w, h: size});
+        if (z.sub) label(c, z.sub, q.x, q.y + fz * .85, {size: Math.max(9, fz * .42), w: 700, f: 'o', col: mix(z.col, '#ffffff', .5), stroke: 2});
+        if (za > .4) placed.push({x: q.x - w / 2 - 6, y: q.y - fz / 2 - 3, w: w + 12, h: fz + 6}); });
+      c.globalAlpha = 1; if ('letterSpacing' in c) c.letterSpacing = '0px'; }
     if (D < 130) return;   // inzoomad: regionens stora namn behovs inte
     const cs = [[R.bb.x0, R.bb.y0], [R.bb.x1, R.bb.y0], [R.bb.x0, R.bb.y1], [R.bb.x1, R.bb.y1]].map(q => toScreen(q[0] * K, 1, q[1] * K)), cc = toScreen((R.bb.x0 + R.bb.x1) / 2 * K, 1, (R.bb.y0 + R.bb.y1) / 2 * K);
     const p = {x: cc.x, y: Math.max(Math.min(...cs.map(q => q.y)) - 26, 70), on: cc.on}; if (!p.on || p.x < -200 || p.x > W + 200 || p.y > H + 60 || cc.y < 40) return;
@@ -1792,6 +1865,7 @@ function endPtr(e){ if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId)
 glc.addEventListener('pointerup', endPtr); glc.addEventListener('pointercancel', endPtr); glc.addEventListener('contextmenu', e => e.preventDefault());
 glc.addEventListener('wheel', e => { e.preventDefault(); camAnim.on = false; lastInput = performance.now(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * (e.deltaMode ? .05 : .0015))); }, {passive: false});
 function tap(sx, sy){
+  if (edTap){ edTap(sx, sy); return; }   /* [TILLAGT v5.1379.0] editorn tar alla klick */
   const now = performance.now(), dbl = now - lastTap < 320; lastTap = now;
   /* [ANDRAT genesis-world-play] forst klickbara platser, sedan din figur, andra spelare, bossen och sist marken (= ga dit) */
   const P = poiAt(sx, sy); if (P){ selected = null; selRegion = null; renderCard(); onPoi(P); return; }
@@ -1934,9 +2008,9 @@ function stepHelper(e, dt, t, vis){ const H = e.hlp; if (!H) return; const T = H
 
 /* ===== DIN FIGUR ===== */
 const me = {namn: 'You', klass: 'warden', niva: 0, R: null, x: 0, y: 0, face: 0, path: [], goal: null, av: null, fly: null, zn: null, act: null, actT: 0, spd: 0};
-function spotOfZone(R, zn){ if (!zn || zn === LANDING) return {x: R.landing.pad.x + R.landing.ux * 30, y: R.landing.pad.y + R.landing.uy * 30};
+function spotOfZone(R, zn){ if (!zn || zn === LANDING) return {x: R.landing.x, y: R.landing.y + 10};   /* [ANDRAT v5.1379.0] hamnplanen pa egna on */
   const z = zoneOf(R.id, zn); return z ? {x: z.c.x, y: z.c.y + 10} : {x: R.landing.x, y: R.landing.y}; }
-function zoneAt(R, x, y){ const L = R.landing; if (Math.hypot(x - L.x, y - L.y) < L.r) return LANDING;
+function zoneAt(R, x, y){ const L = R.landing; if (inPoly(L.poly, x, y) || distSeg(x, y, L.bridge.a, L.bridge.b) < 14 && !inPoly(R.outline, x, y)) return LANDING;
   const z = R.zones.find(z => inPoly(z.poly, x, y)); if (z) return z.namn;
   return R.zones.reduce((b, z) => Math.hypot(z.c.x - x, z.c.y - y) < Math.hypot(b.c.x - x, b.c.y - y) ? z : b, R.zones[0]).namn; }
 function onGameState(){
@@ -1956,12 +2030,14 @@ function meFly(R, p){ me.path = []; me.goal = null; me.fly = {R, fx: me.x, fy: m
 function navOf(R){
   if (R.nav) return R.nav;
   const C = 12, x0 = R.bb.x0 - C, y0 = R.bb.y0 - C, W = Math.ceil((R.bb.x1 - x0) / C) + 2, H = Math.ceil((R.bb.y1 - y0) / C) + 2, g = new Uint8Array(W * H);
-  R.polys.slice(0, 1).forEach(pp => { for (let j = 0; j < H; j++){ const y = y0 + (j + .5) * C, xs = [];
+  [R.outline, R.landing.poly].forEach(pp => {   /* [ANDRAT v5.1379.0] aven The Landing-on */ for (let j = 0; j < H; j++){ const y = y0 + (j + .5) * C, xs = [];
     for (let a = 0, b = pp.length - 1; a < pp.length; b = a++){ const A = pp[a], B = pp[b]; if ((A.y > y) !== (B.y > y)) xs.push(A.x + (y - A.y) * (B.x - A.x) / (B.y - A.y)); }
     xs.sort((p, q) => p - q);
     for (let k = 0; k + 1 < xs.length; k += 2){ const i0 = Math.ceil((xs[k] - x0) / C - .5), i1 = Math.floor((xs[k + 1] - x0) / C - .5);
       for (let i = Math.max(0, i0); i <= Math.min(W - 1, i1); i++) g[j * W + i] = 1; } } });
   for (let pass = 0; pass < 2; pass++){ const c = g.slice(); for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++){ const k = j * W + i; if (c[k] && (!c[k - 1] || !c[k + 1] || !c[k - W] || !c[k + W])) g[k] = 0; } }
+  /* [TILLAGT v5.1379.0] bron ar gangbar (laggs efter krympningen, annars forsvinner den smala remsan) */
+  { const B = R.landing.bridge; for (let j = 0; j < H; j++) for (let i = 0; i < W; i++){ if (distSeg(x0 + (i + .5) * C, y0 + (j + .5) * C, B.a, B.b) < 13) g[j * W + i] = 1; } }
   const block = (x, y, r) => { const i0 = Math.floor((x - r - x0) / C), i1 = Math.ceil((x + r - x0) / C), j0 = Math.floor((y - r - y0) / C), j1 = Math.ceil((y + r - y0) / C);
     for (let j = Math.max(0, j0); j <= Math.min(H - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(W - 1, i1); i++){
       if (Math.hypot(x0 + (i + .5) * C - x, y0 + (j + .5) * C - y) < r) g[j * W + i] = 0; } };
@@ -2317,6 +2393,101 @@ function frame(now){
   else if (newsT <= 0 && newsT > -dt * 1.5){ $('news').className = ''; }
   statusT -= dt; if (statusT <= 0){ statusT = 1; if (selected) renderCard(); renderStatus(); }
 }
+/* ======================================================================
+   [TILLAGT v5.1379.0] EDITORN (genesis-3d.html?edit=1) - Chris satter ut, vrider, flyttar och tar bort saker pa kartan.
+   Valj en modell i listan och klicka pa marken. Klicka pa en sak for att valja den. Q/E vrider, +/- storlek, Delete tar bort.
+   Spara skriver assets/world3d/placering.json via den lokala servern (.claude/serve.js); finns ingen server laddas filen ned.
+   ====================================================================== */
+if (EDIT) (function editor(){
+  const css = document.createElement('style');
+  css.textContent = '#help{display:none!important}#edp{position:fixed;left:12px;top:76px;bottom:12px;width:270px;z-index:50;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;' +
+    'background:rgba(8,12,24,.92);border:1px solid rgba(120,200,255,.35);color:#e8ecff;font:13px "Segoe UI",sans-serif;box-shadow:0 0 18px rgba(56,232,255,.18)}' +
+    '#edp h3{margin:0;font:800 14px Orbitron,sans-serif;letter-spacing:.08em;color:#7ff}#edp .t{font-size:12px;color:#b8c2e0;line-height:1.35}' +
+    '#edp input{width:100%;box-sizing:border-box;padding:7px 9px;border-radius:8px;border:1px solid #2c3b5c;background:#0b1224;color:#fff}' +
+    '#edList{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding-right:4px}#edList b{display:block;margin:8px 0 3px;font-size:11px;color:#7ff;letter-spacing:.08em}' +
+    '#edList button{display:block;width:100%;text-align:left;margin:1px 0;padding:4px 7px;border-radius:6px;border:0;background:transparent;color:#dfe6ff;cursor:pointer;font-size:12px}' +
+    '#edList button:hover{background:#16223f}#edList button.on{background:#0e7490;color:#fff}' +
+    '#edSel{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on{display:block}#edSel .n{font-weight:700;margin-bottom:6px}' +
+    '#edp .row{display:flex;gap:5px;flex-wrap:wrap}#edp .row button{flex:1;min-width:52px;padding:6px 4px;border-radius:7px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font-size:12px}' +
+    '#edp .row button:hover{background:#1d3160}#edp .row button.red{border-color:#7f1d1d;background:#3b0f17}#edp .row button.go{border-color:#0e7490;background:#0b3b4b;font-weight:700}' +
+    '#edMsg{font-size:12px;color:#fde68a;min-height:16px}';
+  document.head.appendChild(css);
+  const P = document.createElement('div'); P.id = 'edp';
+  P.innerHTML = '<h3>EDITOR</h3><div class="t">Välj en sak i listan och klicka på marken för att sätta ut den. Klicka på en sak på kartan för att välja den.<br>Q / E vrider · + / − storlek · Delete tar bort · Esc släpper</div>' +
+    '<input id="edQ" placeholder="Sök sak (t.ex. tree, house, lamp)">' +
+    '<div id="edList"></div>' +
+    '<div id="edSel"><div class="n" id="edSelN"></div><div class="row"><button data-a="l">⟲ Vrid</button><button data-a="r">Vrid ⟳</button><button data-a="m">− Mindre</button><button data-a="p">+ Större</button></div>' +
+    '<div class="row" style="margin-top:5px"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red">Ta bort</button></div></div>' +
+    '<div id="edMsg"></div><div class="row"><button data-a="undo">Ångra</button><button data-a="save" class="go">Spara</button></div>';
+  document.body.appendChild(P);
+  P.addEventListener('pointerdown', e => e.stopPropagation()); P.addEventListener('wheel', e => e.stopPropagation(), {passive: true});
+  const $e = id => document.getElementById(id), msg = t => { $e('edMsg').textContent = t; };
+  let mode = null, ghost = null, gRot = 0, gSc = 1, sel = null, ring = null, dirty = 0;
+  const regionAt = (x, y) => LAND.find(R => inPoly(R.outline, x, y) || (R.landing && (inPoly(R.landing.poly, x, y) || inPoly(R.landing.spur, x, y)))) ||
+    LAND.find(R => (R.isles || []).some(pp => inPoly(pp, x, y))) || null;
+  const nice = k => k.replace(/_/g, ' ');
+  /* utkastet sparas lokalt efter varje andring, sa inget forsvinner om fliken stangs */
+  const snaps = [];
+  const draft = () => { try { localStorage.setItem('genesis.edDraft', JSON.stringify(PLACE)); } catch (e){} };
+  const changed = (what) => { dirty++; draft(); msg(what + ' · ' + dirty + ' osparade ändringar'); };
+  const snap = () => { snaps.push(JSON.stringify(PLACE)); if (snaps.length > 40) snaps.shift(); };
+  /* gor en automatisk sak till en egen (tas bort ur det automatiska och laggs till som Chris egen) innan den andras */
+  const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
+  const sync = it => { const a = it.src; if (!a) return; a.x = +it.x.toFixed(1); a.y = +it.y.toFixed(1); a.rot = +it.rot.toFixed(3); a.sc = +it.sc.toFixed(2); };
+  function list(){ const q = $e('edQ').value.trim().toLowerCase(), L = $e('edList'); L.textContent = ''; const by = {};
+    Object.keys(TPL).filter(k => !/^cloud_/.test(k) && (!q || k.toLowerCase().includes(q) || nice(k).includes(q))).sort().forEach(k => { const p = PACK_OF[k] || 'ovrigt'; (by[p] = by[p] || []).push(k); });
+    Object.keys(by).sort().forEach(p => { const h = document.createElement('b'); h.textContent = p.toUpperCase() + ' (' + by[p].length + ')'; L.appendChild(h);
+      by[p].forEach(k => { const b = document.createElement('button'); b.textContent = nice(k); b.className = mode && mode.place === k ? 'on' : ''; b.onclick = () => startPlace(k); L.appendChild(b); }); }); }
+  $e('edQ').addEventListener('input', list); $e('edQ').addEventListener('keydown', e => e.stopPropagation());
+  function dropGhost(){ if (ghost){ scene.remove(ghost); ghost = null; } }
+  function startPlace(k){ dropGhost(); mode = {place: k}; gRot = 0; gSc = 1; ghost = modelInstance(k); if (ghost) scene.add(ghost); unselect(); list(); msg('Klicka på marken för att sätta ut ' + nice(k)); }
+  function stopMode(){ dropGhost(); if (mode && mode.move) buildInstances(mode.move.it.key); mode = null; list(); }
+  function unselect(){ sel = null; if (ring) ring.visible = false; $e('edSel').classList.remove('on'); }
+  function select(R, it){ sel = {R, it}; $e('edSelN').textContent = nice(it.key) + (it.ed ? '  (din)' : '');
+    if (!ring){ ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
+      ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
+    const rr = Math.max(.6, footprint(it.key) * K / 2 * it.sc * 1.15); ring.scale.setScalar(rr); ring.position.set(it.x * K, .06, it.y * K); ring.visible = true; $e('edSel').classList.add('on'); }
+  function nearest(x, y){ let best = null, bd = 1e9;
+    LAND.forEach(R => R.items.forEach(it => { const rad = Math.max(footprint(it.key) / 2 * it.sc, 6) + 4, d = Math.hypot(it.x - x, it.y - y); if (d < rad && d / rad < bd){ bd = d / rad; best = {R, it}; } }));
+    return best; }
+  function act(a){ if (a === 'save') return save(); if (a === 'undo') return undo();
+    if (!sel) return; const {R, it} = sel;
+    if (a === 'del'){ snap(); if (it.ed){ const i = PLACE.add.indexOf(it.src); if (i >= 0) PLACE.add.splice(i, 1); } else PLACE.del.push(itemId(R, it));
+      R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); unselect(); changed('Borttagen'); return; }
+    if (a === 'mv'){ snap(); own(R, it); mode = {move: sel}; R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); R.items.push(it);
+      dropGhost(); ghost = modelInstance(it.key); if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); scene.add(ghost); } unselect(); msg('Klicka där den ska stå'); return; }
+    if (a === 'cp'){ startPlace(it.key); gRot = it.rot; gSc = it.sc; if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
+    snap(); own(R, it);
+    if (a === 'l') it.rot -= Math.PI / 12; if (a === 'r') it.rot += Math.PI / 12;
+    if (a === 'm') it.sc = Math.max(.2, it.sc / 1.15); if (a === 'p') it.sc = Math.min(6, it.sc * 1.15);
+    sync(it); buildInstances(it.key); select(R, it); changed(a === 'l' || a === 'r' ? 'Vriden' : 'Ny storlek'); }
+  P.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => act(b.dataset.a));
+  edTap = (sx, sy) => { const g = groundAt(sx, sy); if (!g) return; const x = g.x / K, y = g.z / K, R = regionAt(x, y);
+    if (mode && mode.place){ if (!R){ msg('Bara på land'); return; } snap(); const a = {r: R.id, k: mode.place, x: +x.toFixed(1), y: +y.toFixed(1), rot: +gRot.toFixed(3), sc: +gSc.toFixed(2)};
+      PLACE.add.push(a); const it = {key: a.k, x: a.x, y: a.y, rot: a.rot, sc: a.sc, ed: 1, src: a}; R.items.push(it); buildInstances(a.k); changed('Utsatt: ' + nice(a.k)); return; }
+    if (mode && mode.move){ const {R: R0, it} = mode.move; if (!R){ msg('Bara på land'); return; }
+      if (R !== R0){ R0.items.splice(R0.items.indexOf(it), 1); R.items.push(it); it.src.r = R.id; }
+      it.x = x; it.y = y; sync(it); dropGhost(); mode = null; buildInstances(it.key); select(R, it); changed('Flyttad'); return; }
+    const n = nearest(x, y); if (n) select(n.R, n.it); else unselect(); };
+  glc.addEventListener('pointermove', e => { if (!ghost) return; const g = groundAt(e.clientX, e.clientY); if (!g) return; ghost.position.set(g.x, 0, g.z);
+    ghost.rotation.y = mode && mode.move ? mode.move.it.rot : gRot; ghost.scale.setScalar(mode && mode.move ? mode.move.it.sc : gSc); });
+  addEventListener('keydown', e => { const t = e.target; if (t && t.tagName === 'INPUT') return; const k = e.key;
+    if (k === 'Escape'){ stopMode(); unselect(); msg(''); return; }
+    if (mode && mode.place){ if (k === 'q' || k === 'Q') gRot -= Math.PI / 12; if (k === 'e' || k === 'E') gRot += Math.PI / 12; if (k === '+') gSc = Math.min(6, gSc * 1.15); if (k === '-') gSc = Math.max(.2, gSc / 1.15);
+      if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
+    if (k === 'q' || k === 'Q') act('l'); if (k === 'e' || k === 'E') act('r'); if (k === '+') act('p'); if (k === '-') act('m');
+    if (k === 'Delete' || k === 'Backspace') act('del'); });
+  function undo(){ if (!snaps.length){ msg('Inget att ångra'); return; } try { localStorage.setItem('genesis.edDraft', snaps.pop());
+      sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (e){} msg('Ångrar…'); location.reload(); }
+  function save(){ const body = JSON.stringify({v: 1, sparad: new Date().toISOString(), add: PLACE.add, del: PLACE.del}, null, 1);
+    fetch('/__spara-placering', {method: 'POST', headers: {'Content-Type': 'application/json'}, body}).then(r => { if (!r.ok) throw new Error(r.status);
+      try { localStorage.removeItem('genesis.edDraft'); } catch (e){} dirty = 0; msg('Sparat! Säg till Claude att det finns nya placeringar.'); })
+      .catch(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], {type: 'application/json'})); a.download = 'placering.json'; a.click(); msg('Kunde inte spara direkt – filen laddades ned i stället.'); }); }
+  /* kameran tillbaka dar den var fore Angra */
+  try { const c = JSON.parse(sessionStorage.getItem('genesis.edCam') || 'null'); if (c){ sessionStorage.removeItem('genesis.edCam'); Object.assign(cam, c); touched = true; } } catch (e){}
+  const waitList = setInterval(() => { if (worldReady){ clearInterval(waitList); list(); } }, 500); list();
+  msg(PLACE.add.length || PLACE.del.length ? 'Laddade ' + PLACE.add.length + ' utsatta och ' + PLACE.del.length + ' borttagna' : '');
+})();
 window.__gw = {unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
 requestAnimationFrame(frame);
 </script>
