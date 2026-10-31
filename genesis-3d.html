@@ -1027,6 +1027,12 @@ const LMS = [];
   lm('quarantine', 5, 'Sjukhuskorset', 5, [11, 0xff2a3a], g => { P(g, B(3.6, 9, 3.6), sm(0xe5e7eb), 0, 4.5, 0); for (let y = 1.6; y < 8.6; y += 1.6) P(g, B(3.66, .35, 3.66), gm('#93c5fd', 1.2), 0, y, 0);
     P(g, B(.6, 2.6, .6), gm('#ff2a3a', 3), 0, 10.6, 0); P(g, B(2.6, .6, .6), gm('#ff2a3a', 3), 0, 10.6, 0); P(g, C(.15, .15, 1.2, 6), METAL, 0, 9.2, 0); });
 }
+/* [TILLAGT v5.1382.0] NEDLADDADE LANDMARKEN (Chris 2026-10-31: 'hitta riktiga polygoner som nagon annan byggt, gom dina pa en switch').
+   Gratismodeller fran poly.pizza (CC0/CC-BY, se assets/world3d/lm/LICENS.txt), en per zon: assets/world3d/lm/<region>_<zon>.glb, hojd i varlden nedan.
+   Bytet: ?lm=egna / ?lm=nya, eller knappen i editorn (sparas i genesis.lmSet). De egna (lm_*) finns kvar och star pa exakt samma platser. */
+const LM_NEW = {voxholm_0: 9, voxholm_1: 12, voxholm_2: 6, voxholm_3: 7, voxholm_4: 9, voxholm_5: 6, drakemark_0: 7, drakemark_1: 9, drakemark_2: 11, drakemark_3: 11, drakemark_4: 5, drakemark_5: 6, cutlassbay_0: 11, cutlassbay_1: ['w', 5], cutlassbay_2: 7, cutlassbay_3: 6, cutlassbay_4: 6, cutlassbay_5: 9, novacommand_0: 9, novacommand_1: 8, novacommand_2: ['w', 8], novacommand_3: 7, novacommand_4: ['w', 9], novacommand_5: 14, quarantine_0: 10, quarantine_1: 11, quarantine_2: 7, quarantine_3: ['w', 9], quarantine_4: 10, quarantine_5: 6};
+let LMSET = 'nya'; try { LMSET = Q.get('lm') || localStorage.getItem('genesis.lmSet') || 'nya'; } catch (e){}
+LMS.forEach(l => { const id = l.r + '_' + l.i; if (!LM_NEW[id]) return; const k = 'lmx_' + id; SIZE[k] = Array.isArray(LM_NEW[id]) ? LM_NEW[id] : ['h', LM_NEW[id]];   /* tal = hojd, ['w', n] = bredd (platta saker) */ PACK_OF[k] = 'landmarken (nedladdade)'; if (LIGHTS[l.key]) LIGHTS[k] = LIGHTS[l.key]; l.nkey = k; l.id = id; });
 
 /* [TILLAGT v5.1379.0] CHRIS EGNA PLACERINGAR (editorn, ?edit=1): assets/world3d/placering.json
    {add:[{r, k, x, y, rot, sc}], del:["region|nyckel|x|y"]} - saker han lagt till och saker han tagit bort. Laggs ovanpa det automatiska. */
@@ -1087,7 +1093,8 @@ LAND.forEach(R => {
     { const key = 'lm_' + R.id + '_' + z.i, rl = rng(hash(R.id + '|lm' + z.i)); if (TPL[key]){ const rad = footprint(key) / 2; let best = null;
       for (let t = 0; t < 240; t++){ const q = z.pts[Math.floor(rl() * z.pts.length)], d = Math.hypot(q.x - z.c.x, q.y - z.c.y);
         if (d < 40 + rad || d > 200 + rad) continue; if (free(q.x, q.y, rad)){ best = q; break; } if (!best) best = q; }
-      if (best) put(key, best.x, best.y, Math.atan2(z.c.x - best.x, z.c.y - best.y), 1, rad); } }
+      const L = LMS.find(l => l.key === key), use = LMSET !== 'egna' && L && L.nkey ? L.nkey : key;   /* [ANDRAT v5.1382.0] samma plats, nedladdad eller egen */
+      if (best) put(use, best.x, best.y, Math.atan2(z.c.x - best.x, z.c.y - best.y), 1, rad); } }
     /* spritt: vagt slumpat ur listan */
     const tot = T.sc.reduce((s, x) => s + x[1], 0), want = Math.round(z.pts.length / 16 * (T.n || 1) * .6);   /* [ANDRAT v5.1353.0] 1.6 -> .6: for mycket smasaker pa marken (Chris 2026-10-29) */
     /* [ANDRAT v5.1379.0] SKRAP: tunnor, ladar, staket, plankor, soptunnor m.m. far bara sta nara torget (byn), hogst sex per zon.
@@ -2680,6 +2687,9 @@ if (MOBILE || Q.get('joy') === '1') document.body.classList.add('joyon');
 /* ===== START ===== */
 resize(); Object.assign(cam, viewOverview()); applyCam(); if (!EDIT) globeEnter(null, true);   /* [ANDRAT v5.1380.0] kartan borjar pa jordgloben */
 Object.keys(PACKS).forEach(loadPack); loadChars();
+/* [TILLAGT v5.1382.0] de nedladdade landmarken laddas bara nar de anvands; klotets bilder tas om nar de kommit */
+if (LMSET !== 'egna'){ let left = 0; LMS.forEach(l => { if (!l.nkey) return; left++; loader.loadAsync(BASE + 'lm/' + l.id + '.glb').then(g => { makeTemplate(l.nkey, g.scene); buildInstances(l.nkey); })
+  .catch(e => console.warn('landmarke', l.id, e && e.message)).finally(() => { if (--left === 0){ GLB.snapAt = -1; GLB.snapReady = false; if (GLB.on) globeSnap(); } }); }); }
 if (SRC) poll();   /* i spelets ram kommer datan med setWorld */
 renderStatus(); renderChips();
 (function startView(tries){ const v = (Q.get('view') || '').toLowerCase(); if (!v) return;
@@ -2717,6 +2727,7 @@ function frame(now){
    Spara skriver assets/world3d/placering.json via den lokala servern (.claude/serve.js); finns ingen server laddas filen ned.
    ====================================================================== */
 if (EDIT) (function editor(){
+  addEventListener('click', e => { if (!e.target || e.target.id !== 'edLm') return; try { localStorage.setItem('genesis.lmSet', LMSET === 'egna' ? 'nya' : 'egna'); sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (x){} location.href = location.pathname + '?edit=1'; });
   const css = document.createElement('style');
   css.textContent = '#help{display:none!important}#edp{position:fixed;left:12px;top:76px;bottom:12px;width:270px;z-index:50;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;' +
     'background:rgba(8,12,24,.92);border:1px solid rgba(120,200,255,.35);color:#e8ecff;font:13px "Segoe UI",sans-serif;box-shadow:0 0 18px rgba(56,232,255,.18)}' +
@@ -2736,7 +2747,9 @@ if (EDIT) (function editor(){
     '<div id="edList"></div>' +
     '<div id="edSel"><div class="n" id="edSelN"></div><div class="row"><button data-a="l">⟲ Vrid</button><button data-a="r">Vrid ⟳</button><button data-a="m">− Mindre</button><button data-a="p">+ Större</button></div>' +
     '<div class="row" style="margin-top:5px"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red">Ta bort</button></div></div>' +
-    '<div id="edMsg"></div><div class="row"><button data-a="undo">Ångra</button><button data-a="save" class="go">Spara</button></div>';
+    '<div id="edMsg"></div><div class="row"><button data-a="undo">Ångra</button><button data-a="save" class="go">Spara</button></div>' +
+    /* [TILLAGT v5.1382.0] bytet mellan nedladdade och egna landmarken */
+    '<div class="row"><button id="edLm">Landmärken: ' + (LMSET === 'egna' ? 'Claudes egna' : 'nedladdade') + ' ⇄</button></div>';
   document.body.appendChild(P);
   P.addEventListener('pointerdown', e => e.stopPropagation()); P.addEventListener('wheel', e => e.stopPropagation(), {passive: true});
   const $e = id => document.getElementById(id), msg = t => { $e('edMsg').textContent = t; };
