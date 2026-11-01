@@ -177,9 +177,6 @@
   #stats > div:not(#upd):not(#dimTog), #legend, #feedBtn, #findBtn, #feed, #find{display:none !important}
   #stats{padding:5px 10px;border-radius:calc(10px * var(--rnd, 1));display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
   #upd{font-weight:800;font-size:13px;color:var(--ink);font-family:'Orbitron','Segoe UI',sans-serif;letter-spacing:.06em}
-  /* [TILLAGT v5.1373.0] glodknappen vid klockan */
-  #glowBtn{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--ink2);font-size:14px;line-height:1;cursor:pointer;padding:0;font-family:inherit}
-  #glowBtn.on{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(56,232,255,.45);text-shadow:0 0 8px var(--cyan)}
   #dimTog{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px}
   /* [TILLAGT v5.1353.0] I SPELETS RAM: spelet har vaxeln 2D|3D uppe till vanster och "Close" uppe till hoger pa telefon,
      sa kartans eget huvud flyttas ner en rad och kartans egen vaxel doljs. */
@@ -191,6 +188,7 @@
   body.inframe #banner{top:166px}
   /* [TILLAGT v5.1386.0] SOM 2D-KARTAN (Chris 2026-11-01): uppe till vanster Enter/Leave Region, klockan nere till hoger, 2D|3D mitt uppe */
   #brand{display:none}
+  body.inframe:not(.clockon) #stats{display:none}   /* [TILLAGT v5.1387.0] i spelet: Settings > Interface > Show clock */
   #regBtn{pointer-events:auto;display:flex;flex-direction:column;align-items:flex-start;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:calc(10px * var(--rnd, 1));padding:8px 14px;box-shadow:var(--glow);cursor:pointer;font-family:inherit;color:var(--ink);text-align:left;max-width:calc(50vw - 50px)}
   #regBtn[hidden]{display:none}
   #regBtn small{font-size:9.5px;letter-spacing:.22em;color:var(--ink2);white-space:nowrap}
@@ -223,7 +221,7 @@
   body.joyon #help{display:none}
   body.tr-on #news,body.tr-on #help{display:none}
   body.inframe #news{display:none}   /* [TILLAGT v5.1385.0] remsan med fynd behovs inte i spelet: chatten visar redan vad man far (Chris) */
-  .chip.me{border-color:#fde047;color:#fde68a}
+  .chip.me{border-color:#ff8a1f;color:#ffc48a}
   @media (max-width:640px){
     #legend{display:none}
     #brand small{display:none}
@@ -262,7 +260,7 @@
   <button id="regBtn" hidden><small id="regBtnT"></small><b id="regBtnN"></b></button>
   <div id="brand"><b><span class="long">PROJECT </span>GENESIS · 3D<span class="badge off" id="badge" style="display:none">OFFLINE</span></b><small id="srcTxt">Loading the world…</small></div>
   <div id="stats"><div id="dimTog" role="group" aria-label="Map view"><button id="d2">2D</button><button id="d3" class="on">3D</button></div>
-    <button id="glowBtn" aria-label="Glow on/off" title="Glow">✦</button><div><b id="nPl">0</b> <span class="wide">players </span>online</div><div id="upd">—</div>
+    <div><b id="nPl">0</b> <span class="wide">players </span>online</div><div id="upd">—</div>
     <div id="legend">⚔ fighting · 🧭 expedition · 🏰 dungeon · ✈ travelling · ⚒ crafting</div>
     <button id="feedBtn">Live feed</button> <button id="findBtn">Find player</button></div>
 </div>
@@ -274,7 +272,7 @@
 <div class="hud" id="travel"><div class="w"><b id="trWhere"></b><small id="trGame"></small><small id="trNote"></small></div><button id="trBtn">TRAVEL</button></div>
 <div class="hud" id="toast"></div>
 <div class="hud" id="joy" aria-label="Move"><div id="joyK"></div></div>
-<div class="hud" id="help">Click to walk · WASD / arrows · Shift to run · tap <b style="color:#ffd24a">!</b> to take a quest</div>
+<div class="hud" id="help">Click to walk · WASD / arrows · Shift to run · Space to jump · tap <b style="color:#ffd24a">!</b> to take a quest</div>
 <div class="hud" id="banner"><b id="banT"></b><small id="banS"></small></div>
 <div class="hud" id="loading">Loading the world…</div>
 <div class="hud" id="bottom">
@@ -568,7 +566,7 @@ function fxBuild(){ if (composer) return;
 function fxSize(){ if (!composer) return; const pr = renderer.getPixelRatio(); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
   /* glodet raknar sjalvt i halv upplosning och nedat; pa telefon halveras det en gang till (sparar mycket, syns knappt) */
   if (FX.small) bloomPass.setSize(Math.max(64, Math.round(innerWidth * pr * .75)), Math.max(64, Math.round(innerHeight * pr * .75))); }   /* [ANDRAT v5.1374.0] .5 -> .75: mindre pixligt glod pa telefon */
-function fxSet(on, why){ FX.on = !!on; FX.why = why || ''; if (FX.on){ try { fxBuild(); } catch (e){ FX.on = false; FX.why = 'error'; } } const b = document.getElementById('glowBtn'); if (b) b.classList.toggle('on', FX.on); }
+function fxSet(on, why){ FX.on = !!on; FX.why = why || ''; if (FX.on){ try { fxBuild(); } catch (e){ FX.on = false; FX.why = 'error'; } } }
 scene.fog = new THREE.Fog(0x1e2c5c, 160, 520);   /* [ANDRAT v5.1373.0] neon: djupbla/lila himmel i stallet for ljusbla */
 const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 4200);
 fxSet(GLOWPREF !== 'off', GLOWPREF);   /* [TILLAGT v5.1373.0] glodet startas nar kameran finns */
@@ -1787,7 +1785,8 @@ function globeEnter(R, quick){ if (GLB.on) return; R = R || (me.R) || regNear();
     if (GLB.snapAt < 0 || Math.abs(GLB.night - GLB.snapNight) > .12 || performance.now() - GLB.snapAt > 120000) globeSnap(); renderCard(); };
   quick ? go() : gFade(go); }
 /* ut ur klotet; med R hamnar man ovanfor den regionen (i stallet for dar man var) */
-function globeLeave(R){ if (!GLB.on) return; if (R) FR = R; GLB.on = false; GLB.anim = null; document.body.classList.remove('globe'); pinch = null;
+let tapDeaf = 0;   /* [TILLAGT v5.1387.0] Chris: andra klicket i ett dubbelklick pa globen landade i regionen, och figuren borjade ga dit */
+function globeLeave(R){ if (!GLB.on) return; tapDeaf = performance.now() + 600; if (R) FR = R; GLB.on = false; GLB.anim = null; document.body.classList.remove('globe'); pinch = null;
   gFade(() => { if (R){ const v = viewFor(regionBox(R)); Object.assign(cam, v, {dist: Math.min(globeAt(R) * .95, MAXD)}); camAnim.on = false;
     /* [ANDRAT v5.1385.0] SOM OM MAN REST DIT (Chris 2026-11-01): alltid hela regionen, aven den egna - inte narbild pa figuren */
     follow = null; flyTo(v, 1100); } renderCard(); }); }
@@ -2238,6 +2237,7 @@ function endPtr(e){ if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId)
 glc.addEventListener('pointerup', endPtr); glc.addEventListener('pointercancel', endPtr); glc.addEventListener('contextmenu', e => e.preventDefault());
 glc.addEventListener('wheel', e => { e.preventDefault(); camAnim.on = false; lastInput = performance.now(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * (e.deltaMode ? .05 : .0015))); }, {passive: false});
 function tap(sx, sy){
+  if (performance.now() < tapDeaf) return;
   if (GLB.on){ globeTap(sx, sy); return; }   /* [TILLAGT v5.1380.0] */
   if (edTap){ edTap(sx, sy); return; }   /* [TILLAGT v5.1379.0] editorn tar alla klick */
   const now = performance.now(), dbl = now - lastTap < 320; lastTap = now;
@@ -2376,8 +2376,14 @@ function stepHelper(e, dt, t, vis){ const H = e.hlp; if (!H) return; const T = H
       if (T.clips.length){ H.mixer = new THREE.AnimationMixer(H.obj); H.mixer.clipAction(T.clips.find(a => /idle/i.test(a.name)) || T.clips[0]).play(); } }
     else { H.obj = new THREE.Mesh(HELP_GEO, HELP_MAT); H.obj.castShadow = true; H.kind = 'orb'; } scene.add(H.obj); }
   if (!H.obj) return; H.obj.visible = !!vis && !e.fly; if (!H.obj.visible) return;
-  const side = e.face + 2.2, tx = e.x - Math.sin(side) * 9, ty = e.y - Math.cos(side) * 9, dx = tx - (H.x == null ? tx : H.x), dy = ty - (H.y == null ? ty : H.y), d = Math.hypot(dx, dy);
-  if (H.x == null){ H.x = tx; H.y = ty; } else if (d > 1.5){ const k = Math.min(1, dt * 4); H.x += dx * k; H.y += dy * k; H.fc = Math.atan2(dx, dy); }
+  /* [ANDRAT v5.1387.0] HJALPAREN LEVER (Chris: satt fast nagra pixlar bakom och foljde strikt): haller sig en bit bakom, valjer en ny plats dar da och da,
+     star still emellanat och slingrar sig nar man gar. Gar aldrig ut pa vattnet. */
+  const mv = H.ex != null && Math.hypot(e.x - H.ex, e.y - H.ey) > 8 * dt; H.ex = e.x; H.ey = e.y;
+  H.wT = (H.wT || 0) - dt; if (H.wT <= 0){ H.wT = 1.4 + Math.random() * 3.4; H.oa = (Math.random() - .5) * 2.4; H.or = 22 + Math.random() * 18; }
+  const bk = e.face + Math.PI + H.oa, wob = mv ? Math.sin(t * 1.6 + H.ang) * 9 : 0; let tx = e.x + Math.sin(bk) * H.or + Math.cos(bk) * wob, ty = e.y + Math.cos(bk) * H.or - Math.sin(bk) * wob;
+  if (e.R && !navWalk(e.R, tx, ty)){ tx = e.x + Math.sin(bk) * 8; ty = e.y + Math.cos(bk) * 8; H.wT = Math.min(H.wT, .5); }
+  const dx = tx - (H.x == null ? tx : H.x), dy = ty - (H.y == null ? ty : H.y), d = Math.hypot(dx, dy);
+  if (H.x == null || d > 220){ H.x = tx; H.y = ty; } else if (d > 2.5){ const st = Math.min(d, clamp(d * 3, 16, 230) * dt); H.x += dx / d * st; H.y += dy / d * st; H.fc = Math.atan2(dx, dy); }
   H.obj.position.set(H.x * K, H.kind === 'orb' ? .3 + Math.abs(Math.sin(t * 4 + H.ang)) * .25 : (H.kind === 'spr' ? Math.abs(Math.sin(t * 3 + H.ang)) * .08 : 0), H.y * K);
   if (H.kind === 'glb'){ H.obj.rotation.y = H.fc != null ? H.fc : e.face; if (H.mixer) H.mixer.update(dt); } }
 
@@ -2465,6 +2471,8 @@ function camToMe(ms){ if (!me.R) return; follow = ME; flyTo({tx: me.x * K, tz: m
 /* tangentbord (WASD/pilar, Shift = spring) och joystick pa telefon */
 const keys = new Set(), joy = {x: 0, y: 0, on: false};
 addEventListener('keydown', e => { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+  /* [TILLAGT v5.1387.0] HOPP (Chris): mellanslag, bara for skojs skull - gor inget i spelet */
+  if (e.key === ' '){ e.preventDefault(); if (me.R && !me.fly && !(me.jt > 0) && !e.repeat) me.jt = .001; return; }
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (/^(w|a|s|d|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Shift)$/.test(k)){ keys.add(k); if (k.startsWith('Arrow')) e.preventDefault(); } });
 addEventListener('keyup', e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); });
 addEventListener('blur', () => keys.clear());
@@ -2517,15 +2525,16 @@ function meAct(name, secs){ me.act = name; me.actT = secs; me.actNew = true; }
 function ensureMeAv(){ if (me.av || !CLIPS) return; const C = CLS3D[me.klass]; if (!CHAR[C.f]) return;
   me.av = makeAvatar(C.f, C.keep, 1.75); if (!me.av) return;
   /* [ANDRAT v5.1373.0] min ring i 2D-kartans "du ar har"-farg (MK.here), lysande */
-  const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(MK.here, 2.2), transparent: true, opacity: .95, depthWrite: false, blending: THREE.AdditiveBlending}));
+  /* [ANDRAT v5.1387.0] ORANGE SOM PA 2D-KARTAN (Chris): gul krockade med quests. Lysande tillsatsljus drog fargen mot gult, darfor vanlig farg pa ring och puls. */
+  const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(MK.here, 1.2), transparent: true, opacity: .95, depthWrite: false}));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.scale.setScalar(1.5); me.av.root.add(ring); me.av.ring = ring;
   /* [TILLAGT v5.1376.0] DU AR HAR (Chris 2026-10-31: svart att hitta sig sjalv): en stor pulserande orange ring pa marken och en ljusstrale
      uppat. Bada vaxer med kamerans avstand sa de syns aven fran hela varlden; stralen tonas bort nar man ar nara (skymmer annars gubben). */
-  const pulse = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 48), new THREE.MeshBasicMaterial({color: hdr(MK.here, 2), transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}));
+  const pulse = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 48), new THREE.MeshBasicMaterial({color: hdr(MK.here, 1.2), transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide}));
   pulse.rotation.x = -Math.PI / 2; pulse.position.y = .05; me.av.root.add(pulse); me.av.pulse = pulse;
   const bc = document.createElement('canvas'); bc.width = 4; bc.height = 128; const bg = bc.getContext('2d'), gr = bg.createLinearGradient(0, 0, 0, 128);
   gr.addColorStop(0, 'rgba(255,138,31,0)'); gr.addColorStop(.55, 'rgba(255,138,31,.35)'); gr.addColorStop(1, 'rgba(255,190,110,1)'); bg.fillStyle = gr; bg.fillRect(0, 0, 4, 128);
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.22, .32, 1, 16, 1, true), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(bc), color: hdr(MK.here, 1.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}));
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.22, .32, 1, 16, 1, true), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(bc), color: hdr(MK.here, 1), transparent: true, depthWrite: false, side: THREE.DoubleSide}));
   beam.geometry.translate(0, .5, 0); beam.renderOrder = 3; me.av.root.add(beam); me.av.beam = beam;
   scene.add(me.av.root); play(me.av, 'Idle', 0); }
 function dropMeAv(){ if (me.av){ freeAv(me.av); me.av = null; } meDisc = null; }   /* [ANDRAT v5.1377.0] skivan foljer med nya gubben vid klassbyte under flygning */
@@ -2538,7 +2547,10 @@ function drawMe(dt, t){
   if (!av) return;
   av.root.visible = !hidR(me.R);   /* [TILLAGT v5.1384.0] */
   av.root.position.set(me.x * K, (me.h || 0) * K, me.y * K);
-  let anim = 'Idle'; if (me.fly) anim = 'Jump_Idle'; else if (me.act) anim = me.act; else if (me.spd > 0) anim = me.spd > 60 ? 'Running_A' : 'Walking_A';
+  /* [TILLAGT v5.1387.0] hoppet: bara figuren lyfter, ringen och stralen stannar pa marken */
+  if (av.model.userData.y0 == null) av.model.userData.y0 = av.model.position.y;
+  if (me.jt > 0){ me.jt += dt / .6; if (me.jt >= 1) me.jt = 0; } const jp = me.jt > 0 ? me.jt : 0; av.model.position.y = av.model.userData.y0 + 4 * .95 * jp * (1 - jp);
+  let anim = 'Idle'; if (me.fly || jp > 0) anim = 'Jump_Idle'; else if (me.act) anim = me.act; else if (me.spd > 0) anim = me.spd > 60 ? 'Running_A' : 'Walking_A';
   if (me.act && me.actNew){ play(av, me.act, .15, me.actT <= 1.7); me.actNew = false; } else if (!me.act) play(av, anim, .15);
   const cur = av.model.rotation.y; let dl = ((me.face - cur + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; av.model.rotation.y = cur + dl * Math.min(1, dt * 10);
   av.ring.material.opacity = me.fly ? 0 : .95;
@@ -2549,7 +2561,7 @@ function drawMe(dt, t){
   if (me.fly && !meDisc){ meDisc = new THREE.Mesh(DISC_GEO, DISC_MAT); meDisc.rotation.x = -Math.PI / 2; meDisc.scale.setScalar(1.3); av.root.add(meDisc); }
   else if (!me.fly && meDisc){ av.root.remove(meDisc); meDisc = null; }
   av.mixer.update(dt);
-  stepHelper(me, dt, t, true); }   /* [TILLAGT v5.1353.0] */
+  stepHelper(me, dt, t, !hidR(me.R)); }   /* [TILLAGT v5.1353.0] */
 
 /* ===== KLICKBARA PLATSER (POI) ===== */
 const EXP_DEF = {"voxholm":{"The Grasslands":[["vox_grasslan_1","Break the First Cube",5,1]],"The Village":[["vox_village_1","Settle a Plot Dispute",15,3]],"The Mineshaft":[["vox_mineshaf_2","Chase the Glowing Seam",45,5]],"The Lava Layer":[["vox_lavalaye_2","Salvage a Failed Build",120,7]],"The Skybuild":[["vox_skybuild_3","Finish the Half-Built Bridge",240,9]],"The Deepshaft":[["vox_deepshaf_3","Whatever Dug Here First",480,10]]},"drakemark":{"Gnome Square":[["dra_gnomesqu_1","Catch a Runaway Invention",5,11]],"Troll Mire":[["dra_trollmir_1","Pay the Crossing Toll",15,13]],"Sand Valley":[["dra_sandvall_2","Ride Out With the Caravan",45,15]],"The Black Keep":[["dra_blackkee_2","Dine at the Long Table",120,17]],"The Spine":[["dra_spine_3","Cross the Ridge at Night",240,19]],"The Dragon Nest":[["dra_dragonne_3","Climb to the Nest",480,20]]},"cutlassbay":{"Port Town":[["cut_porttown_1","Buy the Same Map Twice",5,21]],"The Shallows":[["cut_shallows_1","Wade the Clear Water",15,23]],"Jungle Climb":[["cut_junglecl_2","Take the Canopy Road",45,25]],"Wreck Reef":[["cut_wreckree_2","The People Living Below",120,27]],"Smuggler's Cove":[["cut_smuggler_3","Trade Where the Port Cannot Hear",240,29]],"The Black Hull":[["cut_blackhul_3","Nobody Comes Back",480,30]]},"novacommand":{"The Dock Ring":[["nov_dockring_1","Find a Berth in the Chaos",5,31]],"The Garrison":[["nov_garrison_1","Stand the Last Muster",15,33]],"Alien Bazaar":[["nov_alienbaz_2","Trade Without Words",45,35]],"Asteroid Field":[["nov_asteroid_2","The Rocks Are Moving",120,37]],"The Silent Cruiser":[["nov_silentcr_3","Walk the Whole Hull",240,39]],"The Flagship":[["nov_flagship_3","All the Way to the Bridge",480,40]]},"quarantine":{"The Wall":[["qua_wall_1","Trade Under the Guns",5,41]],"The Suburbs":[["qua_suburbs_1","Walk the Quiet Street",15,43]],"The Mall":[["qua_mall_2","Take a Cut of the Mall",45,45]],"The Overpass":[["qua_overpass_2","Run a Looter Route",120,47]],"The Farm":[["qua_farm_3","Bring In the Guarded Harvest",240,49]],"The Hospital":[["qua_hospital_3","The Floor Where It Started",480,50]]}};   // kopia av EXPEDITIONS i index.html (id, namn, minuter, niva) - anvands bara tills spelet skickar setExpeditions
@@ -2750,10 +2762,10 @@ function drawPois(c, W, H, D, placed){
       if (!hov && placed.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y)) return; placed.push(r);
       label(c, txt, q.x, ly, {size: 11, w: 700, col: p.kind === 'quest' ? (p.grey ? '#cbd5e1' : '#ffd24a') : '#fff', bg: 'rgba(0,0,0,.6)'}); } });
   /* din figur och vagen dit */
-  if (me.R && me.path.length && D < 400){ c.fillStyle = 'rgba(253,224,71,.75)'; let prev = me, acc = 0;
+  if (me.R && me.path.length && D < 400){ c.fillStyle = 'rgba(255,138,31,.85)'; let prev = me, acc = 0;
     me.path.forEach(p => { const d = Math.hypot(p.x - prev.x, p.y - prev.y); for (let s = (20 - acc); s < d; s += 20){ const x = prev.x + (p.x - prev.x) * s / d, y = prev.y + (p.y - prev.y) * s / d, q = toScreen(x * K, .1, y * K); if (q.on){ c.beginPath(); c.arc(q.x, q.y, 2.4, 0, 6.2832); c.fill(); } } acc = (acc + d) % 20; prev = p; }); }
   if (me.R && !hidR(me.R)){ const q = toScreen(me.x * K, (me.h || 0) * K + 2.25, me.y * K); if (q.on){ me.sx = q.x; me.sy = q.y + 20;
-    label(c, '★ ' + me.namn, q.x, q.y, {size: 12, w: 800, col: '#1a1200', bg: 'rgba(253,224,71,.92)'}); placed.push({x: q.x - 50, y: q.y - 10, w: 100, h: 20}); } } }
+    label(c, '★ ' + me.namn, q.x, q.y, {size: 12, w: 800, col: '#1a0a00', bg: 'rgba(255,138,31,.96)'}); placed.push({x: q.x - 50, y: q.y - 10, w: 100, h: 20}); } } }
 let hoverPoi = null;
 glc.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || ptrs.size) return; const p = poiAt(e.clientX, e.clientY); if (p !== hoverPoi){ hoverPoi = p; glc.classList.toggle('hov', !!p); } });
 
@@ -2774,9 +2786,6 @@ $('d2').onclick = () => { try { if (parent !== window && typeof parent.genesisMa
   location.href = 'genesis-map.html'; };
 $('meBtn').onclick = () => camToMe();
 $('regBtn').onclick = () => { const R = regBtnR(); if (!R) return; if (GLB.on) globeLeave(R); else globeEnter(R); };
-/* [TILLAGT v5.1373.0] glodknappen vid klockan: av/pa, sparas (auto -> av -> pa -> av ...) */
-$('glowBtn').onclick = () => { GLOWPREF = FX.on ? 'off' : 'on'; try { localStorage.setItem('genesis.map3dGlow', GLOWPREF); } catch (e){} fxSet(GLOWPREF === 'on', GLOWPREF); };
-$('glowBtn').classList.toggle('on', FX.on);
 if (MOBILE || Q.get('joy') === '1') document.body.classList.add('joyon');
 
 /* ===== START ===== */
@@ -2796,8 +2805,10 @@ function frame(now){
   const dt = Math.min(.1, (now - lastT) / 1000); lastT = now; fpsAcc += dt; fpsN++; if (fpsAcc > 1){ fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   if (document.hidden) return;
   /* [TILLAGT v5.1377.0] spelet satter __gpOff nar kartan inte syns och __gpLow i stromsparlage (som 2D-kartan): ingen ritning da, inget glod i sparlage (buggsvep) */
+  document.body.classList.toggle('clockon', window.__gpClock === true);
   if (window.__gpOff) return;
-  if (window.__gpLow && FX.on) fxSet(false, 'low'); else if (!window.__gpLow && !FX.on && FX.why === 'low') fxSet(true, GLOWPREF);
+  /* [ANDRAT v5.1387.0] GLODET STYRS FRAN SETTINGS > POWER (Chris: en stromgrej). Egen brytare: forut hangde det pa Still globe, sa knappen pa kartan slocknade igen direkt i spelet. */
+  if (window.__gpNoGlow !== undefined && FX.why !== 'error' && FX.on === !!window.__gpNoGlow){ GLOWPREF = window.__gpNoGlow ? 'off' : 'on'; fxSet(!window.__gpNoGlow, GLOWPREF); }
   step(dt, now); directorStep(dt, now); regionVis(false); renderRegBtn();   /* [TILLAGT v5.1384.0] */
   const DI = dayInfo(), night = applyTime(DI);
   lightMats.forEach(m => { m.opacity = clamp(.22 + night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1373.0] lite sken aven pa dagen */   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
