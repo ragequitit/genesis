@@ -2704,9 +2704,12 @@ function beaconMesh(){ const g = new THREE.Group();
   const fix = mk(BC_RING, {}), beam = mk(BC_BEAM, {map: BC_TXT});
   fix.rotation.x = -Math.PI / 2; fix.position.y = .05; beam.renderOrder = 3; g.add(fix, beam);
   g.userData = {fix, beam, col: ''}; return g; }
+/* [ANDRAT v5.1422.0] 0 = de tva yttersta zoomstegen (bara noder som i 2D), 1 = inzoomat (ikoner, ring och pelare) */
+function iconK(D){ if (!FR || EDIT || GLB.on) return 1; const far = viewFor(regionBox(FR)).dist * 1.15; return clamp((far / 1.4 * .97 - D) / (far / 1.4 * .97 - far / 1.96), 0, 1); }
 function stepBeacon(p, t){
   const d = cam.dist, near = !GLB.on && !hidR(p.R) && (d < 460 || p.R === FR) && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
-  if (!near){ if (p.bc) p.bc.visible = false; return; }
+  const bk = iconK(d);   /* [ANDRAT v5.1422.0] Chris: inga pelare och ringar helt utzoomat, bara noden */
+  if (!near || bk <= .01){ if (p.bc) p.bc.visible = false; return; }
   if (!p.bc){ p.bc = beaconMesh(); p.bc.position.set(p.x * K, 0, p.y * K); scene.add(p.bc); }
   const u = p.bc.userData, dim = p.grey || p.state === 'locked' || p.state === 'running' || zoneState(p.R.id, p.zn) === 'uncharted';
   const col = dim ? '#8b93a7' : p.kind === 'quest' ? (p.mark === '?' ? '#ffd24a' : MK.quest) : POI_COL[p.kind];
@@ -2716,7 +2719,7 @@ function stepBeacon(p, t){
     /* med glod bleker slutbilden fargerna: mattas upp i forvag sa de haller */
     const cc = hdr(col, gain); if (FX.on && !dim){ const l = (cc.r + cc.g + cc.b) / 3; cc.setRGB(Math.max(0, l + (cc.r - l) * 1.7), Math.max(0, l + (cc.g - l) * 1.7), Math.max(0, l + (cc.b - l) * 1.7)); }
     [u.fix, u.beam].forEach(m => m.material.color.copy(cc)); }
-  p.bc.visible = true; const base = clamp(d * .028, 1.1, 10), a = dim ? .45 : 1;
+  p.bc.visible = true; const base = clamp(d * .028, 1.1, 10), a = (dim ? .45 : 1) * bk;
   u.fix.scale.setScalar(base * .42); u.fix.material.opacity = a;
   u.beam.scale.set(clamp(d * .01, .35, 3), clamp(2 + d * .14, 3, 45), clamp(d * .01, .35, 3));
   u.beam.material.opacity = clamp((d - 10) / 30, 0, 1) * a; }
@@ -2792,7 +2795,7 @@ function drawPois(c, W, H, D, placed){
   if (D > 700 && !FR) return;
   const t = performance.now() / 1000;
   /* [TILLAGT v5.1390.0] DE TVA YTTERSTA ZOOMSTEGEN VISAR BARA CIRKLAR OCH PELARE (Chris 2026-11-01): ikonerna tonas in nar man zoomar in. Ett steg = knappens 1.4 ggr. Platserna gar att trycka pa hela tiden. */
-  let iconA = 1; if (FR && !EDIT && !GLB.on){ const far = viewFor(regionBox(FR)).dist * 1.15; iconA = clamp((far / 1.4 * .97 - D) / (far / 1.4 * .97 - far / 1.96), 0, 1); }
+  const iconA = iconK(D);
   pois.forEach(p => {
     if (hidR(p.R)) return;   /* [TILLAGT v5.1384.0] */
     /* [ANDRAT v5.1385.0] SOM 2D-KARTAN (Chris): i regionen man tittar pa syns och gar allt att trycka pa, aven utzoomat och aven nar figuren ar i en annan region */
@@ -2805,8 +2808,8 @@ function drawPois(c, W, H, D, placed){
     const hov = !!hoverPoi && hoverPoi.key === p.key, big = D < 80 ? 1 : .8;   /* [ANDRAT v5.1353.0] jamfor pa nyckeln: markena byggs om nar ny data kommer, och da krympte ikonen under musen efter nagon sekund (Chris) */
     /* [ANDRAT v5.1419.0] UTZOOMAD: FARGAD NOD OCH RUTA SOM I 2D-KARTAN (Chris): ingen ikon och ingen text, bara noden. Musen over visar en ruta med namn och slag. */
     const ia = p.kind === 'boss' || p.kind === 'event' ? 1 : iconA;
-    if (ia < 1){ const g0 = toScreen(p.x * K, .05, p.y * K), nc = dim ? '#8b93a7' : p.kind === 'quest' ? MK.quest : col, nr = (hov ? 10 : 8) * (1 - ia * .4);
-      c.save(); c.globalAlpha = 1 - ia; c.translate(g0.x, g0.y); c.rotate(Math.PI / 4); c.shadowColor = nc; c.shadowBlur = 14; c.fillStyle = nc; c.fillRect(-nr, -nr, nr * 2, nr * 2); c.shadowBlur = 0; c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.75)'; c.strokeRect(-nr, -nr, nr * 2, nr * 2); c.restore();
+    if (ia < 1){ const g0 = toScreen(p.x * K, .05, p.y * K), nc = dim ? '#8b93a7' : p.kind === 'quest' ? MK.quest : col, nr = hov ? 5 : 4;   /* [ANDRAT v5.1422.0] 8 px med mjukt sken, samma som noderna pa 2D-kartan */
+      c.save(); c.globalAlpha = 1 - ia; c.translate(g0.x, g0.y); c.rotate(Math.PI / 4); c.shadowColor = nc; c.fillStyle = nc; c.shadowBlur = 22; c.fillRect(-nr, -nr, nr * 2, nr * 2); c.shadowBlur = 10; c.fillRect(-nr, -nr, nr * 2, nr * 2); c.restore();
       if (ia <= .01){ p.sx = g0.x; p.sy = g0.y; if (hov) nodeBox = {x: g0.x, y: g0.y, name: p.label, kind: ({vein: 'NODE', landing: 'HARBOUR', vendor: 'VENDOR', vault: 'VAULT', dungeon: 'DUNGEON', quest: 'QUEST', encounter: 'ENCOUNTER', expedition: 'EXPEDITION'})[p.kind] || String(p.kind).toUpperCase(), col: nc}; return; } }
     c.globalAlpha = (dim ? .55 : 1) * ia;
     if (p.kind === 'quest'){ const bob = 0, fs = (hov ? 30 : 25) * big;
