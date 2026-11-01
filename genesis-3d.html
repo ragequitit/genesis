@@ -212,6 +212,7 @@
   #help{left:14px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 58px);font-size:11px;color:var(--ink2);background:rgba(8,14,22,.6);border-radius:8px;padding:5px 9px;pointer-events:none}
   body.joyon #help{display:none}
   body.tr-on #news{display:none}
+  body.inframe #news{display:none}   /* [TILLAGT v5.1385.0] remsan med fynd behovs inte i spelet: chatten visar redan vad man far (Chris) */
   .chip.me{border-color:#fde047;color:#fde68a}
   @media (max-width:640px){
     #legend{display:none}
@@ -1756,7 +1757,8 @@ function globeEnter(R, quick){ if (GLB.on) return; R = R || (me.R) || regNear();
 /* ut ur klotet; med R hamnar man ovanfor den regionen (i stallet for dar man var) */
 function globeLeave(R){ if (!GLB.on) return; if (R) FR = R; GLB.on = false; GLB.anim = null; document.body.classList.remove('globe'); pinch = null;
   gFade(() => { if (R){ const v = viewFor(regionBox(R)); Object.assign(cam, v, {dist: Math.min(globeAt(R) * .95, MAXD)}); camAnim.on = false;
-    if (R === me.R && !me.fly) camToMe(1200); else flyTo(v, 1100); } renderCard(); }); }
+    /* [ANDRAT v5.1385.0] SOM OM MAN REST DIT (Chris 2026-11-01): alltid hela regionen, aven den egna - inte narbild pa figuren */
+    follow = null; flyTo(v, 1100); } renderCard(); }); }
 /* tryck pa klotet: vilken region (form eller namn) ligger under fingret? */
 const gRay = new THREE.Raycaster(), gSph = new THREE.Sphere(new THREE.Vector3(), RG + GH), gHit = new THREE.Vector3();
 function globePick(sx, sy){ v2.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); gRay.setFromCamera(v2, gCam);
@@ -2008,7 +2010,7 @@ function drawOverlay(){
     const za = clamp((D - 38) / 70, 0, 1) * clamp((820 - D) / 220, 0, 1);   /* hela varlden: bara regionernas namn */
     if (za > .02 && !R.locked){ c.globalAlpha = za * .92; if ('letterSpacing' in c) c.letterSpacing = '2px';
       const fz = clamp(5200 / D, MOBILE ? 12 : 13, MOBILE ? 24 : 30);
-      const zl = R.zones.map(z => ({x: z.c.x, y: z.c.y, txt: z.namn.toUpperCase(), sub: z.i === 5 ? 'DUNGEON' : (zoneState(R.id, z.namn) === 'uncharted' ? 'UNCHARTED' : ''), col: R.acc[z.i]}));
+      const zl = R.zones.map(z => ({x: z.c.x, y: z.c.y, txt: z.namn.toUpperCase(), sub: z.i === 5 ? 'DUNGEON' : (/^(uncharted|unknown)$/.test(zoneState(R.id, z.namn)) ? 'UNCHARTED' : ''), col: R.acc[z.i]}));
       zl.push({x: R.landing.x, y: Math.min(...R.landing.poly.map(q => q.y)) + 60, txt: 'THE LANDING', sub: '', col: R.neon.hue});
       const zbox = [];
       zl.forEach(z => { const q = toScreen(z.x * K, .3, z.y * K); if (!q.on || q.x < -200 || q.x > W + 200 || q.y < -30 || q.y > H + 30) return;
@@ -2365,7 +2367,9 @@ function onGameState(){
   renderTravel(); }
 /* spelet har rest till en annan region: figuren flyger over havet till hamnen dar */
 function meFly(R, p){ me.path = []; me.goal = null; me.fly = {R, fx: me.x, fy: me.y, tx: p.x, ty: p.y, p: 0, dur: clamp(Math.hypot(p.x - me.x, p.y - me.y) / 900, 2.5, 7)};
-  me.fly.hmax = clamp(Math.hypot(p.x - me.x, p.y - me.y) * .12, 60, 300); follow = ME; if (cam.dist < 120) flyTo({tx: cam.tx, tz: cam.tz, dist: 160}, 900); }
+  me.fly.hmax = clamp(Math.hypot(p.x - me.x, p.y - me.y) * .12, 60, 300); follow = null;
+  /* [ANDRAT v5.1385.0] en region i taget: kameran fick inte lamna den gamla regionen, sa man blev kvar dar med figuren borta */
+  if (!GLB.on && !EDIT) gFade(() => { const v = viewFor(regionBox(R)); FR = R; camAnim.on = false; Object.assign(cam, v); selRegion = null; renderCard(); }); }
 
 /* ===== GANGNAT OCH SOKVAG (A* pa ett rutnat per region, byggt forsta gangen det behovs) ===== */
 function navOf(R){
@@ -2418,7 +2422,10 @@ function findPath(R, fx, fy, tx, ty){
 function walkTo(x, y, poi){
   if (!me.R || me.fly) return false;
   const path = findPath(me.R, me.x, me.y, x, y); if (!path || !path.length) return false;
-  me.path = path; me.goal = {x, y, poi}; me.act = null; follow = ME;
+  me.path = path; me.goal = {x, y, poi}; me.act = null;
+  /* [ANDRAT v5.1385.0] tryck pa en plats: rutan oppnas och figuren gar, men kartan ligger still - som i 2D (Chris) */
+  if (poi) return true;
+  follow = ME;
   if (cam.dist > 230) flyTo({tx: me.x * K, tz: me.y * K + 1, dist: 120}, 900);
   return true; }
 function camToMe(ms){ if (!me.R) return; follow = ME; flyTo({tx: me.x * K, tz: me.y * K + 1, dist: Math.min(cam.dist, MOBILE ? 46 : 58)}, ms == null ? 900 : ms); }
@@ -2547,7 +2554,9 @@ function rebuildPois(){
   poisDirty = false; const old = new Map(pois.map(p => [p.key, p])), out = [], used = new Map();
   const slotFor = (z, id) => { let u = used.get(z); if (!u){ u = new Set(); z.nodes.forEach(n => u.add(z.slots.indexOf(z.slots.find(q => q.x === n.x && q.y === n.y)))); used.set(z, u); }
     const n = z.slots.length; let k = hash(String(id)) % n; for (let i = 0; i < n && u.has(k); i++) k = (k + 1) % n; u.add(k); return z.slots[k]; };
-  const add = p => { const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
+  /* [ANDRAT v5.1385.0] SOM 2D-KARTAN: en zon dronaren inte kartlagt visar inga platser. Forut syntes de, och motets ruta fastnade pa "Looking around" (servern nekar okartlagda zoner). */
+  const add = p => { if (/^(quest|encounter|expedition|dungeon)$/.test(p.kind) && /^(uncharted|unknown)$/.test(zoneState(p.R.id, p.zn))) return;
+    const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
   LAND.forEach(R => { const L = R.landing, dz = R.zones[5];
     add({key: R.id + '#landing', kind: 'landing', R, zn: LANDING, x: L.pad.x, y: L.pad.y, h: .6, label: 'The Landing', sub: R.namn + ' · harbour', pick: {kind: 'zone', region: R.id, zone: LANDING}});
     add({key: R.id + '#vendor', kind: 'vendor', R, zn: LANDING, x: L.vendor.x, y: L.vendor.y, h: 3.2, label: 'Vendor', sub: 'Regional trader', pick: {kind: 'vendor', region: R.id, zone: LANDING}});
@@ -2557,7 +2566,7 @@ function rebuildPois(){
   const st = G.state || {}, cnt = {};
   (G.exps || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const k = cnt[e.zone] = (cnt[e.zone] || 0) + 1;
     add({key: 'x#' + e.id, kind: 'expedition', R: z.R, zn: z.namn, x: z.camp.x - 26 + (k - 1) * 16, y: z.camp.y - 4 + (k - 1) * 12, h: 2.4, label: str(e.label, 40) || 'Expedition',
-      sub: e.state === 'running' ? 'Under way' : e.state === 'locked' ? 'Out of reach' + (e.lvl ? ' · lvl ' + e.lvl : '') : 'Expedition' + (e.mins ? ' · ' + (e.mins >= 60 ? e.mins / 60 + 'h' : e.mins + 'm') : ''),
+      sub: e.state === 'running' ? 'Under way' : e.state === 'locked' ? (e.lvl ? 'Out of reach · lvl ' + e.lvl : 'Not found yet') : 'Expedition' + (e.mins ? ' · ' + (e.mins >= 60 ? e.mins / 60 + 'h' : e.mins + 'm') : ''),
       state: e.state, pick: {kind: 'expedition', region: rid, zone: z.namn, id: e.id}}); });
   (Array.isArray(st.quests3d) ? st.quests3d : Array.isArray(st.quests) ? st.quests : []).forEach(q => { if (!q || q.id == null || q.id === 'wboss') return;   /* [ANDRAT v5.1353.0] quests3d bar ! och ? */ const [rid, zn] = splitKey(q.zone), z = zoneOf(rid, zn); if (!z) return; const s = slotFor(z, 'q' + q.id);
     add({key: 'q#' + q.id, kind: 'quest', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 2.6, label: str(q.label, 40) || 'QUEST', mark: q.mark === '?' ? '?' : '!', grey: !!q.grey,
@@ -2591,7 +2600,7 @@ function beaconMesh(){ const g = new THREE.Group();
   fix.rotation.x = pulse.rotation.x = -Math.PI / 2; fix.position.y = .05; pulse.position.y = .06; beam.renderOrder = 3; g.add(fix, pulse, beam);
   g.userData = {fix, pulse, beam, col: ''}; return g; }
 function stepBeacon(p, t){
-  const d = cam.dist, near = !GLB.on && !hidR(p.R) && d < 460 && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
+  const d = cam.dist, near = !GLB.on && !hidR(p.R) && (d < 460 || p.R === FR) && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
   if (!near){ if (p.bc) p.bc.visible = false; return; }
   if (!p.bc){ p.bc = beaconMesh(); p.bc.position.set(p.x * K, 0, p.y * K); scene.add(p.bc); }
   const u = p.bc.userData, dim = p.grey || p.state === 'locked' || p.state === 'running' || zoneState(p.R.id, p.zn) === 'uncharted';
@@ -2650,10 +2659,11 @@ function stepPois(dt, t){
       if (p.av.ring) p.av.ring.material.opacity = .5 + .3 * Math.sin(t * 3); }
     else if (p.kind === 'vein' || p.kind === 'event'){
       if (!p.mesh){ p.mesh = p.kind === 'vein' ? veinMesh(p.state === 'dim') : eventMesh(); p.mesh.position.set(p.x * K, 0, p.y * K); scene.add(p.mesh); }
-      p.mesh.visible = cam.dist < 300;
+      p.mesh.visible = cam.dist < 300 || p.R === FR;
       if (p.kind === 'event') p.mesh.userData.ring.scale.setScalar(1 + .2 * Math.sin(t * 3)); else p.mesh.rotation.y = t * .3; } });
   VEIN_MAT.emissiveIntensity = .6 + .5 * Math.sin(t * 3); }
-function poiAt(sx, sy){ let best = null, bd = MOBILE ? 30 : 24; pois.forEach(p => { if (!p.vis) return; const d = Math.hypot(p.sx - sx, p.sy - sy); if (d < bd){ bd = d; best = p; } }); return best; }
+function poiAt(sx, sy){ let best = null, bd = MOBILE ? 30 : 24; pois.forEach(p => { if (!p.vis) return; let d = Math.hypot(p.sx - sx, p.sy - sy); if (BC_KIND[p.kind]) d = Math.min(d, Math.hypot((p.sx - sx) * .55, p.sy + 22 - sy));   /* [TILLAGT v5.1385.0] ordet under ikonen ar ocksa en tryckyta */
+    if (d < bd){ bd = d; best = p; } }); return best; }
 /* [ANDRAT v5.1353.0] DIREKT + GA (Chris 9): rutan oppnas i samma ogonblick som man trycker, och figuren borjar ga dit
    samtidigt - som i 2D men med rorelse som stamning. Veins skickar med skarmpunkten sa matarne ritas dar man tryckte. */
 function onPoi(P){
@@ -2667,12 +2677,14 @@ function onPoi(P){
 /* etiketter ovanpa platserna (ritas i drawOverlay) */
 function drawPois(c, W, H, D, placed){
   pois.forEach(p => { p.vis = false; });
-  if (D > 700) return;
+  if (D > 700 && !FR) return;
   const t = performance.now() / 1000;
   pois.forEach(p => {
     if (hidR(p.R)) return;   /* [TILLAGT v5.1384.0] */
-    if (D > 300 && (p.R !== me.R ? p.kind !== 'landing' : !/landing|quest|dungeon|boss/.test(p.kind))) return;
-    if (D > (p.kind === 'expedition' ? 300 : 160) && (p.kind === 'gather' || p.kind === 'expedition')) return;   /* [ANDRAT v5.1383.0] expeditioner syns lika langt som quests */
+    /* [ANDRAT v5.1385.0] SOM 2D-KARTAN (Chris): i regionen man tittar pa syns och gar allt att trycka pa, aven utzoomat och aven nar figuren ar i en annan region */
+    const inF = !EDIT && p.R === FR;
+    if (!inF && D > 300 && (p.R !== me.R ? p.kind !== 'landing' : !/landing|quest|dungeon|boss/.test(p.kind))) return;
+    if (!inF && D > (p.kind === 'expedition' ? 300 : 160) && (p.kind === 'gather' || p.kind === 'expedition')) return;   /* [ANDRAT v5.1383.0] expeditioner syns lika langt som quests */
     const q = toScreen(p.x * K, p.h, p.y * K); if (!q.on || q.x < -30 || q.x > W + 30 || q.y < -30 || q.y > H + 30) return;
     p.vis = true; p.sx = q.x; p.sy = q.y;
     const ik = p.state === 'cooldown' ? 'rest' : p.ico || p.kind, col = POI_COL[p.ico || p.kind] || '#fff', dim = p.state === 'cooldown' || p.state === 'dim' || p.state === 'running' || p.state === 'locked' || zoneState(p.R.id, p.zn) === 'uncharted';
@@ -2696,7 +2708,7 @@ function drawPois(c, W, H, D, placed){
       c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
     c.globalAlpha = 1;
     /* [TILLAGT v5.1383.0] VAD AR DET (Chris: som 2D-kartans noder): ett kort ord i platsens farg under ikonen */
-    if (BC_KIND[p.kind] && D < 300){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : 'EXPEDITION';
+    if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : 'EXPEDITION';
       const ty = q.y + (p.kind === 'quest' ? 20 : 22); c.font = '800 9px sans-serif'; const tw = c.measureText(tag).width + 10, tr = {x: q.x - tw / 2, y: ty - 7, w: tw, h: 14};
       if (hov || !placed.some(o => tr.x < o.x + o.w && tr.x + tr.w > o.x && tr.y < o.y + o.h && tr.y + tr.h > o.y)){ placed.push(tr);
         label(c, tag, q.x, ty, {size: 9, w: 800, col: dim || p.grey ? '#9ca3af' : p.kind === 'quest' ? MK.quest : POI_COL[p.kind], bg: 'rgba(0,0,0,.7)'}); } }
