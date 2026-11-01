@@ -291,6 +291,7 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
 
 /* ===== INSTALLNINGAR ===== */
 /* [ANDRAT genesis-world] riktig data: serverns skrivskyddade world_view() (bara spelnamn, testkonton bortfiltrerade).
@@ -545,6 +546,12 @@ let composer = null, bloomPass = null, rpass = null;   /* [ANDRAT v5.1380.0] rpa
 function fxBuild(){ if (composer) return;
   const rt = new THREE.WebGLRenderTarget(1, 1, {type: THREE.HalfFloatType, samples: FX.small ? 0 : 4});
   const c = new EffectComposer(renderer, rt); c.addPass(rpass = new RenderPass(scene, camera));
+  /* [TILLAGT v5.1384.0] SVART RUTA OCH JATTESTJARNOR (Chris 2026-11-01): en enda trasig pixel (ogiltigt tal fran en pytteliten sten langt bort)
+     smetades ut av glodet till en stor svart eller vit fyrkant, ibland over hela skarmen. Den har passagen byter sadana pixlar mot svart
+     och taker for starka varden innan glodet far dem. */
+  c.addPass(new ShaderPass({uniforms: {tDiffuse: {value: null}}, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); vec4 s = clamp(c, 0.0, 24.0);' +
+      ' if (any(isnan(c)) || any(isinf(c)) || any(notEqual(c, c))) s = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = s; }'}));
   const bp = new UnrealBloomPass(new THREE.Vector2(256, 256), FX.small ? .6 : .95, FX.small ? .35 : .5, .92); c.addPass(bp);
   c.addPass(new OutputPass()); composer = c; bloomPass = bp; fxSize(); }
 function fxSize(){ if (!composer) return; const pr = renderer.getPixelRatio(); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
@@ -1126,14 +1133,16 @@ LAND.forEach(R => {
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 const INST = {};   /* [TILLAGT v5.1379.0] nyckel -> instansmeshar, sa editorn kan bygga om en modell */
 function buildInstances(key){
-  (INST[key] || []).forEach(im => { scene.remove(im); im.dispose(); }); INST[key] = [];
-  const T = TPL[key], list = []; LAND.forEach(R => R.items.forEach(i => { if (i.key === key) list.push(i); })); if (!T || !list.length) return;
+  (INST[key] || []).forEach(im => { if (im.parent) im.parent.remove(im); im.dispose(); }); INST[key] = [];
+  /* [ANDRAT v5.1384.0] en uppsattning per region, i regionens grupp - sa att bara regionen man ar i kan visas (Chris) */
+  const T = TPL[key]; if (!T) return;
+  LAND.forEach(R => { const list = R.items.filter(i => i.key === key); if (!list.length) return;
   T.parts.forEach(p => {
     const im = new THREE.InstancedMesh(p.geo, p.mat, list.length); INST[key].push(im);
     list.forEach((it, i) => { tmpP.set(it.x * K, 0, it.y * K); tmpQ.setFromAxisAngle(UP, it.rot); tmpS.setScalar(it.sc);
       tmpM.compose(tmpP, tmpQ, tmpS).multiply(p.m); im.setMatrixAt(i, tmpM); });
     im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); im.castShadow = T.h > .7; im.receiveShadow = true;
-    scene.add(im); });
+    R.group.add(im); }); });
 }
 /* nattljus: tva punktmoln per region (sma och stora sken) */
 function glowTex(){ const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -1585,7 +1594,15 @@ function viewFor(b){ const yaw = portrait() ? Math.PI / 2 : 0, w = b.x1 - b.x0, 
   return {tx: (b.x0 + b.x1) / 2, tz: (b.z0 + b.z1) / 2 + (yaw ? 0 : 2), dist: clamp(yaw ? fitDist(d, w) : fitDist(w, d), 8, MAXD), yaw}; }
 function viewOverview(){ const v = viewFor(allBox); v.dist *= portrait() ? 1.32 : .92; return v; }   /* [ANDRAT v5.1378.0] 1.12 -> 1.32: Quarantine och Windfall klipptes nedtill pa telefon (kritiker) */
 const regionBox = R => ({x0: R.bb.x0 * K - 2, z0: R.bb.y0 * K - 3, x1: R.bb.x1 * K + 2, z1: R.bb.y1 * K + 2});
-function flyTo(v, ms){ if (GLB.on) globeLeave();   /* [TILLAGT v5.1380.0] allt som flyger till en plats lamnar klotet */
+/* [TILLAGT v5.1384.0] EN REGION I TAGET (Chris 2026-11-01: "regionerna bredvid varandra ar fel"): zoomar man in fran jordgloben
+   visas bara den regionen - med samma 3D-kansla som forut. Kameran stannar over den; zoomar man ut kommer globen igen. Editorn visar allt. */
+let FR = null;
+const regAt = (x, z) => { let best = LAND[0], bd = 1e18; LAND.forEach(R => { const d = ((R.bb.x0 + R.bb.x1) / 2 * K - x) ** 2 + ((R.bb.y0 + R.bb.y1) / 2 * K - z) ** 2; if (d < bd){ bd = d; best = R; } }); return best; };
+const hidR = R => !EDIT && !GLB.on && !!FR && !!R && R !== FR;
+function regionVis(all){ REG.forEach(R => { R.group.visible = all || !hidR(R); });
+  const dv = all || !hidR(REG_BY.drakemark); dragon.g.visible = dv; if (dragon.shadow) dragon.shadow.visible = dv;
+  const sv = all || !hidR(REG_BY.novacommand); ships.forEach(S => { S.g.visible = sv; }); }
+function flyTo(v, ms){ if (v && v.tx != null && !EDIT) FR = regAt(v.tx, v.tz); if (GLB.on) globeLeave();   /* [TILLAGT v5.1380.0] allt som flyger till en plats lamnar klotet */
   touched = true; camAnim.on = true; camAnim.t0 = performance.now(); camAnim.ms = ms || 1100; camAnim.a = {...cam}; let yw = v.yaw != null ? v.yaw : cam.yaw; yw = cam.yaw + ((((yw - cam.yaw) % 6.2832) + 9.4248) % 6.2832 - 3.1416);
   camAnim.b = {tx: v.tx, tz: v.tz, dist: clamp(v.dist, 4, MAXD), yaw: yw}; }
 function overview(ms){ globeEnter(); }   /* [ANDRAT v5.1380.0] hela varlden = jordgloben */
@@ -1594,9 +1611,10 @@ function focusBoss(ms){ if (!boss) return; flyTo({tx: boss.x * K, tz: boss.y * K
 function bossCinema(){ if (performance.now() - lastInput > 10000 && !follow) focusBoss(1800); }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), v2 = new THREE.Vector2(), hit = new THREE.Vector3();
 function groundAt(sx, sy){ v2.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); camera.updateMatrixWorld(); ray.setFromCamera(v2, camera); return ray.ray.intersectPlane(plane, hit) ? hit.clone() : null; }
-function clampCam(){ cam.tx = clamp(cam.tx, allBox.x0 - 30, allBox.x1 + 30); cam.tz = clamp(cam.tz, allBox.z0 - 30, allBox.z1 + 30); cam.dist = clamp(cam.dist, 4, MAXD);
+function clampCam(){ const fb = FR && !EDIT ? FR.bb : null, bx = fb ? {x0: fb.x0 * K, z0: fb.y0 * K, x1: fb.x1 * K, z1: fb.y1 * K} : allBox, m = fb ? 10 : 30;   /* [ANDRAT v5.1384.0] kameran stannar over fokusregionen */
+  cam.tx = clamp(cam.tx, bx.x0 - m, bx.x1 + m); cam.tz = clamp(cam.tz, bx.z0 - m, bx.z1 + m); cam.dist = clamp(cam.dist, 4, MAXD);
   /* [TILLAGT v5.1380.0] zoomar man ut forbi regionen kommer jordgloben (regionerna bredvid varandra visas aldrig) */
-  if (!GLB.on){ const R = regNear(), m = globeAt(R); if (cam.dist > m){ cam.dist = m; globeEnter(R); } } }
+  if (!GLB.on){ const R = FR || regNear(), m = globeAt(R); if (cam.dist > m){ cam.dist = m; globeEnter(R); } } }
 function zoomAt(sx, sy, f){ if (GLB.on){ globeZoom(Math.pow(f, .6)); return; } touched = true; const a = groundAt(sx, sy); cam.dist = clamp(cam.dist * f, 4, MAXD); applyCam(); const b = groundAt(sx, sy);
   if (a && b){ cam.tx += a.x - b.x; cam.tz += a.z - b.z; } clampCam(); }
 const scr = new THREE.Vector3();
@@ -1674,7 +1692,7 @@ const gHue = R => R.locked ? '#8a96a8' : R.neon.hue;
 const GSPACE = {belt: null, moon: null, ships: [], shipsReady: false, comet: null, cometT: 3};
 (function buildSpace(){
   const r = rng(4242), n = MOBILE ? 110 : 170, belt = new THREE.Group(); belt.rotation.set(.38, 0, .16); gScene.add(belt); GSPACE.belt = belt;
-  const rockM = new THREE.MeshStandardMaterial({color: 0x5a5068, roughness: .9, flatShading: true, emissive: 0x2a1a4a, emissiveIntensity: .6});
+  const rockM = new THREE.MeshStandardMaterial({color: 0x5a5068, roughness: .9,   /* [ANDRAT v5.1384.0] utan flatShading: platt skuggning pa pyttesma stenar langt bort gav ogiltiga pixlar */ emissive: 0x2a1a4a, emissiveIntensity: .6});
   const im = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), rockM, n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sv = new THREE.Vector3(), pv = new THREE.Vector3();
   for (let i = 0; i < n; i++){ const a = r() * 6.2832, rad = RG * (1.42 + r() * .3), s = .6 + r() * r() * 3.2;
     pv.set(Math.cos(a) * rad, (r() - .5) * 7, Math.sin(a) * rad); q.setFromEuler(e.set(r() * 6, r() * 6, r() * 6)); sv.set(s, s * (.6 + r() * .5), s * (.7 + r() * .4));
@@ -1687,7 +1705,7 @@ const GSPACE = {belt: null, moon: null, ships: [], shipsReady: false, comet: nul
   const mg = new THREE.IcosahedronGeometry(13, 2), mp = mg.attributes.position;
   for (let i = 0; i < mp.count; i++){ const v = pv.fromBufferAttribute(mp, i), d = 1 + (((hash(Math.round(v.x * 3) + ',' + Math.round(v.y * 3) + ',' + Math.round(v.z * 3)) % 1000) / 1000) - .5) * .12; mp.setXYZ(i, v.x * d, v.y * d, v.z * d); }
   mg.computeVertexNormals();
-  const moon = new THREE.Mesh(mg, new THREE.MeshStandardMaterial({color: 0xb8b0cc, roughness: 1, flatShading: true, emissive: 0x3b2a6a, emissiveIntensity: .5})); gScene.add(moon); GSPACE.moon = moon;
+  const moon = new THREE.Mesh(mg, new THREE.MeshStandardMaterial({color: 0xb8b0cc, roughness: 1, emissive: 0x3b2a6a, emissiveIntensity: .5})); gScene.add(moon); GSPACE.moon = moon;
   /* ljus sa stenar, mane och skepp far form (klotet och regionerna ar egna och paverkas inte) */
   gScene.add(new THREE.HemisphereLight(0xc4ccff, 0x2a1f4a, 1.1)); const gs = new THREE.DirectionalLight(0xfff1dc, 2.2); gs.position.set(-300, 260, 400); gScene.add(gs);
   /* stjarnfall: en lysande streck som drar forbi ibland */
@@ -1696,7 +1714,7 @@ const GSPACE = {belt: null, moon: null, ships: [], shipsReady: false, comet: nul
 })();
 /* skeppen: kopior av Armadans skepp nar de laddats - jagarna i lutande banor nara klotet, kryssaren langre ut */
 function spaceShips(){ if (GSPACE.shipsReady || ships.length < 5) return; GSPACE.shipsReady = true;
-  ships.forEach((S, i) => { const g = S.g.clone(); g.scale.setScalar(S.big ? 3.2 : 2.8); gScene.add(g);
+  ships.forEach((S, i) => { const g = S.g.clone(); g.visible = true; g.scale.setScalar(S.big ? 3.2 : 2.8); gScene.add(g);
     GSPACE.ships.push({g, rad: RG * (S.big ? 1.95 : 1.22 + i * .07), tilt: S.big ? .25 : -.9 + i * .55, node: i * 1.3, a: i * 1.6, v: S.big ? .03 : .16 - i * .018}); }); }
 const gTmp = new THREE.Vector3(), gTmp2 = new THREE.Vector3();
 function spaceStep(dt, now){
@@ -1715,12 +1733,12 @@ const gX = new THREE.Vector3(1, 0, 0), gY = new THREE.Vector3(0, 1, 0);
 /* bilderna pa regionerna: den riktiga 3D-varlden uppifran (utan moln och dimma). Tas om nar dag/natt andrats. */
 function globeSnap(){
   const size = MOBILE ? 768 : 1024, oc = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 700), fog = scene.fog, cv = clouds.map(m => m.visible), su = renderer.shadowMap.autoUpdate;
-  scene.fog = null; clouds.forEach(m => { m.visible = false; }); renderer.shadowMap.autoUpdate = false;
+  scene.fog = null; clouds.forEach(m => { m.visible = false; }); renderer.shadowMap.autoUpdate = false; regionVis(true);
   REG.forEach(R => { const g = R.gl; if (!g.rt){ g.rt = new THREE.WebGLRenderTarget(size, size, {type: THREE.HalfFloatType}); g.mat.map = g.rt.texture; g.mat.needsUpdate = true; }
     const h = g.E * K; oc.left = -h; oc.right = h; oc.top = h; oc.bottom = -h; oc.updateProjectionMatrix();
     oc.position.set(g.cx * K, 300, g.cy * K); oc.up.set(0, 0, -1); oc.lookAt(g.cx * K, 0, g.cy * K); oc.updateMatrixWorld();
     renderer.setRenderTarget(g.rt); renderer.clear(); renderer.render(scene, oc); });
-  renderer.setRenderTarget(null); scene.fog = fog; clouds.forEach((m, i) => { m.visible = cv[i]; }); renderer.shadowMap.autoUpdate = su;
+  renderer.setRenderTarget(null); regionVis(false); scene.fog = fog; clouds.forEach((m, i) => { m.visible = cv[i]; }); renderer.shadowMap.autoUpdate = su;
   GLB.snapAt = performance.now(); GLB.snapNight = GLB.night; if (worldReady) GLB.snapReady = true; }
 function gFit(){ const vf = gCam.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * gCam.aspect); return RG * 1.2 / Math.tan(Math.min(vf, hf) / 2); }
 const G_MIN = () => RG * 1.7, G_MAX = () => gFit() * 1.7;
@@ -1736,7 +1754,7 @@ function globeEnter(R, quick){ if (GLB.on) return; R = R || (me.R) || regNear();
     if (GLB.snapAt < 0 || Math.abs(GLB.night - GLB.snapNight) > .12 || performance.now() - GLB.snapAt > 120000) globeSnap(); renderCard(); };
   quick ? go() : gFade(go); }
 /* ut ur klotet; med R hamnar man ovanfor den regionen (i stallet for dar man var) */
-function globeLeave(R){ if (!GLB.on) return; GLB.on = false; GLB.anim = null; document.body.classList.remove('globe'); pinch = null;
+function globeLeave(R){ if (!GLB.on) return; if (R) FR = R; GLB.on = false; GLB.anim = null; document.body.classList.remove('globe'); pinch = null;
   gFade(() => { if (R){ const v = viewFor(regionBox(R)); Object.assign(cam, v, {dist: Math.min(globeAt(R) * .95, MAXD)}); camAnim.on = false;
     if (R === me.R && !me.fly) camToMe(1200); else flyTo(v, 1100); } renderCard(); }); }
 /* tryck pa klotet: vilken region (form eller namn) ligger under fingret? */
@@ -1844,7 +1862,7 @@ function step(dt, now){
     if (e.akt === 'expedition' && !moving && !e.fly) e.face = Math.atan2(e.z.camp.x - 4 - e.x, e.z.camp.y + 6 - e.y);
     /* animation efter vad spelaren gor */
     const av = e.av; if (!av) return;
-    const vis = near && inView(e.x, e.y, e.h); av.root.visible = vis; if (e.mob) e.mob.av.root.visible = vis; if (av.trail) av.trail.visible = vis;
+    const vis = near && !hidR(e.R) && inView(e.x, e.y, e.h); av.root.visible = vis; if (e.mob) e.mob.av.root.visible = vis; if (av.trail) av.trail.visible = vis;
     if (e.cheerT > 0) e.cheerT -= dt;
     let anim = 'Idle';
     if (e.fly) anim = 'Jump_Idle';
@@ -1983,7 +2001,7 @@ function drawOverlay(){
   const counts = {}, act = {}; ents.forEach(e => { if (e.gone) return; counts[e.R.id] = (counts[e.R.id] || 0) + 1;
     const a = (act[e.R.id] = act[e.R.id] || {}), k = e.fly ? 'resa' : e.akt; a[k] = (a[k] || 0) + 1; });
   const placed = [];
-  REG.forEach(R => { /* namnet ovanfor regionens hogsta punkt pa skarmen, oavsett hur kartan ar vriden */
+  REG.forEach(R => { if (hidR(R)) return;   /* [TILLAGT v5.1384.0] */ /* namnet ovanfor regionens hogsta punkt pa skarmen, oavsett hur kartan ar vriden */
     /* [ANDRAT genesis-world-play] zonnamnen ritas aven nar regionens mitt ar utanfor bild (regionerna ar stora nu) */
     /* [ANDRAT v5.1379.0] ZONNAMNEN som i 2D-kartan: stora, lysande i zonens farg, utan ruta. Tydliga utzoomat; tonas bort nar man
        zoomar in sa att man ser vad som hander pa marken (Chris). Ritas aven over The Landing-on. */
@@ -2015,7 +2033,7 @@ function drawOverlay(){
  });
   drawPois(c, W, H, D, placed);   // [TILLAGT genesis-world-play]
   /* boss */
-  if (boss){ const far = D > 110, q0 = toScreen(boss.x * K, boss.lage === 'annonserad' ? 5 : 9, boss.y * K), q = far ? {x: q0.x + (q0.x > W / 2 ? -95 : 95), y: q0.y + 10, on: q0.on} : q0;
+  if (boss && !hidR(boss.R)){ const far = D > 110, q0 = toScreen(boss.x * K, boss.lage === 'annonserad' ? 5 : 9, boss.y * K), q = far ? {x: q0.x + (q0.x > W / 2 ? -95 : 95), y: q0.y + 10, on: q0.on} : q0;
     if (q.on && q.x > -100 && q.x < W + 100 && q.y > -60 && q.y < H + 60){ const col = bossCol();
       let st = boss.lage === 'pagar' ? 'FIGHT ON' : boss.lage === 'dod' ? 'DEFEATED' : 'INCOMING';
       if (boss.lage === 'annonserad' && boss.start){ const s = Math.max(0, Math.round((boss.start - Date.now()) / 1000)); st = 'LANDS IN ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
@@ -2033,7 +2051,7 @@ function drawOverlay(){
     if (D < 28) label(c, m.nm + (e.fiendeNiva ? ' · ' + e.fiendeNiva : ''), q.x, q.y - 10, {size: 10, w: 600, col: '#fecaca'}); });
   /* spelare: namn och vad de gor - aldrig ovanpa varandra */
   const list = [];
-  ents.forEach((e, key) => { if (e.gone) return; const q = toScreen(e.x * K, (e.h || 0) * K + 1.7, e.y * K); if (!q.on || q.x < -40 || q.x > W + 40 || q.y < -40 || q.y > H + 40) return; list.push({e, key, q}); });
+  ents.forEach((e, key) => { if (e.gone || hidR(e.R)) return; const q = toScreen(e.x * K, (e.h || 0) * K + 1.7, e.y * K); if (!q.on || q.x < -40 || q.x > W + 40 || q.y < -40 || q.y > H + 40) return; list.push({e, key, q}); });
   list.sort((a, b) => (b.key === selected) - (a.key === selected));
   const showNames = D < 85, showNow = D < 30;
   list.forEach(({e, key, q}) => {
@@ -2479,6 +2497,7 @@ function drawMe(dt, t){
   if (!me.R) return; ensureMeAv(); const av = me.av;
   goalRing.visible = !!me.goal; if (me.goal){ goalRing.position.set(me.goal.x * K, .06, me.goal.y * K); goalRing.scale.setScalar(1 + .15 * Math.sin(t * 6)); }
   if (!av) return;
+  av.root.visible = !hidR(me.R);   /* [TILLAGT v5.1384.0] */
   av.root.position.set(me.x * K, (me.h || 0) * K, me.y * K);
   let anim = 'Idle'; if (me.fly) anim = 'Jump_Idle'; else if (me.act) anim = me.act; else if (me.spd > 0) anim = me.spd > 60 ? 'Running_A' : 'Walking_A';
   if (me.act && me.actNew){ play(av, me.act, .15, me.actT <= 1.7); me.actNew = false; } else if (!me.act) play(av, anim, .15);
@@ -2572,7 +2591,7 @@ function beaconMesh(){ const g = new THREE.Group();
   fix.rotation.x = pulse.rotation.x = -Math.PI / 2; fix.position.y = .05; pulse.position.y = .06; beam.renderOrder = 3; g.add(fix, pulse, beam);
   g.userData = {fix, pulse, beam, col: ''}; return g; }
 function stepBeacon(p, t){
-  const d = cam.dist, near = !GLB.on && d < 460 && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
+  const d = cam.dist, near = !GLB.on && !hidR(p.R) && d < 460 && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
   if (!near){ if (p.bc) p.bc.visible = false; return; }
   if (!p.bc){ p.bc = beaconMesh(); p.bc.position.set(p.x * K, 0, p.y * K); scene.add(p.bc); }
   const u = p.bc.userData, dim = p.grey || p.state === 'locked' || p.state === 'running' || zoneState(p.R.id, p.zn) === 'uncharted';
@@ -2621,7 +2640,7 @@ function stepPois(dt, t){
   pois.forEach(p => {
     if (BC_KIND[p.kind]) stepBeacon(p, t);   /* [TILLAGT v5.1383.0] */
     if (p.kind === 'quest' || p.kind === 'encounter'){
-      const vis = near && inView(p.x, p.y, 0) && p.state !== 'cooldown';
+      const vis = near && !hidR(p.R) && inView(p.x, p.y, 0) && p.state !== 'cooldown';
       if (vis){ p.farT = 0; if (!p.av) makePoiAv(p); } else if (p.av && (p.farT = (p.farT || 0) + dt) > 6) freePoi(p);
       if (!p.av) return; p.av.root.visible = vis; if (!vis) return;
       const dm = Math.hypot(me.x - p.x, me.y - p.y); if (me.R === p.R && dm < 140) p.face = Math.atan2(me.x - p.x, me.y - p.y);
@@ -2651,6 +2670,7 @@ function drawPois(c, W, H, D, placed){
   if (D > 700) return;
   const t = performance.now() / 1000;
   pois.forEach(p => {
+    if (hidR(p.R)) return;   /* [TILLAGT v5.1384.0] */
     if (D > 300 && (p.R !== me.R ? p.kind !== 'landing' : !/landing|quest|dungeon|boss/.test(p.kind))) return;
     if (D > (p.kind === 'expedition' ? 300 : 160) && (p.kind === 'gather' || p.kind === 'expedition')) return;   /* [ANDRAT v5.1383.0] expeditioner syns lika langt som quests */
     const q = toScreen(p.x * K, p.h, p.y * K); if (!q.on || q.x < -30 || q.x > W + 30 || q.y < -30 || q.y > H + 30) return;
@@ -2688,7 +2708,7 @@ function drawPois(c, W, H, D, placed){
   /* din figur och vagen dit */
   if (me.R && me.path.length && D < 400){ c.fillStyle = 'rgba(253,224,71,.75)'; let prev = me, acc = 0;
     me.path.forEach(p => { const d = Math.hypot(p.x - prev.x, p.y - prev.y); for (let s = (20 - acc); s < d; s += 20){ const x = prev.x + (p.x - prev.x) * s / d, y = prev.y + (p.y - prev.y) * s / d, q = toScreen(x * K, .1, y * K); if (q.on){ c.beginPath(); c.arc(q.x, q.y, 2.4, 0, 6.2832); c.fill(); } } acc = (acc + d) % 20; prev = p; }); }
-  if (me.R){ const q = toScreen(me.x * K, (me.h || 0) * K + 2.25, me.y * K); if (q.on){ me.sx = q.x; me.sy = q.y + 20;
+  if (me.R && !hidR(me.R)){ const q = toScreen(me.x * K, (me.h || 0) * K + 2.25, me.y * K); if (q.on){ me.sx = q.x; me.sy = q.y + 20;
     label(c, '★ ' + me.namn, q.x, q.y, {size: 12, w: 800, col: '#1a1200', bg: 'rgba(253,224,71,.92)'}); placed.push({x: q.x - 50, y: q.y - 10, w: 100, h: 20}); } } }
 let hoverPoi = null;
 glc.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || ptrs.size) return; const p = poiAt(e.clientX, e.clientY); if (p !== hoverPoi){ hoverPoi = p; glc.classList.toggle('hov', !!p); } });
@@ -2733,7 +2753,7 @@ function frame(now){
   /* [TILLAGT v5.1377.0] spelet satter __gpOff nar kartan inte syns och __gpLow i stromsparlage (som 2D-kartan): ingen ritning da, inget glod i sparlage (buggsvep) */
   if (window.__gpOff) return;
   if (window.__gpLow && FX.on) fxSet(false, 'low'); else if (!window.__gpLow && !FX.on && FX.why === 'low') fxSet(true, GLOWPREF);
-  step(dt, now); directorStep(dt, now);
+  step(dt, now); directorStep(dt, now); regionVis(false);   /* [TILLAGT v5.1384.0] */
   const DI = dayInfo(), night = applyTime(DI);
   lightMats.forEach(m => { m.opacity = clamp(.22 + night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1373.0] lite sken aven pa dagen */   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
   SUNDIR.set(Math.cos(DI.h / 24 * 6.2832 - 1.6) * .6 + .2, .9, .45).normalize();
@@ -2849,6 +2869,13 @@ if (EDIT) (function editor(){
   const waitList = setInterval(() => { if (worldReady){ clearInterval(waitList); list(); } }, 500); list();
   msg(PLACE.add.length || PLACE.del.length ? 'Laddade ' + PLACE.add.length + ' utsatta och ' + PLACE.del.length + ' borttagna' : '');
 })();
+/* [TILLAGT v5.1384.0] TESTSIDAN (oppnad direkt, inte i spelet): pahittade quests och moten i varje zon sa att Chris ser hur de ser ut.
+   I spelet skickar spelet de riktiga och de har raderna kors aldrig. */
+if (window.parent === window && !EDIT && !G.state) setTimeout(() => { if (G.state) return; const q = [], e = [], ex = ['Wolf Pack', 'Cube Slime', 'Bandit', 'Troll'];
+  LAND.forEach(R => R.zones.forEach((z, i) => { if (i === 5) return; const k = R.id + '|' + z.namn;
+    q.push({id: 'demo' + R.id + i, zone: k, label: 'DEMO QUEST', mark: i % 3 === 1 ? '?' : '!', grey: i === 4});
+    e.push({id: 'demoe' + R.id + i, zone: k, label: ex[i % 4], state: 'ready'}); if (i % 2) e.push({id: 'demof' + R.id + i, zone: k, label: ex[(i + 1) % 4], state: 'ready'}); }));
+  API.setState({quests3d: q, encounters: e}); }, 1200);
 window.__gw = {GLB, globeEnter, globeLeave, unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
 requestAnimationFrame(frame);
 </script>
