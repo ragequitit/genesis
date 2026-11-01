@@ -1,6 +1,6 @@
 /* [TILLAGT v5.1413.0-valv] DELAT VALV (Chris 2026-11-01, ide fran PickyPete).
    En flik Shared i valvet som alla karaktarer pa samma konto ser. 20 rutor, 100 credits en gang per konto.
-   Filen ar idempotent och avbryter med fel om ett ankare saknas. KORS INTE forran Chris sagt till.
+   Filen ar idempotent och avbryter med fel om ett ankare saknas. Ligger pa live bakom sparren test_only (Chris 2026-11-01).
 
    VARFOR EGNA TABELLER, INTE EN NY PLATS PA items:
    items.character_id ar NOT NULL och ON DELETE CASCADE - en pjas maste ha en karaktar, och raderas karaktaren raderas pjasen.
@@ -19,7 +19,8 @@ create table if not exists public.shared_vault_config (
 );
 insert into public.shared_vault_config (key, val, note) values
   ('slots', 20, 'Rutor i delade fliken, en ruta per pjas eller sort'),
-  ('unlock_credits', 100, 'Pris i credits for att lasa upp fliken, en gang per konto')
+  ('unlock_credits', 100, 'Pris i credits for att lasa upp fliken, en gang per konto'),
+  ('test_only', 1, '1 = bara testkontot kommer at fliken. 0 nar Chris godkant slapp (Chris 2026-11-01)')
 on conflict (key) do nothing;
 
 /* ===== Kontots upplasning ===== */
@@ -118,6 +119,15 @@ begin
   return v;
 end $function$;
 
+/* SPARREN FORE SLAPP (Chris 2026-11-01): serverdelen ligger pa live for test, men bara testkontot kommer at den. */
+create or replace function public.shared_vault_gate(p_profile uuid)
+returns void language plpgsql stable security definer set search_path = public, pg_temp as $function$
+begin
+  if public.shared_vault_cfg('test_only') = 1 and p_profile is distinct from '8fa27ae5-e0fc-4106-8e8e-737136af78ec'::uuid then
+    raise exception 'shared_vault_closed' using errcode = 'P0001';
+  end if;
+end $function$;
+
 create or replace function public.shared_vault_used(p_profile uuid)
 returns integer language sql stable security definer set search_path = public, pg_temp as $function$
   select ((select count(*) from public.shared_vault_items where profile_id = p_profile)
@@ -151,6 +161,7 @@ returns json language plpgsql stable security definer set search_path = public, 
 declare v_ch public.characters; v_open boolean;
 begin
   v_ch := public.owned_character(p_character);
+  perform public.shared_vault_gate(v_ch.profile_id);
   v_open := exists (select 1 from public.shared_vault_accounts where profile_id = v_ch.profile_id);
   return json_build_object(
     'unlocked', v_open,
@@ -169,6 +180,7 @@ returns json language plpgsql security definer set search_path = public, pg_temp
 declare v_ch public.characters; v_cost integer; v_n integer;
 begin
   v_ch := public.owned_character(p_character);
+  perform public.shared_vault_gate(v_ch.profile_id);
   perform public.assert_at_vault(p_character);
   v_cost := public.shared_vault_cfg('unlock_credits');
   /* Raden laggs in FORE betalningen: ett samtidigt kop vantar pa den och far "redan upplast", inte en andra debitering.
@@ -194,6 +206,7 @@ declare v_ch public.characters; v_it public.items; v_sv public.shared_vault_item
         v_slots integer; v_used integer; v_have integer; v_kind text; v_qty integer; v_snap jsonb; v_cols text;
 begin
   v_ch := public.owned_character(p_character);
+  perform public.shared_vault_gate(v_ch.profile_id);
   perform public.sanction_guard(p_character, 'mail_block');   /* samma sparr som att skicka till en egen karaktar med posten */
   perform public.assert_at_vault(p_character);
   if p_to_shared is null or (p_item is null) = (p_stack_key is null) then
@@ -309,5 +322,6 @@ revoke execute on function public.shared_vault_state(uuid) from public, anon;
 revoke execute on function public.shared_vault_unlock(uuid) from public, anon;
 revoke execute on function public.shared_vault_move(uuid, boolean, uuid, text, integer, integer) from public, anon;
 revoke execute on function public.shared_vault_cfg(text) from public, anon, authenticated;
+revoke execute on function public.shared_vault_gate(uuid) from public, anon, authenticated;
 revoke execute on function public.shared_vault_used(uuid) from public, anon, authenticated;
 revoke execute on function public.shared_vault_stack_rule(text, text) from public, anon, authenticated;
