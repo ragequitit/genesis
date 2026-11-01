@@ -2808,8 +2808,10 @@ function drawPois(c, W, H, D, placed){
     const hov = !!hoverPoi && hoverPoi.key === p.key, big = D < 80 ? 1 : .8;   /* [ANDRAT v5.1353.0] jamfor pa nyckeln: markena byggs om nar ny data kommer, och da krympte ikonen under musen efter nagon sekund (Chris) */
     /* [ANDRAT v5.1419.0] UTZOOMAD: FARGAD NOD OCH RUTA SOM I 2D-KARTAN (Chris): ingen ikon och ingen text, bara noden. Musen over visar en ruta med namn och slag. */
     const ia = p.kind === 'boss' || p.kind === 'event' ? 1 : iconA;
-    if (ia < 1){ const g0 = toScreen(p.x * K, .05, p.y * K), nc = dim ? '#8b93a7' : p.kind === 'quest' ? MK.quest : col, nr = hov ? 5 : 4;   /* [ANDRAT v5.1422.0] 8 px med mjukt sken, samma som noderna pa 2D-kartan */
-      c.save(); c.globalAlpha = 1 - ia; c.translate(g0.x, g0.y); c.rotate(Math.PI / 4); c.shadowColor = nc; c.fillStyle = nc; c.shadowBlur = 22; c.fillRect(-nr, -nr, nr * 2, nr * 2); c.shadowBlur = 10; c.fillRect(-nr, -nr, nr * 2, nr * 2); c.restore();
+    if (ia < 1){ const g0 = toScreen(p.x * K, .05, p.y * K), nc = dim ? '#8b93a7' : p.kind === 'quest' ? MK.quest : col, ns = clamp(W / 1100, .8, 1.15) * (hov ? 1.15 : 1);   /* [ANDRAT v5.1423.0] exakt 2D-kartans nod (Chris): skugga, tva skivor i nodens farg, romb med ljus kant */
+      c.save(); const fa = 1 - ia; c.translate(g0.x, g0.y); c.scale(ns, ns); c.globalAlpha = fa * .5; c.fillStyle = '#000'; c.beginPath(); c.ellipse(0, 13, 10, 3.2, 0, 0, 6.2832); c.fill();
+      c.fillStyle = nc; c.globalAlpha = fa * .13; c.beginPath(); c.arc(0, 0, 18, 0, 6.2832); c.fill(); c.globalAlpha = fa * .3; c.beginPath(); c.arc(0, 0, 9, 0, 6.2832); c.fill();
+      c.globalAlpha = fa; c.rotate(Math.PI / 4); c.fillRect(-6, -6, 12, 12); c.lineWidth = .8; c.strokeStyle = '#f6feff'; c.strokeRect(-6, -6, 12, 12); c.restore();
       if (ia <= .01){ p.sx = g0.x; p.sy = g0.y; if (hov) nodeBox = {x: g0.x, y: g0.y, name: p.label, kind: ({vein: 'NODE', landing: 'HARBOUR', vendor: 'VENDOR', vault: 'VAULT', dungeon: 'DUNGEON', quest: 'QUEST', encounter: 'ENCOUNTER', expedition: 'EXPEDITION'})[p.kind] || String(p.kind).toUpperCase(), col: nc}; return; } }
     c.globalAlpha = (dim ? .55 : 1) * ia;
     if (p.kind === 'quest'){ const bob = 0, fs = (hov ? 30 : 25) * big;
