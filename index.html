@@ -18430,8 +18430,13 @@ function dgWriteBoth(suffix, txt, prop){
 function dgcCooldownTick(){
   const w = $('dgc-overlay'); if (!w || !w.classList.contains('open') || !DGC || !DGC.heroic) return;
   const kyla = +DGC.heroic.cooldown_secs || 0;
-  if (kyla <= 0 || DGC_SIDE === 'normal') return;
-  DGC.heroic.cooldown_secs = Math.max(0, kyla - 1);
+  if (kyla <= 0) return;
+  /* [ANDRAT natt-buggsvep] Nedrakningen drog 1 s per varv och stod still medan Normal-fliken visades (och nar
+     fliken lag i bakgrunden), sa Heroic/Rift lastes upp for sent. Nu raknas tiden fran ett fast slutklockslag.
+     Slutet satts forsta gangen raden ses; ett nytt svar fran servern ar ett nytt objekt och far ett nytt slut. */
+  if (!DGC.heroic._coolEnd) DGC.heroic._coolEnd = Date.now() + kyla * 1000;
+  DGC.heroic.cooldown_secs = Math.max(0, Math.ceil((DGC.heroic._coolEnd - Date.now()) / 1000));
+  if (DGC.heroic.cooldown_secs > 0 && DGC_SIDE === 'normal') return;
   if (DGC.rift) DGC.rift.cooldown_secs = DGC.heroic.cooldown_secs;
   if (DGC.heroic.cooldown_secs <= 0){
     if (NET.on) netDungeonChoices().then(() => { renderDgChoice(); placeDgcWin(); }).catch(() => { renderDgChoice(); });
