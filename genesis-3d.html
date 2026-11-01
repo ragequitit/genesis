@@ -375,7 +375,7 @@ const NEON = {
   windfall:    {hue: '#7dd3fc', edge: '#7dd3fc', dark: '#3a4a5c', sky: '#0b1d38'}};
 REG.forEach(r => { r.neon = NEON[r.id]; });
 /* MK i 2D-kartan: expedition, dungeon, quest, vault, vendor, encounter, world boss, "du ar har" */
-const MK = {exp: '#22d3ee', dungeon: '#ff1f3d', quest: '#facc15', vault: '#a78bfa', vendor: '#22c55e', enc: '#ffffff', boss: '#ff2a2a', here: '#ff8a1f'};
+const MK = {exp: '#22d3ee', dungeon: '#ff1f3d', quest: '#facc15', vault: '#a78bfa', vendor: '#22c55e', board: '#f472b6', enc: '#ffffff', boss: '#ff2a2a', here: '#ff8a1f'};
 /* farg med "overstyrka" (>1) sa den lyser igenom glodet (bloom tar bara det som ar starkare an 1) */
 const hdr = (c, k) => new THREE.Color(c).multiplyScalar(k);
 
@@ -526,7 +526,7 @@ function buildRegion(R){
     const S1 = S;   // kartenheter -> varldsenheter
     R.landing = {poly: isl, spur, x: cx, y: cy, ux, uy,
       bridge: {a: {x: A.x - ux * 30, y: A.y - uy * 30}, b: {x: B.x + ux * 30, y: B.y + uy * 30}},
-      sx: W.x, sy: W.y, vendor: {x: cx - 40 * S1, y: cy + 14 * S1}, vault: {x: cx + 42 * S1, y: cy + 14 * S1}, pad: {x: cx, y: cy - 34 * S1}};
+      sx: W.x, sy: W.y, vendor: {x: cx - 40 * S1, y: cy + 14 * S1}, vault: {x: cx + 42 * S1, y: cy + 14 * S1}, board: {x: cx, y: cy + 46 * S1}, pad: {x: cx, y: cy - 34 * S1}};   /* [ANDRAT v5.1424.0] board = uppdragstavlan */
     R.polys.push(isl, spur); bbox(R); }
   /* [ANDRAT v5.1379.0] stigarna borta: de finns inte pa 2D-kartan (Chris) - zongranserna ar det som delar upp on */
   R.paths = [];
@@ -1090,6 +1090,7 @@ LAND.forEach(R => {
     put('pier', L.sx - L.ux * 10, L.sy - L.uy * 10, rot, 1, 0);
     put(R.id === 'novacommand' ? 'cargodepot_A' : 'building_market_blue', L.vendor.x, L.vendor.y, face(L.vendor), 1, 0);
     put('vault_house', L.vault.x, L.vault.y, face(L.vault), 1, 0);
+    put('signpost', L.board.x, L.board.y, face(L.board), 2.2, 0);   /* [TILLAGT v5.1424.0] uppdragstavlan */
     put(R.id === 'novacommand' ? 'landingpad_large' : 'landingpad_small', L.pad.x, L.pad.y, 0, 1, 0);
     put('barrel', L.vendor.x - 24, L.vendor.y + 20, 1, 1, 0); put('crates_stacked', L.vendor.x - 34, L.vendor.y + 4, 2, 1, 0);
     [L.bridge.a, L.bridge.b].forEach(p => { put('post_lantern', p.x + L.uy * 18, p.y - L.ux * 18, 0, 1, 0); put('post_lantern', p.x - L.uy * 18, p.y + L.ux * 18, 0, 1, 0); }); }
@@ -2024,7 +2025,8 @@ function step(dt, now){
   if (camAnim.on){ const k = clamp((now - camAnim.t0) / camAnim.ms, 0, 1), q = ease(k);
     cam.tx = lerp(camAnim.a.tx, camAnim.b.tx, q); cam.tz = lerp(camAnim.a.tz, camAnim.b.tz, q); cam.yaw = lerp(camAnim.a.yaw, camAnim.b.yaw, q);
     cam.dist = Math.exp(lerp(Math.log(camAnim.a.dist), Math.log(camAnim.b.dist), q)); if (k >= 1) camAnim.on = false; }
-  else if (follow === ME && me.R){ const k = Math.min(1, dt * 4); cam.tx = lerp(cam.tx, me.x * K, k); cam.tz = lerp(cam.tz, me.y * K + 1, k); }
+  /* [ANDRAT v5.1424.0] Chris: varje tryck for att ga flyttade hela kartan i sidled. Utzoomat star kartan still; kameran foljer forst nar man zoomat in. */
+  else if (follow === ME && me.R){ if (iconK(cam.dist) > .01){ const k = Math.min(1, dt * 4); cam.tx = lerp(cam.tx, me.x * K, k); cam.tz = lerp(cam.tz, me.y * K + 1, k); clampCam(); } }
   else if (follow && ents.get(follow)){ const e = ents.get(follow); cam.tx = lerp(cam.tx, e.x * K, Math.min(1, dt * 3)); cam.tz = lerp(cam.tz, e.y * K + 1, Math.min(1, dt * 3)); }
 }
 
@@ -2509,7 +2511,7 @@ function walkTo(x, y, poi){
   /* [ANDRAT v5.1385.0] tryck pa en plats: rutan oppnas och figuren gar, men kartan ligger still - som i 2D (Chris) */
   if (poi) return true;
   follow = ME;
-  if (cam.dist > 230) flyTo({tx: me.x * K, tz: me.y * K + 1, dist: 120}, 900);
+  if (cam.dist > 230 && iconK(cam.dist) > .01) flyTo({tx: me.x * K, tz: me.y * K + 1, dist: 120}, 900);   /* [ANDRAT v5.1424.0] utzoomat i en region zoomar inte ett tryck in kartan */
   return true; }
 function camToMe(ms){ if (!me.R) return; follow = ME; flyTo({tx: me.x * K, tz: me.y * K + 1, dist: Math.min(cam.dist, MOBILE ? 46 : 58)}, ms == null ? 900 : ms); }
 
@@ -2613,15 +2615,16 @@ const EXP_DEF = {"voxholm":{"The Grasslands":[["vox_grasslan_1","Break the First
 function expDefault(){ const out = []; for (const rid in EXP_DEF) for (const zn in EXP_DEF[rid]) EXP_DEF[rid][zn].forEach(d => out.push({id: d[0], zone: rid + '|' + zn, label: d[1], mins: d[2], lvl: d[3], state: 'ready'})); return out; }
 /* [ANDRAT v5.1373.0] samma farger som 2D-kartans markorer (MK) */
 /* [ANDRAT v5.1389.0] FARGERNA SOM PA 2D-KARTAN (Chris): moten vita, expeditioner neonbla, dungeons roda - cirkel, pelare och namn */
-$('mapkey').innerHTML = [['EXPEDITION', MK.exp], ['DUNGEON', MK.dungeon], ['QUEST', MK.quest], ['VAULT', MK.vault], ['VENDOR', MK.vendor], ['ENCOUNTER', MK.enc], ['WORLD BOSS', MK.boss]].map(x => '<span><i style="background:' + x[1] + '"></i>' + x[0] + '</span>').join('');
+$('mapkey').innerHTML = [['EXPEDITION', MK.exp], ['DUNGEON', MK.dungeon], ['QUEST', MK.quest], ['VAULT', MK.vault], ['VENDOR', MK.vendor], ['MISSIONS', MK.board], ['ENCOUNTER', MK.enc], ['WORLD BOSS', MK.boss]].map(x => '<span><i style="background:' + x[1] + '"></i>' + x[0] + '</span>').join('');
 const POI_COL = {quest: MK.quest, encounter: MK.enc, expedition: MK.exp, gather: '#f59e0b', fiber: '#d946ef', vein: '#38e8ff', landing: '#e8ecff',
-  vendor: MK.vendor, vault: MK.vault, dungeon: MK.dungeon, event: '#ff4fd8', boss: MK.boss};
+  vendor: MK.vendor, vault: MK.vault, board: MK.board, dungeon: MK.dungeon, event: '#ff4fd8', boss: MK.boss};
 /* ritade ikoner (inga emoji: de ser olika ut pa olika telefoner - samma tanke som spelets egna ikoner) */
 /* [TILLAGT v5.1353.0] KARTIKONERNA (Chris 2026-10-29): de tolv godkanda ikonerna i spelets ikonstil, assets/ui/map3d/<namn>.webp.
    Strecken i drawIcon finns kvar som reserv tills bilden laddats (eller om den saknas). */
 const MAP_ICO = {};
 ['landing', 'vendor', 'vault', 'quest_new', 'quest_done', 'encounter', 'vein', 'gather', 'expedition', 'dungeon', 'worldboss', 'event'].forEach(k => {
   const im = new Image(); im.decoding = 'async'; im.src = 'assets/ui/map3d/' + k + '.webp'; MAP_ICO[k] = im; });
+{ const im = new Image(); im.decoding = 'async'; im.src = 'assets/ui/ico/mission_board.webp'; MAP_ICO.board = im; }   /* [TILLAGT v5.1424.0] */
 const MAP_ICO_KEY = {boss: 'worldboss', rest: 'encounter', fiber: 'gather'};
 function mapIco(kind){ const im = MAP_ICO[MAP_ICO_KEY[kind] || kind]; return im && im.complete && im.naturalWidth > 0 ? im : null; }
 function drawIcon(c, kind, x, y, r, col){
@@ -2662,6 +2665,7 @@ function rebuildPois(){
   LAND.forEach(R => { const L = R.landing, dz = R.zones[5];
     add({key: R.id + '#landing', kind: 'landing', R, zn: LANDING, x: L.pad.x, y: L.pad.y, h: .6, label: 'The Landing', sub: R.namn + ' · harbour', pick: {kind: 'zone', region: R.id, zone: LANDING}});
     add({key: R.id + '#vendor', kind: 'vendor', R, zn: LANDING, x: L.vendor.x, y: L.vendor.y, h: 3.2, label: 'Vendor', sub: 'Regional trader', pick: {kind: 'vendor', region: R.id, zone: LANDING}});
+    add({key: R.id + '#board', kind: 'board', R, zn: LANDING, x: L.board.x, y: L.board.y, h: 3.2, label: 'Missions', sub: 'Caches and Gear Focus', pick: {kind: 'board', region: R.id, zone: LANDING}});   /* [TILLAGT v5.1424.0] samma ruta som pa 2D-kartan */
     add({key: R.id + '#vault', kind: 'vault', R, zn: LANDING, x: L.vault.x, y: L.vault.y, h: 3.2, label: 'Vault', sub: 'Your safekeep', pick: {kind: 'vault', region: R.id, zone: LANDING}});
     add({key: R.id + '#dungeon', kind: 'dungeon', R, zn: dz.namn, x: R.portal.x, y: R.portal.y, h: 3.6, label: dz.namn, sub: 'Dungeon', pick: {kind: 'dungeon', region: R.id, zone: dz.namn}});
     /* [BORTTAGET v5.1353.0] demons pahittade malm-/fibernoder ("gather"): spelets riktiga noder ar veins (setVeins) och ritas pa samma stenar nedan */ });
@@ -2695,9 +2699,9 @@ function freePoi(p){ if (p.av){ if (p.av.static) scene.remove(p.av.root); else f
 const BC_TXT = (() => { const bc = document.createElement('canvas'); bc.width = 4; bc.height = 128; const g = bc.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
   gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.55, 'rgba(255,255,255,.3)'); gr.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); return new THREE.CanvasTexture(bc); })();
 const BC_BEAM = new THREE.CylinderGeometry(.22, .32, 1, 12, 1, true).translate(0, .5, 0), BC_RING = new THREE.RingGeometry(.66, 1, 40);
-const BC_KIND = {quest: 1, encounter: 1, expedition: 1, dungeon: 1, vendor: 1, vault: 1};   /* [ANDRAT v5.1390.0] vendor gron och vault lila, som de andra (Chris) */
+const BC_KIND = {quest: 1, encounter: 1, expedition: 1, dungeon: 1, vendor: 1, vault: 1, board: 1};   /* [ANDRAT v5.1390.0] vendor gron och vault lila, som de andra (Chris) */
 /* [ANDRAT v5.1393.0] med glod: starkt nog att lysa, inte sa starkt att fargen blir vit. Morka farger (rott) tal mer. */
-const BC_GAIN = {encounter: .8, dungeon: 1.3, vendor: 1, vault: .95, quest: .9, expedition: .9};
+const BC_GAIN = {encounter: .8, dungeon: 1.3, vendor: 1, vault: .95, board: 1, quest: .9, expedition: .9};
 function beaconMesh(){ const g = new THREE.Group();
   const mk = (geo, o) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial(Object.assign({transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}, o)));
   /* [ANDRAT v5.1394.0] EN FAST LITEN RING OCH EN PELARE (Chris): pulsringen och blinkandet borta, allt i full farg */
@@ -2782,7 +2786,7 @@ function onPoi(P){
   const o = P.kind === 'vein' ? Object.assign({}, P.pick, {clientX: P.sx, clientY: P.sy}) : P.pick;
   pick(o);
   if (!me.R || P.R !== me.R || me.fly) return;
-  const stop = {quest: 18, encounter: 26, vendor: 46, vault: 46, landing: 10, dungeon: 40, boss: 70, event: 22, vein: 14}[P.kind] || 16;
+  const stop = {quest: 18, encounter: 26, vendor: 46, vault: 46, board: 22, landing: 10, dungeon: 40, boss: 70, event: 22, vein: 14}[P.kind] || 16;
   const dx = me.x - P.x, dy = me.y - P.y, L = Math.hypot(dx, dy) || 1;
   if (L < stop + 6){ me.face = Math.atan2(P.x - me.x, P.y - me.y); meAct(P.kind === 'encounter' ? figOf(me).atk : P.kind === 'vein' ? 'PickUp' : 'Interact', .8); return; }
   walkTo(P.x + dx / L * stop, P.y + dy / L * stop, P); }
@@ -2812,7 +2816,7 @@ function drawPois(c, W, H, D, placed){
       c.save(); const fa = 1 - ia; c.translate(g0.x, g0.y); c.scale(ns, ns); c.globalAlpha = fa * .5; c.fillStyle = '#000'; c.beginPath(); c.ellipse(0, 13, 10, 3.2, 0, 0, 6.2832); c.fill();
       c.fillStyle = nc; c.globalAlpha = fa * .13; c.beginPath(); c.arc(0, 0, 18, 0, 6.2832); c.fill(); c.globalAlpha = fa * .3; c.beginPath(); c.arc(0, 0, 9, 0, 6.2832); c.fill();
       c.globalAlpha = fa; c.rotate(Math.PI / 4); c.fillRect(-6, -6, 12, 12); c.lineWidth = .8; c.strokeStyle = '#f6feff'; c.strokeRect(-6, -6, 12, 12); c.restore();
-      if (ia <= .01){ p.sx = g0.x; p.sy = g0.y; if (hov) nodeBox = {x: g0.x, y: g0.y, name: p.label, kind: ({vein: 'NODE', landing: 'HARBOUR', vendor: 'VENDOR', vault: 'VAULT', dungeon: 'DUNGEON', quest: 'QUEST', encounter: 'ENCOUNTER', expedition: 'EXPEDITION'})[p.kind] || String(p.kind).toUpperCase(), col: nc}; return; } }
+      if (ia <= .01){ p.sx = g0.x; p.sy = g0.y; if (hov) nodeBox = {x: g0.x, y: g0.y, name: p.label, kind: ({vein: 'NODE', landing: 'HARBOUR', vendor: 'VENDOR', vault: 'VAULT', board: 'MISSIONS', dungeon: 'DUNGEON', quest: 'QUEST', encounter: 'ENCOUNTER', expedition: 'EXPEDITION'})[p.kind] || String(p.kind).toUpperCase(), col: nc}; return; } }
     c.globalAlpha = (dim ? .55 : 1) * ia;
     if (p.kind === 'quest'){ const bob = 0, fs = (hov ? 30 : 25) * big;
       /* [ANDRAT v5.1353.0] SOM I WOW (Chris): ! = uppdrag att hamta, ? = klart att lamna in; gratt nar man inte kan just nu */
@@ -2831,7 +2835,7 @@ function drawPois(c, W, H, D, placed){
       c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
     c.globalAlpha = ia;
     /* [TILLAGT v5.1383.0] VAD AR DET (Chris: som 2D-kartans noder): ett kort ord i platsens farg under ikonen */
-    if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : p.kind === 'dungeon' ? 'DUNGEON' : p.kind === 'vendor' ? 'VENDOR' : p.kind === 'vault' ? 'VAULT' : 'EXPEDITION';
+    if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : p.kind === 'dungeon' ? 'DUNGEON' : p.kind === 'vendor' ? 'VENDOR' : p.kind === 'vault' ? 'VAULT' : p.kind === 'board' ? 'MISSIONS' : 'EXPEDITION';
       const ty = q.y + (p.kind === 'quest' ? 20 : 22); c.font = '800 9px sans-serif'; const tw = c.measureText(tag).width + 10, tr = {x: q.x - tw / 2, y: ty - 7, w: tw, h: 14};
       if (hov || !placed.some(o => tr.x < o.x + o.w && tr.x + tr.w > o.x && tr.y < o.y + o.h && tr.y + tr.h > o.y)){ placed.push(tr);
         label(c, tag, q.x, ty, {size: 9, w: 800, col: dim || p.grey ? '#9ca3af' : p.kind === 'quest' ? MK.quest : POI_COL[p.kind], bg: 'rgba(0,0,0,.7)'}); } }
@@ -2840,7 +2844,7 @@ function drawPois(c, W, H, D, placed){
      
       c.font = '700 11px sans-serif'; const w = c.measureText(txt).width + 12, r = {x: q.x - w / 2, y: ly - 9, w, h: 18};
       if (!hov && placed.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y)) return; placed.push(r);
-      label(c, txt, q.x, ly, {size: 11, w: 700, col: p.kind === 'quest' ? (p.grey ? '#cbd5e1' : '#ffd24a') : dim ? '#cbd5e1' : /^(expedition|dungeon|vendor|vault)$/.test(p.kind) ? POI_COL[p.kind] : '#fff', bg: 'rgba(0,0,0,.6)'}); } });
+      label(c, txt, q.x, ly, {size: 11, w: 700, col: p.kind === 'quest' ? (p.grey ? '#cbd5e1' : '#ffd24a') : dim ? '#cbd5e1' : /^(expedition|dungeon|vendor|vault|board)$/.test(p.kind) ? POI_COL[p.kind] : '#fff', bg: 'rgba(0,0,0,.6)'}); } });
   /* din figur och vagen dit */
   if (me.R && me.path.length && D < 400){ c.fillStyle = 'rgba(255,138,31,.85)'; let prev = me, acc = 0;
     me.path.forEach(p => { const d = Math.hypot(p.x - prev.x, p.y - prev.y); for (let s = (20 - acc); s < d; s += 20){ const x = prev.x + (p.x - prev.x) * s / d, y = prev.y + (p.y - prev.y) * s / d, q = toScreen(x * K, .1, y * K); if (q.on){ c.beginPath(); c.arc(q.x, q.y, 2.4, 0, 6.2832); c.fill(); } } acc = (acc + d) % 20; prev = p; }); }
