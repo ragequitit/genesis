@@ -28038,6 +28038,20 @@ function vaultNormalize(){
   while (S.vault.inv.length < cap) S.vault.inv.push(null);
   if (S.vault.inv.length > cap) S.vault.inv.length = cap;
 }
+/* [ANDRAT natt-buggsvep] Valvets las tog betalt direkt vid ett klick, utan fraga. Pa telefon visas inte ens priset
+   (hovringsrutan ar avstangd dar), sa ett tryck drog pengar man inte visste om. Samma fraga som ryggsackens fack (unlockBagAsk). */
+async function unlockVaultAsk(i){
+  const b = VAULT_BAG_SLOTS[i];
+  if (!b || vaultBagUnlocked(i)) return false;
+  if (purseOf(b.cur) < b.cost) return false;
+  const ja = await askConfirm({
+    title: 'BUY VAULT BAG SLOT ' + (i + 1),
+    body: 'This unlocks vault bag slot ' + (i + 1) + ' for <b>' + vaultBagCostText(i) + '</b>.<br>The slot stays yours for good.',
+    ico: '\ud83c\udf92', color: 'var(--gold)', yes: 'BUY', no: 'CANCEL'
+  });
+  if (!ja) return true;   /* avbrutet - inte "for lite pengar" */
+  return unlockVault(i);
+}
 function unlockVault(i){
   const b = VAULT_BAG_SLOTS[i];
   if (!b || vaultBagUnlocked(i)) return false;
@@ -28375,7 +28389,7 @@ function hookVaultBagSlots(){
         return;
       }
       if (vaultBagUnlocked(i)){ showVaultBagPicker(i, el); return; }
-      if (!unlockVault(i)) showBagTip(el, 'Not enough — you need ' + vaultBagShortText(i) + ' more.');
+      unlockVaultAsk(i).then(ok => { if (!ok) showBagTip(el, 'Not enough — you need ' + vaultBagShortText(i) + ' more.'); });   /* [ANDRAT natt-buggsvep] fragar forst */
     });
     el.addEventListener('contextmenu', e => {
       e.preventDefault();
@@ -32430,7 +32444,7 @@ function buildPremiumBags(){
     const t = nextVaultBagTier();
     if (t < 0) return;
     if (VAULT_BAG_SLOTS[t].cur === 'gold'){ openVault(); return; }
-    unlockVault(t);
+    unlockVaultAsk(t);   /* [ANDRAT natt-buggsvep] fragar forst, som ryggsackens knapp */
   });
 }
 function nextVaultBagTier(){
