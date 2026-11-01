@@ -26863,7 +26863,10 @@ function petLvl(p){ return petLevelInfo(p.xp).lvl; }
    tecken ar satt efter var namnet ska fa plats: husdjurets fonster och
    hovringskortet, som ar smalast. */
 const PET_NAME_MAX = 14;
-function petName(p){ return (p && p.n) ? p.n : (p ? PETS[p.sp].name : ''); }
+/* [ANDRAT natt-buggsvep] Servern kan ha en art som klienten inte kanner annu (ny art innan sidan laddats om).
+   Da kastade PETS[p.sp].name och hela hjalparfonstret blev tomt. petSpName ger artnamnet eller nyckeln. */
+function petSpName(sp){ return (PETS[sp] && PETS[sp].name) || String(sp || 'Helper'); }
+function petName(p){ return (p && p.n) ? p.n : (p ? petSpName(p.sp) : ''); }
 function cleanPetName(raw){
   return String(raw || '').replace(/[<>\r\n\t]/g, '').trim().slice(0, PET_NAME_MAX);
 }
@@ -26873,11 +26876,11 @@ function renamePet(uid, raw){
   const n = cleanPetName(raw);
   /* Tomt namn betyder "tillbaka till artnamnet" i stallet for ett namnlost djur. */
   if (NET.on){
-    netRenamePet(p, (n && n !== PETS[p.sp].name) ? n : null)
+    netRenamePet(p, (n && n !== petSpName(p.sp)) ? n : null)
       .catch(e => say(srvErrText(e, 'Could not rename that companion.')));
     return true;
   }
-  if (n && n !== PETS[p.sp].name) p.n = n; else delete p.n;
+  if (n && n !== petSpName(p.sp)) p.n = n; else delete p.n;
   save(); renderPets(); renderPetPanel();
   return true;
 }
@@ -26947,7 +26950,7 @@ const PET_SORTS = [
   {id:'level',   name:'Level',   cmp:(a,b) => (petLvl(b) - petLvl(a)) || (b.rar - a.rar) || (a.uid - b.uid)},
   {id:'newest',  name:'Newest',  cmp:(a,b) => b.uid - a.uid},
   {id:'oldest',  name:'Oldest',  cmp:(a,b) => a.uid - b.uid},
-  {id:'species', name:'Species', cmp:(a,b) => PETS[a.sp].name.localeCompare(PETS[b.sp].name) || (petLvl(b) - petLvl(a)) || (b.rar - a.rar)},   /* [ANDRAT v5.1407.0] hogst niva forst inom gruppen (Chris) */
+  {id:'species', name:'Species', cmp:(a,b) => petSpName(a.sp).localeCompare(petSpName(b.sp)) ||   /* [ANDRAT natt-buggsvep] okand art kraschade sorteringen */ (petLvl(b) - petLvl(a)) || (b.rar - a.rar)},   /* [ANDRAT v5.1407.0] hogst niva forst inom gruppen (Chris) */
   /* [TILLAGT v5.902.0] EFTER FORMAGA (SheWolf, ide #10): alla Hagglers bredvid varandra, starkast forst. */
   /* [TILLAGT v5.915.0] SHINY FORST (Chris): de glansande overst, sedan raritet. */
   {id:'shiny', name:'Shiny', cmp:(a,b) => ((b.shiny ? 1 : 0) - (a.shiny ? 1 : 0)) || (petLvl(b) - petLvl(a)) || (b.rar - a.rar) || (a.uid - b.uid)},   /* [ANDRAT v5.1407.0] niva fore raritet (Chris) */
@@ -44044,7 +44047,7 @@ function showReveal(pet){
   $('frag-reveal').innerHTML =
     '<div class="rv-card" style="--rv-col:' + rarCol(pet.rar) + '">' +
     '<div class="pet-sprite" style="' + petSpriteVars(pet.sp, 84) + ';border-color:' + rarCol(pet.rar) + '"></div>' +
-    '<div><div class="rv-name">' + PETS[pet.sp].name + '</div><div class="rv-rar">' + RARITIES[pet.rar].name + '</div>' +
+    '<div><div class="rv-name">' + esc(petSpName(pet.sp)) + '</div><div class="rv-rar">' + (RARITIES[pet.rar] ? RARITIES[pet.rar].name : '') + '</div>'   /* [ANDRAT natt-buggsvep] okand art/raritet kastade */ +
     '<div class="rv-eff">' + petEffText(pet, '<br>') + '</div></div></div>';
 }
 function openCache(){
@@ -45177,7 +45180,7 @@ function openPetMenu(uid, x, y){
       m.innerHTML = '<div class="pm-head">Rename</div>' +
         '<input class="pm-input" id="pet-rename" maxlength="' + PET_NAME_MAX + '" value="' +
           petName(p).replace(/"/g, '&quot;') + '">' +
-        '<div class="pm-note">Max ' + PET_NAME_MAX + ' characters. Empty resets to ' + PETS[p.sp].name + '.</div>' +
+        '<div class="pm-note">Max ' + PET_NAME_MAX + ' characters. Empty resets to ' + esc(petSpName(p.sp)) + '.</div>'   /* [ANDRAT natt-buggsvep] okand art kastade */ +
         '<button class="pm-item" data-act="save">Save</button>' +
         '<button class="pm-item" data-act="cancel">Cancel</button>';
       const inp = m.querySelector('#pet-rename');
