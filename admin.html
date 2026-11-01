@@ -1183,7 +1183,10 @@ async function renderBugs(){
     try { const d = await rpc('admin_bug_shot', {p_id: +b.dataset.shot});
       if (!d || !/^data:image\/(webp|jpeg|png);base64,/.test(d)){ toast('No screenshot'); return; }
       const box = b.parentElement; box.innerHTML = '<a target="_blank" rel="noopener"><img alt="Screenshot"></a>';
-      box.querySelector('img').src = d; box.querySelector('a').href = d;
+      box.querySelector('img').src = d;
+      /* [ANDRAT natt-buggsvep] webblasare blockerar att oppna en data:-adress i ny flik, sa klick pa bilden gjorde ingenting. En blob-adress gar att oppna. */
+      try { const bin = atob(d.slice(d.indexOf(',') + 1)), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+            box.querySelector('a').href = URL.createObjectURL(new Blob([buf], {type: d.slice(5, d.indexOf(';'))})); } catch (e2){ box.querySelector('a').href = d; }
     } catch (e){ toast(e.message, true); }
   });
   m.querySelectorAll('.bugc [data-set]').forEach(b => b.onclick = async () => {
