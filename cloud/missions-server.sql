@@ -10,11 +10,11 @@ create table if not exists public.mission_config (
   key text primary key, value numeric not null, note text);
 insert into public.mission_config (key, value, note) values
   ('cost_credits',   25,  'Vad ett uppdrag kostar i credits (Chris 2026-11-01)'),
-  ('per_region_day', 3,   'Uppdrag per region och dygn (Chris: max 3 per region; dygnet ar en tolkning)'),
-  ('hours',          24,  'Timmar att gora ett kopt uppdrag innan det gar ut (forslag)'),
-  ('lean_weight',    3,   'Hur mycket tyngre buffens egenskap vager i rullningen. 1 = ingen lutning (forslag, Chris bestammer)'),
+  ('per_region_day', 3,   'Uppdrag per region och dygn (Chris 2026-11-01)'),
+  ('hours',          24,  'Timmar att gora ett kopt uppdrag innan det gar ut (Chris 2026-11-01)'),
+  ('lean_weight',    2,   'Hur mycket tyngre buffens egenskap vager i rullningen. 1 = ingen lutning. Svag lutning (Chris 2026-11-01)'),
   ('lean_mins',      150, 'Buffens tid i minuter: 2,5 timmar (Chris 2026-11-01)'),
-  ('min_level',      50,  'Lagsta niva for tavlan (forslag: problemet finns pa niva 50)')
+  ('min_level',      50,  'Lagsta niva for tavlan (Chris 2026-11-01)')
 on conflict (key) do nothing;
 
 /* Vilken belonning varje plats pa tavlan ger, och om platsen tar ett latt eller svart uppdrag. */
@@ -39,9 +39,9 @@ create table if not exists public.mission_templates (
   enabled boolean not null default true);
 insert into public.mission_templates (id, tier, kind, qty, name, blurb) values
   ('e_kill_10',   'easy', 'kill',      10,  'Thin the Herd',       'The roads around the Landing are crawling. Beat foes in this region.'),
-  ('e_kill_15',   'easy', 'kill',      15,  'Keep the Roads Open', 'The caravans will not move until the way is clear. Beat foes in this region.'),
+  ('e_kill_10b',  'easy', 'kill',      10,  'Keep the Roads Open', 'The caravans will not move until the way is clear. Beat foes in this region.'),
   ('e_gather_100','easy', 'gather',    100, 'Stock the Landing',   'The traders are running short. Gather materials in this region.'),
-  ('h_kill_30',   'hard', 'kill',      30,  'The Long Patrol',     'Walk the whole region and leave nothing behind you. Beat foes in this region.'),
+  ('h_kill_20',   'hard', 'kill',      20,  'The Long Patrol',     'Walk the whole region and leave nothing behind you. Beat foes in this region.'),
   ('h_dungeon',   'hard', 'dungeon',   1,   'Into the Dark',       'Clear this region''s dungeon without dying. Heroic and Rift runs count.'),
   ('h_boss',      'hard', 'worldboss', 1,   'Answer the Call',     'Fight a World Boss, wherever it shows up, then come back here.')
 on conflict (id) do nothing;
