@@ -14,7 +14,8 @@ insert into public.mission_config (key, value, note) values
   ('hours',          24,  'Timmar att gora ett kopt uppdrag innan det gar ut (Chris 2026-11-01)'),
   ('lean_weight',    2,   'Hur mycket tyngre buffens egenskap vager i rullningen. 1 = ingen lutning. Svag lutning (Chris 2026-11-01)'),
   ('lean_mins',      150, 'Buffens tid i minuter: 2,5 timmar (Chris 2026-11-01)'),
-  ('min_level',      50,  'Lagsta niva for tavlan (Chris 2026-11-01)')
+  ('min_level',      50,  'Lagsta niva for tavlan (Chris 2026-11-01)'),
+  ('test_only',      1,   '1 = bara testkontot kommer at tavlan. 0 nar Chris godkant slapp (Chris 2026-11-01)')
 on conflict (key) do nothing;
 
 /* Vilken belonning varje plats pa tavlan ger, och om platsen tar ett latt eller svart uppdrag. */
@@ -124,6 +125,17 @@ create or replace function public.mission_val(p_key text) returns numeric
   language sql stable security definer set search_path to 'public','pg_temp'
 as $f$ select value from public.mission_config where key = p_key $f$;
 
+/* SPARREN FORE SLAPP (Chris 2026-11-01): serverdelen ligger pa live for test, men bara testkontot kommer at den. */
+create or replace function public.mission_gate(p_character uuid) returns void
+  language plpgsql stable security definer set search_path to 'public','pg_temp'
+as $f$
+begin
+  if public.mission_val('test_only') = 1 and not exists (select 1 from public.characters c
+       where c.id = p_character and c.profile_id = '8fa27ae5-e0fc-4106-8e8e-737136af78ec') then
+    raise exception 'mission_closed' using errcode='P0001';
+  end if;
+end $f$;
+
 create or replace function public.mission_day() returns date
   language sql stable set search_path to 'public','pg_temp'
 as $f$ select (now() at time zone 'Europe/Stockholm')::date $f$;
@@ -214,6 +226,7 @@ as $f$
 declare v_ch public.characters; v_day date := public.mission_day();
 begin
   v_ch := public.owned_character(p_character);
+  perform public.mission_gate(p_character);
   return jsonb_build_object(
     'now', now(), 'day', v_day,
     'resets_at', ((v_day + 1)::timestamp at time zone 'Europe/Stockholm'),
@@ -259,6 +272,7 @@ as $f$
 declare v_ch public.characters; v_day date := public.mission_day(); v_b record; v_n integer; v_cost integer;
 begin
   perform public.owned_character(p_character);
+  perform public.mission_gate(p_character);
   /* Karaktaren last forst: tva samtidiga kop far inte se samma credits och samma tak. */
   select * into v_ch from public.characters where id = p_character for update;
   if public.character_level(v_ch.xp) < public.mission_val('min_level') then
@@ -311,6 +325,7 @@ declare v_ch public.characters; v_m public.character_missions; v_affix text := p
         v_until timestamptz; v_lean boolean; v_gear integer; v_help integer;
 begin
   perform public.owned_character(p_character);
+  perform public.mission_gate(p_character);
   select * into v_ch from public.characters where id = p_character for update;
   select * into v_m from public.character_missions where id = p_mission and character_id = p_character for update;
   if not found or v_m.status <> 'active' then raise exception 'mission_not_active' using errcode='P0001'; end if;
@@ -413,7 +428,7 @@ begin
 end $m$;
 
 /* ---- ATKOMST: nya funktioner ar oppna for alla som standard ---- */
-revoke execute on function public.mission_val(text), public.mission_day(), public.gear_lean_active(uuid),
+revoke execute on function public.mission_val(text), public.mission_gate(uuid), public.mission_day(), public.gear_lean_active(uuid),
   public.mission_board(uuid,text,date), public.mission_gather_now(uuid,text),
   public.mission_progress(public.character_missions), public.mission_row_json(public.character_missions),
   public.mission_give_cache(uuid,text,integer)
