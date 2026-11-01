@@ -2050,7 +2050,7 @@ function drawOverlay(){
     const za = clamp((D - 38) / 70, 0, 1) * clamp((820 - D) / 220, 0, 1);   /* hela varlden: bara regionernas namn */
     if (za > .02 && !R.locked){ c.globalAlpha = za * .92; if ('letterSpacing' in c) c.letterSpacing = '2px';
       const fz = clamp(Math.min(2600 / D, W / 70), 9, 16);   /* [ANDRAT v5.1386.0] Chris: ett namn tackte tva zoner. Foljer kartans bredd, sa namnet far plats i sin zon aven i spelets lilla ruta */
-      const zl = R.zones.map(z => ({x: z.c.x, y: z.c.y, txt: z.namn.toUpperCase(), sub: z.i === 5 ? 'DUNGEON' : (/^(uncharted|unknown)$/.test(zoneState(R.id, z.namn)) ? 'UNCHARTED' : ''), col: /^(uncharted|unknown)$/.test(zoneState(R.id, z.namn)) ? '#7e8d99' : R.acc[z.i]}));
+      const zl = R.zones.map(z => ({x: (z.lb || z.c).x, y: (z.lb || z.c).y, txt: z.namn.toUpperCase(), sub: z.i === 5 ? 'DUNGEON' : (/^(uncharted|unknown)$/.test(zoneState(R.id, z.namn)) ? 'UNCHARTED' : ''), col: /^(uncharted|unknown)$/.test(zoneState(R.id, z.namn)) ? '#7e8d99' : R.acc[z.i]}));
       zl.push({x: R.landing.x, y: Math.min(...R.landing.poly.map(q => q.y)) + 60, txt: 'THE LANDING', sub: '', col: R.neon.hue});
       const zbox = [];
       zl.forEach(z => { const q = toScreen(z.x * K, .3, z.y * K); if (!q.on || q.x < -200 || q.x > W + 200 || q.y < -30 || q.y > H + 30) return;
@@ -2611,6 +2611,13 @@ let pois = [];
 function edgeDist(z, q){ let m = Infinity; z.poly.forEach((a, i) => { m = Math.min(m, distSeg(q.x, q.y, a, z.poly[(i + 1) % z.poly.length])); }); return m; }
 function innerSlots(z){ if (z.inS) return z.inS; for (const m of [70, 50, 30]){ const f = z.slots.filter(q => edgeDist(z, q) >= m); if (f.length >= 8) return (z.inS = f); }
   return (z.inS = z.slots.slice().sort((a, b) => edgeDist(z, b) - edgeDist(z, a)).slice(0, 8)); }
+/* [TILLAGT v5.1397.0] ZONNAMNET PA FRI MARK (Chris: dungeonens ring och pelare hamnade under The Hospital). Texten ligger alltid over kartan,
+   sa namnet flyttas dit ingen ring eller pelare gar. Pelaren gar uppat fran ringen, darfor raknas ytan ovanfor varje plats som upptagen. */
+function placeZoneLabels(){ LAND.forEach(R => R.zones.forEach(z => { const here = pois.filter(p => p.R === R && p.zn === z.namn); let best = z.c, bs = Infinity;
+  for (const [ox, oy] of [[0, 0], [0, 55], [0, -55], [0, 100], [0, -100], [110, 0], [-110, 0], [110, 60], [-110, 60], [110, -60], [-110, -60], [0, 150], [0, -150], [190, 0], [-190, 0]]){
+    const q = {x: z.c.x + ox, y: z.c.y + oy}; if (!inPoly(z.poly, q.x, q.y) || !inPoly(z.poly, q.x - 80, q.y) || !inPoly(z.poly, q.x + 80, q.y)) continue;
+    const sc = here.filter(p => Math.abs(p.x - q.x) < 90 && q.y - p.y > -150 && q.y - p.y < 40).length + (ox || oy ? .1 : 0); if (sc < bs){ bs = sc; best = q; if (sc < 1) break; } }
+  z.lb = best; })); }
 function rebuildPois(){
   poisDirty = false; const old = new Map(pois.map(p => [p.key, p])), out = [], used = new Map();
   /* [ANDRAT v5.1396.0] PLATSERNA INNE I ZONEN (Chris: "alla har akt ut pa kanten", matt: 0-10 steg fran kanten). Bara markena flyttas; byggnader och Chris placeringar star kvar. */
@@ -2647,7 +2654,7 @@ function rebuildPois(){
       pick: {kind: 'event', region: z.R.id, zone: z.namn, id: ev.id}}); });
   if (!boss) (Array.isArray(st.bosses) ? st.bosses : []).forEach(b => { if (!b) return; const [rid, zn] = splitKey(b.zone), z = zoneOf(rid, zn); if (!z) return;
     add({key: 'b#' + b.id, kind: 'boss', R: z.R, zn: z.namn, x: z.c.x, y: z.c.y, h: 3, label: str(b.label, 30) || 'World Boss', sub: 'World Boss', pick: {kind: 'boss', region: rid, zone: z.namn}}); });
-  old.forEach(freePoi); pois = out; }
+  old.forEach(freePoi); pois = out; placeZoneLabels(); }
 function freePoi(p){ if (p.av){ if (p.av.static) scene.remove(p.av.root); else freeAv(p.av); p.av = null; } if (p.mesh){ scene.remove(p.mesh); p.mesh = null; } if (p.bc){ scene.remove(p.bc); p.bc.children.forEach(m => m.material.dispose()); p.bc = null; } }
 /* [TILLAGT v5.1383.0] LJUSPELARE (Chris 2026-10-31: svart att se ikonerna och vad de betyder): quests, moten och expeditioner far samma
    ljusstrale och pulsring som "du ar har", i sin egen farg (gul / rod / turkos). Smalare och lagre an din egen sa du syns forst.
