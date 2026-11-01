@@ -23863,6 +23863,8 @@ function modchipBase(sort, r){ const d = MODCHIP[sort]; return d ? d.vals[Math.m
 function isChipItem(it){ return !!(it && it.t && ITEMS[it.t] && ITEMS[it.t].chip); }
 /* Chipets sort och varde ur ett CHIP-foremal (egenskapen ligger i a[0] som pa gear). */
 function chipSortOf(it){ const x = it && it.a && it.a[0]; return x ? x.k : null; }
+/* [ANDRAT natt-buggsvep] chipsortens namn utan krasch: en sort som klienten inte kanner (ny pa servern) kastade i Chip Fusion och i handlaren */
+function mcName(k){ return (MODCHIP[k] && MODCHIP[k].name) || String(k || 'Mod Chip'); }
 function chipValOf(it){ const x = it && it.a && it.a[0]; return x ? +x.v || 0 : 0; }
 /* [ANDRAT v5.1360.0] CHIPBILDERNA (Chris: bilder till allt nytt). En bild per sort i assets/items/chips/chip_<sort>.webp,
    skrotchip har egen bild (pic = 'chip_salvaged'), borren och extraktorn likasa. Rariteten syns som en farglinje runt bilden.
@@ -31686,7 +31688,7 @@ function chipFitWhy(chip, gear){
 }
 function chipCapWarn(chip){
   const sort = chipSortOf(chip); if (!sort) return '';
-  const t = chipTotals()[sort];
+  const t = chipTotals()[sort]; if (!t) return '';   /* [ANDRAT natt-buggsvep] okand chipsort kastade och chipvaljaren oppnades aldrig */
   return t.raw >= t.cap ? 'Cap reached (' + t.cap + '%) - this chip adds nothing right now' : (t.raw + chipValOf(chip) > t.cap ? 'Only ' + Math.round((t.cap - t.raw) * 100) / 100 + '% of it counts (cap ' + t.cap + '%)' : '');
 }
 let chipPickEl = null;
@@ -31930,14 +31932,14 @@ function chipFusionHTML(regionId){
   h += '<div class="fus-box"><div class="fus-chips">';
   for (let i = 0; i < 3; i++){
     const it = tre[i];
-    h += it ? '<div class="fus-chip" style="--rc:' + rarCol(it.r) + '">' + chipHexHTML(chipSortOf(it), it.r, '', 'chip_salvaged') + '<div><b style="color:' + perkColor(chipSortOf(it)) + '">+' + chipValOf(it).toFixed(2) + '% ' + esc(MODCHIP[chipSortOf(it)].name) + '</b><small>Salvaged \u00b7 ' + RARITIES[it.r].name + '</small></div></div>'
+    h += it ? '<div class="fus-chip" style="--rc:' + rarCol(it.r) + '">' + chipHexHTML(chipSortOf(it), it.r, '', 'chip_salvaged') + '<div><b style="color:' + perkColor(chipSortOf(it)) + '">+' + chipValOf(it).toFixed(2) + '% ' + esc(mcName(chipSortOf(it))) + '</b><small>Salvaged \u00b7 ' + RARITIES[it.r].name + '</small></div></div>'
              : '<div class="fus-chip empty">' + chipHexHTML(null, null, 'empty') + '<div>Salvaged Mod Chip<small>' + (ch.length ? 'need ' + (3 - ch.length) + ' more' : 'drops from fights, expeditions and dungeons') + '</small></div></div>';
   }
   h += '</div>';
   if (tre.length >= 3){
-    h += '<div><b>Pick the result:</b></div><div class="fus-pick">' + sorts.map(k => '<button class="pp-openbtn' + (FUSION_PICK === k ? ' on' : '') + '" data-fuspick="' + k + '" style="color:' + perkColor(k) + '">' + chipHexHTML(k, 3) + ' Epic ' + esc(MODCHIP[k].name) + ' +' + modchipBase(k, 3) + '%</button>').join('') + '</div>';
+    h += '<div><b>Pick the result:</b></div><div class="fus-pick">' + sorts.map(k => '<button class="pp-openbtn' + (FUSION_PICK === k ? ' on' : '') + '" data-fuspick="' + k + '" style="color:' + perkColor(k) + '">' + chipHexHTML(k, 3) + ' Epic ' + esc(mcName(k)) + ' +' + modchipBase(k, 3) + '%</button>').join('') + '</div>';
     h += '<div class="fus-price"><span>' + uiIco('gold') + ' ' + fmtMoney(CHIP_FUSION_GOLD) + (canPay ? '' : ' <span style="color:var(--red)">(not enough gold)</span>') + '</span>' +
-      '<button class="pp-openbtn addq" data-fusgo="1"' + (FUSION_PICK && canPay && here ? '' : ' disabled') + '>Fuse' + (FUSION_PICK ? ' \u2192 ' + esc(MODCHIP[FUSION_PICK].name) : '') + '</button>' +
+      '<button class="pp-openbtn addq" data-fusgo="1"' + (FUSION_PICK && canPay && here ? '' : ' disabled') + '>Fuse' + (FUSION_PICK ? ' \u2192 ' + esc(mcName(FUSION_PICK)) : '') + '</button>' +
       (here ? '' : '<span style="opacity:.75">Travel to this vendor to fuse.</span>') + '</div>';
   } else {
     h += '<div class="rr-used">You have ' + ch.length + ' of 3 Salvaged Mod Chips.</div>';
@@ -38611,13 +38613,13 @@ function wireTrader(root, regionId, rita){
       if (!dubbelSparr('vend:fusion')) return;
       const ch = fusionChips(); if (ch.length < 3 || !FUSION_PICK) return;
       const ja = await askConfirm({color: perkColor(FUSION_PICK), ico: '\u25a2', title: 'Fuse three chips?',
-        body: 'Three <b>Salvaged Mod Chips</b> become one <b>Epic ' + MODCHIP[FUSION_PICK].name + ' Mod Chip</b> (+' + modchipBase(FUSION_PICK, 3) + '%). It costs ' + fmtMoney(CHIP_FUSION_GOLD) + ' and the chip binds to you.',
+        body: 'Three <b>Salvaged Mod Chips</b> become one <b>Epic ' + esc(mcName(FUSION_PICK)) + ' Mod Chip</b> (+' + modchipBase(FUSION_PICK, 3) + '%). It costs ' + fmtMoney(CHIP_FUSION_GOLD) + ' and the chip binds to you.',
         yes: 'FUSE', no: 'NO'});
       if (!ja) return;
       fgo.disabled = true;
       try {
         const r = await netChipFusion(regionId, FUSION_PICK);
-        vendorNote = 'Fused: Epic ' + MODCHIP[FUSION_PICK].name + ' Mod Chip is in your backpack.';
+        vendorNote = 'Fused: Epic ' + mcName(FUSION_PICK) + ' Mod Chip is in your backpack.';
         FUSION_PICK = null;
       } catch (e){ vendorNote = srvErrText(e); }
       rita();
