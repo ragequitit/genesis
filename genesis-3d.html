@@ -2067,6 +2067,7 @@ function drawOverlay(){
     const p = {x: cc.x, y: Math.max(Math.min(...cs.map(q => q.y)) - 26, 70), on: cc.on}; if (!p.on || p.x < -200 || p.x > W + 200 || p.y > H + 60 || cc.y < 40) return;
     const fs = clamp(2600 * BIG / D, 13, 26);
     if (R.locked){ label(c, R.namn.toUpperCase(), p.x, p.y + 30, {size: fs * .7, w: 900, f: 'o', col: '#e2e8f0', glow: R.neon.hue}); label(c, 'COMING SOON', p.x, p.y + 30 + fs, {size: 10, w: 700, col: '#cbd5e1'}); return; }
+    p.y -= 20;   /* [TILLAGT v5.1394.0] texten ska inte krocka med regionen (Chris) */
     label(c, R.namn.toUpperCase(), p.x, p.y, {size: Math.min(fs * .9, 18), w: 900, f: 'o', col: mix(R.neon.hue, '#ffffff', .25), stroke: 4, glow: R.neon.hue, glowR: 14});   /* [ANDRAT v5.1373.0] neon som 2D-kartan */
     label(c, 'LVL ' + R.band + ' · ' + (counts[R.id] || 0) + ' online', p.x, p.y + fs * .9, {size: clamp(fs * .5, 10, 13), w: 600, col: '#e8ecff'});
     const ac = act[R.id]; if (ac){ const s = [['⚔', ac.strid], ['🏰', ac.dungeon], ['⚒', ac.yrke], ['🧭', ac.expedition], ['✈', ac.resa]].filter(x => x[1]).map(x => x[0] + ' ' + x[1]).join('   ');
@@ -2645,15 +2646,16 @@ function freePoi(p){ if (p.av){ if (p.av.static) scene.remove(p.av.root); else f
    Gra/svag nar den inte gar att ta just nu, borta nar motet vilar. Bara platser nara kameran ritas (manga dragningar annars). */
 const BC_TXT = (() => { const bc = document.createElement('canvas'); bc.width = 4; bc.height = 128; const g = bc.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
   gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.55, 'rgba(255,255,255,.3)'); gr.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); return new THREE.CanvasTexture(bc); })();
-const BC_BEAM = new THREE.CylinderGeometry(.22, .32, 1, 12, 1, true).translate(0, .5, 0), BC_RING = new THREE.RingGeometry(.86, 1, 40);
+const BC_BEAM = new THREE.CylinderGeometry(.22, .32, 1, 12, 1, true).translate(0, .5, 0), BC_RING = new THREE.RingGeometry(.66, 1, 40);
 const BC_KIND = {quest: 1, encounter: 1, expedition: 1, dungeon: 1, vendor: 1, vault: 1};   /* [ANDRAT v5.1390.0] vendor gron och vault lila, som de andra (Chris) */
 /* [ANDRAT v5.1393.0] med glod: starkt nog att lysa, inte sa starkt att fargen blir vit. Morka farger (rott) tal mer. */
-const BC_GAIN = {encounter: .95, dungeon: 2, vendor: 1.5, vault: 1.3, quest: 1.1, expedition: 1.2};
+const BC_GAIN = {encounter: .8, dungeon: 1.3, vendor: 1, vault: .95, quest: .9, expedition: .9};
 function beaconMesh(){ const g = new THREE.Group();
   const mk = (geo, o) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial(Object.assign({transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}, o)));
-  const fix = mk(BC_RING, {}), pulse = mk(BC_RING, {}), beam = mk(BC_BEAM, {map: BC_TXT});
-  fix.rotation.x = pulse.rotation.x = -Math.PI / 2; fix.position.y = .05; pulse.position.y = .06; beam.renderOrder = 3; g.add(fix, pulse, beam);
-  g.userData = {fix, pulse, beam, col: ''}; return g; }
+  /* [ANDRAT v5.1394.0] EN FAST LITEN RING OCH EN PELARE (Chris): pulsringen och blinkandet borta, allt i full farg */
+  const fix = mk(BC_RING, {}), beam = mk(BC_BEAM, {map: BC_TXT});
+  fix.rotation.x = -Math.PI / 2; fix.position.y = .05; beam.renderOrder = 3; g.add(fix, beam);
+  g.userData = {fix, beam, col: ''}; return g; }
 function stepBeacon(p, t){
   const d = cam.dist, near = !GLB.on && !hidR(p.R) && (d < 460 || p.R === FR) && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
   if (!near){ if (p.bc) p.bc.visible = false; return; }
@@ -2661,14 +2663,15 @@ function stepBeacon(p, t){
   const u = p.bc.userData, dim = p.grey || p.state === 'locked' || p.state === 'running' || zoneState(p.R.id, p.zn) === 'uncharted';
   const col = dim ? '#8b93a7' : p.kind === 'quest' ? (p.mark === '?' ? '#ffd24a' : MK.quest) : POI_COL[p.kind];
   /* [ANDRAT v5.1393.0] UTAN GLOD BLEV ALLT VITT (Chris: "lyser inte i sina egna farger"): filmljuset blekte de starka fargerna. Utan glod ritas platsens rena farg. */
-  if (u.col !== col || u.fx !== FX.on){ u.col = col; u.fx = FX.on; [u.fix, u.pulse, u.beam].forEach(m => { m.material.toneMapped = FX.on; m.material.blending = FX.on ? THREE.AdditiveBlending : THREE.NormalBlending; m.material.needsUpdate = true; });
+  if (u.col !== col || u.fx !== FX.on){ u.col = col; u.fx = FX.on; [u.fix, u.beam].forEach(m => { m.material.toneMapped = FX.on; m.material.blending = THREE.NormalBlending; m.material.needsUpdate = true; });
     const gain = !FX.on ? 1 : dim ? .9 : BC_GAIN[p.kind] || 1.2;   /* [ANDRAT v5.1389.0] vitt pa full styrka gjorde hela kartan disig med glodet pa, och rott blev rosa */
-    [u.fix, u.pulse, u.beam].forEach(m => m.material.color.copy(hdr(col, gain))); }
-  p.bc.visible = true; const ph = (t * .7 + (p.x % 7) / 7) % 1, base = clamp(d * .028, 1.1, 10), a = dim ? .45 : 1;
-  u.fix.scale.setScalar(base * .55); u.fix.material.opacity = .7 * a;
-  u.pulse.scale.setScalar(base * (.5 + ph * .7)); u.pulse.material.opacity = .75 * (1 - ph) * a;
+    /* med glod bleker slutbilden fargerna: mattas upp i forvag sa de haller */
+    const cc = hdr(col, gain); if (FX.on && !dim){ const l = (cc.r + cc.g + cc.b) / 3; cc.setRGB(Math.max(0, l + (cc.r - l) * 1.7), Math.max(0, l + (cc.g - l) * 1.7), Math.max(0, l + (cc.b - l) * 1.7)); }
+    [u.fix, u.beam].forEach(m => m.material.color.copy(cc)); }
+  p.bc.visible = true; const base = clamp(d * .028, 1.1, 10), a = dim ? .45 : 1;
+  u.fix.scale.setScalar(base * .42); u.fix.material.opacity = a;
   u.beam.scale.set(clamp(d * .01, .35, 3), clamp(2 + d * .14, 3, 45), clamp(d * .01, .35, 3));
-  u.beam.material.opacity = clamp((d - 10) / 30, 0, 1) * (.6 + .2 * Math.sin(t * 2.5 + p.x)) * a; }
+  u.beam.material.opacity = clamp((d - 10) / 30, 0, 1) * a; }
 /* sma egna figurer: varg och kristallader */
 const M_WOLF = flat(0x6b7280), M_WOLF2 = flat(0x4b5563), M_EYE = new THREE.MeshBasicMaterial({color: 0xfde047});
 function wolfMesh(){ const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
@@ -2755,8 +2758,7 @@ function drawPois(c, W, H, D, placed){
       /* [ANDRAT v5.1353.0] SOM I WOW (Chris): ! = uppdrag att hamta, ? = klart att lamna in; gratt nar man inte kan just nu */
       const ch = p.mark === '?' ? '?' : '!', col = p.grey ? '#9ca3af' : (ch === '?' ? '#ffd24a' : '#ffe14a');
       const qim = mapIco(ch === '?' ? 'quest_done' : 'quest_new');
-      /* [ANDRAT v5.1353.0] STUDSAR INTE (Chris: storande) - pulserar mjukt i ljusstyrka i stallet */
-      c.globalAlpha *= .72 + .28 * (.5 + .5 * Math.sin(t * 2.2 + p.x));
+      /* [ANDRAT v5.1394.0] varken studsar eller blinkar (Chris) */
       if (qim){ const sz = fs * 1.55; if (p.grey) c.filter = 'grayscale(1) brightness(.75)';   /* [TILLAGT v5.1353.0] ikonen i stallet for tecknet; gra nar man inte kan just nu */
         c.drawImage(qim, q.x - sz / 2, q.y - 6 + bob - sz / 2, sz, sz); c.filter = 'none'; }
       else { c.font = '900 ' + fs + 'px Georgia,serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 5; c.strokeStyle = p.grey ? 'rgba(20,20,24,.9)' : 'rgba(40,24,0,.9)';
@@ -2774,7 +2776,8 @@ function drawPois(c, W, H, D, placed){
       if (hov || !placed.some(o => tr.x < o.x + o.w && tr.x + tr.w > o.x && tr.y < o.y + o.h && tr.y + tr.h > o.y)){ placed.push(tr);
         label(c, tag, q.x, ty, {size: 9, w: 800, col: dim || p.grey ? '#9ca3af' : p.kind === 'quest' ? MK.quest : POI_COL[p.kind], bg: 'rgba(0,0,0,.7)'}); } }
     /* namnet OVANFOR ikonen, sa figuren under syns */
-    if (D < (p.kind === 'gather' || p.kind === 'vein' ? 45 : 110) || hov){ const ly = q.y - (p.kind === 'quest' ? 34 : 24), txt = p.label + (D < 45 || hov ? ' · ' + p.sub : '');
+    if (D < (p.kind === 'gather' || p.kind === 'vein' ? 45 : 110) || hov){ const ly = q.y - (p.kind === 'quest' ? 34 : 24), txt = p.label + (!BC_KIND[p.kind] && (D < 45 || hov) ? ' · ' + p.sub : '');   /* [ANDRAT v5.1394.0] ordet under ikonen sager redan vad det ar (Chris) */
+     
       c.font = '700 11px sans-serif'; const w = c.measureText(txt).width + 12, r = {x: q.x - w / 2, y: ly - 9, w, h: 18};
       if (!hov && placed.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y)) return; placed.push(r);
       label(c, txt, q.x, ly, {size: 11, w: 700, col: p.kind === 'quest' ? (p.grey ? '#cbd5e1' : '#ffd24a') : dim ? '#cbd5e1' : /^(expedition|dungeon|vendor|vault)$/.test(p.kind) ? POI_COL[p.kind] : '#fff', bg: 'rgba(0,0,0,.6)'}); } });
