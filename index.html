@@ -29145,6 +29145,7 @@ const MS_FEL = {
   not_your_alt:      'Caches can only go to your own characters.',   /* [TILLAGT v5.1091.0] */
   offline:           'No connection.'
 };
+/* [ANDRAT natt-buggsvep] msNote skriver ren text, sa mottagarens namn ska INTE escapas innan - & och ' visades som &amp; och &#39; */
 function msNote(txt, sort){
   const n = $('ms-note'); if (!n) return;
   n.textContent = txt || '';
@@ -29231,9 +29232,10 @@ async function msSend(){
     btn.disabled = true; msNote('Sending\u2026');
     try {
       const r = await srvRpc('mail_send_caches', {p_character: SRV.charId, p_to: alt.id, p_gear: cg, p_helper: ch, p_subject: amne || null, p_body: ($('ms-body').value || '').trim()});
-      msNote('Sent ' + [cg ? cg + ' Gear Cache' + (cg > 1 ? 's' : '') : '', ch ? ch + ' Helper Cache' + (ch > 1 ? 's' : '') : ''].filter(Boolean).join(' and ') + ' to ' + esc((r && r.to) || alt.name) + '.', 'good');
+      msNote('Sent ' + [cg ? cg + ' Gear Cache' + (cg > 1 ? 's' : '') : '', ch ? ch + ' Helper Cache' + (ch > 1 ? 's' : '') : ''].filter(Boolean).join(' and ') + ' to ' + ((r && r.to) || alt.name) + '.', 'good');
       $('ms-cg').value = ''; $('ms-ch').value = ''; $('ms-subject').value = ''; $('ms-body').value = '';
       try { await netPullItems(); } catch (e){} renderInventory(); msAltCheck();
+      try { msFillItems(); } catch (e){}   /* [ANDRAT natt-buggsvep] listan over vad man kan skicka ritades inte om efter ett utskick */
     } catch (e){ msNote(srvErrText(e, 'The caches could not be sent.'), 'bad'); }
     btn.disabled = false;
     return;
@@ -29270,12 +29272,12 @@ async function msSend(){
       : bara
       ? await srvRpc('mail_send_text', gemensamt)
       : await srvRpc('mail_send_gold', Object.assign({p_gold: guld * 10000}, gemensamt));
-    msNote(bara ? 'Letter sent to ' + esc((r && r.to) || namn) + '.' : hog
-      ? 'Sent ' + fmt(antal) + ' to ' + esc((r && r.to) || namn) + '.'
+    msNote(bara ? 'Letter sent to ' + ((r && r.to) || namn) + '.' : hog
+      ? 'Sent ' + fmt(antal) + ' to ' + ((r && r.to) || namn) + '.'
       : pjas
-      ? 'Item sent to ' + esc((r && r.to) || namn) + '.'
+      ? 'Item sent to ' + ((r && r.to) || namn) + '.'
       : 'Sent ' + (r && r.gold ? moneyPlain(r.gold) : guld + 'g') +
-        ' to ' + esc((r && r.to) || namn) + '.', 'good');
+        ' to ' + ((r && r.to) || namn) + '.', 'good');
     if ($('ms-item')) $('ms-item').value = ''; if ($('ms-qtyf')) $('ms-qtyf').hidden = true;
     $('ms-gold').value = ''; $('ms-subject').value = ''; $('ms-body').value = '';
     /* Avsandarens egen kassa andrades: hamta hem den i stallet for att rakna
@@ -29283,7 +29285,7 @@ async function msSend(){
     if (typeof netPull === 'function') { try { await netPull(); } catch(e){} }
     /* [TILLAGT v5.799.0] En skickad pjas lag kvar i vaskan tills nasta hamtning (buggsvep 8). */
     /* [ANDRAT v5.1290.0] aven en skickad hog (material m.m.) - den lag kvar i vaskan tills nasta hamtning (Wolf) */
-    if (pjas || hog){ try { await netPullItems(); } catch(e){} renderInventory(); renderEquip(); }
+    if (pjas || hog){ try { await netPullItems(); } catch(e){} renderInventory(); renderEquip(); try { msFillItems(); } catch (e){} }   /* [ANDRAT natt-buggsvep] skickad sak stod kvar i listan, och antalet i hogen var det gamla */
     if (typeof renderMail === 'function') renderMail();
   } catch (e){
     const m = String((e && e.message) || e);
