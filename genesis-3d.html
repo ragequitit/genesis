@@ -2039,6 +2039,7 @@ function label(c, txt, x, y, o){ o = o || {}; c.font = (o.w || 600) + ' ' + (o.s
 function drawOverlay(){
   const c = octx, W = innerWidth, H = innerHeight, D = cam.dist; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
   if (GLB.on){ globeOverlay(c, W, H); return; }   /* [TILLAGT v5.1380.0] */
+  actHits.length = 0;
   const counts = {}, act = {}; ents.forEach(e => { if (e.gone) return; counts[e.R.id] = (counts[e.R.id] || 0) + 1;
     const a = (act[e.R.id] = act[e.R.id] || {}), k = e.fly ? 'resa' : e.akt; a[k] = (a[k] || 0) + 1; });
   const placed = [];
@@ -2070,10 +2071,13 @@ function drawOverlay(){
     p.y -= 20;   /* [TILLAGT v5.1394.0] texten ska inte krocka med regionen (Chris) */
     label(c, R.namn.toUpperCase(), p.x, p.y, {size: Math.min(fs * .9, 18), w: 900, f: 'o', col: mix(R.neon.hue, '#ffffff', .25), stroke: 4, glow: R.neon.hue, glowR: 14});   /* [ANDRAT v5.1373.0] neon som 2D-kartan */
     label(c, 'LVL ' + R.band + ' · ' + (counts[R.id] || 0) + ' online', p.x, p.y + fs * .9, {size: clamp(fs * .5, 10, 13), w: 600, col: '#e8ecff'});
-    const ac = act[R.id]; if (ac){ const s = [['⚔', ac.strid], ['🏰', ac.dungeon], ['⚒', ac.yrke], ['🧭', ac.expedition], ['✈', ac.resa]].filter(x => x[1]).map(x => x[0] + ' ' + x[1]).join('   ');
-      if (s) label(c, s, p.x, p.y + fs * .9 + 16, {size: 11, w: 600, col: '#fde68a'}); }
+    const ac = act[R.id]; if (ac){ const parts = [['⚔', ac.strid, 'fighting'], ['🏰', ac.dungeon, 'in a dungeon'], ['⚒', ac.yrke, 'working a profession'], ['🧭', ac.expedition, 'on an expedition'], ['✈', ac.resa, 'travelling']].filter(x => x[1]);
+      /* [ANDRAT v5.1395.0] VAD BETYDER SIFFRORNA (Chris): varje del ritas for sig sa att musen kan visa vad den ar */
+      if (parts.length){ const ly = p.y + fs * .9 + 16; label(c, ' ', p.x, ly, {size: 11, w: 600, stroke: 0}); const ws = parts.map(x => c.measureText(x[0] + ' ' + x[1]).width), gap = 12, tot = ws.reduce((a, b) => a + b, 0) + gap * (parts.length - 1); let lx = p.x - tot / 2;
+        parts.forEach((x, i) => { label(c, x[0] + ' ' + x[1], lx + ws[i] / 2, ly, {size: 11, w: 600, col: '#fde68a'}); actHits.push({x: lx - 4, y: ly - 10, w: ws[i] + 8, h: 20, cx: lx + ws[i] / 2, tip: x[1] + (x[1] === 1 ? ' player ' : ' players ') + x[2]}); lx += ws[i] + gap; }); } }
  });
   drawPois(c, W, H, D, placed);   // [TILLAGT genesis-world-play]
+  if (mouseXY){ const h = actHits.find(a => mouseXY.x >= a.x && mouseXY.x <= a.x + a.w && mouseXY.y >= a.y && mouseXY.y <= a.y + a.h); if (h) label(c, h.tip, clamp(h.cx, 90, W - 90), h.y + 34, {size: 12, w: 700, col: '#fff', bg: 'rgba(5,8,16,.92)'}); }
   /* boss */
   if (boss && !hidR(boss.R)){ const far = D > 110, q0 = toScreen(boss.x * K, boss.lage === 'annonserad' ? 5 : 9, boss.y * K), q = far ? {x: q0.x + (q0.x > W / 2 ? -95 : 95), y: q0.y + 10, on: q0.on} : q0;
     if (q.on && q.x > -100 && q.x < W + 100 && q.y > -60 && q.y < H + 60){ const col = bossCol();
@@ -2736,6 +2740,7 @@ function onPoi(P){
   if (L < stop + 6){ me.face = Math.atan2(P.x - me.x, P.y - me.y); meAct(P.kind === 'encounter' ? CLS3D[me.klass].atk : P.kind === 'vein' ? 'PickUp' : 'Interact', .8); return; }
   walkTo(P.x + dx / L * stop, P.y + dy / L * stop, P); }
 /* etiketter ovanpa platserna (ritas i drawOverlay) */
+const actHits = []; let mouseXY = null;
 function drawPois(c, W, H, D, placed){
   pois.forEach(p => { p.vis = false; });
   if (D > 700 && !FR) return;
@@ -2787,7 +2792,8 @@ function drawPois(c, W, H, D, placed){
   if (me.R && !hidR(me.R)){ const q = toScreen(me.x * K, (me.h || 0) * K + 2.25, me.y * K); if (q.on){ me.sx = q.x; me.sy = q.y + 20;
     label(c, '★ ' + me.namn, q.x, q.y, {size: 12, w: 800, col: '#1a0a00', bg: 'rgba(255,138,31,.96)'}); placed.push({x: q.x - 50, y: q.y - 10, w: 100, h: 20}); } } }
 let hoverPoi = null;
-glc.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || ptrs.size) return; const p = poiAt(e.clientX, e.clientY); if (p !== hoverPoi){ hoverPoi = p; glc.classList.toggle('hov', !!p); } });
+glc.addEventListener('pointerleave', () => { mouseXY = null; });
+glc.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || ptrs.size) return; mouseXY = {x: e.clientX, y: e.clientY}; const p = poiAt(e.clientX, e.clientY); if (p !== hoverPoi){ hoverPoi = p; glc.classList.toggle('hov', !!p); } });
 
 /* ===== HUD: resknapp, rutor, toast ===== */
 let toastTo = null;
@@ -2952,7 +2958,7 @@ if (window.parent === window && !EDIT && !G.state) setTimeout(() => { if (G.stat
     q.push({id: 'demo' + R.id + i, zone: k, label: 'DEMO QUEST', mark: i % 3 === 1 ? '?' : '!', grey: i === 4});
     e.push({id: 'demoe' + R.id + i, zone: k, label: ex[i % 4], state: 'ready'}); if (i % 2) e.push({id: 'demof' + R.id + i, zone: k, label: ex[(i + 1) % 4], state: 'ready'}); }));
   API.setState({quests3d: q, encounters: e}); }, 1200);
-window.__gw = {GLB, globeEnter, globeLeave, unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
+window.__gw = {actHits, GLB, globeEnter, globeLeave, unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
 requestAnimationFrame(frame);
 </script>
 </body>
