@@ -222,7 +222,8 @@ begin
   if p_item is not null and p_to_shared then
     select * into v_it from public.items where id = p_item and character_id = p_character for update;
     if not found then raise exception 'item_not_found' using errcode = 'P0001'; end if;
-    if v_it.location <> 'bag' then raise exception 'item_not_in_bag' using errcode = 'P0001'; end if;
+    /* [ANDRAT v5.1413.0-valv] aven direkt ur valvet: dra pjasen pa fliken Shared (Chris 2026-11-01) */
+    if v_it.location not in ('bag', 'vault') then raise exception 'item_not_in_bag' using errcode = 'P0001'; end if;
     if v_it.socket_kind is not null then raise exception 'item_socketed' using errcode = 'P0001'; end if;
     if v_it.sheet_id is not null then raise exception 'item_on_sheet' using errcode = 'P0001'; end if;
     if v_it.gem_region is not null then raise exception 'shared_no_gem' using errcode = 'P0001'; end if;
@@ -246,7 +247,7 @@ begin
     values (v_it.id, v_ch.profile_id, v_it.item_key, v_it.rarity, v_snap, p_character);
     insert into public.item_log (item_id, character_id, event, item_key, rarity, meta)
     values (v_it.id, p_character, 'shared_in', v_it.item_key, v_it.rarity,
-            jsonb_build_object('from', 'bag', 'to', 'shared', 'profile', v_ch.profile_id, 'snapshot', v_snap));
+            jsonb_build_object('from', v_it.location, 'to', 'shared', 'profile', v_ch.profile_id, 'snapshot', v_snap));
 
   elsif p_item is not null then
     select * into v_sv from public.shared_vault_items where id = p_item and profile_id = v_ch.profile_id for update;

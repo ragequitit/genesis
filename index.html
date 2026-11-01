@@ -28526,6 +28526,17 @@ function sharedPut(invIdx, at){
   say(SRV_ERRORS.shared_wrong_kind);
   return false;
 }
+/* [TILLAGT v5.1413.0-valv] UR VALVET DIREKT (Chris 2026-11-01): en pjas i valvet kan dras till fliken Shared utan att ga via vaskan.
+   Bara utrustning: staplar i valvet bor i annan form, de tar vagen via vaskan som forut. */
+function sharedPutFromVault(vaultIdx){
+  const row = S.vault && S.vault.inv[vaultIdx];
+  if (!row) return false;
+  if (!row.gear){ say('Only gear can go straight to the Shared tab. Move this to your backpack first.'); return false; }
+  if (!NET.on || !SHV.loaded){ say('The Shared tab is not ready yet.'); return false; }
+  if (!SHV.unlocked){ say(SRV_ERRORS.shared_vault_locked); return false; }
+  sharedMove({p_to_shared: true, p_item: row.gear.sid}, 'Could not store that.');
+  return true;
+}
 function sharedTake(idx, at){
   const row = SHV.inv[idx];
   if (!row) return false;
@@ -45601,7 +45612,7 @@ function itemWinActions(win, uid){
   if (!found){ win.remove(); return; }
   win.dataset.where = found.where;   /* [TILLAGT v5.873.0] */
   if (found.where === 'vault'){
-    box.innerHTML = '<button class="ia-cancel" data-act="unvault">To backpack</button>';
+    box.innerHTML = '<button class="ia-cancel" data-act="unvault">To backpack</button><button class="ia-cancel" data-act="vaultshared">To Shared</button>';   /* [ANDRAT v5.1413.0-valv] */
   } else if (found.where === 'shared'){   /* [TILLAGT v5.1413.0-valv] */
     box.innerHTML = '<button class="ia-cancel" data-act="unshared">To backpack</button>';
   } else if (found.where === 'bag'){
@@ -45818,13 +45829,14 @@ function spawnItemWin(uid, nearX, nearY){
     /* [TILLAGT v5.873.0] PJASEN HAR FLYTTAT (buggsvep 17): ett kort som stod oppet medan pjasen bytte plats korde sina
        gamla knappar pa FEL pjas (Unequip tog av stovlarna, Sell salde nagot annat). Nu ritas knapparna om i stallet. */
     const behov = {equip: 'inv', equipbag: 'inv', setgem: 'inv', insertchip: 'inv', tovault: 'inv', sell: 'inv', 'sell-yes': 'inv', recycle1: 'inv',
-                   unequip: 'equip', unvault: 'vault', unbag: 'bag'}[btn.dataset.act];
+                   unequip: 'equip', unvault: 'vault', vaultshared: 'vault', unbag: 'bag'}[btn.dataset.act];
     if (behov && cur.where !== behov){ itemWinActions(win, uid); return; }
     if (btn.dataset.act === 'equip'){ equipGear(cur.idx); win.remove(); }
     else if (btn.dataset.act === 'equipbag'){ if (equipBagFirstFree(cur.idx)) win.remove(); }   /* [TILLAGT v5.871.0] */
     else if (btn.dataset.act === 'setgem'){ setGemFromBag(cur.it); win.remove(); }
     else if (btn.dataset.act === 'unvault'){ if (fromVault(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unshared'){ sharedTake(cur.idx); win.remove(); }   /* [TILLAGT v5.1413.0-valv] */
+    else if (btn.dataset.act === 'vaultshared'){ const p = () => { sharedPutFromVault(cur.idx); }; (SHV.loaded && SHV.forChar === SRV.charId ? Promise.resolve() : sharedLoad()).then(p).catch(() => say('The Shared tab is not ready yet.')); win.remove(); }   /* [TILLAGT v5.1413.0-valv] */
     else if (btn.dataset.act === 'tovault'){ if (toVault(cur.idx)) win.remove(); }   /* [TILLAGT v5.774.0] */
     else if (btn.dataset.act === 'unbag'){ if (unequipBag(cur.idx)) win.remove(); }
     else if (btn.dataset.act === 'unequip'){ if (unequipGear(cur.idx)) win.remove(); }
@@ -48306,6 +48318,12 @@ function endDrag(d, x, y){
   }
   if (d.from === 'inv' && (scell || under.closest('#svault-grid'))){
     sharedPut(d.idx, scell ? +scell.dataset.svault : -1);
+    return;
+  }
+  /* [TILLAGT v5.1413.0-valv] Ur valvet, slappt pa fliken Shared. Fliken laddas om den inte ar oppnad an, sa kopet och platserna ar kanda. */
+  if (d.from === 'vault' && under.closest('[data-vtab="shared"]')){
+    const put = () => { sharedPutFromVault(d.idx); };
+    if (SHV.loaded && SHV.forChar === SRV.charId) put(); else sharedLoad().then(put).catch(() => say('The Shared tab is not ready yet.'));
     return;
   }
   if (d.from === 'vault'){
