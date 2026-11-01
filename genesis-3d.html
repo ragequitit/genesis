@@ -2608,10 +2608,14 @@ function drawIcon(c, kind, x, y, r, col){
   else if (kind === 'rest'){ c.font = '800 ' + Math.round(s * 1.1) + 'px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('z', -s * .3, s * .25); c.font = '800 ' + Math.round(s * .8) + 'px sans-serif'; c.fillText('z', s * .35, -s * .3); }
   c.restore(); }
 let pois = [];
+function edgeDist(z, q){ let m = Infinity; z.poly.forEach((a, i) => { m = Math.min(m, distSeg(q.x, q.y, a, z.poly[(i + 1) % z.poly.length])); }); return m; }
+function innerSlots(z){ if (z.inS) return z.inS; for (const m of [70, 50, 30]){ const f = z.slots.filter(q => edgeDist(z, q) >= m); if (f.length >= 8) return (z.inS = f); }
+  return (z.inS = z.slots.slice().sort((a, b) => edgeDist(z, b) - edgeDist(z, a)).slice(0, 8)); }
 function rebuildPois(){
   poisDirty = false; const old = new Map(pois.map(p => [p.key, p])), out = [], used = new Map();
-  const slotFor = (z, id) => { let u = used.get(z); if (!u){ u = new Set(); z.nodes.forEach(n => u.add(z.slots.indexOf(z.slots.find(q => q.x === n.x && q.y === n.y)))); used.set(z, u); }
-    const n = z.slots.length; let k = hash(String(id)) % n; for (let i = 0; i < n && u.has(k); i++) k = (k + 1) % n; u.add(k); return z.slots[k]; };
+  /* [ANDRAT v5.1396.0] PLATSERNA INNE I ZONEN (Chris: "alla har akt ut pa kanten", matt: 0-10 steg fran kanten). Bara markena flyttas; byggnader och Chris placeringar star kvar. */
+  const slotFor = (z, id) => { const S = innerSlots(z); let u = used.get(z); if (!u){ u = new Set(); used.set(z, u); }
+    const n = S.length; let k = hash(String(id)) % n; for (let i = 0; i < n && u.has(k); i++) k = (k + 1) % n; u.add(k); return S[k]; };
   /* [ANDRAT v5.1385.0] SOM 2D-KARTAN: en zon dronaren inte kartlagt visar inga platser. Forut syntes de, och motets ruta fastnade pa "Looking around" (servern nekar okartlagda zoner). */
   const add = p => { if (/^(quest|encounter|expedition|dungeon|vein)$/.test(p.kind) && /^(uncharted|unknown)$/.test(zoneState(p.R.id, p.zn))) return;
     const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
@@ -2621,9 +2625,9 @@ function rebuildPois(){
     add({key: R.id + '#vault', kind: 'vault', R, zn: LANDING, x: L.vault.x, y: L.vault.y, h: 3.2, label: 'Vault', sub: 'Your safekeep', pick: {kind: 'vault', region: R.id, zone: LANDING}});
     add({key: R.id + '#dungeon', kind: 'dungeon', R, zn: dz.namn, x: R.portal.x, y: R.portal.y, h: 3.6, label: dz.namn, sub: 'Dungeon', pick: {kind: 'dungeon', region: R.id, zone: dz.namn}});
     /* [BORTTAGET v5.1353.0] demons pahittade malm-/fibernoder ("gather"): spelets riktiga noder ar veins (setVeins) och ritas pa samma stenar nedan */ });
-  const st = G.state || {}, cnt = {};
-  (G.exps || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const k = cnt[e.zone] = (cnt[e.zone] || 0) + 1;
-    add({key: 'x#' + e.id, kind: 'expedition', R: z.R, zn: z.namn, x: z.camp.x - 26 + (k - 1) * 16, y: z.camp.y - 4 + (k - 1) * 12, h: 2.4, label: str(e.label, 40) || 'Expedition',
+  const st = G.state || {};
+  (G.exps || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = slotFor(z, 'x' + e.id);
+    add({key: 'x#' + e.id, kind: 'expedition', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 2.4, label: str(e.label, 40) || 'Expedition',
       sub: e.state === 'running' ? 'Under way' : e.state === 'locked' ? (e.lvl ? 'Out of reach · lvl ' + e.lvl : 'Not found yet') : 'Expedition' + (e.mins ? ' · ' + (e.mins >= 60 ? e.mins / 60 + 'h' : e.mins + 'm') : ''),
       state: e.state, pick: {kind: 'expedition', region: rid, zone: z.namn, id: e.id}}); });
   (Array.isArray(st.quests3d) ? st.quests3d : Array.isArray(st.quests) ? st.quests : []).forEach(q => { if (!q || q.id == null || q.id === 'wboss') return;   /* [ANDRAT v5.1353.0] quests3d bar ! och ? */ const [rid, zn] = splitKey(q.zone), z = zoneOf(rid, zn); if (!z) return; const s = slotFor(z, 'q' + q.id);
@@ -2635,7 +2639,7 @@ function rebuildPois(){
   const vk = {};
   G.veins.forEach(v => { if (!v || !v.id) return; const [rid, zn] = splitKey(v.zone), z = zoneOf(rid, zn); if (!z) return;
     /* [ANDRAT v5.1353.0] veins ligger pa zonens malmstenar (z.nodes) i tur och ordning - sa trycket pa stenen startar arbetet */
-    const k = vk[v.zone] = (vk[v.zone] || 0) + 1, nd = z.nodes && z.nodes.length ? z.nodes[(k - 1) % z.nodes.length] : null, s = (nd && k <= z.nodes.length) ? nd : slotFor(z, 'v' + v.id);
+    const k = vk[v.zone] = (vk[v.zone] || 0) + 1, nl = z.nodes ? z.nodes.filter(q => edgeDist(z, q) >= 40) : [], nd = nl.length ? nl[(k - 1) % nl.length] : null, s = (nd && k <= nl.length) ? nd : slotFor(z, 'v' + v.id);
     add({key: 'v#' + v.id, kind: 'vein', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 1.3, label: str(v.label, 40) || 'Vein', sub: str(v.sub, 40) || 'Tap to gather', state: v.dim ? 'dim' : 'ready',
       pick: {kind: 'vein', region: rid, zone: z.namn, id: String(v.id)}}); });
   G.events.forEach(ev => { if (!ev || ev.id == null) return; const z = zoneOf(ev.region, ev.zone); if (!z) return; const s = slotFor(z, 'ev' + ev.id);
