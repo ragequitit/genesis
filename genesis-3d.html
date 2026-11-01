@@ -561,7 +561,7 @@ function fxBuild(){ if (composer) return;
   c.addPass(new ShaderPass({uniforms: {tDiffuse: {value: null}}, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); vec4 s = clamp(c, 0.0, 24.0);' +
       ' if (any(isnan(c)) || any(isinf(c)) || any(notEqual(c, c))) s = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = s; }'}));
-  const bp = new UnrealBloomPass(new THREE.Vector2(256, 256), FX.small ? .6 : .95, FX.small ? .35 : .5, .92); c.addPass(bp);
+  const bp = new UnrealBloomPass(new THREE.Vector2(256, 256), FX.small ? .48 : .76,   /* [ANDRAT v5.1390.0] neonet 20 % svagare (Chris) */ FX.small ? .35 : .5, .92); c.addPass(bp);
   c.addPass(new OutputPass()); composer = c; bloomPass = bp; fxSize(); }
 function fxSize(){ if (!composer) return; const pr = renderer.getPixelRatio(); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
   /* glodet raknar sjalvt i halv upplosning och nedat; pa telefon halveras det en gang till (sparar mycket, syns knappt) */
@@ -2648,7 +2648,7 @@ function freePoi(p){ if (p.av){ if (p.av.static) scene.remove(p.av.root); else f
 const BC_TXT = (() => { const bc = document.createElement('canvas'); bc.width = 4; bc.height = 128; const g = bc.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
   gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.55, 'rgba(255,255,255,.3)'); gr.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); return new THREE.CanvasTexture(bc); })();
 const BC_BEAM = new THREE.CylinderGeometry(.22, .32, 1, 12, 1, true).translate(0, .5, 0), BC_RING = new THREE.RingGeometry(.86, 1, 40);
-const BC_KIND = {quest: 1, encounter: 1, expedition: 1, dungeon: 1};
+const BC_KIND = {quest: 1, encounter: 1, expedition: 1, dungeon: 1, vendor: 1, vault: 1};   /* [ANDRAT v5.1390.0] vendor gron och vault lila, som de andra (Chris) */
 function beaconMesh(){ const g = new THREE.Group();
   const mk = (geo, o) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial(Object.assign({transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}, o)));
   const fix = mk(BC_RING, {}), pulse = mk(BC_RING, {}), beam = mk(BC_BEAM, {map: BC_TXT});
@@ -2735,6 +2735,8 @@ function drawPois(c, W, H, D, placed){
   pois.forEach(p => { p.vis = false; });
   if (D > 700 && !FR) return;
   const t = performance.now() / 1000;
+  /* [TILLAGT v5.1390.0] DE TVA YTTERSTA ZOOMSTEGEN VISAR BARA CIRKLAR OCH PELARE (Chris 2026-11-01): ikonerna tonas in nar man zoomar in. Ett steg = knappens 1.4 ggr. Platserna gar att trycka pa hela tiden. */
+  let iconA = 1; if (FR && !EDIT && !GLB.on){ const far = viewFor(regionBox(FR)).dist * 1.15; iconA = clamp((far / 1.4 * .97 - D) / (far / 1.4 * .97 - far / 1.96), 0, 1); }
   pois.forEach(p => {
     if (hidR(p.R)) return;   /* [TILLAGT v5.1384.0] */
     /* [ANDRAT v5.1385.0] SOM 2D-KARTAN (Chris): i regionen man tittar pa syns och gar allt att trycka pa, aven utzoomat och aven nar figuren ar i en annan region */
@@ -2745,7 +2747,8 @@ function drawPois(c, W, H, D, placed){
     p.vis = true; p.sx = q.x; p.sy = q.y;
     const ik = p.state === 'cooldown' ? 'rest' : p.ico || p.kind, col = POI_COL[p.ico || p.kind] || '#fff', dim = p.state === 'cooldown' || p.state === 'dim' || p.state === 'running' || p.state === 'locked' || zoneState(p.R.id, p.zn) === 'uncharted';
     const hov = !!hoverPoi && hoverPoi.key === p.key, big = D < 80 ? 1 : .8;   /* [ANDRAT v5.1353.0] jamfor pa nyckeln: markena byggs om nar ny data kommer, och da krympte ikonen under musen efter nagon sekund (Chris) */
-    c.globalAlpha = dim ? .55 : 1;
+    const ia = hov || p.kind === 'boss' || p.kind === 'event' ? 1 : iconA; if (ia <= .01) return;
+    c.globalAlpha = (dim ? .55 : 1) * ia;
     if (p.kind === 'quest'){ const bob = 0, fs = (hov ? 30 : 25) * big;
       /* [ANDRAT v5.1353.0] SOM I WOW (Chris): ! = uppdrag att hamta, ? = klart att lamna in; gratt nar man inte kan just nu */
       const ch = p.mark === '?' ? '?' : '!', col = p.grey ? '#9ca3af' : (ch === '?' ? '#ffd24a' : '#ffe14a');
@@ -2762,9 +2765,9 @@ function drawPois(c, W, H, D, placed){
         c.drawImage(im, q.x - sz / 2, q.y - sz / 2, sz, sz); c.filter = 'none'; }
       else { c.fillStyle = 'rgba(10,14,22,.82)'; c.beginPath(); c.arc(q.x, q.y, r, 0, 6.2832); c.fill();
       c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
-    c.globalAlpha = 1;
+    c.globalAlpha = ia;
     /* [TILLAGT v5.1383.0] VAD AR DET (Chris: som 2D-kartans noder): ett kort ord i platsens farg under ikonen */
-    if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : p.kind === 'dungeon' ? 'DUNGEON' : 'EXPEDITION';
+    if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : p.kind === 'dungeon' ? 'DUNGEON' : p.kind === 'vendor' ? 'VENDOR' : p.kind === 'vault' ? 'VAULT' : 'EXPEDITION';
       const ty = q.y + (p.kind === 'quest' ? 20 : 22); c.font = '800 9px sans-serif'; const tw = c.measureText(tag).width + 10, tr = {x: q.x - tw / 2, y: ty - 7, w: tw, h: 14};
       if (hov || !placed.some(o => tr.x < o.x + o.w && tr.x + tr.w > o.x && tr.y < o.y + o.h && tr.y + tr.h > o.y)){ placed.push(tr);
         label(c, tag, q.x, ty, {size: 9, w: 800, col: dim || p.grey ? '#9ca3af' : p.kind === 'quest' ? MK.quest : POI_COL[p.kind], bg: 'rgba(0,0,0,.7)'}); } }
@@ -2772,7 +2775,7 @@ function drawPois(c, W, H, D, placed){
     if (D < (p.kind === 'gather' || p.kind === 'vein' ? 45 : 110) || hov){ const ly = q.y - (p.kind === 'quest' ? 34 : 24), txt = p.label + (D < 45 || hov ? ' · ' + p.sub : '');
       c.font = '700 11px sans-serif'; const w = c.measureText(txt).width + 12, r = {x: q.x - w / 2, y: ly - 9, w, h: 18};
       if (!hov && placed.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y)) return; placed.push(r);
-      label(c, txt, q.x, ly, {size: 11, w: 700, col: p.kind === 'quest' ? (p.grey ? '#cbd5e1' : '#ffd24a') : dim ? '#cbd5e1' : p.kind === 'expedition' || p.kind === 'dungeon' ? POI_COL[p.kind] : '#fff', bg: 'rgba(0,0,0,.6)'}); } });
+      label(c, txt, q.x, ly, {size: 11, w: 700, col: p.kind === 'quest' ? (p.grey ? '#cbd5e1' : '#ffd24a') : dim ? '#cbd5e1' : /^(expedition|dungeon|vendor|vault)$/.test(p.kind) ? POI_COL[p.kind] : '#fff', bg: 'rgba(0,0,0,.6)'}); } });
   /* din figur och vagen dit */
   if (me.R && me.path.length && D < 400){ c.fillStyle = 'rgba(255,138,31,.85)'; let prev = me, acc = 0;
     me.path.forEach(p => { const d = Math.hypot(p.x - prev.x, p.y - prev.y); for (let s = (20 - acc); s < d; s += 20){ const x = prev.x + (p.x - prev.x) * s / d, y = prev.y + (p.y - prev.y) * s / d, q = toScreen(x * K, .1, y * K); if (q.on){ c.beginPath(); c.arc(q.x, q.y, 2.4, 0, 6.2832); c.fill(); } } acc = (acc + d) % 20; prev = p; }); }
