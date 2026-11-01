@@ -1193,14 +1193,12 @@ const CLS3D = {
   runner:     {f: 'rogue_hooded', keep: ['1H_Crossbow', 'Rogue_Cape'],                                 atk: '1H_Ranged_Shooting'}
 };
 const CLASS_KEYS = Object.keys(CLS3D);
-/* [TILLAGT v5.1417.0] VALD GUBBE (Chris 2026-11-01): spelaren valjer figur och farg pa profilkortet, galler bara 3D-varlden. Utan val: klassens egen figur.
+/* [TILLAGT v5.1417.0] VALD GUBBE (Chris 2026-11-01): spelaren valjer figur pa profilkortet, galler bara 3D-varlden. [ANDRAT v5.1418.0] inga fargvarianter (Chris). Utan val: klassens egen figur.
    Vardena kommer aven fran andra spelare over kanalen, darfor bara kanda nycklar. */
 const FIGS = {...CLS3D, skel_warrior: {f: 'skel_warrior', keep: null, atk: '1H_Melee_Attack_Chop'}, skel_mage: {f: 'skel_mage', keep: null, atk: 'Spellcasting'},
   skel_rogue: {f: 'skel_rogue', keep: null, atk: '1H_Melee_Attack_Slice_Horizontal'}, skel_minion: {f: 'skel_minion', keep: null, atk: '1H_Melee_Attack_Chop'}};
-const FIG_COL = {red: 0xff5a5a, blue: 0x5a8cff, green: 0x55d96a, purple: 0xb070ff, gold: 0xffc83c, black: 0x4a4a5c};
 const figOf = o => FIGS[o.fig] || CLS3D[o.klass];
-const figKey = v => { const k = String(v || ''); return Object.prototype.hasOwnProperty.call(FIGS, k) ? k : ''; }, colKey = v => { const k = String(v || ''); return Object.prototype.hasOwnProperty.call(FIG_COL, k) ? k : ''; };
-function tintAv(av, col){ if (!av || !FIG_COL[col]) return; const c = new THREE.Color(FIG_COL[col]); av.model.traverse(o => { if (o.isMesh){ o.material = o.material.clone(); o.userData.ownMat = true; o.material.color.copy(c); } }); }
+const figKey = v => { const k = String(v || ''); return Object.prototype.hasOwnProperty.call(FIGS, k) ? k : ''; };
 const CHAR_FILES = ['knight', 'barbarian', 'mage', 'rogue', 'rogue_hooded', 'skel_minion', 'skel_warrior', 'skel_mage', 'skel_rogue'];
 const CHAR = {}; let CLIPS = null;
 const BODY = /(ArmLeft|ArmRight|Body|Head|LegLeft|LegRight|Head_Hooded|Eyes|Jaw|Skull|Cloak|Helmet|Hat|Hood|Cape)$/;
@@ -1294,7 +1292,7 @@ function applyPlayer(e, s){
 /* avatarer skapas forst nar figurerna laddats */
 function ensureAvatar(e){
   if (e.av || !CLIPS) return; const C = figOf(e); if (!CHAR[C.f]) return;
-  e.av = makeAvatar(C.f, C.keep, 1.35); if (!e.av) return; tintAv(e.av, e.col2);
+  e.av = makeAvatar(C.f, C.keep, 1.35); if (!e.av) return;
   const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(e.col, 1.8), transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending}));   /* [ANDRAT v5.1373.0] lysande ring */
   ring.rotation.x = -Math.PI / 2; ring.position.y = .03; e.av.root.add(ring); e.av.ring = ring;
   scene.add(e.av.root); play(e.av, 'Idle', 0); }
@@ -2328,7 +2326,7 @@ const API = window.genesisMap = {
   setExpeditions(list){ G.exps = Array.isArray(list) ? list.slice(0, 300) : null; poisDirty = true; },
   setMe(m){ if (!m || typeof m !== 'object') return; const kl = String(m.klass || '').toLowerCase();
     me.namn = str(m.namn, 24) || 'You'; me.niva = +m.niva || 0; const k2 = CLASS_KEYS.indexOf(kl) >= 0 ? kl : 'warden'; if (k2 !== me.klass){ me.klass = k2; dropMeAv(); }
-    const fg = figKey(m.fig), cl = colKey(m.col); if (fg !== (me.fig || '') || cl !== (me.col2 || '')){ me.fig = fg; me.col2 = cl; dropMeAv(); }
+    const fg = figKey(m.fig); if (fg !== (me.fig || '')){ me.fig = fg; dropMeAv(); }
     setHelperOf(me, m.helper); renderChips(); },
   setEvents(list){ G.events = Array.isArray(list) ? list.slice(0, 30) : []; poisDirty = true; },
   /* [TILLAGT v5.1353.0] realtidsspelare i min region: spelet skickar listan nagra ganger i sekunden */
@@ -2338,7 +2336,7 @@ const API = window.genesisMap = {
       const z = zoneOf(me.R.id, p.zone) || me.R.zones[0]; if (!e.z){ e.x = +p.x || z.c.x; e.y = +p.y || z.c.y; }
       e.R = me.R; e.z = z; e.gone = false; e.goneT = 0; e.id = p.id != null ? String(p.id) : e.id; e.niva = +p.niva || e.niva;
       const kl = String(p.klass || '').toLowerCase(); if (CLASS_KEYS.indexOf(kl) >= 0 && kl !== e.klass){ e.klass = kl; dropAvatar(e); }
-      const fg = figKey(p.fig), cl = colKey(p.col); if (fg !== (e.fig || '') || cl !== (e.col2 || '')){ e.fig = fg; e.col2 = cl; dropAvatar(e); }
+      const fg = figKey(p.fig); if (fg !== (e.fig || '')){ e.fig = fg; dropAvatar(e); }
       e.live = {x: +p.x || e.x, y: +p.y || e.y, face: (p.face != null && isFinite(+p.face)) ? +p.face : null, t: now, mv: !!p.mv};
       if (p.helper !== undefined) setHelperOf(e, p.helper); }); },
   /* [TILLAGT v5.1353.0] pratbubbla (zonchatten) */
@@ -2546,7 +2544,7 @@ function updateMe(dt, t){
 let posSentAt = 0, posMvSent = false;
 function meAct(name, secs){ me.act = name; me.actT = secs; me.actNew = true; }
 function ensureMeAv(){ if (me.av || !CLIPS) return; const C = figOf(me); if (!CHAR[C.f]) return;
-  me.av = makeAvatar(C.f, C.keep, 1.75); if (!me.av) return; tintAv(me.av, me.col2);
+  me.av = makeAvatar(C.f, C.keep, 1.75); if (!me.av) return;
   /* [ANDRAT v5.1373.0] min ring i 2D-kartans "du ar har"-farg (MK.here), lysande */
   /* [ANDRAT v5.1387.0] ORANGE SOM PA 2D-KARTAN (Chris): gul krockade med quests. Lysande tillsatsljus drog fargen mot gult, darfor vanlig farg pa ring och puls. */
   const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({color: hdr(MK.here, 1.2), transparent: true, opacity: .95, depthWrite: false}));
