@@ -815,7 +815,8 @@ async function enter(){
       const rows = await rpc('testplay_logins');
       /* [ANDRAT 2026-10-24] Webblasaren slapper bara EN ny flik per klick (Chris: 4 blockerades). De som stoppas
          visas som knappar - varje knapptryck ar ett eget klick och oppnar sin flik. */
-      const url = r => 'index.html?tp=' + encodeURIComponent(btoa(JSON.stringify({e: r.email, p: r.pw})));
+      /* [ANDRAT v5.1422.0] uppgifterna laggs i webblasarens lager; adressen bar bara ett slumpat id som spelet tar bort direkt. */
+      const url = r => { const id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('genesis.tpk.' + id, btoa(JSON.stringify({e: r.email, p: r.pw}))); return 'index.html?tp=' + id; };
       const kvar = [];
       (rows || []).forEach(r => { const w = window.open(url(r), '_blank'); if (!w) kvar.push(r); });
       if (kvar.length) tpShowButtons(kvar, url);
@@ -934,11 +935,13 @@ async function renderOverview(){
   const m = $('main'); m.innerHTML = '<h1 class="pg">Overview</h1><div class="pg-sub">Live presence, queues and economy at a glance.</div><div class="empty">Loading…</div>';
   let pr, ov, oc, al = [];
   try { [pr, ov, oc, al] = await Promise.all([rpc('admin_presence'), rpc('admin_overview'), rpc('admin_overview_cases'), has('audit.read') ? rpc('admin_alerts_list').catch(() => []) : Promise.resolve([])]); }
-  catch (e){ m.innerHTML = '<h1 class="pg">Overview</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  catch (e){ if (PAGE !== 'overview') return; m.innerHTML = '<h1 class="pg">Overview</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  if (PAGE !== 'overview') return; /* [ANDRAT natt-buggsvep] bytte man sida medan svaret var pa vag skrev den gamla sidan over den nya (samma skydd som Players har) */
   /* [v0.17.0] Buggrapporter och spelfel - bara for den som far se dem. Faller anropet syns
      resten av oversikten som vanligt. */
   let bs = null;
   if (has('bugs.read')) { try { bs = await rpc('admin_bugs_summary'); } catch (e){ bs = null; } }
+  if (PAGE !== 'overview') return;   /* [ANDRAT natt-buggsvep] se ovan */
   const bugN = bs ? (+bs.bugs_new || 0) + (+bs.errors_new || 0) + (+bs.ideas_new || 0) : 0, bugHot = bugN > 0;
   const bugMinis = bs
     ? '<div class="mini red" data-bugtab="reports"><div class="ico">' + ico('warn') + '</div><div><div class="k">New bug reports</div><div class="v">' + bs.bugs_new +
@@ -1118,7 +1121,8 @@ async function renderBugs(){
     [sum, rows] = await Promise.all([rpc('admin_bugs_summary'),
       BUGTAB === 'errors' ? rpc('admin_client_errors', {p_status: BUGFILT === 'all' ? null : BUGFILT})
                           : rpc('admin_bug_reports', {p_status: BUGFILT === 'all' ? null : BUGFILT, p_kind: BUGTAB === 'ideas' ? 'idea' : 'bug'})]);
-  } catch (e){ m.innerHTML = head('') + '<div class="empty">' + esc(e.message) + '</div>'; return; }
+  } catch (e){ if (PAGE !== 'bugs') return; m.innerHTML = head('') + '<div class="empty">' + esc(e.message) + '</div>'; return; }
+  if (PAGE !== 'bugs') return; /* [ANDRAT natt-buggsvep] bytte man sida medan svaret var pa vag skrev den gamla sidan over den nya (samma skydd som Players har) */
   rows = rows || [];
   const tabs = '<div class="tabs" style="margin-top:0">' +
     '<div class="tab' + (BUGTAB === 'reports' ? ' on' : '') + '" data-bt="reports">Bug reports' + (sum.bugs_new ? ' <span class="pill red">' + sum.bugs_new + '</span>' : '') + '</div>' +
@@ -1180,7 +1184,10 @@ async function renderBugs(){
     try { const d = await rpc('admin_bug_shot', {p_id: +b.dataset.shot});
       if (!d || !/^data:image\/(webp|jpeg|png);base64,/.test(d)){ toast('No screenshot'); return; }
       const box = b.parentElement; box.innerHTML = '<a target="_blank" rel="noopener"><img alt="Screenshot"></a>';
-      box.querySelector('img').src = d; box.querySelector('a').href = d;
+      box.querySelector('img').src = d;
+      /* [ANDRAT natt-buggsvep] webblasare blockerar att oppna en data:-adress i ny flik, sa klick pa bilden gjorde ingenting. En blob-adress gar att oppna. */
+      try { const bin = atob(d.slice(d.indexOf(',') + 1)), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+            box.querySelector('a').href = URL.createObjectURL(new Blob([buf], {type: d.slice(5, d.indexOf(';'))})); } catch (e2){ box.querySelector('a').href = d; }
     } catch (e){ toast(e.message, true); }
   });
   m.querySelectorAll('.bugc [data-set]').forEach(b => b.onclick = async () => {
@@ -1599,7 +1606,8 @@ async function renderCases(){
   const m = $('main');
   if (CASE) return renderCase();
   m.innerHTML = '<h1 class="pg">Cases</h1><div class="pg-sub">Player reports, support and appeals — one thread per player.</div><div class="empty">Loading…</div>';
-  let rows; try { rows = await rpc('admin_cases_list', {p_status: CASEFILT}); } catch (e){ m.innerHTML = '<h1 class="pg">Cases</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  let rows; try { rows = await rpc('admin_cases_list', {p_status: CASEFILT}); } catch (e){ if (PAGE !== 'cases' || CASE) return; m.innerHTML = '<h1 class="pg">Cases</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  if (PAGE !== 'cases' || CASE) return; /* [ANDRAT natt-buggsvep] bytte man sida medan svaret var pa vag skrev den gamla sidan over den nya (samma skydd som Players har) */
   m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Cases</h1><div class="pg-sub" style="margin-bottom:0">Player reports, support and appeals — one thread per player.</div></div>' +
     '<div class="right"><button class="btn primary" id="cs-new">' + ico('doc') + ' New case</button></div></div>' +
     '<div class="tabs" style="margin-top:0">' + ['open','waiting','closed','all'].map(s => '<div class="tab' + (CASEFILT === s ? ' on' : '') + '" data-f="' + s + '">' + s + '</div>').join('') + '</div>' +
@@ -1656,7 +1664,8 @@ function renderCase(){
 async function renderChat(){
   const m = $('main');
   m.innerHTML = '<h1 class="pg">Chat</h1><div class="pg-sub">General, trade and whispers as the server keeps them — deleted rows stay visible here for 90 days.</div><div class="empty">Loading…</div>';
-  let rows; try { rows = await rpc('admin_chat_list', {p_channel: CHATF.channel, p_limit: 150, p_q: CHATF.q || null}); } catch (e){ m.innerHTML = '<h1 class="pg">Chat</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  let rows; try { rows = await rpc('admin_chat_list', {p_channel: CHATF.channel, p_limit: 150, p_q: CHATF.q || null}); } catch (e){ if (PAGE !== 'chat') return; m.innerHTML = '<h1 class="pg">Chat</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  if (PAGE !== 'chat') return; /* [ANDRAT natt-buggsvep] bytte man sida medan svaret var pa vag skrev den gamla sidan over den nya (samma skydd som Players har) */
   m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Chat</h1><div class="pg-sub" style="margin-bottom:0">General, trade and whispers as the server keeps them — deleted rows stay visible here for 90 days.</div></div></div>' +
     '<div class="row" style="margin-bottom:10px"><div class="tabs" style="margin:0;border:0">' + ['general','trade','whisper','all'].map(c => '<div class="tab' + (CHATF.channel === c ? ' on' : '') + '" data-ch="' + c + '">' + c + '</div>').join('') + '</div>' +
       '<input id="ch-q" placeholder="Filter by text, name or handle…" value="' + esc(CHATF.q) + '" style="width:300px;margin-left:auto"><button class="btn" id="ch-go">Filter</button><button class="btn" id="ch-re">Refresh</button></div>' +
@@ -1690,7 +1699,8 @@ async function renderGuilds(){
   const m = $('main');
   if (GUILD) return renderGuild();
   m.innerHTML = '<h1 class="pg">Guilds</h1><div class="pg-sub">Every guild, who leads it and how alive it is.</div><div class="empty">Loading…</div>';
-  let rows; try { rows = await rpc('admin_guilds_list', {p_include_disbanded: true}); } catch (e){ m.innerHTML = '<h1 class="pg">Guilds</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  let rows; try { rows = await rpc('admin_guilds_list', {p_include_disbanded: true}); } catch (e){ if (PAGE !== 'guilds' || GUILD) return; m.innerHTML = '<h1 class="pg">Guilds</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  if (PAGE !== 'guilds' || GUILD) return; /* [ANDRAT natt-buggsvep] bytte man sida medan svaret var pa vag skrev den gamla sidan over den nya (samma skydd som Players har) */
   m.innerHTML = '<div class="pg-row"><div><h1 class="pg">Guilds</h1><div class="pg-sub" style="margin-bottom:0">Every guild, who leads it and how alive it is.</div></div></div>' +
     (rows.length ? '<div class="box" style="padding:6px 10px"><table class="t"><tr><th>Tag</th><th>Name</th><th>Leader</th><th>Members</th><th>Level</th><th>Joining</th><th>Requests</th><th>Last chat</th><th>Created</th><th></th></tr>' +
       rows.map(g => '<tr class="clk" data-guild="' + g.id + '"' + (g.disbanded_at ? ' style="opacity:.5"' : '') + '><td><span class="pill gold">' + esc(g.tag) + '</span></td><td><b>' + esc(g.name) + '</b></td><td>' + esc(g.leader || '–') + '</td><td class="num">' + g.members + '</td><td class="num">' + g.level + '</td><td>' + esc(g.membership) + '</td><td class="num">' + (g.pending || '') + '</td><td class="num">' + ago(g.last_chat) + '</td><td class="num">' + when(g.created_at) + '</td><td>' + (g.disbanded_at ? '<span class="pill red">disbanded</span>' : '') + '</td></tr>').join('') + '</table></div>'
@@ -1819,7 +1829,8 @@ async function renderMail(){
   const m = $('main');
   m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="pg-sub">One letter to one character, with attachments the game rolls itself.</div><div class="empty">Loading…</div>';
   let hist; try { [CATALOG, hist, TPLS] = await Promise.all([CATALOG ? Promise.resolve(CATALOG) : rpc('admin_reward_catalog'), rpc('admin_mail_list', {p_limit: 100}), rpc('admin_template_list').catch(() => [])]); }
-  catch (e){ m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  catch (e){ if (PAGE !== 'mail') return; m.innerHTML = '<h1 class="pg">Mail & Rewards</h1><div class="empty">' + esc(e.message) + '</div>'; return; }
+  if (PAGE !== 'mail') return; /* [ANDRAT natt-buggsvep] bytte man sida medan svaret var pa vag skrev den gamla sidan over den nya (samma skydd som Players har) */
   const lim = (ME.perms['mail.single']) || null;
   const can = has('mail.single');
   const to = MAILTO;
@@ -2011,6 +2022,8 @@ async function renderEmail(){
       const {data, error} = await sb.functions.invoke('send-campaign', {body: {id: r.id, test: true}});
       if (error) throw new Error(await fnErr(error));
       if (data && data.error) throw new Error(data.error);
+      /* [ANDRAT natt-buggsvep] testet sparar utkastet men sidan ritades inte om: Send to all stod kvar som last och utkastet syntes inte i listan */
+      EM.busy = false; await renderEmail();
       msg('Test sent to you (' + (data.sent || 0) + '). Check your inbox - and the spam folder the first time.');
     } catch (e){ msg('Test failed: ' + e.message, true); }
     EM.busy = false;
@@ -2445,7 +2458,8 @@ async function pvDo(d, it){
     const t = e.target.closest && e.target.closest('[data-pv]');
     const d = t ? PVMAP[t.dataset.pv] : null;
     if (!d){ tip.style.display = 'none'; return; }
-    if (tip.dataset.ref !== t.dataset.pv){ tip.dataset.ref = t.dataset.pv; tip.innerHTML = pvTipHTML(d); }
+    /* [ANDRAT natt-buggsvep] jamfor sjalva dataraden, inte bara nyckeln: efter en andring far raden samma nyckel men nya varden, och rutan visade de gamla */
+    if (tip._pvd !== d){ tip._pvd = d; tip.dataset.ref = t.dataset.pv; tip.innerHTML = pvTipHTML(d); }
     tip.style.display = 'block'; place(tip, e.clientX, e.clientY);
   });
   document.addEventListener('contextmenu', e => {
@@ -2475,7 +2489,7 @@ async function renderAnalytics(){
   m.innerHTML = head + '<div class="empty">Loading…</div>';
   const wire = () => { m.querySelectorAll('[data-days]').forEach(b => b.onclick = () => { ANA.days = +b.dataset.days; renderAnalytics(); }); const r = $('ana-refresh'); if (r) r.onclick = renderAnalytics; m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPlayer(b.dataset.open)); };
   let a;
-  try { a = await rpc('admin_analytics', {p_days: ANA.days}); ANA.data = a; } catch (e){ m.innerHTML = head + '<div class="empty">' + esc(e.message) + '</div>'; wire(); return; }
+  try { a = await rpc('admin_analytics', {p_days: ANA.days}); ANA.data = a; } catch (e){ if (PAGE !== 'analytics') return; m.innerHTML = head + '<div class="empty">' + esc(e.message) + '</div>'; wire(); return; }
   const H = a.headline, S = a.sessions, P = a.progression, F = a.funnel, A = a.activity, C = a.clients, PL = a.players, D = a.daily || [], R = a.retention || [], RT = a.retention_total || {};
   const card = (k, v, s, cls) => '<div class="card"><div class="k">' + k + '</div><div class="v ' + (cls || '') + '">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
   const stick = H.mau > 0 ? Math.round(100 * H.dau / H.mau) + '%' : '–';
