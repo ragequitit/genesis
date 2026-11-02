@@ -18435,8 +18435,13 @@ function dgWriteBoth(suffix, txt, prop){
 function dgcCooldownTick(){
   const w = $('dgc-overlay'); if (!w || !w.classList.contains('open') || !DGC || !DGC.heroic) return;
   const kyla = +DGC.heroic.cooldown_secs || 0;
-  if (kyla <= 0 || DGC_SIDE === 'normal') return;
-  DGC.heroic.cooldown_secs = Math.max(0, kyla - 1);
+  if (kyla <= 0) return;
+  /* [ANDRAT natt-buggsvep] Nedrakningen drog 1 s per varv och stod still medan Normal-fliken visades (och nar
+     fliken lag i bakgrunden), sa Heroic/Rift lastes upp for sent. Nu raknas tiden fran ett fast slutklockslag.
+     Slutet satts forsta gangen raden ses; ett nytt svar fran servern ar ett nytt objekt och far ett nytt slut. */
+  if (!DGC.heroic._coolEnd) DGC.heroic._coolEnd = Date.now() + kyla * 1000;
+  DGC.heroic.cooldown_secs = Math.max(0, Math.ceil((DGC.heroic._coolEnd - Date.now()) / 1000));
+  if (DGC.heroic.cooldown_secs > 0 && DGC_SIDE === 'normal') return;
   if (DGC.rift) DGC.rift.cooldown_secs = DGC.heroic.cooldown_secs;
   if (DGC.heroic.cooldown_secs <= 0){
     if (NET.on) netDungeonChoices().then(() => { renderDgChoice(); placeDgcWin(); }).catch(() => { renderDgChoice(); });
@@ -23868,6 +23873,8 @@ function modchipBase(sort, r){ const d = MODCHIP[sort]; return d ? d.vals[Math.m
 function isChipItem(it){ return !!(it && it.t && ITEMS[it.t] && ITEMS[it.t].chip); }
 /* Chipets sort och varde ur ett CHIP-foremal (egenskapen ligger i a[0] som pa gear). */
 function chipSortOf(it){ const x = it && it.a && it.a[0]; return x ? x.k : null; }
+/* [ANDRAT natt-buggsvep] chipsortens namn utan krasch: en sort som klienten inte kanner (ny pa servern) kastade i Chip Fusion och i handlaren */
+function mcName(k){ return (MODCHIP[k] && MODCHIP[k].name) || String(k || 'Mod Chip'); }
 function chipValOf(it){ const x = it && it.a && it.a[0]; return x ? +x.v || 0 : 0; }
 /* [ANDRAT v5.1360.0] CHIPBILDERNA (Chris: bilder till allt nytt). En bild per sort i assets/items/chips/chip_<sort>.webp,
    skrotchip har egen bild (pic = 'chip_salvaged'), borren och extraktorn likasa. Rariteten syns som en farglinje runt bilden.
@@ -26868,7 +26875,10 @@ function petLvl(p){ return petLevelInfo(p.xp).lvl; }
    tecken ar satt efter var namnet ska fa plats: husdjurets fonster och
    hovringskortet, som ar smalast. */
 const PET_NAME_MAX = 14;
-function petName(p){ return (p && p.n) ? p.n : (p ? PETS[p.sp].name : ''); }
+/* [ANDRAT natt-buggsvep] Servern kan ha en art som klienten inte kanner annu (ny art innan sidan laddats om).
+   Da kastade PETS[p.sp].name och hela hjalparfonstret blev tomt. petSpName ger artnamnet eller nyckeln. */
+function petSpName(sp){ return (PETS[sp] && PETS[sp].name) || String(sp || 'Helper'); }
+function petName(p){ return (p && p.n) ? p.n : (p ? petSpName(p.sp) : ''); }
 function cleanPetName(raw){
   return String(raw || '').replace(/[<>\r\n\t]/g, '').trim().slice(0, PET_NAME_MAX);
 }
@@ -26878,11 +26888,11 @@ function renamePet(uid, raw){
   const n = cleanPetName(raw);
   /* Tomt namn betyder "tillbaka till artnamnet" i stallet for ett namnlost djur. */
   if (NET.on){
-    netRenamePet(p, (n && n !== PETS[p.sp].name) ? n : null)
+    netRenamePet(p, (n && n !== petSpName(p.sp)) ? n : null)
       .catch(e => say(srvErrText(e, 'Could not rename that companion.')));
     return true;
   }
-  if (n && n !== PETS[p.sp].name) p.n = n; else delete p.n;
+  if (n && n !== petSpName(p.sp)) p.n = n; else delete p.n;
   save(); renderPets(); renderPetPanel();
   return true;
 }
@@ -26952,7 +26962,7 @@ const PET_SORTS = [
   {id:'level',   name:'Level',   cmp:(a,b) => (petLvl(b) - petLvl(a)) || (b.rar - a.rar) || (a.uid - b.uid)},
   {id:'newest',  name:'Newest',  cmp:(a,b) => b.uid - a.uid},
   {id:'oldest',  name:'Oldest',  cmp:(a,b) => a.uid - b.uid},
-  {id:'species', name:'Species', cmp:(a,b) => PETS[a.sp].name.localeCompare(PETS[b.sp].name) || (petLvl(b) - petLvl(a)) || (b.rar - a.rar)},   /* [ANDRAT v5.1407.0] hogst niva forst inom gruppen (Chris) */
+  {id:'species', name:'Species', cmp:(a,b) => petSpName(a.sp).localeCompare(petSpName(b.sp)) ||   /* [ANDRAT natt-buggsvep] okand art kraschade sorteringen */ (petLvl(b) - petLvl(a)) || (b.rar - a.rar)},   /* [ANDRAT v5.1407.0] hogst niva forst inom gruppen (Chris) */
   /* [TILLAGT v5.902.0] EFTER FORMAGA (SheWolf, ide #10): alla Hagglers bredvid varandra, starkast forst. */
   /* [TILLAGT v5.915.0] SHINY FORST (Chris): de glansande overst, sedan raritet. */
   {id:'shiny', name:'Shiny', cmp:(a,b) => ((b.shiny ? 1 : 0) - (a.shiny ? 1 : 0)) || (petLvl(b) - petLvl(a)) || (b.rar - a.rar) || (a.uid - b.uid)},   /* [ANDRAT v5.1407.0] niva fore raritet (Chris) */
@@ -28038,6 +28048,20 @@ function vaultNormalize(){
   while (S.vault.inv.length < cap) S.vault.inv.push(null);
   if (S.vault.inv.length > cap) S.vault.inv.length = cap;
 }
+/* [ANDRAT natt-buggsvep] Valvets las tog betalt direkt vid ett klick, utan fraga. Pa telefon visas inte ens priset
+   (hovringsrutan ar avstangd dar), sa ett tryck drog pengar man inte visste om. Samma fraga som ryggsackens fack (unlockBagAsk). */
+async function unlockVaultAsk(i){
+  const b = VAULT_BAG_SLOTS[i];
+  if (!b || vaultBagUnlocked(i)) return false;
+  if (purseOf(b.cur) < b.cost) return false;
+  const ja = await askConfirm({
+    title: 'BUY VAULT BAG SLOT ' + (i + 1),
+    body: 'This unlocks vault bag slot ' + (i + 1) + ' for <b>' + vaultBagCostText(i) + '</b>.<br>The slot stays yours for good.',
+    ico: '\ud83c\udf92', color: 'var(--gold)', yes: 'BUY', no: 'CANCEL'
+  });
+  if (!ja) return true;   /* avbrutet - inte "for lite pengar" */
+  return unlockVault(i);
+}
 function unlockVault(i){
   const b = VAULT_BAG_SLOTS[i];
   if (!b || vaultBagUnlocked(i)) return false;
@@ -28375,7 +28399,7 @@ function hookVaultBagSlots(){
         return;
       }
       if (vaultBagUnlocked(i)){ showVaultBagPicker(i, el); return; }
-      if (!unlockVault(i)) showBagTip(el, 'Not enough — you need ' + vaultBagShortText(i) + ' more.');
+      unlockVaultAsk(i).then(ok => { if (!ok) showBagTip(el, 'Not enough — you need ' + vaultBagShortText(i) + ' more.'); });   /* [ANDRAT natt-buggsvep] fragar forst */
     });
     el.addEventListener('contextmenu', e => {
       e.preventDefault();
@@ -29126,6 +29150,7 @@ const MS_FEL = {
   not_your_alt:      'Caches can only go to your own characters.',   /* [TILLAGT v5.1091.0] */
   offline:           'No connection.'
 };
+/* [ANDRAT natt-buggsvep] msNote skriver ren text, sa mottagarens namn ska INTE escapas innan - & och ' visades som &amp; och &#39; */
 function msNote(txt, sort){
   const n = $('ms-note'); if (!n) return;
   n.textContent = txt || '';
@@ -29212,9 +29237,10 @@ async function msSend(){
     btn.disabled = true; msNote('Sending\u2026');
     try {
       const r = await srvRpc('mail_send_caches', {p_character: SRV.charId, p_to: alt.id, p_gear: cg, p_helper: ch, p_subject: amne || null, p_body: ($('ms-body').value || '').trim()});
-      msNote('Sent ' + [cg ? cg + ' Gear Cache' + (cg > 1 ? 's' : '') : '', ch ? ch + ' Helper Cache' + (ch > 1 ? 's' : '') : ''].filter(Boolean).join(' and ') + ' to ' + esc((r && r.to) || alt.name) + '.', 'good');
+      msNote('Sent ' + [cg ? cg + ' Gear Cache' + (cg > 1 ? 's' : '') : '', ch ? ch + ' Helper Cache' + (ch > 1 ? 's' : '') : ''].filter(Boolean).join(' and ') + ' to ' + ((r && r.to) || alt.name) + '.', 'good');
       $('ms-cg').value = ''; $('ms-ch').value = ''; $('ms-subject').value = ''; $('ms-body').value = '';
       try { await netPullItems(); } catch (e){} renderInventory(); msAltCheck();
+      try { msFillItems(); } catch (e){}   /* [ANDRAT natt-buggsvep] listan over vad man kan skicka ritades inte om efter ett utskick */
     } catch (e){ msNote(srvErrText(e, 'The caches could not be sent.'), 'bad'); }
     btn.disabled = false;
     return;
@@ -29251,12 +29277,12 @@ async function msSend(){
       : bara
       ? await srvRpc('mail_send_text', gemensamt)
       : await srvRpc('mail_send_gold', Object.assign({p_gold: guld * 10000}, gemensamt));
-    msNote(bara ? 'Letter sent to ' + esc((r && r.to) || namn) + '.' : hog
-      ? 'Sent ' + fmt(antal) + ' to ' + esc((r && r.to) || namn) + '.'
+    msNote(bara ? 'Letter sent to ' + ((r && r.to) || namn) + '.' : hog
+      ? 'Sent ' + fmt(antal) + ' to ' + ((r && r.to) || namn) + '.'
       : pjas
-      ? 'Item sent to ' + esc((r && r.to) || namn) + '.'
+      ? 'Item sent to ' + ((r && r.to) || namn) + '.'
       : 'Sent ' + (r && r.gold ? moneyPlain(r.gold) : guld + 'g') +
-        ' to ' + esc((r && r.to) || namn) + '.', 'good');
+        ' to ' + ((r && r.to) || namn) + '.', 'good');
     if ($('ms-item')) $('ms-item').value = ''; if ($('ms-qtyf')) $('ms-qtyf').hidden = true;
     $('ms-gold').value = ''; $('ms-subject').value = ''; $('ms-body').value = '';
     /* Avsandarens egen kassa andrades: hamta hem den i stallet for att rakna
@@ -29264,7 +29290,7 @@ async function msSend(){
     if (typeof netPull === 'function') { try { await netPull(); } catch(e){} }
     /* [TILLAGT v5.799.0] En skickad pjas lag kvar i vaskan tills nasta hamtning (buggsvep 8). */
     /* [ANDRAT v5.1290.0] aven en skickad hog (material m.m.) - den lag kvar i vaskan tills nasta hamtning (Wolf) */
-    if (pjas || hog){ try { await netPullItems(); } catch(e){} renderInventory(); renderEquip(); }
+    if (pjas || hog){ try { await netPullItems(); } catch(e){} renderInventory(); renderEquip(); try { msFillItems(); } catch (e){} }   /* [ANDRAT natt-buggsvep] skickad sak stod kvar i listan, och antalet i hogen var det gamla */
     if (typeof renderMail === 'function') renderMail();
   } catch (e){
     const m = String((e && e.message) || e);
@@ -31688,7 +31714,7 @@ function chipFitWhy(chip, gear){
 }
 function chipCapWarn(chip){
   const sort = chipSortOf(chip); if (!sort) return '';
-  const t = chipTotals()[sort];
+  const t = chipTotals()[sort]; if (!t) return '';   /* [ANDRAT natt-buggsvep] okand chipsort kastade och chipvaljaren oppnades aldrig */
   return t.raw >= t.cap ? 'Cap reached (' + t.cap + '%) - this chip adds nothing right now' : (t.raw + chipValOf(chip) > t.cap ? 'Only ' + Math.round((t.cap - t.raw) * 100) / 100 + '% of it counts (cap ' + t.cap + '%)' : '');
 }
 let chipPickEl = null;
@@ -31932,14 +31958,14 @@ function chipFusionHTML(regionId){
   h += '<div class="fus-box"><div class="fus-chips">';
   for (let i = 0; i < 3; i++){
     const it = tre[i];
-    h += it ? '<div class="fus-chip" style="--rc:' + rarCol(it.r) + '">' + chipHexHTML(chipSortOf(it), it.r, '', 'chip_salvaged') + '<div><b style="color:' + perkColor(chipSortOf(it)) + '">+' + chipValOf(it).toFixed(2) + '% ' + esc(MODCHIP[chipSortOf(it)].name) + '</b><small>Salvaged \u00b7 ' + RARITIES[it.r].name + '</small></div></div>'
+    h += it ? '<div class="fus-chip" style="--rc:' + rarCol(it.r) + '">' + chipHexHTML(chipSortOf(it), it.r, '', 'chip_salvaged') + '<div><b style="color:' + perkColor(chipSortOf(it)) + '">+' + chipValOf(it).toFixed(2) + '% ' + esc(mcName(chipSortOf(it))) + '</b><small>Salvaged \u00b7 ' + RARITIES[it.r].name + '</small></div></div>'
              : '<div class="fus-chip empty">' + chipHexHTML(null, null, 'empty') + '<div>Salvaged Mod Chip<small>' + (ch.length ? 'need ' + (3 - ch.length) + ' more' : 'drops from fights, expeditions and dungeons') + '</small></div></div>';
   }
   h += '</div>';
   if (tre.length >= 3){
-    h += '<div><b>Pick the result:</b></div><div class="fus-pick">' + sorts.map(k => '<button class="pp-openbtn' + (FUSION_PICK === k ? ' on' : '') + '" data-fuspick="' + k + '" style="color:' + perkColor(k) + '">' + chipHexHTML(k, 3) + ' Epic ' + esc(MODCHIP[k].name) + ' +' + modchipBase(k, 3) + '%</button>').join('') + '</div>';
+    h += '<div><b>Pick the result:</b></div><div class="fus-pick">' + sorts.map(k => '<button class="pp-openbtn' + (FUSION_PICK === k ? ' on' : '') + '" data-fuspick="' + k + '" style="color:' + perkColor(k) + '">' + chipHexHTML(k, 3) + ' Epic ' + esc(mcName(k)) + ' +' + modchipBase(k, 3) + '%</button>').join('') + '</div>';
     h += '<div class="fus-price"><span>' + uiIco('gold') + ' ' + fmtMoney(CHIP_FUSION_GOLD) + (canPay ? '' : ' <span style="color:var(--red)">(not enough gold)</span>') + '</span>' +
-      '<button class="pp-openbtn addq" data-fusgo="1"' + (FUSION_PICK && canPay && here ? '' : ' disabled') + '>Fuse' + (FUSION_PICK ? ' \u2192 ' + esc(MODCHIP[FUSION_PICK].name) : '') + '</button>' +
+      '<button class="pp-openbtn addq" data-fusgo="1"' + (FUSION_PICK && canPay && here ? '' : ' disabled') + '>Fuse' + (FUSION_PICK ? ' \u2192 ' + esc(mcName(FUSION_PICK)) : '') + '</button>' +
       (here ? '' : '<span style="opacity:.75">Travel to this vendor to fuse.</span>') + '</div>';
   } else {
     h += '<div class="rr-used">You have ' + ch.length + ' of 3 Salvaged Mod Chips.</div>';
@@ -32430,7 +32456,7 @@ function buildPremiumBags(){
     const t = nextVaultBagTier();
     if (t < 0) return;
     if (VAULT_BAG_SLOTS[t].cur === 'gold'){ openVault(); return; }
-    unlockVault(t);
+    unlockVaultAsk(t);   /* [ANDRAT natt-buggsvep] fragar forst, som ryggsackens knapp */
   });
 }
 function nextVaultBagTier(){
@@ -38613,13 +38639,13 @@ function wireTrader(root, regionId, rita){
       if (!dubbelSparr('vend:fusion')) return;
       const ch = fusionChips(); if (ch.length < 3 || !FUSION_PICK) return;
       const ja = await askConfirm({color: perkColor(FUSION_PICK), ico: '\u25a2', title: 'Fuse three chips?',
-        body: 'Three <b>Salvaged Mod Chips</b> become one <b>Epic ' + MODCHIP[FUSION_PICK].name + ' Mod Chip</b> (+' + modchipBase(FUSION_PICK, 3) + '%). It costs ' + fmtMoney(CHIP_FUSION_GOLD) + ' and the chip binds to you.',
+        body: 'Three <b>Salvaged Mod Chips</b> become one <b>Epic ' + esc(mcName(FUSION_PICK)) + ' Mod Chip</b> (+' + modchipBase(FUSION_PICK, 3) + '%). It costs ' + fmtMoney(CHIP_FUSION_GOLD) + ' and the chip binds to you.',
         yes: 'FUSE', no: 'NO'});
       if (!ja) return;
       fgo.disabled = true;
       try {
         const r = await netChipFusion(regionId, FUSION_PICK);
-        vendorNote = 'Fused: Epic ' + MODCHIP[FUSION_PICK].name + ' Mod Chip is in your backpack.';
+        vendorNote = 'Fused: Epic ' + mcName(FUSION_PICK) + ' Mod Chip is in your backpack.';
         FUSION_PICK = null;
       } catch (e){ vendorNote = srvErrText(e); }
       rita();
@@ -39150,7 +39176,8 @@ function buildTrader(regionId){
      for varje annan boost: boden saljer vialen, kemisten brygger flaskan, och en
      bryggd i hogre sallsynthet ar det starkaste som finns. */
   const row = (s, i) => {
-    const D = ITEMS[s.k], R = GEAR_RAR[s.r], p = vendorGearPrice(s.r, regionId, s);
+    /* [ANDRAT natt-buggsvep] en vara som klienten inte kanner (ny pa servern) kastade och hela handlarfonstret, alla flikar, blev tomt */
+    const D = ITEMS[s.k] || {name: String(s.k || 'Item'), slot: -1}, R = GEAR_RAR[s.r] || GEAR_RAR[0], p = vendorGearPrice(s.r, regionId, s);
     const full = vendorGearPrice(s.r, null, s);
     /* [ANDRAT v5.115.0] Stod "rolled when you buy it" - sant forut, falskt nu.
        Pjasen ar rullad redan i hyllan, sa den kan pekas pa och jamforas med
@@ -40537,7 +40564,8 @@ function renderPetTools(){
       '<button class="inv-sort" id="pet-reccancel">Cancel</button></span>';
     $('pet-selall').addEventListener('click', () => {
       /* Allt utom det aktiva, som aldrig gar att valja. */
-      petsOwned().forEach(p => { if (!inTeam(p.uid) && !p.fav) petSel.add(p.uid); });   /* [ANDRAT v5.1213.0] inte favoriter */
+      /* [ANDRAT natt-buggsvep] bara de som SYNS: med en sokning valdes aven dolda hjalpare och gick till atervinning utan att man sett dem */
+      petsOwned().forEach(p => { if (!inTeam(p.uid) && !p.fav && (!PETQ.q.trim() || petMatchesQuery(p))) petSel.add(p.uid); });   /* [ANDRAT v5.1213.0] inte favoriter */
       renderPets();
     });
     $('pet-recgo').addEventListener('click', openPetRecycle);
@@ -44049,7 +44077,7 @@ function showReveal(pet){
   $('frag-reveal').innerHTML =
     '<div class="rv-card" style="--rv-col:' + rarCol(pet.rar) + '">' +
     '<div class="pet-sprite" style="' + petSpriteVars(pet.sp, 84) + ';border-color:' + rarCol(pet.rar) + '"></div>' +
-    '<div><div class="rv-name">' + PETS[pet.sp].name + '</div><div class="rv-rar">' + RARITIES[pet.rar].name + '</div>' +
+    '<div><div class="rv-name">' + esc(petSpName(pet.sp)) + '</div><div class="rv-rar">' + (RARITIES[pet.rar] ? RARITIES[pet.rar].name : '') + '</div>'   /* [ANDRAT natt-buggsvep] okand art/raritet kastade */ +
     '<div class="rv-eff">' + petEffText(pet, '<br>') + '</div></div></div>';
 }
 function openCache(){
@@ -45182,7 +45210,7 @@ function openPetMenu(uid, x, y){
       m.innerHTML = '<div class="pm-head">Rename</div>' +
         '<input class="pm-input" id="pet-rename" maxlength="' + PET_NAME_MAX + '" value="' +
           petName(p).replace(/"/g, '&quot;') + '">' +
-        '<div class="pm-note">Max ' + PET_NAME_MAX + ' characters. Empty resets to ' + PETS[p.sp].name + '.</div>' +
+        '<div class="pm-note">Max ' + PET_NAME_MAX + ' characters. Empty resets to ' + esc(petSpName(p.sp)) + '.</div>'   /* [ANDRAT natt-buggsvep] okand art kastade */ +
         '<button class="pm-item" data-act="save">Save</button>' +
         '<button class="pm-item" data-act="cancel">Cancel</button>';
       const inp = m.querySelector('#pet-rename');
@@ -55635,6 +55663,8 @@ function renderDaily(){
 /* Nedrakningen: serverns dygnsgrans, klientens klocka rattad med serverns. */
 let dailyRefetchAt = 0;
 function dailyCountdown(){
+  /* [ANDRAT natt-buggsvep] stangkollen forst: med DAILY tomt (offline/laddning) och rutan stangd med Escape stannade tickaren aldrig */
+  { const w0 = $('daily-overlay'); if (!w0 || !w0.classList.contains('open')){ if (dailyTimer){ clearInterval(dailyTimer); dailyTimer = null; } return; } }
   const el = $('dr-next'); if (!el || !DAILY) return;
   /* [RATTAT v5.175.1] KLOCKAN TICKADE VIDARE EFTER ESCAPE. Krysset och bakgrunden
      gar via closeDaily och stanger av tickaren - men Escape tar bara bort
@@ -56728,6 +56758,8 @@ function chatShowCard(a, x, y, pinned){
   /* [TILLAGT v5.1208.0] RECEPTET (Chris): en lank ur boken, eller ett papper ur vaskan, visar receptkortet med materialen. */
   else if (a.kind === 'recipe'){ showRecipeTip(a.id, x, y); }
   else if (a.kind === 'stack' && SCHEMATICS[a.key]){ showRecipeTip(SCHEMATICS[a.key].recipe, x, y); }
+  /* [ANDRAT natt-buggsvep] ett lankat material/forbrukningsforemal visades som ett tomt utrustningskort ("Unknown item", 0 Health). Nu samma kort som i vaskan. */
+  else if (a.kind === 'stack'){ showStackTip({key: a.key, name: ((ITEM_DEFS[a.key] || MATERIALS[a.key] || {}).name) || a.key, qty: 1, rar: a.rarity, stack: true, codex: true}, x, y); }
   else { showGearTip({t: a.key, r: a.rarity, a: [], hp: 0, pw: 0, dm: 0, lv: 0, g: 0, s: -1, ggood: false, gpct: 0}, x, y); }
   if (pinned){
     if (!chatCardEl){ chatCardEl = document.createElement('button'); chatCardEl.className = 'chat-gearcard-close'; chatCardEl.textContent = 'Close'; document.body.appendChild(chatCardEl);
@@ -57288,7 +57320,7 @@ $('chat-picker').addEventListener('click', e => {
   $('chat-picker').classList.remove('on');
   if (k === 'p'){ chatLinkPet(petByUid(+v)); return; }   /* [TILLAGT v5.968.0] */
   if (k === 'e'){ const g = S.equip[v]; if (g) chatInsertLink({kind: 'gear', key: g.t, rarity: g.r}, {item: g.sid}); }
-  else if (k === 'i'){ const g = S.inv[+v].gear; if (g) chatInsertLink({kind: 'gear', key: g.t, rarity: g.r}, {item: g.sid}); }
+  else if (k === 'i'){ const g = S.inv[+v] && S.inv[+v].gear; if (g) chatInsertLink({kind: 'gear', key: g.t, rarity: g.r}, {item: g.sid}); }   /* [ANDRAT natt-buggsvep] rutan kan ha tomts medan valjaren stod oppen - da kastade den */
   else { const row = S.inv[+v]; if (row) chatInsertLink({kind: 'stack', key: row.key, rarity: row.rar}, {stack: row.key}); }
 });
 $('chat-settings').addEventListener('change', e => {
@@ -58604,6 +58636,14 @@ document.addEventListener('contextmenu', e => {
 document.addEventListener('contextmenu', e => {
   const s = e.target.closest('[data-ahseller]'); if (!s) return;
   e.preventDefault(); e.stopPropagation();
+  plMenuOpenFor({id: s.dataset.ahseller, handle: null, name: s.dataset.ahsn}, s.getBoundingClientRect(), {auction: true});
+});
+/* [ANDRAT natt-buggsvep] iPhone Safari skickar aldrig 'contextmenu' vid langtryck, sa saljarens meny (Report) gick inte
+   att na pa telefon. Pa pekskarm oppnar ett tryck pa saljarens namn samma meny, som spelarnamnen gor ([data-plmenu]). */
+document.addEventListener('click', e => {
+  if (!isTouchInput()) return;
+  const s = e.target.closest && e.target.closest('[data-ahseller]'); if (!s) return;
+  e.stopPropagation();
   plMenuOpenFor({id: s.dataset.ahseller, handle: null, name: s.dataset.ahsn}, s.getBoundingClientRect(), {auction: true});
 });
 document.addEventListener('click', e => {
