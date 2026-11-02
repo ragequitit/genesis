@@ -2146,7 +2146,7 @@ function drawOverlay(){
       if (parts.length){ const ly = p.y + fs * .9 + 16; label(c, ' ', p.x, ly, {size: 11, w: 600, stroke: 0}); const ws = parts.map(x => c.measureText(x[0] + ' ' + x[1]).width), gap = 12, tot = ws.reduce((a, b) => a + b, 0) + gap * (parts.length - 1); let lx = p.x - tot / 2;
         parts.forEach((x, i) => { label(c, x[0] + ' ' + x[1], lx + ws[i] / 2, ly, {size: 11, w: 600, col: '#fde68a'}); actHits.push({x: lx - 4, y: ly - 10, w: ws[i] + 8, h: 20, cx: lx + ws[i] / 2, tip: x[1] + (x[1] === 1 ? ' player ' : ' players ') + x[2]}); lx += ws[i] + gap; }); } }
  });
-  drawPois(c, W, H, D, placed); drawNodeBox(c, W);   // [TILLAGT genesis-world-play]
+  drawPois(c, W, H, D, placed); c.globalAlpha = 1; drawNodeBox(c, W);   // [TILLAGT genesis-world-play]
   if (mouseXY){ const h = actHits.find(a => mouseXY.x >= a.x && mouseXY.x <= a.x + a.w && mouseXY.y >= a.y && mouseXY.y <= a.y + a.h); if (h) label(c, h.tip, clamp(h.cx, 90, W - 90), h.y + 34, {size: 12, w: 700, col: '#fff', bg: 'rgba(5,8,16,.92)'}); }
   /* boss */
   if (boss && !hidR(boss.R)){ const far = D > 110, q0 = toScreen(boss.x * K, boss.lage === 'annonserad' ? 5 : 9, boss.y * K), q = far ? {x: q0.x + (q0.x > W / 2 ? -95 : 95), y: q0.y + 10, on: q0.on} : q0;
@@ -2746,8 +2746,10 @@ function beaconMesh(){ const g = new THREE.Group();
   const fix = mk(BC_RING, {}), beam = mk(BC_BEAM, {map: BC_TXT});
   fix.rotation.x = -Math.PI / 2; fix.position.y = .05; beam.renderOrder = 3; g.add(fix, beam);
   g.userData = {fix, beam, col: ''}; return g; }
-/* [ANDRAT v5.1422.0] 0 = de tva yttersta zoomstegen (bara noder som i 2D), 1 = inzoomat (ikoner, ring och pelare) */
-function iconK(D){ if (!FR || EDIT || GLB.on) return 1; const far = viewFor(regionBox(FR)).dist * 1.15; return clamp((far / 1.4 * .97 - D) / (far / 1.4 * .97 - far / 1.96), 0, 1); }
+/* [ANDRAT v5.1427.0] TRE LAGEN (Chris 2026-11-02): helt utzoomat bara noder; ett steg in (zoomknappen = 1.4 ggr) pelare och ikoner; ett steg till aven text. */
+function zoomFar(){ return viewFor(regionBox(FR)).dist * 1.15; }
+function iconK(D){ if (!FR || EDIT || GLB.on) return 1; const far = zoomFar(); return clamp((far * .8 - D) / (far * .08), 0, 1); }
+function textK(D){ if (!FR || EDIT || GLB.on) return 1; const far = zoomFar(); return clamp((far * .58 - D) / (far * .065), 0, 1); }
 function stepBeacon(p, t){
   const d = cam.dist, near = !GLB.on && !hidR(p.R) && (d < 460 || p.R === FR) && p.state !== 'cooldown' && Math.hypot(p.x * K - cam.tx, p.y * K - cam.tz) < d * 1.4 + 60 && inView(p.x, p.y, 0);
   const bk = iconK(d);   /* [ANDRAT v5.1422.0] Chris: inga pelare och ringar helt utzoomat, bara noden */
@@ -2816,7 +2818,8 @@ function stepPois(dt, t){
       p.mesh.visible = cam.dist < 300 || p.R === FR;
       if (p.kind === 'event') p.mesh.userData.ring.scale.setScalar(1 + .2 * Math.sin(t * 3)); else p.mesh.rotation.y = t * .3; } });
   VEIN_MAT.emissiveIntensity = .6 + .5 * Math.sin(t * 3); }
-function poiAt(sx, sy){ let best = null, bd = MOBILE ? 30 : 24; pois.forEach(p => { if (!p.vis) return; let d = Math.hypot(p.sx - sx, p.sy - sy); if (BC_KIND[p.kind]) d = Math.min(d, Math.hypot((p.sx - sx) * .55, p.sy + 22 - sy));   /* [TILLAGT v5.1385.0] ordet under ikonen ar ocksa en tryckyta */
+/* [ANDRAT v5.1427.0] Chris: texten kom fram langt utanfor noden. Med mus galler nu nodens cirkel (18 px); pa telefon behovs storre yta for fingret. Ordet under ikonen raknas bara nar det syns. */
+function poiAt(sx, sy){ const tk = textK(cam.dist); let best = null, bd = MOBILE ? 30 : 18; pois.forEach(p => { if (!p.vis) return; let d = Math.hypot(p.sx - sx, p.sy - sy); if (BC_KIND[p.kind] && tk > .5) d = Math.min(d, Math.hypot((p.sx - sx) * .55, p.sy + 22 - sy));   /* [TILLAGT v5.1385.0] ordet under ikonen ar ocksa en tryckyta */
     if (d < bd){ bd = d; best = p; } }); return best; }
 /* [ANDRAT v5.1353.0] DIREKT + GA (Chris 9): rutan oppnas i samma ogonblick som man trycker, och figuren borjar ga dit
    samtidigt - som i 2D men med rorelse som stamning. Veins skickar med skarmpunkten sa matarne ritas dar man tryckte. */
@@ -2837,7 +2840,7 @@ function drawPois(c, W, H, D, placed){
   if (D > 700 && !FR) return;
   const t = performance.now() / 1000;
   /* [TILLAGT v5.1390.0] DE TVA YTTERSTA ZOOMSTEGEN VISAR BARA CIRKLAR OCH PELARE (Chris 2026-11-01): ikonerna tonas in nar man zoomar in. Ett steg = knappens 1.4 ggr. Platserna gar att trycka pa hela tiden. */
-  const iconA = iconK(D);
+  const iconA = iconK(D), textA = textK(D);
   pois.forEach(p => {
     if (hidR(p.R)) return;   /* [TILLAGT v5.1384.0] */
     /* [ANDRAT v5.1385.0] SOM 2D-KARTAN (Chris): i regionen man tittar pa syns och gar allt att trycka pa, aven utzoomat och aven nar figuren ar i en annan region */
@@ -2871,7 +2874,8 @@ function drawPois(c, W, H, D, placed){
         c.drawImage(im, q.x - sz / 2, q.y - sz / 2, sz, sz); c.filter = 'none'; }
       else { c.fillStyle = 'rgba(10,14,22,.82)'; c.beginPath(); c.arc(q.x, q.y, r, 0, 6.2832); c.fill();
       c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
-    c.globalAlpha = ia;
+    const ta = hov || p.kind === 'boss' || p.kind === 'event' ? 1 : textA; if (ta <= .01){ c.globalAlpha = 1; return; }   /* [TILLAGT v5.1427.0] texten kommer ett steg efter ikonerna */
+    c.globalAlpha = ia * ta;
     /* [TILLAGT v5.1383.0] VAD AR DET (Chris: som 2D-kartans noder): ett kort ord i platsens farg under ikonen */
     if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : p.kind === 'dungeon' ? 'DUNGEON' : p.kind === 'vendor' ? 'VENDOR' : p.kind === 'vault' ? 'VAULT' : p.kind === 'board' ? 'MISSIONS' : 'EXPEDITION';
       const ty = q.y + (p.kind === 'quest' ? 20 : 22); c.font = '800 9px sans-serif'; const tw = c.measureText(tag).width + 10, tr = {x: q.x - tw / 2, y: ty - 7, w: tw, h: 14};
