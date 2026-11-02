@@ -815,7 +815,8 @@ async function enter(){
       const rows = await rpc('testplay_logins');
       /* [ANDRAT 2026-10-24] Webblasaren slapper bara EN ny flik per klick (Chris: 4 blockerades). De som stoppas
          visas som knappar - varje knapptryck ar ett eget klick och oppnar sin flik. */
-      const url = r => 'index.html?tp=' + encodeURIComponent(btoa(JSON.stringify({e: r.email, p: r.pw})));
+      /* [ANDRAT v5.1422.0] uppgifterna laggs i webblasarens lager; adressen bar bara ett slumpat id som spelet tar bort direkt. */
+      const url = r => { const id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('genesis.tpk.' + id, btoa(JSON.stringify({e: r.email, p: r.pw}))); return 'index.html?tp=' + id; };
       const kvar = [];
       (rows || []).forEach(r => { const w = window.open(url(r), '_blank'); if (!w) kvar.push(r); });
       if (kvar.length) tpShowButtons(kvar, url);
