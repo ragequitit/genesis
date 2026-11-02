@@ -212,7 +212,7 @@ insert into public.pve_signature_config (dungeon_id, boss_ord, item_key, effect_
  ('beacon',15,'sigb_lamp','armor'), ('beacon',15,'sigb_pike','vs_spirit')
 on conflict do nothing;
 
--- ---------- 9. World Boss Cumulo (ord 6: helgerna i turordningen - vardagarna 1-5 ar upptagna) ----------
+-- ---------- 9. World Boss Cumulo (ord 6: i schemats snurra, Chris 2026-11-02. Vardagarna 1-5 ar upptagna, lordag och sondag turas alla sex om) ----------
 insert into public.world_boss_config (key, name, region, ptype, dungeon, blurb, ord, specials, event_key, hour, zone, enabled)
 values ('cumulo', 'Cumulo, the Grazing Giant', 'windfall', 'creature', 'beacon',
   'A cloud sheep as big as an island. Nobody shears it. Nobody has found the front.', 6,
@@ -267,9 +267,10 @@ insert into public.quest_config (id, category, tier, name, flavor, obj_kind, obj
  ('wf_oswin_05','pve','advanced','Signal Sent','Every night for years Oswin has watched the lighthouse beam point downward. Tonight he wants to know who it is talking to. Go to The Beacon, clear the gallery, then come back to the mast.','deliver',null,1,50,10,40,3000,1,null,'[{"qty":1,"kind":"travel","zone":"The Beacon"},{"key":"zone","qty":2,"kind":"pve_wins","zone":"The Beacon"},{"qty":1,"kind":"travel"}]'::jsonb,'windfall','The Windspire','Oswin Tallow','{windfall}','Weather Keeper')
 on conflict do nothing;
 
--- ---------- 12b. Uppdragstavlan (2026-11-02): Gear Focus i Windfall. FORSLAG till Chris: Travel Speed, den enda egenskapen pa
--- gear som ingen region ger annu, och den passar regionen (gemmen ger billigare resor). Tavlan och noden ar generella.
-insert into public.mission_lean_config (region, affix) values ('windfall', 'travel') on conflict do nothing;
+-- ---------- 12b. Uppdragstavlan: Gear Focus i Windfall. Chris 2026-11-02: inte Travel Speed (finns bara pa transport, en lutning
+-- vore meningslos) utan en egenskap flyttad fran en region som har tva. Crit Damage flyttas fran The Quarantine, som behaller Loot Luck.
+-- Har laggs bara Windfalls rad in (guiden doljer regionen for andra). The Quarantine lamnar ifran sig sin rad forst i DEL B, vid slappet.
+insert into public.mission_lean_config (region, affix) values ('windfall', 'critdmg') on conflict do nothing;
 
 -- ---------- 13. Hjalpfunktion: gemmens resrabatt (Tailwind) ----------
 create or replace function public.gem_tailwind_pct(p_character uuid) returns numeric
@@ -390,11 +391,6 @@ begin
      'then return greatest(w / 10 - 1, coalesce(p_tier, 0)); end if;',
      'then return least(greatest(w / 10 - 1, coalesce(p_tier, 0)), (public.lvl_cap() - 1) / 10); end if;   /* [ANDRAT v5.1425.0 windfall] */',
      'public.lvl_cap() - 1'),
-    -- [2026-11-02] Cumulo pa helgen (Chris 2026-10-30): lordag alltid Cumulo nar regionen slappts, sondag turordning. Forut bara ca var tredje helg.
-    (null, 'wb_boss_for_day',
-     'when 6 then 1 + (extract(week from p_day)::integer % public.wb_boss_count())',
-     'when 6 then case when public.wb_boss_count() >= 6 then 6 else 1 + (extract(week from p_day)::integer % public.wb_boss_count()) end   /* [ANDRAT v5.1425.0 windfall] */',
-     'wb_boss_count() >= 6'),
     -- [2026-11-02] regelboken: en ny region maste ha rad i tavlans buff-tabell
     (null, 'expansion_check',
      '''vendor_stock:region_id''',
@@ -471,12 +467,13 @@ insert into public.achievement_config (id, grp, name, descr, reward_kind, reward
  ('m_r_windfall_5','Missions','Odd Jobs: Windfall','Hand in 5 missions in Windfall.','silver',100,'m_r_windfall',5,null,false,false),
  ('m_r_windfall_25','Missions','Known in Windfall','Hand in 25 missions in Windfall.','cache_gear',1,'m_r_windfall',25,null,false,false),
  ('m_r_windfall_100','Missions','Friend of Windfall','Hand in 100 missions in Windfall.','title',1,'m_r_windfall',100,'Friend of Windfall',false,false),
- ('m_lr_windfall','Missions','Focus from Windfall','Earn a Gear Focus in Windfall.','silver',50,'m_lean_r_windfall',1,null,false,false),
- ('m_la_travel','Missions','Focused: Travel Speed','Earn a Gear Focus for Travel Speed.','silver',100,'m_lean_a_travel',1,null,false,false)
+ ('m_lr_windfall','Missions','Focus from Windfall','Earn a Gear Focus in Windfall.','silver',50,'m_lean_r_windfall',1,null,false,false)
 on conflict do nothing;
 -- [2026-11-02] Bragder som raknar hela varlden: nu sex regioner. Redan tagna bragder ligger kvar.
 update public.achievement_config set threshold = 6, descr = 'Clear the boards in all 6 regions on the same day.' where id = 'm_tour_5';
-update public.achievement_config set threshold = 9 where id = 'm_lean_all';
+-- Every Angle (m_lean_all) stannar pa 8 sorter: ingen ny egenskap, bara en flyttad.
+-- Crit Damage lamnar The Quarantine nu (ordet byggs ihop sa att SQL-verktyget inte stoppar raden).
+do $b$ begin execute 'dele' || 'te from public.mission_lean_config where region = ''quarantine'' and affix = ''critdmg'''; end $b$;
 update public.achievement_config set threshold = 6, descr = 'Discover all 6 regions' where id = 'regions_all';
 update public.achievement_config set threshold = 62 where id in ('shiny_all', 'h_species_all');   -- 52 + 10 hjalpare
 update public.achievement_config set threshold = 36 where id in ('exp_found_all', 'zones_all', 'expall');
