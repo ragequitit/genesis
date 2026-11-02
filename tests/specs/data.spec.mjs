@@ -93,7 +93,12 @@ test.describe('Bilder', () => {
     const paths = new Map();   // sokvag -> var den star
     for (const [p, s] of strings(catalog())) if (IMG_RE.test(s)) { if (!paths.has(s)) paths.set(s, p); }
     expect(paths.size, 'antal bildsokvagar i katalogen').toBeGreaterThan(500);
-    const saknas = [...paths].filter(([s]) => !exists(s)).map(([s, p]) => `${s}   (${p})`).sort();
+    /* Gamla saker som ingen spelare har och som inte tillverkas (kollat mot servern 2026-11-02, Chris beslut): ingen bild bestalls.
+       Far nagon av dem en bild, eller borjar anvandas igen, ska den bort har. */
+    const GAMLA = new Set(['q_dressing_roll', 'q_fuel_gem', 'q_route_marker', 'q_spare_toolkit', 'battery', 'circuit', 'cog', 'data_chip',
+      'genesis_spore', 'glass_moss', 'lens', 'neon_bloom', 'null_orchid', 'power_core', 'prism_sap', 'refined_bioessence', 'static_cap', 'tech_parts', 'wire']
+      .map(k => (k.startsWith('q_') ? 'assets/items/quest/' : 'assets/materials/') + k + '.webp'));
+    const saknas = [...paths].filter(([s]) => !exists(s) && !GAMLA.has(s)).map(([s, p]) => `${s}   (${p})`).sort();
     expect(saknas, `${saknas.length} bilder i katalogen saknas pa disken`).toEqual([]);
   });
 
