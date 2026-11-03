@@ -1911,8 +1911,8 @@ function globeStep(dt, now){
     GLB.lon = a.lon + dl * q; GLB.lat = lerp(a.lat, b.lat, q); GLB.d = Math.exp(lerp(Math.log(a.d), Math.log(b.d), q)); if (k >= 1) GLB.anim = null; }
   else if (!ptrs.size && now - lastInput > 15000 && !selRegion && !window.__gpLow) GLB.lon += dt * .025;   /* star man still snurrar klotet sakta, som i 2D. [ANDRAT v5.1460.0] inte med Settings > Power "Keep the globe still" (Chris: gallde bara 2D) */
   gCam.position.copy(gDir(GLB.lon, GLB.lat)).multiplyScalar(GLB.d); gCam.lookAt(0, 0, 0); gCam.updateMatrixWorld();
-  GLB.dots.forEach(d => { d.t = ((d.t + (dt || 0) * d.v) % 1 + 1) % 1 || 0; const n = d.pts.length - 1, f = d.t * n, i = Math.min(n, Math.floor(f)); d.m.position.copy(d.pts[i]).lerp(d.pts[Math.min(n, i + 1)], f - i); });
-  spaceStep(dt, now);
+  GLB.dots.forEach(d => { if (!window.__gpLow) d.t = ((d.t + (dt || 0) * d.v) % 1 + 1) % 1 || 0; const n = d.pts.length - 1, f = d.t * n, i = Math.min(n, Math.floor(f)); d.m.position.copy(d.pts[i]).lerp(d.pts[Math.min(n, i + 1)], f - i); });
+  if (!window.__gpLow) spaceStep(dt, now);   /* [ANDRAT v5.1461.0] "Keep the globe still": inte heller stenbaltet, manen, skeppen och ljuspunkterna ror sig (Wolf: "det snurrar stenar runt den") */
   if (worldReady && !GLB.snapReady) globeSnap(); }
 /* namnen pa klotet: regionens namn i dess farg ovanfor den, niva under; Windfall gra med "coming soon"; du-ar-har-ringen */
 function globeOverlay(c, W, H){
