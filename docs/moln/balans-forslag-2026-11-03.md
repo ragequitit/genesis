@@ -1,5 +1,8 @@
 # Balansförslag inför release – 2026-11-03
 
+> **Status 2026-11-03 (Chris):** Inget görs nu – spelet släpps inte än. Detta ligger på att-göra inför release.
+> Preliminärt håller Chris med om: nivåkurvan får stå (fråga 4), idle ska vara en trygg botten, inte en motor (fråga 5), strider ska ge lite mindre (fråga 6), och mycket av pengadelen (fråga 7–8). Resten är obesvarat. Frågorna 1–18 längst ner tas upp när release närmar sig.
+
 **Läst, inte ändrat.** Allt nedan kommer från klienten (index.html, v5.1445.0). Servern (Supabase) går inte att nå från molnet, så där klienten säger "samma som servern" har jag använt klientens kopia och skrivit **(klientkopia)**. Där servern räknar ensam och klienten inte har något tal alls står det **(bara servern vet)**.
 
 De tidigare balansdokumenten (`docs/BALANS-*.md`, `docs/STATUS.md`) finns **inte** i det här repot på GitHub – varken på main eller i historiken. Jag har därför utgått från besluten som står i uppgiften och i kodens egna kommentarer (många är märkta "Chris" med datum). Om dokumenten ligger lokalt hos Chris bör de läggas in i repot, annars kan ingen i molnet jämföra mot dem.
