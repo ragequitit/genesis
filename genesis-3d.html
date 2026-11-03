@@ -1112,9 +1112,10 @@ let PLACE = {add: [], del: [], poi: {}};
 const okPlace = j => j && typeof j === 'object' ? {add: Array.isArray(j.add) ? j.add : [], del: Array.isArray(j.del) ? j.del : [], poi: j.poi && typeof j.poi === 'object' && !Array.isArray(j.poi) ? j.poi : {}} : null;
 try { const pr = await fetch('assets/world3d/placering.json', {cache: 'no-store'}); if (pr.ok) PLACE = okPlace(await pr.json()) || PLACE; } catch (e){}
 /* i editorn: ett osparat utkast (fran forra gangen eller fore Angra) vinner over filen */
-if (EDIT){ try { const d = okPlace(JSON.parse(localStorage.getItem('genesis.edDraft') || 'null')); if (d) PLACE = d; } catch (e){} }
+let hadDraft = false;
+if (EDIT){ try { const d = okPlace(JSON.parse(localStorage.getItem('genesis.edDraft') || 'null')); if (d){ PLACE = d; hadDraft = true; } } catch (e){} }
 let edTap = null;
-const itemId = (R, it) => R.id + '|' + it.key + '|' + Math.round(it.x) + '|' + Math.round(it.y);
+const itemId = (R, it) => R.id + '|' + String(it.key).replace(/^lmx_/, 'lm_') + '|' + Math.round(it.x) + '|' + Math.round(it.y);   /* [ANDRAT 2026-11-04] lm_/lmx_ ar samma landmarke - annars dubblett vid byte av set (granskning) */
 /* placera allt i varje region (fore modellerna laddats - storleken kommer fran SIZE) */
 LAND.forEach(R => {
   R.items = []; R.lights = [];
@@ -1186,7 +1187,9 @@ LAND.forEach(R => {
   { const del = new Set(PLACE.del.map(String)); if (del.size){ const gone = R.items.filter(it => del.has(itemId(R, it)));
       R.items = R.items.filter(it => !del.has(itemId(R, it))); R.lights = R.lights.filter(l => !gone.some(it => Math.abs(it.x - l.x) < .5 && Math.abs(it.y - l.y) < .5)); }
     PLACE.add.forEach(a => { if (!a || a.r !== R.id || typeof a.k !== 'string' || !isFinite(+a.x) || !isFinite(+a.y)) return;
-      put(a.k, +a.x, +a.y, +a.rot || 0, clamp(+a.sc || 1, .2, 6), 0); const it = R.items[R.items.length - 1]; it.ed = 1; if (a.nl) it.nl = 1; }); }   /* [ANDRAT 2026-11-04] nl = utan sken (Chris) */
+      /* [ANDRAT 2026-11-04] landmarken: posten kan ha nedladdad (lmx_) eller egen (lm_) nyckel - visa den som galler for valt set */
+      let k = a.k; const LM = LMS.find(l => l.key === k || l.nkey === k); if (LM) k = LMSET !== 'egna' && LM.nkey ? LM.nkey : LM.key;
+      put(k, +a.x, +a.y, +a.rot || 0, clamp(+a.sc || 1, .2, 6), 0); const it = R.items[R.items.length - 1]; it.ed = 1; it.src = a; if (a.nl) it.nl = 1; }); }   /* [ANDRAT 2026-11-04] nl = utan sken (Chris). it.src = a: utan den gick sparade saker inte att andra/ta bort efter omladdning (granskning) */
   const bigItems = R.items.filter(it => footprint(it.key) / 2 * it.sc > 6).map(it => ({x: it.x, y: it.y, r: footprint(it.key) / 2 * it.sc * .9 + 7}));
   const blocked = (x, y) => bigItems.some(it => Math.abs(it.x - x) < it.r && Math.abs(it.y - y) < it.r && Math.hypot(it.x - x, it.y - y) < it.r);
   R.zones.forEach(z => { const fr = z.pts.filter(q => !blocked(q.x, q.y)); if (fr.length > 8) z.pts = fr; const fw = z.wild.filter(q => !blocked(q.x, q.y)); z.wild = fw.length > 4 ? fw : z.pts; });
@@ -2333,7 +2336,7 @@ $('rotR').onclick = () => { if (GLB.on){ globeAnim({lon: GLB.lon + .6, lat: GLB.
 /* ===== INMATNING: dra, nyp/vrid, hjul, tryck ===== */
 const ptrs = new Map(); let pinch = null, downAt = null, moved = 0, lastTap = 0;
 glc.addEventListener('pointerdown', e => { glc.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY, b: e.button}); camAnim.on = false; touched = true; lastInput = performance.now();
-  if (ptrs.size === 1){ downAt = {x: e.clientX, y: e.clientY}; moved = 0; glc.classList.add('drag'); }
+  if (ptrs.size === 1){ downAt = e.button === 2 ? null : {x: e.clientX, y: e.clientY}; moved = 0; glc.classList.add('drag'); }   /* [ANDRAT 2026-11-04] hogerklick ar aldrig ett tryck (satte ut saker i editorn, granskning) */
   if (ptrs.size === 2){ const [a, b] = [...ptrs.values()]; pinch = {d: Math.hypot(a.x - b.x, a.y - b.y), ang: Math.atan2(b.y - a.y, b.x - a.x), dist: cam.dist, yaw: cam.yaw, gd: GLB.d}; moved = 99; } });
 glc.addEventListener('pointermove', e => { const p = ptrs.get(e.pointerId); if (!p) return; lastInput = performance.now();
   if (GLB.on){ /* [TILLAGT v5.1380.0] klotet: ett finger snurrar, tva nyper */
@@ -2735,7 +2738,7 @@ function rebuildPois(){
   /* [TILLAGT 2026-11-04] CHRIS EGNA PLATSER (editorn): quests och moten per zon och ordningsnummer (deras id byter over tid), expeditioner per id.
      Finns en sparad plats i PLACE.poi vinner den over rutnatet. ovk = nyckeln editorn flyttar med. */
   const ord = {}; const nth = (z, kind) => { const k = kind + ':' + z.R.id + '|' + z.namn; ord[k] = (ord[k] || 0) + 1; return k + '#' + ord[k]; };
-  const at = (k, p) => { const o = PLACE.poi && PLACE.poi[k]; return o && isFinite(+o.x) && isFinite(+o.y) ? {x: +o.x, y: +o.y, ovk: k, own: true} : {x: p.x, y: p.y, ovk: k}; };
+  const at = (k, pf) => { const o = PLACE.poi && PLACE.poi[k]; if (o && isFinite(+o.x) && isFinite(+o.y)) return {x: +o.x, y: +o.y, ovk: k, own: true}; const p = pf(); return {x: p.x, y: p.y, ovk: k}; };   /* rutnatsplatsen tas bara nar den behovs (granskning) */
   /* [ANDRAT v5.1385.0] SOM 2D-KARTAN: en zon dronaren inte kartlagt visar inga platser. Forut syntes de, och motets ruta fastnade pa "Looking around" (servern nekar okartlagda zoner). */
   const add = p => { if (/^(quest|encounter|expedition|dungeon|vein)$/.test(p.kind) && /^(uncharted|unknown)$/.test(zoneState(p.R.id, p.zn))) return;
     const o = old.get(p.key); if (o){ if (o.x !== p.x || o.y !== p.y){ freePoi(o); }   /* [TILLAGT 2026-11-04] flyttad plats (editorn): figur, sten och pelare byggs om pa nya stallet (Chris: gubben foljde inte med) */
@@ -2753,14 +2756,14 @@ function rebuildPois(){
     add({key: R.id + '#dungeon', kind: 'dungeon', R, zn: dz.namn, x: R.portal.x, y: R.portal.y, h: 3.6, label: dz.namn, sub: 'Dungeon', pick: {kind: 'dungeon', region: R.id, zone: dz.namn}});
     /* [BORTTAGET v5.1353.0] demons pahittade malm-/fibernoder ("gather"): spelets riktiga noder ar veins (setVeins) och ritas pa samma stenar nedan */ });
   const st = st0;
-  (exps0 || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = at('x:' + e.id, slotFor(z, 'x' + e.id));
+  (exps0 || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = at('x:' + e.id, () => slotFor(z, 'x' + e.id));
     add({key: 'x#' + e.id, kind: 'expedition', R: z.R, zn: z.namn, x: s.x, y: s.y, ovk: s.ovk, own: s.own, h: 2.4, label: str(e.label, 40) || 'Expedition',
       sub: e.state === 'running' ? 'Under way' : e.state === 'locked' ? (e.lvl ? 'Out of reach · lvl ' + e.lvl : 'Not found yet') : 'Expedition' + (e.mins ? ' · ' + (e.mins >= 60 ? e.mins / 60 + 'h' : e.mins + 'm') : ''),
       state: e.state, pick: {kind: 'expedition', region: rid, zone: z.namn, id: e.id}}); });
-  (Array.isArray(st.quests3d) ? st.quests3d : Array.isArray(st.quests) ? st.quests : []).forEach(q => { if (!q || q.id == null || q.id === 'wboss') return;   /* [ANDRAT v5.1353.0] quests3d bar ! och ? */ const [rid, zn] = splitKey(q.zone), z = zoneOf(rid, zn); if (!z) return; const s = at(nth(z, 'q'), slotFor(z, 'q' + q.id));
+  (Array.isArray(st.quests3d) ? st.quests3d : Array.isArray(st.quests) ? st.quests : []).forEach(q => { if (!q || q.id == null || q.id === 'wboss') return;   /* [ANDRAT v5.1353.0] quests3d bar ! och ? */ const [rid, zn] = splitKey(q.zone), z = zoneOf(rid, zn); if (!z) return; const s = at(nth(z, 'q'), () => slotFor(z, 'q' + q.id));
     add({key: 'q#' + q.id, kind: 'quest', R: z.R, zn: z.namn, x: s.x, y: s.y, ovk: s.ovk, own: s.own, h: 2.6, label: str(q.label, 40) || 'QUEST', mark: q.mark === '?' ? '?' : '!', grey: !!q.grey,
       sub: q.mark === '?' ? (q.grey ? 'Quest · in progress' : 'Quest · turn in') : (q.grey ? 'Quest · not now' : 'Quest · available'), pick: {kind: 'quest', region: rid, zone: z.namn, id: q.id}}); });
-  (Array.isArray(st.encounters) ? st.encounters : []).forEach(e => { if (!e || e.id == null) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = at(nth(z, 'e'), slotFor(z, 'e' + e.id));
+  (Array.isArray(st.encounters) ? st.encounters : []).forEach(e => { if (!e || e.id == null) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = at(nth(z, 'e'), () => slotFor(z, 'e' + e.id));
     add({key: 'e#' + e.id, kind: 'encounter', R: z.R, zn: z.namn, x: s.x, y: s.y, ovk: s.ovk, own: s.own, h: 2.4, label: str(e.label, 40) || 'Encounter', sub: e.state === 'cooldown' ? 'Resting' : 'Encounter',
       state: e.state, pick: {kind: 'encounter', region: rid, zone: z.namn, id: e.id}}); });
   const vk = {};
@@ -3023,7 +3026,7 @@ if (EDIT) (function editor(){
     '#edSel{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on{display:block}#edSel .n{font-weight:700;margin-bottom:6px}#edPoi{display:none;padding:8px;border-radius:8px;background:#1a1433}#edPoi.on{display:block}#edPoi .n{font-weight:700;margin-bottom:6px}' +
     '#edp .row{display:flex;gap:5px;flex-wrap:wrap}#edp .row button{flex:1;min-width:52px;padding:6px 4px;border-radius:7px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font-size:12px}' +
     '#edp .row button:hover{background:#1d3160}#edp .row button.red{border-color:#7f1d1d;background:#3b0f17}#edp .row button.go{border-color:#0e7490;background:#0b3b4b;font-weight:700}' +
-    '#edMsg{font-size:12px;color:#fde68a;min-height:16px}' +
+    '#edMsg{font-size:12px;color:#fde68a;min-height:16px}#edp button:disabled{opacity:.4;cursor:default}#mapkey,#news{display:none!important}' +
     /* [TILLAGT 2026-11-04] forhandsvisning av saken man haller musen over i listan (Chris) */
     '#edPv{position:fixed;left:292px;z-index:51;display:none;background:#0b1224;border:1px solid rgba(56,232,255,.4);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}#edPv.on{display:block}' +
     '#edPv img{width:150px;height:150px;display:block;border-radius:6px;background:radial-gradient(circle at 50% 60%,#1b2a4a,#0b1224)}#edPv div{font-size:11px;color:#b8c2e0;text-align:center;margin-top:4px;max-width:150px}';
@@ -3063,19 +3066,27 @@ if (EDIT) (function editor(){
   /* utkastet sparas lokalt efter varje andring, sa inget forsvinner om fliken stangs */
   const snaps = [];
   const draft = () => { try { localStorage.setItem('genesis.edDraft', JSON.stringify(PLACE)); } catch (e){} };
-  const changed = (what) => { dirty++; draft(); LAND.forEach(buildLights);   /* [TILLAGT 2026-11-04] skenet foljer lampor och eldstader (Chris) */ msg(what + ' · ' + dirty + ' osparade ändringar'); };
-  const snap = () => { snaps.push(JSON.stringify(PLACE)); if (snaps.length > 40) snaps.shift(); };
+  let lightT = null; const relight = () => { clearTimeout(lightT); lightT = setTimeout(() => LAND.forEach(buildLights), 120); };   /* [ANDRAT 2026-11-04] samlat, inte per hjulsteg */
+  const changed = (what) => { dirty++; draft(); relight(); btns(); msg(what + ' · ' + dirty + ' osparade ändringar'); };
+  /* [TILLAGT 2026-11-04] Spara visar antalet och ar gra nar inget finns; Angra gra nar inget finns att angra (granskning) */
+  function btns(){ const sv = P.querySelector('button[data-a=save]'), un = P.querySelector('button[data-a=undo]'); if (sv){ sv.textContent = dirty ? 'Spara · ' + dirty : 'Spara'; sv.disabled = !dirty; } if (un) un.disabled = !snaps.length; }
+  const snap = () => { if (wheelGest) return; snaps.push(JSON.stringify(PLACE)); if (snaps.length > 40) snaps.shift(); btns(); };
   /* gor en automatisk sak till en egen (tas bort ur det automatiska och laggs till som Chris egen) innan den andras */
   const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; if (it.nl) a.nl = 1; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
   const sync = it => { const a = it.src; if (!a) return; a.x = +it.x.toFixed(1); a.y = +it.y.toFixed(1); a.rot = +it.rot.toFixed(3); a.sc = +it.sc.toFixed(2); if (it.nl) a.nl = 1; else delete a.nl; };
   function list(){ const q = $e('edQ').value.trim().toLowerCase(), L = $e('edList'); L.textContent = ''; const by = {};
     Object.keys(TPL).filter(k => !/^cloud_/.test(k) && (!q || k.toLowerCase().includes(q) || nice(k).includes(q))).sort().forEach(k => { const p = PACK_OF[k] || 'ovrigt'; (by[p] = by[p] || []).push(k); });
-    Object.keys(by).sort().forEach(p => { const h = document.createElement('b'); h.textContent = p.toUpperCase() + ' (' + by[p].length + ')'; L.appendChild(h);
+    let fold = {}; try { fold = JSON.parse(localStorage.getItem('genesis.edFold') || '{}') || {}; } catch (e){}
+    Object.keys(by).sort().forEach(p => { const h = document.createElement('b'); const shut = !q && fold[p]; h.textContent = (shut ? '▸ ' : '▾ ') + p.toUpperCase() + ' (' + by[p].length + ')'; h.style.cursor = 'pointer';
+      h.onclick = () => { fold[p] = !fold[p]; try { localStorage.setItem('genesis.edFold', JSON.stringify(fold)); } catch (e){} list(); }; L.appendChild(h);   /* [TILLAGT 2026-11-04] hopfallbara grupper (granskning) */
+      if (shut) return;
       by[p].forEach(k => { const b = document.createElement('button'); b.textContent = nice(k); b.className = mode && mode.place === k ? 'on' : ''; b.onclick = () => startPlace(k);
-        b.onmouseenter = () => pvShow(k, b); b.onmouseleave = pvHide; L.appendChild(b); }); }); L.onmouseleave = pvHide; }
+        b.onmouseenter = () => pvShow(k, b); b.onmouseleave = pvHide; L.appendChild(b); }); });
+    if (q && !L.children.length){ const e0 = document.createElement('div'); e0.className = 't'; e0.textContent = 'Inget hittat för "' + q + '" – namnen är engelska: tree, house, lamp, rock …'; L.appendChild(e0); }
+    L.onmouseleave = pvHide; L.onwheel = pvHide; }
   $e('edQ').addEventListener('input', list); $e('edQ').addEventListener('keydown', e => e.stopPropagation());
   function dropGhost(){ if (ghost){ scene.remove(ghost); ghost = null; } }
-  function startPlace(k){ dropGhost(); mode = {place: k}; gRot = 0; gSc = 1; ghost = modelInstance(k); if (ghost) scene.add(ghost); unselect(); list(); msg('Klicka på marken för att sätta ut ' + nice(k)); }
+  function startPlace(k){ stopMode();   /* [ANDRAT 2026-11-04] en lyft sak stalls tillbaka forst (blev osynlig, granskning) */ dropGhost(); mode = {place: k}; gRot = 0; gSc = 1; ghost = modelInstance(k); if (ghost) scene.add(ghost); unselect(); list(); msg('Klicka på marken för att sätta ut ' + nice(k)); }
   function stopMode(){ dropGhost(); if (mode && mode.move) buildInstances(mode.move.it.key); mode = null; list(); }
   function unselect(){ sel = null; psel = null; if (ring) ring.visible = false; $e('edSel').classList.remove('on'); $e('edPoi').classList.remove('on'); }
   /* [TILLAGT 2026-11-04] PLATSER: quests och moten raknas per zon (1:a, 2:a ...) eftersom deras id byter; expeditioner per id. Rutan visar vad som ar valt. */
@@ -3095,7 +3106,7 @@ if (EDIT) (function editor(){
       ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
     const rr = Math.max(.6, footprint(it.key) * K / 2 * it.sc * 1.15); ring.scale.setScalar(rr); ring.position.set(it.x * K, .06, it.y * K); ring.visible = true; $e('edSel').classList.add('on'); }
   function nearest(x, y){ let best = null, bd = 1e9;
-    LAND.forEach(R => R.items.forEach(it => { const rad = Math.max(footprint(it.key) / 2 * it.sc, 6) + 4, d = Math.hypot(it.x - x, it.y - y); if (d < rad && d / rad < bd){ bd = d / rad; best = {R, it}; } }));
+    LAND.forEach(R => R.items.forEach(it => { const rad = Math.max(footprint(it.key) / 2 * it.sc, 5), d = Math.hypot(it.x - x, it.y - y);   /* [ANDRAT 2026-11-04] trycket maste traffa saken (granskning: klick i marken lyfte nagot) */ if (d < rad && d / rad < bd){ bd = d / rad; best = {R, it}; } }));
     return best; }
   function act(a){ if (a === 'save') return save(); if (a === 'undo') return undo();
     if (a === 'pmv' || a === 'prst') return poiAct(a);
@@ -3113,7 +3124,7 @@ if (EDIT) (function editor(){
     select(R, it); changed(a === 'l' || a === 'r' ? 'Vriden' : 'Ny storlek'); }
   /* [TILLAGT 2026-11-04] ENKLARE HANTERING (Chris): klick pa en sak = den lyfts och foljer musen; klick pa marken = den stalls ner och ar fortfarande
      vald (Q/E vrider, Shift+rullhjul storlek, Delete tar bort); klick pa den igen = lyft igen. Esc staller tillbaka den. */
-  function pickUp(R, it){ snap(); own(R, it); sel = {R, it}; mode = {move: sel}; R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); R.items.push(it);
+  function pickUp(R, it){ sel = {R, it};   /* [ANDRAT 2026-11-04] snap/own forst vid nerstallning - Esc lamnar da inget spar (granskning) */ mode = {move: sel}; R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); R.items.push(it);
     dropGhost(); ghost = modelInstance(it.key); if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); ghost.position.set(it.x * K, 0, it.y * K); scene.add(ghost); }
     select(R, it); msg('Flyttar ' + nice(it.key) + ' – klicka där den ska stå. Q/E vrider, Shift+rullhjul ändrar storlek, Esc ångrar'); }
   P.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => act(b.dataset.a));
@@ -3124,7 +3135,7 @@ if (EDIT) (function editor(){
     if (!mode){ const P = poiAt(sx, sy); if (P && P.ovk){ selectPoi(P); mode = {poi: P}; msg('Flyttar ' + P.label + ' – klicka där den ska ligga. Esc ångrar'); return; } }   /* [ANDRAT 2026-11-04] klick = lyft direkt */
     if (mode && mode.place){ if (!R){ msg('Bara på land'); return; } snap(); const a = {r: R.id, k: mode.place, x: +x.toFixed(1), y: +y.toFixed(1), rot: +gRot.toFixed(3), sc: +gSc.toFixed(2)};
       PLACE.add.push(a); const it = {key: a.k, x: a.x, y: a.y, rot: a.rot, sc: a.sc, ed: 1, src: a}; R.items.push(it); buildInstances(a.k); changed('Utsatt: ' + nice(a.k)); return; }
-    if (mode && mode.move){ const {R: R0, it} = mode.move; if (!R){ msg('Bara på land'); return; }
+    if (mode && mode.move){ const {R: R0, it} = mode.move; if (!R){ msg('Bara på land'); return; } snap(); own(R0, it);
       if (R !== R0){ R0.items.splice(R0.items.indexOf(it), 1); R.items.push(it); it.src.r = R.id; }
       it.x = x; it.y = y; sync(it); dropGhost(); mode = null; buildInstances(it.key); select(R, it); changed('Flyttad'); msg('Nerställd · ' + dirty + ' osparade ändringar · klicka på den igen för att flytta den, Q/E vrider, Shift+rullhjul storlek'); return; }
     const n = nearest(x, y); if (n) pickUp(n.R, n.it); else unselect(); };   /* [ANDRAT 2026-11-04] klick = lyft direkt */
@@ -3135,23 +3146,27 @@ if (EDIT) (function editor(){
   glc.addEventListener('wheel', e => { if (!e.shiftKey || !(sel || (mode && mode.place))) return; e.preventDefault(); e.stopImmediatePropagation();
     const up = (e.deltaY || e.deltaX) < 0;
     if (mode && mode.place){ gSc = up ? Math.min(6, gSc * 1.1) : Math.max(.2, gSc / 1.1); if (ghost) ghost.scale.setScalar(gSc); return; }
-    act(up ? 'p' : 'm'); }, {capture: true, passive: false});
+    const now = performance.now(); wheelGest = now - wheelT < 400; wheelT = now; act(up ? 'p' : 'm'); wheelGest = false; }, {capture: true, passive: false});
+  let wheelT = 0, wheelGest = false;   /* [TILLAGT 2026-11-04] flera hjulsteg i rad = en angrapunkt (granskning) */
   addEventListener('keydown', e => { const t = e.target; if (t && t.tagName === 'INPUT') return; const k = e.key;
-    if (k === 'Escape'){ if (mode && mode.poi){ mode = null; if (psel) selectPoi(psel); msg(''); return; } stopMode(); unselect(); msg(''); return; }
+    if (k === 'Escape'){ if (mode && mode.poi){ mode = null; if (psel) selectPoi(psel); msg(''); return; } const was = mode && mode.move; stopMode(); unselect(); msg(was ? 'Avbrutet – saken ställdes tillbaka' : ''); return; }
     if (mode && mode.place){ if (k === 'q' || k === 'Q') gRot -= Math.PI / 12; if (k === 'e' || k === 'E') gRot += Math.PI / 12; if (k === '+') gSc = Math.min(6, gSc * 1.15); if (k === '-') gSc = Math.max(.2, gSc / 1.15);
       if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
     if (k === 'q' || k === 'Q') act('l'); if (k === 'e' || k === 'E') act('r'); if (k === '+') act('p'); if (k === '-') act('m');
-    if (k === 'Delete' || k === 'Backspace') act('del'); });
+    if (k === 'Delete') act('del'); });   /* [ANDRAT 2026-11-04] inte Backspace (granskning: raderade av misstag) */
   function undo(){ if (!snaps.length){ msg('Inget att ångra'); return; } try { localStorage.setItem('genesis.edDraft', snaps.pop());
       sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (e){} msg('Ångrar…'); location.reload(); }
   function save(){ const body = JSON.stringify({v: 1, sparad: new Date().toISOString(), add: PLACE.add, del: PLACE.del, poi: PLACE.poi || {}}, null, 1);
     fetch('/__spara-placering', {method: 'POST', headers: {'Content-Type': 'application/json'}, body}).then(r => { if (!r.ok) throw new Error(r.status);
-      try { localStorage.removeItem('genesis.edDraft'); } catch (e){} dirty = 0; msg('Sparat! Säg till Claude att det finns nya placeringar.'); })
-      .catch(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], {type: 'application/json'})); a.download = 'placering.json'; a.click(); msg('Kunde inte spara direkt – filen laddades ned i stället.'); }); }
+      try { localStorage.removeItem('genesis.edDraft'); } catch (e){} dirty = 0; snaps.length = 0; btns(); msg('Sparat! Säg till Claude att det finns nya placeringar.'); })
+      .catch(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], {type: 'application/json'})); a.download = 'placering.json'; a.click(); msg('Ingen lokal server: filen placering.json laddades NED i stället – skicka den till Claude.'); }); }
   /* kameran tillbaka dar den var fore Angra */
   try { const c = JSON.parse(sessionStorage.getItem('genesis.edCam') || 'null'); if (c){ sessionStorage.removeItem('genesis.edCam'); Object.assign(cam, c); touched = true; } } catch (e){}
   const waitList = setInterval(() => { if (worldReady){ clearInterval(waitList); list(); } }, 500); list();
-  msg(PLACE.add.length || PLACE.del.length ? 'Laddade ' + PLACE.add.length + ' utsatta och ' + PLACE.del.length + ' borttagna' : '');
+  msg(PLACE.add.length || PLACE.del.length ? 'Laddade ' + PLACE.add.length + ' utsatta och ' + PLACE.del.length + ' borttagna' : ''); btns();
+  /* [TILLAGT 2026-11-04] ett osparat utkast fran forra gangen vinner tyst over filen - sag det och ge en knapp att slanga det (granskning) */
+  if (hadDraft){ const d = document.createElement('div'); d.className = 'row'; d.id = 'edDraftRow'; d.innerHTML = '<span class="t" style="flex:1">OSPARAT UTKAST från förra gången är laddat.</span><button class="red" id="edDropDraft">Släng utkastet</button>';
+    $e('edMsg').before(d); $e('edDropDraft').onclick = () => { try { localStorage.removeItem('genesis.edDraft'); } catch (e){} location.reload(); }; }
 })();
 /* [TILLAGT v5.1384.0] TESTSIDAN (oppnad direkt, inte i spelet): pahittade quests och moten i varje zon sa att Chris ser hur de ser ut.
    I spelet skickar spelet de riktiga och de har raderna kors aldrig. */
