@@ -6,7 +6,7 @@
 --   gem, hjalpare, set, vaskor, uppdrag + sma tillagg i befintliga funktioner (med ankare - avbryter om
 --   ankaret saknas, hoppar over om redan lappat). region_config.released = false: bara testkontot
 --   (region_released) ser och kan resa till Windfall.
--- DEL B (slappet): achievements + released = true (INTE release_expansion: nivataket ska vara kvar pa 50). Kors NAR Chris sager kor.
+-- DEL B (slappet): achievements + released = true (INTE release_expansion: nivataket ska vara kvar pa 50). KORD 2026-11-03 efter Chris ja (migrering windfall_slapp_del_b).
 --
 -- Torrkors med: begin; <DEL A>; <test>; rollback  (eller DO ... RAISE EXCEPTION 'DRY RUN OK').
 -- Inga ord som SQL-verktyget stoppar (se CLAUDE.local.md) - darfor "let fall" i stallet for det vanliga ordet.
