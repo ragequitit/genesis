@@ -1186,7 +1186,7 @@ LAND.forEach(R => {
   { const del = new Set(PLACE.del.map(String)); if (del.size){ const gone = R.items.filter(it => del.has(itemId(R, it)));
       R.items = R.items.filter(it => !del.has(itemId(R, it))); R.lights = R.lights.filter(l => !gone.some(it => Math.abs(it.x - l.x) < .5 && Math.abs(it.y - l.y) < .5)); }
     PLACE.add.forEach(a => { if (!a || a.r !== R.id || typeof a.k !== 'string' || !isFinite(+a.x) || !isFinite(+a.y)) return;
-      put(a.k, +a.x, +a.y, +a.rot || 0, clamp(+a.sc || 1, .2, 6), 0); R.items[R.items.length - 1].ed = 1; }); }
+      put(a.k, +a.x, +a.y, +a.rot || 0, clamp(+a.sc || 1, .2, 6), 0); const it = R.items[R.items.length - 1]; it.ed = 1; if (a.nl) it.nl = 1; }); }   /* [ANDRAT 2026-11-04] nl = utan sken (Chris) */
   const bigItems = R.items.filter(it => footprint(it.key) / 2 * it.sc > 6).map(it => ({x: it.x, y: it.y, r: footprint(it.key) / 2 * it.sc * .9 + 7}));
   const blocked = (x, y) => bigItems.some(it => Math.abs(it.x - x) < it.r && Math.abs(it.y - y) < it.r && Math.hypot(it.x - x, it.y - y) < it.r);
   R.zones.forEach(z => { const fr = z.pts.filter(q => !blocked(q.x, q.y)); if (fr.length > 8) z.pts = fr; const fw = z.wild.filter(q => !blocked(q.x, q.y)); z.wild = fw.length > 4 ? fw : z.pts; });
@@ -1221,7 +1221,7 @@ const GLOW = glowTex();
 const lightMats = [];
 /* [ANDRAT 2026-11-04] buildLights(R) kan koras om (editorn: flyttad/utsatt/borttagen lampa eller eldstad - skenet foljde inte med, Chris).
    Raknar om R.lights ur sakerna (LIGHTS), lavan och lagerplatserna, och byter ut punktmolnen. */
-function lightsOf(R){ const out = []; R.items.forEach(it => { const L = LIGHTS[it.key]; if (L) out.push({x: it.x, y: it.y, h: L[0] * it.sc, col: L[1], big: L[2] > 1}); });
+function lightsOf(R){ const out = []; R.items.forEach(it => { const L = LIGHTS[it.key]; if (L && !it.nl) out.push({x: it.x, y: it.y, h: L[0] * it.sc, col: L[1], big: L[2] > 1}); });   /* it.nl: Chris har stangt av skenet */
   R.flat && R.flat.forEach(f => { if (f.type === 'lava') out.push({x: f.x, y: f.y, h: .1, col: 0xff6a1a, big: true}); });
   /* lagerplatsens extra sken bara om eldstaden star kvar dar (flyttar Chris elden ska inget sken ligga kvar) */
   R.zones.forEach(z => { if (z.i < 5 && R.items.some(it => it.key === 'campfire' && Math.hypot(it.x - z.camp.x, it.y - z.camp.y) < 12)) out.push({x: z.camp.x - 4, y: z.camp.y + 6, h: .35, col: 0xff8a2a, big: true}); }); return out; }
@@ -2372,7 +2372,8 @@ function tap(sx, sy){
   if (R && me.R === R && !me.fly){ selRegion = null; renderCard(); if (!walkTo(g.x / K, g.z / K, null)) toast('Can\u2019t walk there'); return; }
   follow = null; selRegion = R ? R.id : null; renderCard();
   if (R && (dbl || cam.dist > viewFor(regionBox(R)).dist * 1.6)) focusRegion(R); }
-addEventListener('keydown', e => { if (e.key === '+' || e.key === '=') zoomAt(innerWidth / 2, innerHeight / 2, .8); else if (e.key === '-') zoomAt(innerWidth / 2, innerHeight / 2, 1.25);
+addEventListener('keydown', e => { if (EDIT) return;   /* [TILLAGT 2026-11-04] i editorn vrider Q/E saken, inte kartan (Chris) */
+  if (e.key === '+' || e.key === '=') zoomAt(innerWidth / 2, innerHeight / 2, .8); else if (e.key === '-') zoomAt(innerWidth / 2, innerHeight / 2, 1.25);
   else if (e.key === 'q' || e.key === 'Q') cam.yaw -= .3; else if (e.key === 'e' || e.key === 'E') cam.yaw += .3;
   else if (e.key === 'Escape'){ selected = null; selRegion = null; follow = null; renderCard(); } });
 let DPR = 1;
@@ -3022,14 +3023,18 @@ if (EDIT) (function editor(){
     '#edSel{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on{display:block}#edSel .n{font-weight:700;margin-bottom:6px}#edPoi{display:none;padding:8px;border-radius:8px;background:#1a1433}#edPoi.on{display:block}#edPoi .n{font-weight:700;margin-bottom:6px}' +
     '#edp .row{display:flex;gap:5px;flex-wrap:wrap}#edp .row button{flex:1;min-width:52px;padding:6px 4px;border-radius:7px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font-size:12px}' +
     '#edp .row button:hover{background:#1d3160}#edp .row button.red{border-color:#7f1d1d;background:#3b0f17}#edp .row button.go{border-color:#0e7490;background:#0b3b4b;font-weight:700}' +
-    '#edMsg{font-size:12px;color:#fde68a;min-height:16px}';
+    '#edMsg{font-size:12px;color:#fde68a;min-height:16px}' +
+    /* [TILLAGT 2026-11-04] forhandsvisning av saken man haller musen over i listan (Chris) */
+    '#edPv{position:fixed;left:292px;z-index:51;display:none;background:#0b1224;border:1px solid rgba(56,232,255,.4);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}#edPv.on{display:block}' +
+    '#edPv img{width:150px;height:150px;display:block;border-radius:6px;background:radial-gradient(circle at 50% 60%,#1b2a4a,#0b1224)}#edPv div{font-size:11px;color:#b8c2e0;text-align:center;margin-top:4px;max-width:150px}';
   document.head.appendChild(css);
   const P = document.createElement('div'); P.id = 'edp';
-  P.innerHTML = '<h3>EDITOR</h3><div class="t">Välj en sak i listan och klicka på marken för att sätta ut den. Klicka på en sak på kartan för att välja den.<br>Q / E vrider · + / − storlek · Delete tar bort · Esc släpper<br>Klicka på en quest, ett möte eller en expedition för att flytta dess plats.</div>' +
+  P.innerHTML = '<h3>EDITOR</h3><div class="t">Välj en sak i listan och klicka på marken för att sätta ut den.<br>Klicka på en sak på kartan: den lyfts och följer musen. Klicka där den ska stå.<br>Q / E vrider · Shift + rullhjul storlek · Delete tar bort · Esc ångrar<br>Quests, möten och expeditioner flyttas på samma sätt.</div>' +
     '<input id="edQ" placeholder="Sök sak (t.ex. tree, house, lamp)">' +
     '<div id="edList"></div>' +
     '<div id="edSel"><div class="n" id="edSelN"></div><div class="row"><button data-a="l">⟲ Vrid</button><button data-a="r">Vrid ⟳</button><button data-a="m">− Mindre</button><button data-a="p">+ Större</button></div>' +
-    '<div class="row" style="margin-top:5px"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red">Ta bort</button></div></div>' +
+    '<div class="row" style="margin-top:5px"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red">Ta bort</button></div>' +
+    '<div class="row" style="margin-top:5px"><button data-a="lt" id="edLt">Sken: på</button></div></div>' +   /* [TILLAGT 2026-11-04] sken av/pa for lyktor och eldstader (Chris) */
     /* [TILLAGT 2026-11-04] platser: quests, moten och expeditioner (Chris: "option att flytta nagon som sitter fel") */
     '<div id="edPoi" class="edpoi"><div class="n" id="edPoiN"></div><div class="t" id="edPoiT"></div><div class="row"><button data-a="pmv">Flytta plats</button><button data-a="prst">Tillbaka till rutnätet</button></div></div>' +
     '<div id="edMsg"></div><div class="row"><button data-a="undo">Ångra</button><button data-a="save" class="go">Spara</button></div>' +
@@ -3037,6 +3042,19 @@ if (EDIT) (function editor(){
     '<div class="row"><button id="edLm">Landmärken: ' + (LMSET === 'egna' ? 'Claudes egna' : 'nedladdade') + ' ⇄</button></div>';
   document.body.appendChild(P);
   P.addEventListener('pointerdown', e => e.stopPropagation()); P.addEventListener('wheel', e => e.stopPropagation(), {passive: true});
+  /* [TILLAGT 2026-11-04] FORHANDSVISNING: en liten egen ritare ritar modellen en gang per sak (sparas som bild) och visar den bredvid listan nar musen ar over raden */
+  const PV = document.createElement('div'); PV.id = 'edPv'; PV.innerHTML = '<img alt=""><div></div>'; document.body.appendChild(PV);
+  let pvR = null, pvScene = null, pvCam = null; const thumbs = {};
+  function thumb(key){ if (thumbs[key] !== undefined) return thumbs[key]; const m = modelInstance(key); if (!m) return thumbs[key] = '';
+    if (!pvR){ pvR = new THREE.WebGLRenderer({antialias: true, alpha: true}); pvR.setSize(150, 150); pvR.setPixelRatio(1); pvR.toneMapping = THREE.ACESFilmicToneMapping; pvR.toneMappingExposure = 1.1;
+      pvScene = new THREE.Scene(); pvScene.add(new THREE.HemisphereLight(0xdde8ff, 0x3a2f55, 1.6)); const dl = new THREE.DirectionalLight(0xfff1dc, 2); dl.position.set(3, 6, 4); pvScene.add(dl);
+      pvCam = new THREE.PerspectiveCamera(28, 1, .01, 2000); }
+    pvScene.add(m); const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()), r = Math.max(s.x, s.y, s.z, .01);
+    pvCam.position.copy(c).add(new THREE.Vector3(1, .75, 1.4).normalize().multiplyScalar(r * 2.3)); pvCam.lookAt(c); pvCam.updateProjectionMatrix();
+    pvR.render(pvScene, pvCam); pvScene.remove(m); return thumbs[key] = pvR.domElement.toDataURL(); }
+  function pvShow(key, btn){ const src = thumb(key); if (!src){ PV.classList.remove('on'); return; } PV.querySelector('img').src = src; PV.querySelector('div').textContent = nice(key);
+    const rb = btn.getBoundingClientRect(); PV.style.top = Math.max(8, Math.min(innerHeight - 190, rb.top - 60)) + 'px'; PV.classList.add('on'); }
+  const pvHide = () => PV.classList.remove('on');
   const $e = id => document.getElementById(id), msg = t => { $e('edMsg').textContent = t; };
   let mode = null, ghost = null, gRot = 0, gSc = 1, sel = null, ring = null, dirty = 0;
   const regionAt = (x, y) => LAND.find(R => inPoly(R.outline, x, y) || (R.landing && (inPoly(R.landing.poly, x, y) || inPoly(R.landing.spur, x, y)))) ||
@@ -3048,12 +3066,13 @@ if (EDIT) (function editor(){
   const changed = (what) => { dirty++; draft(); LAND.forEach(buildLights);   /* [TILLAGT 2026-11-04] skenet foljer lampor och eldstader (Chris) */ msg(what + ' · ' + dirty + ' osparade ändringar'); };
   const snap = () => { snaps.push(JSON.stringify(PLACE)); if (snaps.length > 40) snaps.shift(); };
   /* gor en automatisk sak till en egen (tas bort ur det automatiska och laggs till som Chris egen) innan den andras */
-  const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
-  const sync = it => { const a = it.src; if (!a) return; a.x = +it.x.toFixed(1); a.y = +it.y.toFixed(1); a.rot = +it.rot.toFixed(3); a.sc = +it.sc.toFixed(2); };
+  const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; if (it.nl) a.nl = 1; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
+  const sync = it => { const a = it.src; if (!a) return; a.x = +it.x.toFixed(1); a.y = +it.y.toFixed(1); a.rot = +it.rot.toFixed(3); a.sc = +it.sc.toFixed(2); if (it.nl) a.nl = 1; else delete a.nl; };
   function list(){ const q = $e('edQ').value.trim().toLowerCase(), L = $e('edList'); L.textContent = ''; const by = {};
     Object.keys(TPL).filter(k => !/^cloud_/.test(k) && (!q || k.toLowerCase().includes(q) || nice(k).includes(q))).sort().forEach(k => { const p = PACK_OF[k] || 'ovrigt'; (by[p] = by[p] || []).push(k); });
     Object.keys(by).sort().forEach(p => { const h = document.createElement('b'); h.textContent = p.toUpperCase() + ' (' + by[p].length + ')'; L.appendChild(h);
-      by[p].forEach(k => { const b = document.createElement('button'); b.textContent = nice(k); b.className = mode && mode.place === k ? 'on' : ''; b.onclick = () => startPlace(k); L.appendChild(b); }); }); }
+      by[p].forEach(k => { const b = document.createElement('button'); b.textContent = nice(k); b.className = mode && mode.place === k ? 'on' : ''; b.onclick = () => startPlace(k);
+        b.onmouseenter = () => pvShow(k, b); b.onmouseleave = pvHide; L.appendChild(b); }); }); L.onmouseleave = pvHide; }
   $e('edQ').addEventListener('input', list); $e('edQ').addEventListener('keydown', e => e.stopPropagation());
   function dropGhost(){ if (ghost){ scene.remove(ghost); ghost = null; } }
   function startPlace(k){ dropGhost(); mode = {place: k}; gRot = 0; gSc = 1; ghost = modelInstance(k); if (ghost) scene.add(ghost); unselect(); list(); msg('Klicka på marken för att sätta ut ' + nice(k)); }
@@ -3068,9 +3087,10 @@ if (EDIT) (function editor(){
       ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
     ring.scale.setScalar(1.6); ring.position.set(P.x * K, .06, P.y * K); ring.visible = true; poiBox().classList.add('on'); }
   function poiAct(a){ if (!psel) return; const P = psel;
-    if (a === 'pmv'){ mode = {poi: P}; msg('Klicka där ' + P.label + ' ska ligga'); return; }
+    if (a === 'pmv'){ mode = {poi: P}; msg('Flyttar ' + P.label + ' – klicka där den ska ligga. Esc ångrar'); return; }
     if (a === 'prst'){ if (PLACE.poi && PLACE.poi[P.ovk]){ snap(); delete PLACE.poi[P.ovk]; rebuildPois(); changed('Tillbaka till rutnätet'); } unselect(); } }
   function select(R, it){ sel = {R, it}; $e('edSelN').textContent = nice(it.key) + (it.ed ? '  (din)' : '');
+    const lt = $e('edLt'); lt.style.display = LIGHTS[it.key] ? '' : 'none'; lt.textContent = it.nl ? 'Sken: av' : 'Sken: på';
     if (!ring){ ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
       ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
     const rr = Math.max(.6, footprint(it.key) * K / 2 * it.sc * 1.15); ring.scale.setScalar(rr); ring.position.set(it.x * K, .06, it.y * K); ring.visible = true; $e('edSel').classList.add('on'); }
@@ -3081,30 +3101,43 @@ if (EDIT) (function editor(){
     if (a === 'pmv' || a === 'prst') return poiAct(a);
     if (!sel) return; const {R, it} = sel;
     if (a === 'del'){ snap(); if (it.ed){ const i = PLACE.add.indexOf(it.src); if (i >= 0) PLACE.add.splice(i, 1); } else PLACE.del.push(itemId(R, it));
-      R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); unselect(); changed('Borttagen'); return; }
-    if (a === 'mv'){ snap(); own(R, it); mode = {move: sel}; R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); R.items.push(it);
-      dropGhost(); ghost = modelInstance(it.key); if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); scene.add(ghost); } unselect(); msg('Klicka där den ska stå'); return; }
+      R.items.splice(R.items.indexOf(it), 1); dropGhost(); mode = null; buildInstances(it.key); unselect(); changed('Borttagen'); return; }
+    if (a === 'mv'){ pickUp(R, it); return; }
+    if (a === 'lt'){ snap(); own(R, it); it.nl = it.nl ? 0 : 1; sync(it); select(R, it); changed(it.nl ? 'Sken av' : 'Sken på'); return; }
     if (a === 'cp'){ startPlace(it.key); gRot = it.rot; gSc = it.sc; if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
     snap(); own(R, it);
     if (a === 'l') it.rot -= Math.PI / 12; if (a === 'r') it.rot += Math.PI / 12;
     if (a === 'm') it.sc = Math.max(.2, it.sc / 1.15); if (a === 'p') it.sc = Math.min(6, it.sc * 1.15);
-    sync(it); buildInstances(it.key); select(R, it); changed(a === 'l' || a === 'r' ? 'Vriden' : 'Ny storlek'); }
+    sync(it); if (mode && mode.move && mode.move.it === it){ if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); } }   /* [ANDRAT 2026-11-04] under flytt: bara spoket andras */
+    else buildInstances(it.key);
+    select(R, it); changed(a === 'l' || a === 'r' ? 'Vriden' : 'Ny storlek'); }
+  /* [TILLAGT 2026-11-04] ENKLARE HANTERING (Chris): klick pa en sak = den lyfts och foljer musen; klick pa marken = den stalls ner och ar fortfarande
+     vald (Q/E vrider, Shift+rullhjul storlek, Delete tar bort); klick pa den igen = lyft igen. Esc staller tillbaka den. */
+  function pickUp(R, it){ snap(); own(R, it); sel = {R, it}; mode = {move: sel}; R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); R.items.push(it);
+    dropGhost(); ghost = modelInstance(it.key); if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); ghost.position.set(it.x * K, 0, it.y * K); scene.add(ghost); }
+    select(R, it); msg('Flyttar ' + nice(it.key) + ' – klicka där den ska stå. Q/E vrider, Shift+rullhjul ändrar storlek, Esc ångrar'); }
   P.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => act(b.dataset.a));
   edTap = (sx, sy) => { const g = groundAt(sx, sy); if (!g) return; const x = g.x / K, y = g.z / K, R = regionAt(x, y);
     /* [TILLAGT 2026-11-04] platser: flytta den valda, eller valj en genom att trycka pa dess ikon */
     if (mode && mode.poi){ const P = mode.poi; if (!R || R !== P.R){ msg('Bara inne i ' + P.R.namn); return; } snap(); PLACE.poi = PLACE.poi || {}; PLACE.poi[P.ovk] = {x: +x.toFixed(1), y: +y.toFixed(1)};
       mode = null; rebuildPois(); const P2 = pois.find(p => p.ovk === P.ovk); changed('Platsen flyttad'); if (P2) selectPoi(P2); return; }
-    if (!mode){ const P = poiAt(sx, sy); if (P && P.ovk){ selectPoi(P); return; } }
+    if (!mode){ const P = poiAt(sx, sy); if (P && P.ovk){ selectPoi(P); mode = {poi: P}; msg('Flyttar ' + P.label + ' – klicka där den ska ligga. Esc ångrar'); return; } }   /* [ANDRAT 2026-11-04] klick = lyft direkt */
     if (mode && mode.place){ if (!R){ msg('Bara på land'); return; } snap(); const a = {r: R.id, k: mode.place, x: +x.toFixed(1), y: +y.toFixed(1), rot: +gRot.toFixed(3), sc: +gSc.toFixed(2)};
       PLACE.add.push(a); const it = {key: a.k, x: a.x, y: a.y, rot: a.rot, sc: a.sc, ed: 1, src: a}; R.items.push(it); buildInstances(a.k); changed('Utsatt: ' + nice(a.k)); return; }
     if (mode && mode.move){ const {R: R0, it} = mode.move; if (!R){ msg('Bara på land'); return; }
       if (R !== R0){ R0.items.splice(R0.items.indexOf(it), 1); R.items.push(it); it.src.r = R.id; }
-      it.x = x; it.y = y; sync(it); dropGhost(); mode = null; buildInstances(it.key); select(R, it); changed('Flyttad'); return; }
-    const n = nearest(x, y); if (n) select(n.R, n.it); else unselect(); };
-  glc.addEventListener('pointermove', e => { if (!ghost) return; const g = groundAt(e.clientX, e.clientY); if (!g) return; ghost.position.set(g.x, 0, g.z);
+      it.x = x; it.y = y; sync(it); dropGhost(); mode = null; buildInstances(it.key); select(R, it); changed('Flyttad'); msg('Nerställd · ' + dirty + ' osparade ändringar · klicka på den igen för att flytta den, Q/E vrider, Shift+rullhjul storlek'); return; }
+    const n = nearest(x, y); if (n) pickUp(n.R, n.it); else unselect(); };   /* [ANDRAT 2026-11-04] klick = lyft direkt */
+  glc.addEventListener('pointermove', e => { if (mode && mode.poi && ring){ const g = groundAt(e.clientX, e.clientY); if (g) ring.position.set(g.x, .06, g.z); return; }
+    if (!ghost) return; const g = groundAt(e.clientX, e.clientY); if (!g) return; ghost.position.set(g.x, 0, g.z); if (ring && mode && mode.move) ring.position.set(g.x, .06, g.z);
     ghost.rotation.y = mode && mode.move ? mode.move.it.rot : gRot; ghost.scale.setScalar(mode && mode.move ? mode.move.it.sc : gSc); });
+  /* [TILLAGT 2026-11-04] Shift + rullhjul = storre/mindre pa den valda (eller den som satts ut). Tar hjulet fore kartans zoom. */
+  glc.addEventListener('wheel', e => { if (!e.shiftKey || !(sel || (mode && mode.place))) return; e.preventDefault(); e.stopImmediatePropagation();
+    const up = (e.deltaY || e.deltaX) < 0;
+    if (mode && mode.place){ gSc = up ? Math.min(6, gSc * 1.1) : Math.max(.2, gSc / 1.1); if (ghost) ghost.scale.setScalar(gSc); return; }
+    act(up ? 'p' : 'm'); }, {capture: true, passive: false});
   addEventListener('keydown', e => { const t = e.target; if (t && t.tagName === 'INPUT') return; const k = e.key;
-    if (k === 'Escape'){ stopMode(); unselect(); msg(''); return; }
+    if (k === 'Escape'){ if (mode && mode.poi){ mode = null; if (psel) selectPoi(psel); msg(''); return; } stopMode(); unselect(); msg(''); return; }
     if (mode && mode.place){ if (k === 'q' || k === 'Q') gRot -= Math.PI / 12; if (k === 'e' || k === 'E') gRot += Math.PI / 12; if (k === '+') gSc = Math.min(6, gSc * 1.15); if (k === '-') gSc = Math.max(.2, gSc / 1.15);
       if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
     if (k === 'q' || k === 'Q') act('l'); if (k === 'e' || k === 'E') act('r'); if (k === '+') act('p'); if (k === '-') act('m');
