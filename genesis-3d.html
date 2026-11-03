@@ -1219,7 +1219,14 @@ function glowTex(){ const c = document.createElement('canvas'); c.width = c.heig
   return new THREE.CanvasTexture(c); }
 const GLOW = glowTex();
 const lightMats = [];
-LAND.forEach(R => { R.lightSets = []; [false, true].forEach(big => { const L = R.lights.filter(l => l.big === big); if (!L.length) return;
+/* [ANDRAT 2026-11-04] buildLights(R) kan koras om (editorn: flyttad/utsatt/borttagen lampa eller eldstad - skenet foljde inte med, Chris).
+   Raknar om R.lights ur sakerna (LIGHTS), lavan och lagerplatserna, och byter ut punktmolnen. */
+function lightsOf(R){ const out = []; R.items.forEach(it => { const L = LIGHTS[it.key]; if (L) out.push({x: it.x, y: it.y, h: L[0] * it.sc, col: L[1], big: L[2] > 1}); });
+  R.flat && R.flat.forEach(f => { if (f.type === 'lava') out.push({x: f.x, y: f.y, h: .1, col: 0xff6a1a, big: true}); });
+  /* lagerplatsens extra sken bara om eldstaden star kvar dar (flyttar Chris elden ska inget sken ligga kvar) */
+  R.zones.forEach(z => { if (z.i < 5 && R.items.some(it => it.key === 'campfire' && Math.hypot(it.x - z.camp.x, it.y - z.camp.y) < 12)) out.push({x: z.camp.x - 4, y: z.camp.y + 6, h: .35, col: 0xff8a2a, big: true}); }); return out; }
+function buildLights(R){ (R.lightObjs || []).forEach(o => { R.group.remove(o); o.geometry.dispose(); const i = lightMats.indexOf(o.material); if (i >= 0) lightMats.splice(i, 1); o.material.dispose(); });
+  R.lightObjs = []; R.lights = lightsOf(R); R.lightSets = []; [false, true].forEach(big => { const L = R.lights.filter(l => l.big === big); if (!L.length) return;
   const pos = new Float32Array(L.length * 3), col = new Float32Array(L.length * 3), c = new THREE.Color();
   L.forEach((l, i) => { pos[i * 3] = l.x * K; pos[i * 3 + 1] = l.h + .15; pos[i * 3 + 2] = l.y * K; c.setHex(l.col); col.set([c.r, c.g, c.b], i * 3); });
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -1230,7 +1237,9 @@ LAND.forEach(R => { R.lightSets = []; [false, true].forEach(big => { const L = R
   pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const pm = new THREE.PointsMaterial({size: big ? 11 : 6.5, map: GLOW, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending});
   pm.userData.pool = true; lightMats.push(pm); const pool = new THREE.Points(pg, pm); pool.renderOrder = 2; R.group.add(pool);
-  R.lightSets.push({L, col, base: col.slice(), attrs: [g.attributes.color, pg.attributes.color]}); }); });
+  R.lightObjs.push(pts, pool);
+  R.lightSets.push({L, col, base: col.slice(), attrs: [g.attributes.color, pg.attributes.color]}); }); }
+LAND.forEach(buildLights);
 
 /* dungeonportens sken */
 const portalFx = [];
@@ -3036,7 +3045,7 @@ if (EDIT) (function editor(){
   /* utkastet sparas lokalt efter varje andring, sa inget forsvinner om fliken stangs */
   const snaps = [];
   const draft = () => { try { localStorage.setItem('genesis.edDraft', JSON.stringify(PLACE)); } catch (e){} };
-  const changed = (what) => { dirty++; draft(); msg(what + ' · ' + dirty + ' osparade ändringar'); };
+  const changed = (what) => { dirty++; draft(); LAND.forEach(buildLights);   /* [TILLAGT 2026-11-04] skenet foljer lampor och eldstader (Chris) */ msg(what + ' · ' + dirty + ' osparade ändringar'); };
   const snap = () => { snaps.push(JSON.stringify(PLACE)); if (snaps.length > 40) snaps.shift(); };
   /* gor en automatisk sak till en egen (tas bort ur det automatiska och laggs till som Chris egen) innan den andras */
   const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
