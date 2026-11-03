@@ -626,7 +626,12 @@ function groundTexture(R){
     if (R.id === 'quarantine'){ zf(2, '#6a6a66', .45); zf(3, '#5d5c58', .45); zf(0, '#7a7466', .3); }
     /* flackar, smasten och gras-prickar sa marken inte ar enfargad */
     for (let i = 0; i < 450 * BIG * BIG; i++){   /* [ANDRAT v5.1379.0] halva flackarna: lugnare mark som i 2D (kritiker) */ const z = R.zones[i % 6], q = z.pts[Math.floor(r() * z.pts.length)];
-      g.fillStyle = r() < .5 ? 'rgba(255,255,230,.06)' : 'rgba(0,30,0,.07)'; g.beginPath(); g.ellipse(q.x + (r() - .5) * 20, q.y + (r() - .5) * 20, 10 + r() * 40, 8 + r() * 28, r() * 3, 0, 6.2832); g.fill(); }
+      /* [ANDRAT v5.1455.0] FLACKARNA TONAS UT MOT KANTEN och ar svagare (Chris 2026-11-03: "lite mer svaga eller fadeade, mer som mark").
+         Samma r()-anrop i samma ordning som forut, sa resten av marken ligger kvar dar den lag. */
+      const ljus = r() < .5, cx = q.x + (r() - .5) * 20, cy = q.y + (r() - .5) * 20, rx = 10 + r() * 40, ry = 8 + r() * 28, rot = r() * 3;
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+      gr.addColorStop(0, ljus ? 'rgba(255,255,230,.05)' : 'rgba(0,30,0,.06)'); gr.addColorStop(.55, ljus ? 'rgba(255,255,230,.025)' : 'rgba(0,30,0,.03)'); gr.addColorStop(1, ljus ? 'rgba(255,255,230,0)' : 'rgba(0,30,0,0)');
+      g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(1, ry / rx); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, 6.2832); g.fill(); g.restore(); }
     for (let i = 0; i < 1300 * BIG * BIG * .6; i++){ const z = R.zones[i % 6], q = z.pts[Math.floor(r() * z.pts.length)];
       g.fillStyle = r() < .5 ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)'; g.fillRect(q.x + (r() - .5) * 14, q.y + (r() - .5) * 14, 1.6, 1.6); }
     /* plattor i rymdregionen, rutnat i klossvarlden */
