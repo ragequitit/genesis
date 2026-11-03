@@ -29426,7 +29426,7 @@ const MS_FEL = {
   /* [TILLAGT v5.774.0] Servern tar hogst 60 brev per dygn och spelare. */
   mail_rate:         'You have sent a lot of mail today. Try again tomorrow.',
   bind_on_pickup:    'That cannot be sent \u2014 it binds when you pick it up.',
-  item_must_be_in_bag:'That item is no longer in your backpack.',
+  item_must_be_in_bag:'One of the attached items is no longer in your backpack. Remove it from the attachments and try again.',   /* [ANDRAT v5.1451.0] molnsvep 24 */
   no_item:           'Pick something to attach.',
   not_your_character:'Sign in again.',
   not_your_alt:      'Caches can only go to your own characters.',   /* [TILLAGT v5.1091.0] */
@@ -29438,40 +29438,7 @@ function msNote(txt, sort){
   n.textContent = txt || '';
   n.className = 'ms-note' + (sort ? ' ' + sort : '');
 }
-function msFillItems(){
-  /* Vaskans pjaser, hamtade ur rutnatet. Bara rutor med ett SERVER-id kan
-     skickas - en lokal rad utan id finns inte for servern.
-     BUNDNA PJASER SILAS INTE BORT HAR. Rutan vet inte sakert vad som ar bundet;
-     servern gor det. Valjer man en sadan svarar servern "that cannot be sent",
-     vilket ar arligare an att tyst dolja den och lata spelaren undra vart den
-     tog vagen. */
-  const sel = $('ms-item'); if (!sel) return;
-  const valt = sel.value;
-  const rader = (S.inv || [])
-    .map(r => r && r.gear)
-    .filter(g => g && g.sid)
-    .map(g => '<option value="' + esc(String(g.sid)) + '">' +
-      esc(gearName(g)) + (g.r != null && GEAR_RAR[g.r] ? ' \u00b7 ' + esc(GEAR_RAR[g.r].name) : '') +
-      '</option>').join('');
-  /* [TILLAGT v5.1141.0] HOGAR I POSTEN (Chris): material med valt antal. Bind on Pickup och shards visas inte; servern
-     (mail_send_stack -> can_be_traded) avgor resten, samma regel som trade. */
-  const hogar = (S.inv || []).filter(it => it && it.stack && !it.bop && !(typeof shardOf === 'function' && shardOf(it.key)))
-    .map(it => { const rr = srvRar(it), D = itemDef(it);
-      return '<option value="s:' + esc(it.key) + '|' + (rr == null ? '' : rr) + '" data-max="' + (+it.qty || 1) + '">' +
-        esc((D && D.name) || it.name || costNameOf(it.key)) + ' \u00b7 ' + fmt(+it.qty || 1) + '</option>'; }).join('');
-  sel.innerHTML = '<option value="">Nothing</option>' + (rader ? '<optgroup label="Gear">' + rader + '</optgroup>' : '') +
-    (hogar ? '<optgroup label="Materials">' + hogar + '</optgroup>' : '');
-  if (valt) sel.value = valt;
-  msQtyShow();
-}
-function msQtyShow(){
-  const sel = $('ms-item'), f = $('ms-qtyf'), q = $('ms-qty'); if (!sel || !f || !q) return;
-  const o = sel.selectedOptions && sel.selectedOptions[0], hog = !!(o && /^s:/.test(o.value));
-  f.hidden = !hog;
-  const b = $('ms-send'); if (b && !b.disabled && !(typeof msAltOf === 'function' && msAltOf() && (+($('ms-cg') || {}).value > 0 || +($('ms-ch') || {}).value > 0))) b.textContent = 'Send';
-  if (hog){ const mx = +o.dataset.max || 1; q.max = mx; $('ms-qty-l').textContent = 'How many (you have ' + fmt(mx) + ')'; if (!(+q.value >= 1) || +q.value > mx) q.value = mx; }
-}
-document.addEventListener('change', ev => { if (ev.target && ev.target.id === 'ms-item') msQtyShow(); });
+/* [BORTTAGET v5.1451.0] msFillItems/msQtyShow - den gamla rullistan finns inte sedan v5.1446 (molnsvep 25). */
 /* [TILLAGT v5.1091.0] DINA ALTS I BREVET (Chris). Karaktarsfaltet foreslar dina egna karaktarer medan du skriver; valjer du
    en fylls ditt eget handtag i, och rutorna for Gear och Helper Caches dyker upp. Allt gar i ETT brev (mail_send_caches). */
 /* [OMBYGGT v5.1446.0] SKRIVRUTAN (Chris 2026-11-03, efter ChatGPT-skissen). Karaktarsnamnet racker: namnen ar unika pa servern
@@ -48942,6 +48909,12 @@ function dragTargetsFor(d){
       document.querySelectorAll('#panel-character [data-slot="' + sl + '"]').forEach(s => t.push(s)); });
     return t;
   }
+  /* [TILLAGT v5.1451.0] UR DELADE VALVET (molnsvep 13): draget hade ingen mallista, sa ingen ruta lyste. Nu: delade rutorna,
+     valvet och vaskan - samma tre mal som slappet redan klarade. */
+  if (d.from === 'shared'){
+    return Array.from(document.querySelectorAll('#svault-grid [data-svault]'))
+      .concat(Array.from(document.querySelectorAll('#vault-grid [data-vault], .vaultbagwin [data-vault]')), invCells());
+  }
   if (d.from === 'vault'){
     /* Ur valvet: valvets egna rutor och hela vaskan. */
     /* [TILLAGT v5.502.0] OCH KROPPSPLATSERNA (Chris bugg). Listan hade inga
@@ -49040,7 +49013,7 @@ function beginDrag(d, x, y){
      behaller sin forhandsmarkering: de ar fa, de ligger utanfor rutnatet, och
      utan den gar det inte att se vart en pjas faktiskt far ta vagen. */
   d.targets.forEach(t => {
-    if (t.hasAttribute('data-inv') || t.hasAttribute('data-vault')) return;
+    if (t.hasAttribute('data-inv') || t.hasAttribute('data-vault') || t.hasAttribute('data-svault')) return;   /* [ANDRAT v5.1451.0] */
     t.classList.add('drop-ok');
   });
   document.body.classList.add('dragging');
@@ -49089,6 +49062,7 @@ function endDrag(d, x, y){
   if (d.targets) d.targets.forEach(t => t.classList.remove('drop-ok', 'drop-hot'));
   if (d.cell) d.cell.classList.remove('drop-cell');
   document.querySelectorAll('.drop-cell').forEach(c => c.classList.remove('drop-cell'));
+  { const md = $('ms-drop'); if (md) md.classList.remove('over'); }   /* [TILLAGT v5.1451.0] */
   document.body.classList.remove('dragging');
   document.body.classList.remove('dragging-pet');
   let under = document.elementFromPoint(x, y);
@@ -49183,8 +49157,11 @@ function endDrag(d, x, y){
   }
   /* [TILLAGT v5.1413.0-valv] Ur valvet, slappt pa fliken Shared. Fliken laddas om den inte ar oppnad an, sa kopet och platserna ar kanda. */
   if (d.from === 'vault' && (scell || under.closest('#svault-grid') || under.closest('[data-vtab="shared"]'))){   /* [ANDRAT v5.1438.0] aven spalten bredvid */
+    /* [ANDRAT v5.1451.0] Slappt pa KNAPPEN Shared med spalten stangd: spalten oppnas forst, sa flytten syns (molnsvep 16).
+       Laddningen gar EN gang: ar listan inte hamtad an tar sharedRefresh den, och flytten gors nar den ar klar. */
     const put = () => { sharedPutFromVault(d.idx); };
-    if (SHV.loaded && SHV.forChar === SRV.charId) put(); else sharedLoad().then(put).catch(() => say('The Shared tab is not ready yet.'));
+    if (SHV.tab !== 'shared'){ SHV.tab = 'shared'; hideGearTip(); renderVault(); }
+    if (SHV.loaded && SHV.forChar === SRV.charId) put(); else sharedRefresh().then(() => { if (SHV.loaded && !SHV.err) put(); else say('The Shared tab is not ready yet.'); });
     return;
   }
   if (d.from === 'vault'){
@@ -49293,6 +49270,8 @@ function endDrag(d, x, y){
     equipMove(d.slot, +eslot.dataset.slot);
     return;
   }
+  /* [TILLAGT v5.1451.0] Buren pjas slappt i DELADE valvet: gick tyst forut (molnsvep 17). Spelet sager nu vagen. */
+  if (scell || under.closest('#svault-grid')){ say('Take it off to your backpack first, then drag it to the Shared tab.'); return; }
   /* [TILLAGT v5.1298.0] Buren pjas slappt i VALVET: tas av och laggs i valvrutan man siktade pa (Chris: gick inte - bara vaskan tog emot). */
   if (inVault && d.gear && d.slot != null){ unequipToVault(d.slot, vcell ? +vcell.dataset.vault : -1); return; }
   /* Buren pjäs släppt på en BESTÄMD ruta hamnar just där, om den är ledig. */
@@ -49318,7 +49297,9 @@ document.addEventListener('pointermove', e => {
   const under = document.elementFromPoint(e.clientX, e.clientY);
   drag.targets.forEach(t => t.classList.toggle('drop-hot', !!under && (t === under || t.contains(under))));
   /* Rutan under pekaren markeras svagt — och bara en åt gången. */
-  const cell = under && under.closest('#inv-grid [data-inv], #vault-grid [data-vault], #pet-grid [data-pet], #pet-team-grid [data-teamslot]');
+  const cell = under && under.closest('#inv-grid [data-inv], #vault-grid [data-vault], #svault-grid [data-svault], #pet-grid [data-pet], #pet-team-grid [data-teamslot]');   /* [ANDRAT v5.1451.0] delade valvets rutor lyser ocksa (molnsvep 13) */
+  /* [TILLAGT v5.1451.0] Brevets bifoga-ruta lyser nar man drar en sak over den (molnsvep 12). */
+  { const md = $('ms-drop'); if (md) md.classList.toggle('over', drag.from === 'inv' && MS.tab === 'send' && !!under && !!under.closest('#mail-send')); }
   if (cell !== drag.cell){
     if (drag.cell) drag.cell.classList.remove('drop-cell');
     if (cell) cell.classList.add('drop-cell');
@@ -54207,7 +54188,9 @@ function ahRecPrice(r){
   return v > 0 ? Math.max(1, Math.round(v * 1.5)) : 0;
 }
 function ahSetPrice(g, sv, cv){
-  AH.price = Math.max(0, (g | 0) * COPPER_PER_GOLD + (sv | 0) * COPPER_PER_SILVER + (cv | 0));
+  /* [ANDRAT v5.1451.0] heltal utan | 0, som slog runt vid ~2,1 miljarder (molnsvep 23) */
+  const n = v => Math.max(0, Math.floor(+v || 0));
+  AH.price = n(g) * COPPER_PER_GOLD + n(sv) * COPPER_PER_SILVER + n(cv);
 }
 /* [BORTTAGET v5.773.0] ahCoin() - anropades aldrig (granskningen). */
 function ahIconHtml(row){
@@ -58596,6 +58579,7 @@ function nodeMissionHTML(){
   let h = '<div class="mb-head"><img class="mb-topart" src="assets/ui/ico/mission_board.webp" alt="" draggable="false"><div class="mb-htxt">' +
     '<div class="mb-htitle">Mission Board</div>' +
     (st.at_board ? '<div class="mb-hsub">' + esc(st.region_name || '') + ' \u00b7 The Landing</div>' : '<div class="mb-hsub away">\u27a4 Travel to The Landing</div>') + '</div></div>';
+  if (MB.err) h += '<div class="shelf-empty">' + esc(MB.err) + '</div>';   /* [TILLAGT v5.1451.0] felet syns aven nar en gammal tavla ar kvar (molnsvep 21) */
   h += '<div class="mb-focus' + (st.lean ? ' on' : '') + '"><img class="mb-fico" src="assets/ui/ico/gear.webp" alt="" draggable="false">' + (st.lean
     ? '<div class="mb-ftxt"><small>Active Gear Focus</small><b>' + esc(st.lean.name) + '</b></div><span class="mb-ftime">' + MB_SVG.clock + '<span>' + mbTime(st.lean.until) + ' remaining</span></span>'
     : '<div class="mb-ftxt"><small>No Gear Focus active</small><b>Hand in the mission that gives one</b></div>') +
