@@ -275,6 +275,9 @@ on conflict do nothing;
 -- Har laggs bara Windfalls rad in (guiden doljer regionen for andra). The Quarantine lamnar ifran sig sin rad forst i DEL B, vid slappet.
 insert into public.mission_lean_config (region, affix) values ('windfall', 'critdmg') on conflict do nothing;
 
+-- ---------- 12b1. Sunrise Gem: procentdelen ar scrap i stallet for hjalpar-XP (Chris 2026-11-03). Migrering sunrise_gem_mer_scrap, redan pa servern.
+-- Avsnitten ovan och nedan som namner hjalpar-XP ar historik: helper_xp finns inte langre.
+
 -- ---------- 12b2. Regionpjaser faller bara i sin region (2026-11-03, redan pa servern, galler alltid - aven efter slappet).
 -- Windfalls pjaser lackte till vanliga spelare. Migreringar: v5_1453_region_items_only_in_region (ladorna, gillet, startvalet) och
 -- windfall_dold_regionfilter_fynd_handlare_expedition (stridsfynd, handlarens utrustning, expeditionsreliker).
