@@ -2728,7 +2728,8 @@ function rebuildPois(){
   const at = (k, p) => { const o = PLACE.poi && PLACE.poi[k]; return o && isFinite(+o.x) && isFinite(+o.y) ? {x: +o.x, y: +o.y, ovk: k, own: true} : {x: p.x, y: p.y, ovk: k}; };
   /* [ANDRAT v5.1385.0] SOM 2D-KARTAN: en zon dronaren inte kartlagt visar inga platser. Forut syntes de, och motets ruta fastnade pa "Looking around" (servern nekar okartlagda zoner). */
   const add = p => { if (/^(quest|encounter|expedition|dungeon|vein)$/.test(p.kind) && /^(uncharted|unknown)$/.test(zoneState(p.R.id, p.zn))) return;
-    const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
+    const o = old.get(p.key); if (o){ if (o.x !== p.x || o.y !== p.y){ freePoi(o); }   /* [TILLAGT 2026-11-04] flyttad plats (editorn): figur, sten och pelare byggs om pa nya stallet (Chris: gubben foljde inte med) */
+      else { p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; } old.delete(p.key); } out.push(p); };
   /* [TILLAGT 2026-11-04] editorn (utan spel): tva quests och tva moten per zon sa Chris kan satta deras platser */
   let st0 = G.state || {}, exps0 = G.exps;
   if (EDIT && !G.state){ const q = [], e = []; LAND.forEach(R => R.zones.forEach((z, i) => { if (z.namn === LANDING) return; const k = R.id + '|' + z.namn;
