@@ -2557,7 +2557,7 @@ function camToMe(ms){ if (!me.R) return; follow = ME; flyTo({tx: me.x * K, tz: m
 const keys = new Set(), joy = {x: 0, y: 0, on: false};
 addEventListener('keydown', e => { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
   /* [TILLAGT v5.1387.0] HOPP (Chris): mellanslag, bara for skojs skull - gor inget i spelet */
-  if (e.key === ' '){ e.preventDefault(); if (me.R && !me.fly && !(me.jt > 0) && !e.repeat) me.jt = .001; return; }
+  if (e.key === ' '){ e.preventDefault(); if (me.R && !me.fly && !(me.jt > 0) && !e.repeat && !gameWinOpen()) me.jt = .001; return; }
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (/^(w|a|s|d|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Shift)$/.test(k)){ keys.add(k); if (k.startsWith('Arrow')) e.preventDefault(); } });
 addEventListener('keyup', e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); });
 addEventListener('blur', () => keys.clear());
@@ -2568,7 +2568,9 @@ addEventListener('blur', () => keys.clear());
   base.addEventListener('pointermove', e => { if (e.pointerId === pid) set(e.clientX, e.clientY); });
   const end = e => { if (e.pointerId !== pid) return; pid = null; joy.on = false; joy.x = joy.y = 0; knob.style.transform = ''; };
   base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end); })();
-function inputDir(){ let vx = 0, vy = 0;
+/* [TILLAGT v5.1429.0] Gubben star still medan ett fonster i spelet ar oppet (Chris 2026-11-03): forut gick den bakom rutan om tangentbordet lag kvar i kartan efter klicket pa noden. */
+function gameWinOpen(){ try { return parent !== window && !!parent.document.querySelector('[id$="-overlay"].open, .ask-back'); } catch (e){ return false; } }
+function inputDir(){ let vx = 0, vy = 0; if ((keys.size || joy.on) && gameWinOpen()) return null;
   if (keys.has('w') || keys.has('ArrowUp')) vy += 1; if (keys.has('s') || keys.has('ArrowDown')) vy -= 1;
   if (keys.has('d') || keys.has('ArrowRight')) vx += 1; if (keys.has('a') || keys.has('ArrowLeft')) vx -= 1;
   if (joy.on){ vx += joy.x; vy -= joy.y; }
