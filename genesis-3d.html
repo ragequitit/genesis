@@ -1107,8 +1107,9 @@ LMS.forEach(l => { const id = l.r + '_' + l.i; if (!LM_NEW[id]) return; const k 
 /* [TILLAGT v5.1379.0] CHRIS EGNA PLACERINGAR (editorn, ?edit=1): assets/world3d/placering.json
    {add:[{r, k, x, y, rot, sc}], del:["region|nyckel|x|y"]} - saker han lagt till och saker han tagit bort. Laggs ovanpa det automatiska. */
 const EDIT = Q.get('edit') === '1';
-let PLACE = {add: [], del: []};
-const okPlace = j => j && typeof j === 'object' ? {add: Array.isArray(j.add) ? j.add : [], del: Array.isArray(j.del) ? j.del : []} : null;
+let PLACE = {add: [], del: [], poi: {}};
+/* [ANDRAT 2026-11-04] poi: Chris egna platser for quests, moten och expeditioner (editorn). Nyckel -> {x, y}. Saknas nyckeln galler zonens rutnat som forut. */
+const okPlace = j => j && typeof j === 'object' ? {add: Array.isArray(j.add) ? j.add : [], del: Array.isArray(j.del) ? j.del : [], poi: j.poi && typeof j.poi === 'object' && !Array.isArray(j.poi) ? j.poi : {}} : null;
 try { const pr = await fetch('assets/world3d/placering.json', {cache: 'no-store'}); if (pr.ok) PLACE = okPlace(await pr.json()) || PLACE; } catch (e){}
 /* i editorn: ett osparat utkast (fran forra gangen eller fore Angra) vinner over filen */
 if (EDIT){ try { const d = okPlace(JSON.parse(localStorage.getItem('genesis.edDraft') || 'null')); if (d) PLACE = d; } catch (e){} }
@@ -2721,9 +2722,18 @@ function rebuildPois(){
   /* [ANDRAT v5.1396.0] PLATSERNA INNE I ZONEN (Chris: "alla har akt ut pa kanten", matt: 0-10 steg fran kanten). Bara markena flyttas; byggnader och Chris placeringar star kvar. */
   const slotFor = (z, id) => { const S = innerSlots(z); let u = used.get(z); if (!u){ u = new Set(); used.set(z, u); }
     const n = S.length; let k = hash(String(id)) % n; for (let i = 0; i < n && u.has(k); i++) k = (k + 1) % n; u.add(k); return S[k]; };
+  /* [TILLAGT 2026-11-04] CHRIS EGNA PLATSER (editorn): quests och moten per zon och ordningsnummer (deras id byter over tid), expeditioner per id.
+     Finns en sparad plats i PLACE.poi vinner den over rutnatet. ovk = nyckeln editorn flyttar med. */
+  const ord = {}; const nth = (z, kind) => { const k = kind + ':' + z.R.id + '|' + z.namn; ord[k] = (ord[k] || 0) + 1; return k + '#' + ord[k]; };
+  const at = (k, p) => { const o = PLACE.poi && PLACE.poi[k]; return o && isFinite(+o.x) && isFinite(+o.y) ? {x: +o.x, y: +o.y, ovk: k, own: true} : {x: p.x, y: p.y, ovk: k}; };
   /* [ANDRAT v5.1385.0] SOM 2D-KARTAN: en zon dronaren inte kartlagt visar inga platser. Forut syntes de, och motets ruta fastnade pa "Looking around" (servern nekar okartlagda zoner). */
   const add = p => { if (/^(quest|encounter|expedition|dungeon|vein)$/.test(p.kind) && /^(uncharted|unknown)$/.test(zoneState(p.R.id, p.zn))) return;
     const o = old.get(p.key); if (o){ p.av = o.av; p.mesh = o.mesh; p.bc = o.bc; p.face = o.face; p.farT = o.farT; old.delete(p.key); } out.push(p); };
+  /* [TILLAGT 2026-11-04] editorn (utan spel): tva quests och tva moten per zon sa Chris kan satta deras platser */
+  let st0 = G.state || {}, exps0 = G.exps;
+  if (EDIT && !G.state){ const q = [], e = []; LAND.forEach(R => R.zones.forEach((z, i) => { if (z.namn === LANDING) return; const k = R.id + '|' + z.namn;
+      for (let n = 1; n <= 2; n++){ q.push({id: 'ed-q-' + R.id + '-' + i + '-' + n, zone: k, label: 'QUEST ' + n, mark: '!'}); e.push({id: 'ed-e-' + R.id + '-' + i + '-' + n, zone: k, label: 'Encounter ' + n, state: 'ready'}); } }));
+    st0 = {quests3d: q, encounters: e}; }
   LAND.forEach(R => { if (R.locked) return; const L = R.landing, dz = R.zones[5];
     add({key: R.id + '#landing', kind: 'landing', R, zn: LANDING, x: L.pad.x, y: L.pad.y, h: .6, label: 'The Landing', sub: R.namn + ' · harbour', pick: {kind: 'zone', region: R.id, zone: LANDING}});
     add({key: R.id + '#vendor', kind: 'vendor', R, zn: LANDING, x: L.vendor.x, y: L.vendor.y, h: 3.2, label: 'Vendor', sub: 'Regional trader', pick: {kind: 'vendor', region: R.id, zone: LANDING}});
@@ -2731,16 +2741,16 @@ function rebuildPois(){
     add({key: R.id + '#vault', kind: 'vault', R, zn: LANDING, x: L.vault.x, y: L.vault.y, h: 3.2, label: 'Vault', sub: 'Your safekeep', pick: {kind: 'vault', region: R.id, zone: LANDING}});
     add({key: R.id + '#dungeon', kind: 'dungeon', R, zn: dz.namn, x: R.portal.x, y: R.portal.y, h: 3.6, label: dz.namn, sub: 'Dungeon', pick: {kind: 'dungeon', region: R.id, zone: dz.namn}});
     /* [BORTTAGET v5.1353.0] demons pahittade malm-/fibernoder ("gather"): spelets riktiga noder ar veins (setVeins) och ritas pa samma stenar nedan */ });
-  const st = G.state || {};
-  (G.exps || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = slotFor(z, 'x' + e.id);
-    add({key: 'x#' + e.id, kind: 'expedition', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 2.4, label: str(e.label, 40) || 'Expedition',
+  const st = st0;
+  (exps0 || expDefault()).forEach(e => { if (!e || !e.id) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = at('x:' + e.id, slotFor(z, 'x' + e.id));
+    add({key: 'x#' + e.id, kind: 'expedition', R: z.R, zn: z.namn, x: s.x, y: s.y, ovk: s.ovk, own: s.own, h: 2.4, label: str(e.label, 40) || 'Expedition',
       sub: e.state === 'running' ? 'Under way' : e.state === 'locked' ? (e.lvl ? 'Out of reach · lvl ' + e.lvl : 'Not found yet') : 'Expedition' + (e.mins ? ' · ' + (e.mins >= 60 ? e.mins / 60 + 'h' : e.mins + 'm') : ''),
       state: e.state, pick: {kind: 'expedition', region: rid, zone: z.namn, id: e.id}}); });
-  (Array.isArray(st.quests3d) ? st.quests3d : Array.isArray(st.quests) ? st.quests : []).forEach(q => { if (!q || q.id == null || q.id === 'wboss') return;   /* [ANDRAT v5.1353.0] quests3d bar ! och ? */ const [rid, zn] = splitKey(q.zone), z = zoneOf(rid, zn); if (!z) return; const s = slotFor(z, 'q' + q.id);
-    add({key: 'q#' + q.id, kind: 'quest', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 2.6, label: str(q.label, 40) || 'QUEST', mark: q.mark === '?' ? '?' : '!', grey: !!q.grey,
+  (Array.isArray(st.quests3d) ? st.quests3d : Array.isArray(st.quests) ? st.quests : []).forEach(q => { if (!q || q.id == null || q.id === 'wboss') return;   /* [ANDRAT v5.1353.0] quests3d bar ! och ? */ const [rid, zn] = splitKey(q.zone), z = zoneOf(rid, zn); if (!z) return; const s = at(nth(z, 'q'), slotFor(z, 'q' + q.id));
+    add({key: 'q#' + q.id, kind: 'quest', R: z.R, zn: z.namn, x: s.x, y: s.y, ovk: s.ovk, own: s.own, h: 2.6, label: str(q.label, 40) || 'QUEST', mark: q.mark === '?' ? '?' : '!', grey: !!q.grey,
       sub: q.mark === '?' ? (q.grey ? 'Quest · in progress' : 'Quest · turn in') : (q.grey ? 'Quest · not now' : 'Quest · available'), pick: {kind: 'quest', region: rid, zone: z.namn, id: q.id}}); });
-  (Array.isArray(st.encounters) ? st.encounters : []).forEach(e => { if (!e || e.id == null) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = slotFor(z, 'e' + e.id);
-    add({key: 'e#' + e.id, kind: 'encounter', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 2.4, label: str(e.label, 40) || 'Encounter', sub: e.state === 'cooldown' ? 'Resting' : 'Encounter',
+  (Array.isArray(st.encounters) ? st.encounters : []).forEach(e => { if (!e || e.id == null) return; const [rid, zn] = splitKey(e.zone), z = zoneOf(rid, zn); if (!z) return; const s = at(nth(z, 'e'), slotFor(z, 'e' + e.id));
+    add({key: 'e#' + e.id, kind: 'encounter', R: z.R, zn: z.namn, x: s.x, y: s.y, ovk: s.ovk, own: s.own, h: 2.4, label: str(e.label, 40) || 'Encounter', sub: e.state === 'cooldown' ? 'Resting' : 'Encounter',
       state: e.state, pick: {kind: 'encounter', region: rid, zone: z.namn, id: e.id}}); });
   const vk = {};
   G.veins.forEach(v => { if (!v || !v.id) return; const [rid, zn] = splitKey(v.zone), z = zoneOf(rid, zn); if (!z) return;
@@ -2999,17 +3009,19 @@ if (EDIT) (function editor(){
     '#edList{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding-right:4px}#edList b{display:block;margin:8px 0 3px;font-size:11px;color:#7ff;letter-spacing:.08em}' +
     '#edList button{display:block;width:100%;text-align:left;margin:1px 0;padding:4px 7px;border-radius:6px;border:0;background:transparent;color:#dfe6ff;cursor:pointer;font-size:12px}' +
     '#edList button:hover{background:#16223f}#edList button.on{background:#0e7490;color:#fff}' +
-    '#edSel{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on{display:block}#edSel .n{font-weight:700;margin-bottom:6px}' +
+    '#edSel{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on{display:block}#edSel .n{font-weight:700;margin-bottom:6px}#edPoi{display:none;padding:8px;border-radius:8px;background:#1a1433}#edPoi.on{display:block}#edPoi .n{font-weight:700;margin-bottom:6px}' +
     '#edp .row{display:flex;gap:5px;flex-wrap:wrap}#edp .row button{flex:1;min-width:52px;padding:6px 4px;border-radius:7px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font-size:12px}' +
     '#edp .row button:hover{background:#1d3160}#edp .row button.red{border-color:#7f1d1d;background:#3b0f17}#edp .row button.go{border-color:#0e7490;background:#0b3b4b;font-weight:700}' +
     '#edMsg{font-size:12px;color:#fde68a;min-height:16px}';
   document.head.appendChild(css);
   const P = document.createElement('div'); P.id = 'edp';
-  P.innerHTML = '<h3>EDITOR</h3><div class="t">Välj en sak i listan och klicka på marken för att sätta ut den. Klicka på en sak på kartan för att välja den.<br>Q / E vrider · + / − storlek · Delete tar bort · Esc släpper</div>' +
+  P.innerHTML = '<h3>EDITOR</h3><div class="t">Välj en sak i listan och klicka på marken för att sätta ut den. Klicka på en sak på kartan för att välja den.<br>Q / E vrider · + / − storlek · Delete tar bort · Esc släpper<br>Klicka på en quest, ett möte eller en expedition för att flytta dess plats.</div>' +
     '<input id="edQ" placeholder="Sök sak (t.ex. tree, house, lamp)">' +
     '<div id="edList"></div>' +
     '<div id="edSel"><div class="n" id="edSelN"></div><div class="row"><button data-a="l">⟲ Vrid</button><button data-a="r">Vrid ⟳</button><button data-a="m">− Mindre</button><button data-a="p">+ Större</button></div>' +
     '<div class="row" style="margin-top:5px"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red">Ta bort</button></div></div>' +
+    /* [TILLAGT 2026-11-04] platser: quests, moten och expeditioner (Chris: "option att flytta nagon som sitter fel") */
+    '<div id="edPoi" class="edpoi"><div class="n" id="edPoiN"></div><div class="t" id="edPoiT"></div><div class="row"><button data-a="pmv">Flytta plats</button><button data-a="prst">Tillbaka till rutnätet</button></div></div>' +
     '<div id="edMsg"></div><div class="row"><button data-a="undo">Ångra</button><button data-a="save" class="go">Spara</button></div>' +
     /* [TILLAGT v5.1382.0] bytet mellan nedladdade och egna landmarken */
     '<div class="row"><button id="edLm">Landmärken: ' + (LMSET === 'egna' ? 'Claudes egna' : 'nedladdade') + ' ⇄</button></div>';
@@ -3036,7 +3048,18 @@ if (EDIT) (function editor(){
   function dropGhost(){ if (ghost){ scene.remove(ghost); ghost = null; } }
   function startPlace(k){ dropGhost(); mode = {place: k}; gRot = 0; gSc = 1; ghost = modelInstance(k); if (ghost) scene.add(ghost); unselect(); list(); msg('Klicka på marken för att sätta ut ' + nice(k)); }
   function stopMode(){ dropGhost(); if (mode && mode.move) buildInstances(mode.move.it.key); mode = null; list(); }
-  function unselect(){ sel = null; if (ring) ring.visible = false; $e('edSel').classList.remove('on'); }
+  function unselect(){ sel = null; psel = null; if (ring) ring.visible = false; $e('edSel').classList.remove('on'); $e('edPoi').classList.remove('on'); }
+  /* [TILLAGT 2026-11-04] PLATSER: quests och moten raknas per zon (1:a, 2:a ...) eftersom deras id byter; expeditioner per id. Rutan visar vad som ar valt. */
+  let psel = null; const poiBox = () => $e('edPoi');
+  function selectPoi(P){ unselect(); psel = P; const own = !!(PLACE.poi && PLACE.poi[P.ovk]);
+    $e('edPoiN').textContent = (P.kind === 'quest' ? 'Quest' : P.kind === 'encounter' ? 'Möte' : 'Expedition') + ': ' + P.label + (own ? '  (din plats)' : '');
+    $e('edPoiT').textContent = P.R.namn + ' · ' + P.zn + (P.kind === 'expedition' ? '' : ' · ' + (P.kind === 'quest' ? 'quest' : 'möte') + ' nr ' + P.ovk.split('#')[1] + ' i zonen');
+    if (!ring){ ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
+      ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
+    ring.scale.setScalar(1.6); ring.position.set(P.x * K, .06, P.y * K); ring.visible = true; poiBox().classList.add('on'); }
+  function poiAct(a){ if (!psel) return; const P = psel;
+    if (a === 'pmv'){ mode = {poi: P}; msg('Klicka där ' + P.label + ' ska ligga'); return; }
+    if (a === 'prst'){ if (PLACE.poi && PLACE.poi[P.ovk]){ snap(); delete PLACE.poi[P.ovk]; rebuildPois(); changed('Tillbaka till rutnätet'); } unselect(); } }
   function select(R, it){ sel = {R, it}; $e('edSelN').textContent = nice(it.key) + (it.ed ? '  (din)' : '');
     if (!ring){ ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
       ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
@@ -3045,6 +3068,7 @@ if (EDIT) (function editor(){
     LAND.forEach(R => R.items.forEach(it => { const rad = Math.max(footprint(it.key) / 2 * it.sc, 6) + 4, d = Math.hypot(it.x - x, it.y - y); if (d < rad && d / rad < bd){ bd = d / rad; best = {R, it}; } }));
     return best; }
   function act(a){ if (a === 'save') return save(); if (a === 'undo') return undo();
+    if (a === 'pmv' || a === 'prst') return poiAct(a);
     if (!sel) return; const {R, it} = sel;
     if (a === 'del'){ snap(); if (it.ed){ const i = PLACE.add.indexOf(it.src); if (i >= 0) PLACE.add.splice(i, 1); } else PLACE.del.push(itemId(R, it));
       R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); unselect(); changed('Borttagen'); return; }
@@ -3057,6 +3081,10 @@ if (EDIT) (function editor(){
     sync(it); buildInstances(it.key); select(R, it); changed(a === 'l' || a === 'r' ? 'Vriden' : 'Ny storlek'); }
   P.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => act(b.dataset.a));
   edTap = (sx, sy) => { const g = groundAt(sx, sy); if (!g) return; const x = g.x / K, y = g.z / K, R = regionAt(x, y);
+    /* [TILLAGT 2026-11-04] platser: flytta den valda, eller valj en genom att trycka pa dess ikon */
+    if (mode && mode.poi){ const P = mode.poi; if (!R || R !== P.R){ msg('Bara inne i ' + P.R.namn); return; } snap(); PLACE.poi = PLACE.poi || {}; PLACE.poi[P.ovk] = {x: +x.toFixed(1), y: +y.toFixed(1)};
+      mode = null; rebuildPois(); const P2 = pois.find(p => p.ovk === P.ovk); changed('Platsen flyttad'); if (P2) selectPoi(P2); return; }
+    if (!mode){ const P = poiAt(sx, sy); if (P && P.ovk){ selectPoi(P); return; } }
     if (mode && mode.place){ if (!R){ msg('Bara på land'); return; } snap(); const a = {r: R.id, k: mode.place, x: +x.toFixed(1), y: +y.toFixed(1), rot: +gRot.toFixed(3), sc: +gSc.toFixed(2)};
       PLACE.add.push(a); const it = {key: a.k, x: a.x, y: a.y, rot: a.rot, sc: a.sc, ed: 1, src: a}; R.items.push(it); buildInstances(a.k); changed('Utsatt: ' + nice(a.k)); return; }
     if (mode && mode.move){ const {R: R0, it} = mode.move; if (!R){ msg('Bara på land'); return; }
@@ -3073,7 +3101,7 @@ if (EDIT) (function editor(){
     if (k === 'Delete' || k === 'Backspace') act('del'); });
   function undo(){ if (!snaps.length){ msg('Inget att ångra'); return; } try { localStorage.setItem('genesis.edDraft', snaps.pop());
       sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (e){} msg('Ångrar…'); location.reload(); }
-  function save(){ const body = JSON.stringify({v: 1, sparad: new Date().toISOString(), add: PLACE.add, del: PLACE.del}, null, 1);
+  function save(){ const body = JSON.stringify({v: 1, sparad: new Date().toISOString(), add: PLACE.add, del: PLACE.del, poi: PLACE.poi || {}}, null, 1);
     fetch('/__spara-placering', {method: 'POST', headers: {'Content-Type': 'application/json'}, body}).then(r => { if (!r.ok) throw new Error(r.status);
       try { localStorage.removeItem('genesis.edDraft'); } catch (e){} dirty = 0; msg('Sparat! Säg till Claude att det finns nya placeringar.'); })
       .catch(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], {type: 'application/json'})); a.download = 'placering.json'; a.click(); msg('Kunde inte spara direkt – filen laddades ned i stället.'); }); }
