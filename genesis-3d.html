@@ -583,6 +583,17 @@ const hemi = new THREE.HemisphereLight(0xc4ccff, 0x2a1f4a, 1.1); scene.add(hemi)
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.castShadow = true;
 sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048); sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
 scene.add(sun); scene.add(sun.target);
+/* [TILLAGT v5.1456.0] SPARLAGE I TVA STEG (rapport 121, Jax/Wolf: "laggy" i Opera pa PC, ca 10 bilder/s, aven chatten blev seg).
+   Pa en dator med riktigt grafikkort gar kartan i 200+ bilder/s, sa det ar datorn eller webblasaren (grafikkortet avstangt i Opera,
+   eller ritning i mjukvara) som inte orkar. Forr stangdes bara glodet av, och bara nar lage 'auto' gallde - i spelet satter
+   Power-installningen alltid 'on'/'off', sa det hande aldrig. Nu, oavsett installning: under 32 bilder/s i 4 s -> glodet av (steg 1);
+   fortfarande under 24 i 4 s -> skuggor av och ritning i skarmens egen upplosning (steg 2). Ritas kartan i mjukvara borjar den direkt pa steg 2. */
+let LOW = 0, lowT = 0;
+const SOFT_GPU = (() => { try { const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); const s = x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : '';
+  return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(s) ? s : ''; } catch (e){ return ''; } })();
+function lowSet(n){ if (n <= LOW) return; LOW = n; lowT = 0;
+  if (n >= 1) fxSet(false, 'slow');
+  if (n >= 2){ sun.castShadow = false; renderer.shadowMap.enabled = false; renderer.setPixelRatio(1); resize(); } }
 const W3 = (wx, wy, h) => new THREE.Vector3(wx * K, h || 0, wy * K);
 
 /* ===== HAV: plan med egen vagkarta (ingen extern bild) ===== */
@@ -2925,7 +2936,8 @@ $('regBtn').onclick = () => { const R = regBtnR(); if (!R) return; if (GLB.on) g
 if (MOBILE || Q.get('joy') === '1') document.body.classList.add('joyon');
 
 /* ===== START ===== */
-resize(); Object.assign(cam, viewOverview()); applyCam(); if (!EDIT) globeEnter(null, true);   /* [ANDRAT v5.1380.0] kartan borjar pa jordgloben */
+resize(); if (SOFT_GPU) lowSet(2);   /* [TILLAGT v5.1456.0] mjukvaruritning: sparlage fran start */
+Object.assign(cam, viewOverview()); applyCam(); if (!EDIT) globeEnter(null, true);   /* [ANDRAT v5.1380.0] kartan borjar pa jordgloben */
 Object.keys(PACKS).forEach(loadPack); loadChars();
 /* [TILLAGT v5.1382.0] de nedladdade landmarken laddas bara nar de anvands; klotets bilder tas om nar de kommit */
 if (LMSET !== 'egna'){ let left = 0; LMS.forEach(l => { if (!l.nkey) return; left++; loader.loadAsync(BASE + 'lm/' + l.id + '.glb').then(g => { makeTemplate(l.nkey, g.scene); buildInstances(l.nkey); })
@@ -2944,7 +2956,7 @@ function frame(now){
   document.body.classList.toggle('clockon', window.__gpClock === true);
   if (window.__gpOff) return;
   /* [ANDRAT v5.1387.0] GLODET STYRS FRAN SETTINGS > POWER (Chris: en stromgrej). Egen brytare: forut hangde det pa Still globe, sa knappen pa kartan slocknade igen direkt i spelet. */
-  if (window.__gpNoGlow !== undefined && FX.why !== 'error' && FX.on === !!window.__gpNoGlow){ GLOWPREF = window.__gpNoGlow ? 'off' : 'on'; fxSet(!window.__gpNoGlow, GLOWPREF); }
+  if (window.__gpNoGlow !== undefined && FX.why !== 'error' && FX.why !== 'slow' && FX.on === !!window.__gpNoGlow){   /* [ANDRAT v5.1456.0] sparlaget vinner over Power-installningen */ GLOWPREF = window.__gpNoGlow ? 'off' : 'on'; fxSet(!window.__gpNoGlow, GLOWPREF); }
   step(dt, now); directorStep(dt, now); regionVis(false); renderRegBtn();   /* [TILLAGT v5.1384.0] */
   const DI = dayInfo(), night = applyTime(DI);
   lightMats.forEach(m => { m.opacity = clamp(.22 + night * 1.1, 0, 1) * (.85 + .15 * Math.sin(now / 300)) * (m.userData.pool ? .45 : 1); });   /* [ANDRAT v5.1373.0] lite sken aven pa dagen */   /* [ANDRAT v5.1353.0] polarna svagare an sjalva lampan */
@@ -2953,7 +2965,8 @@ function frame(now){
   applyCam();
   scene.fog.near = Math.max(160, cam.dist * 1.1); scene.fog.far = Math.max(520, cam.dist * 3.2);   // [TILLAGT genesis-world-play] storre varld
   /* [TILLAGT v5.1373.0] glodet: auto stanger av det om bildfrekvensen rasar (svag telefon) */
-  if (FX.on && GLOWPREF === 'auto' && worldReady){ FX.slowT = fps < 32 ? FX.slowT + dt : Math.max(0, FX.slowT - dt); if (FX.slowT > 4) fxSet(false, 'slow'); }
+  /* [ANDRAT v5.1456.0] sparlaget i tva steg, oavsett glodinstallning (se lowSet) */
+  if (worldReady && LOW < 2){ lowT = fps < (LOW === 0 ? 32 : 24) ? lowT + dt : Math.max(0, lowT - dt); if (lowT > 4) lowSet(LOW + 1); }
   GLB.night = night; if (GLB.on) globeStep(dt, now);   /* [TILLAGT v5.1380.0] jordgloben ritas i stallet for varlden */
   const sc0 = GLB.on ? gScene : scene, ca0 = GLB.on ? gCam : camera;
   if (FX.on && composer){ rpass.scene = sc0; rpass.camera = ca0; composer.render(dt); } else renderer.render(sc0, ca0);
@@ -3068,7 +3081,7 @@ if (window.parent === window && !EDIT && !G.state) setTimeout(() => { if (G.stat
     q.push({id: 'demo' + R.id + i, zone: k, label: 'DEMO QUEST', mark: i % 3 === 1 ? '?' : '!', grey: i === 4});
     e.push({id: 'demoe' + R.id + i, zone: k, label: ex[i % 4], state: 'ready'}); if (i % 2) e.push({id: 'demof' + R.id + i, zone: k, label: ex[(i + 1) % 4], state: 'ready'}); }));
   API.setState({quests3d: q, encounters: e}); }, 1200);
-window.__gw = {actHits, GLB, globeEnter, globeLeave, unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why}), renderer, scene, TPL, get ready(){ return worldReady; }, API};
+window.__gw = {actHits, GLB, globeEnter, globeLeave, unfollow(){ follow = null; touched = true; }, ents, ships, cam, flyTo, focusRegion, overview, REG_BY, me, get pois(){ return pois; }, walkTo, onPoi, pick, toScreen, K, get boss(){ return boss; }, fps: () => fps, fx: () => ({glow: FX.on, pref: GLOWPREF, small: FX.small, why: FX.why, low: LOW, gpu: SOFT_GPU}), lowSet, renderer, scene, TPL, get ready(){ return worldReady; }, API};
 requestAnimationFrame(frame);
 </script>
 </body>
