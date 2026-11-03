@@ -1,6 +1,6 @@
 -- =====================================================================================================
 -- WINDFALL (region 6, tier 5) - serverdelen. [TILLAGT v5.1378.0 gren windfall]
--- INGET AV DETTA AR INLAGT PA SERVERN. Filen kors forst nar Chris sagt "slapp Windfall".
+-- DEL A LIGGER PA SERVERN SEDAN 2026-11-03, dolt (Chris ja: lagg in dolt och provspela). DEL B kors forst nar Chris godkant slappet.
 --
 -- DEL A (innehall, dolt): regionen, zoner, fiender, expeditioner, dungeon The Beacon, World Boss Cumulo,
 --   gem, hjalpare, set, vaskor, uppdrag + sma tillagg i befintliga funktioner (med ankare - avbryter om
@@ -224,6 +224,9 @@ insert into public.gem_config (region_id, key, name, unique_key, unique_text, pc
 values ('windfall', 'gem_windfall', 'Sunrise Gem of Windfall', 'tailwind', 'Travel costs 20% less fuel (25% on a perfect roll)',
         'helper_xp', 'helper XP', 0.05, 150000)
 on conflict do nothing;
+-- [2026-11-03] gemmen maste ocksa finnas som foremal, annars gar den inte att smida (hittat i provspelet)
+insert into public.item_config (key, name, slot_idx, rarities, bag_slots, drop_rarities, two_hand, region)
+values ('gem_windfall', 'Sunrise Gem of Windfall', 14, '{3}', null, '{}', false, null) on conflict do nothing;
 insert into public.gem_ability_config (key, name, descr, region_id, pool, neg, sort) values
  ('helper_xp', 'Helper XP', 'Helpers in your team level up faster.', 'windfall', false, false, 0),
  ('travel_time', 'Travel time', 'Trips between regions are shorter.', 'windfall', true, true, 1),     -- FORSLAG
@@ -271,6 +274,22 @@ on conflict do nothing;
 -- vore meningslos) utan en egenskap flyttad fran en region som har tva. Crit Damage flyttas fran The Quarantine, som behaller Loot Luck.
 -- Har laggs bara Windfalls rad in (guiden doljer regionen for andra). The Quarantine lamnar ifran sig sin rad forst i DEL B, vid slappet.
 insert into public.mission_lean_config (region, affix) values ('windfall', 'critdmg') on conflict do nothing;
+
+-- ---------- 12c. Chattskydd medan regionen provspelas dolt (2026-11-03): testkontots fynd och regionens namn hamnar inte i chatten eller Discord.
+-- Gor inget nar regionen slappts.
+create or replace function public.trg_chat_hide_unreleased() returns trigger language plpgsql security definer set search_path to 'public', 'pg_temp' as $f$
+begin
+  /* [TILLAGT v5.1453.0 windfall] Medan Windfall provspelas dolt far testkontots fynd och regionens namn inte hamna i chatten eller Discord. Gor inget nar regionen slappts. */
+  if exists (select 1 from public.region_config r where r.id = 'windfall' and not r.released and (r.release_at is null or r.release_at > now()))
+     and new.sender_tag is distinct from 'GM'
+     and ((new.sender_profile = '8fa27ae5-e0fc-4106-8e8e-737136af78ec'::uuid and new.sender_tag = 'LOOT')
+          or (new.sender_profile = '8fa27ae5-e0fc-4106-8e8e-737136af78ec'::uuid and new.body ~* '(windfall|the beacon|cumulo)')) then
+    return null;
+  end if;
+  return new;
+end $f$;
+revoke execute on function public.trg_chat_hide_unreleased() from public, anon, authenticated;
+-- create trigger chat_hide_unreleased before insert on public.chat_messages for each row execute function public.trg_chat_hide_unreleased();   -- inlagd 2026-11-03
 
 -- ---------- 13. Hjalpfunktion: gemmens resrabatt (Tailwind) ----------
 create or replace function public.gem_tailwind_pct(p_character uuid) returns numeric
