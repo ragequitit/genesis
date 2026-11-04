@@ -906,6 +906,14 @@ procTemplate('signpost', g => { const p = new THREE.Mesh(new THREE.CylinderGeome
 ['palm', 'wreck', 'wreck_big', 'campfire', 'anvil', 'peak_a', 'peak_b', 'peak_c', 'peak_bare', 'hill_g', 'hill_s', 'pier', 'vault_house', 'ore_node', 'fiber_node', 'signpost'].forEach(k => { PACK_OF[k] = 'proc'; });
 Object.assign(SIZE, {pier: ['w', 2.2], vault_house: ['w', 3.0], ore_node: ['w', 1.2], fiber_node: ['w', .9], signpost: ['w', .9]});
 Object.assign(SIZE, {peak_a: ['w', 8.5], peak_b: ['w', 7], peak_c: ['w', 10], peak_bare: ['w', 7.5], hill_g: ['w', 4], hill_s: ['w', 3], palm: ['w', 1.4], wreck: ['w', 2.8], wreck_big: ['w', 6], campfire: ['w', .6], anvil: ['w', .45]});
+/* [TILLAGT 2026-11-04] FLER NODER (Chris: "fler veins nodes att valja mellan, inte bara en och samma farg"): malm- och fibernoder i sju farger, egen grupp i editorn */
+const NODE_COLS = {gold: [0xfde047, 0xf59e0b], red: [0xfca5a5, 0xef4444], green: [0x86efac, 0x22c55e], purple: [0xc4b5fd, 0x8b5cf6], white: [0xf8fafc, 0xcbd5e1], orange: [0xfdba74, 0xf97316], pink: [0xf9a8d4, 0xec4899]};
+Object.entries(NODE_COLS).forEach(([n, [c, e]]) => { const M = new THREE.MeshStandardMaterial({color: c, emissive: e, emissiveIntensity: 1.4, roughness: .3, flatShading: true});
+  procTemplate('ore_node_' + n, g => { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(.55), M_ORE); r.scale.set(1, .7, .9); r.position.y = .3; g.add(r);
+    for (let i = 0; i < 5; i++){ const cr = new THREE.Mesh(new THREE.ConeGeometry(.12, .55, 5), M); const a = i * 1.3; cr.position.set(Math.cos(a) * .3, .55, Math.sin(a) * .25); cr.rotation.set(Math.sin(a) * .5, 0, Math.cos(a) * .5); g.add(cr); } });
+  procTemplate('fiber_node_' + n, g => { for (let i = 0; i < 7; i++){ const cr = new THREE.Mesh(new THREE.ConeGeometry(.1, .9 + (i % 3) * .2, 4), i % 3 ? M_FIB : M); const a = i * .9; cr.position.set(Math.cos(a) * .25, .45, Math.sin(a) * .25); cr.rotation.set(Math.sin(a) * .3, 0, Math.cos(a) * .3); g.add(cr); } });
+  PACK_OF['ore_node_' + n] = 'noder'; PACK_OF['fiber_node_' + n] = 'noder'; SIZE['ore_node_' + n] = ['w', 1.2]; SIZE['fiber_node_' + n] = ['w', .9]; });
+PACK_OF.ore_node = 'noder'; PACK_OF.fiber_node = 'noder';
 
 /* ===== VAD SOM STAR VAR: landmarken (lm) och spridda saker (sc: [nyckel, vikt]) per zon ===== */
 const HOMES = ['building_home_A_red', 'building_home_A_blue', 'building_home_B_yellow', 'building_home_B_green'];
@@ -1107,6 +1115,7 @@ LMS.forEach(l => { const id = l.r + '_' + l.i; if (!LM_NEW[id]) return; const k 
 /* [TILLAGT v5.1379.0] CHRIS EGNA PLACERINGAR (editorn, ?edit=1): assets/world3d/placering.json
    {add:[{r, k, x, y, rot, sc}], del:["region|nyckel|x|y"]} - saker han lagt till och saker han tagit bort. Laggs ovanpa det automatiska. */
 const EDIT = Q.get('edit') === '1';
+let edTop = false;   /* [TILLAGT 2026-11-04] editorn: kameran rakt ovanifran (T) */
 let PLACE = {add: [], del: [], poi: {}};
 /* [ANDRAT 2026-11-04] poi: Chris egna platser for quests, moten och expeditioner (editorn). Nyckel -> {x, y}. Saknas nyckeln galler zonens rutnat som forut. */
 const okPlace = j => j && typeof j === 'object' ? {add: Array.isArray(j.add) ? j.add : [], del: Array.isArray(j.del) ? j.del : [], poi: j.poi && typeof j.poi === 'object' && !Array.isArray(j.poi) ? j.poi : {}} : null;
@@ -1116,6 +1125,10 @@ let hadDraft = false;
 if (EDIT){ try { const d = okPlace(JSON.parse(localStorage.getItem('genesis.edDraft') || 'null')); if (d){ PLACE = d; hadDraft = true; } } catch (e){} }
 let edTap = null;
 const itemId = (R, it) => R.id + '|' + String(it.key).replace(/^lmx_/, 'lm_') + '|' + Math.round(it.x) + '|' + Math.round(it.y);   /* [ANDRAT 2026-11-04] lm_/lmx_ ar samma landmarke - annars dubblett vid byte av set (granskning) */
+/* [TILLAGT 2026-11-04] en post i placering.json -> sak. Landmarken: posten kan ha nedladdad (lmx_) eller egen (lm_) nyckel - visa den som galler for valt set.
+   h = hojd over marken (varldsenheter), c = fargton (#rrggbb), nl = utan sken. Anvands av laddaren och av editorns Angra/Gor om. */
+const placedKey = a => { let k = a.k; const LM = LMS.find(l => l.key === k || l.nkey === k); if (LM) k = LMSET !== 'egna' && LM.nkey ? LM.nkey : LM.key; return k; };
+const placedItem = a => { const it = {key: placedKey(a), x: +a.x, y: +a.y, rot: +a.rot || 0, sc: clamp(+a.sc || 1, .2, 6), ed: 1, src: a}; if (a.nl) it.nl = 1; if (isFinite(+a.h) && +a.h > 0) it.h = Math.min(400, +a.h); if (typeof a.c === 'string' && /^#[0-9a-f]{6}$/i.test(a.c)) it.c = a.c; return it; };
 /* placera allt i varje region (fore modellerna laddats - storleken kommer fran SIZE) */
 LAND.forEach(R => {
   R.items = []; R.lights = [];
@@ -1184,12 +1197,11 @@ LAND.forEach(R => {
   if (R.id === 'windfall'){ const ring = offsetPoly(R.outline, 26); for (let i = 0; i < ring.length; i += Math.max(1, Math.round(ring.length / 18))) put('cloud_small', ring[i].x, ring[i].y, r() * 6.28, .5 + r() * .5, 0); }
   if (R.id === 'cutlassbay') R.isles.forEach(pp => { let sx = 0, sy = 0; pp.forEach(q => { sx += q.x; sy += q.y; }); put('palm', sx / pp.length, sy / pp.length, r() * 6, 1, 0); });
   /* [TILLAGT v5.1379.0] Chris placeringar: ta bort det han tagit bort (och dess ljus), lagg till det han satt ut */
+  if (EDIT) R.auto = R.items.map(it => ({...it}));   /* [TILLAGT 2026-11-04] det automatiska som det var - editorns Angra bygger om fran det */
   { const del = new Set(PLACE.del.map(String)); if (del.size){ const gone = R.items.filter(it => del.has(itemId(R, it)));
       R.items = R.items.filter(it => !del.has(itemId(R, it))); R.lights = R.lights.filter(l => !gone.some(it => Math.abs(it.x - l.x) < .5 && Math.abs(it.y - l.y) < .5)); }
     PLACE.add.forEach(a => { if (!a || a.r !== R.id || typeof a.k !== 'string' || !isFinite(+a.x) || !isFinite(+a.y)) return;
-      /* [ANDRAT 2026-11-04] landmarken: posten kan ha nedladdad (lmx_) eller egen (lm_) nyckel - visa den som galler for valt set */
-      let k = a.k; const LM = LMS.find(l => l.key === k || l.nkey === k); if (LM) k = LMSET !== 'egna' && LM.nkey ? LM.nkey : LM.key;
-      put(k, +a.x, +a.y, +a.rot || 0, clamp(+a.sc || 1, .2, 6), 0); const it = R.items[R.items.length - 1]; it.ed = 1; it.src = a; if (a.nl) it.nl = 1; }); }   /* [ANDRAT 2026-11-04] nl = utan sken (Chris). it.src = a: utan den gick sparade saker inte att andra/ta bort efter omladdning (granskning) */
+      const it = placedItem(a); R.items.push(it); const L = LIGHTS[it.key]; if (L && !it.nl) R.lights.push({x: it.x, y: it.y, h: L[0] * it.sc + (it.h || 0) * K, col: L[1], big: L[2] > 1}); }); }   /* [ANDRAT 2026-11-04] placedItem: hojd, farg, sken */   /* [ANDRAT 2026-11-04] nl = utan sken (Chris). it.src = a: utan den gick sparade saker inte att andra/ta bort efter omladdning (granskning) */
   const bigItems = R.items.filter(it => footprint(it.key) / 2 * it.sc > 6).map(it => ({x: it.x, y: it.y, r: footprint(it.key) / 2 * it.sc * .9 + 7}));
   const blocked = (x, y) => bigItems.some(it => Math.abs(it.x - x) < it.r && Math.abs(it.y - y) < it.r && Math.hypot(it.x - x, it.y - y) < it.r);
   R.zones.forEach(z => { const fr = z.pts.filter(q => !blocked(q.x, q.y)); if (fr.length > 8) z.pts = fr; const fw = z.wild.filter(q => !blocked(q.x, q.y)); z.wild = fw.length > 4 ? fw : z.pts; });
@@ -1200,7 +1212,7 @@ LAND.forEach(R => {
 });
 
 /* instanser: en InstancedMesh per del och modell och region (hela regionen kan skippas nar den ar utanfor bild) */
-const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), tmpC = new THREE.Color();
 const INST = {};   /* [TILLAGT v5.1379.0] nyckel -> instansmeshar, sa editorn kan bygga om en modell */
 function buildInstances(key){
   (INST[key] || []).forEach(im => { if (im.parent) im.parent.remove(im); im.dispose(); }); INST[key] = [];
@@ -1208,11 +1220,13 @@ function buildInstances(key){
   const T = TPL[key]; if (!T) return;
   LAND.forEach(R => { const list = R.items.filter(i => i.key === key); if (!list.length) return;
   T.parts.forEach(p => {
-    const im = new THREE.InstancedMesh(p.geo, p.mat, list.length); INST[key].push(im);
+    const im = new THREE.InstancedMesh(p.geo, p.mat, list.length); INST[key].push(im); if (EDIT){ im.userData.items = list; im.userData.R = R; }   /* [TILLAGT 2026-11-04] editorn traffar saken med en strale */
     /* [ANDRAT v5.1388.0] det som star i en okartlagd zon far storlek noll (it.fog, satts i zoneFog) */
-    im.userData.fill = () => { list.forEach((it, i) => { tmpP.set(it.x * K, 0, it.y * K); tmpQ.setFromAxisAngle(UP, it.rot); tmpS.setScalar(it.fog ? 0 : it.sc);
+    im.userData.fill = () => { list.forEach((it, i) => { tmpP.set(it.x * K, (it.h || 0) * K, it.y * K); tmpQ.setFromAxisAngle(UP, it.rot); tmpS.setScalar(it.fog || it.hid ? 0 : it.sc);   /* [ANDRAT 2026-11-04] it.h = hojd (editorn), it.hid = lyft i editorn */
       tmpM.compose(tmpP, tmpQ, tmpS).multiply(p.m); im.setMatrixAt(i, tmpM); });
-      im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); };
+      im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere();
+      /* [TILLAGT 2026-11-04] FARGTON (Chris): it.c multiplicerar materialets farg per exemplar; de utan farg far vitt (= oforandrat) */
+      if (list.some(it => it.c)){ list.forEach((it, i) => im.setColorAt(i, tmpC.set(it.c || '#ffffff'))); im.instanceColor.needsUpdate = true; } };
     im.userData.fill(); im.castShadow = T.h > .7; im.receiveShadow = true;
     R.group.add(im); }); });
 }
@@ -1224,7 +1238,7 @@ const GLOW = glowTex();
 const lightMats = [];
 /* [ANDRAT 2026-11-04] buildLights(R) kan koras om (editorn: flyttad/utsatt/borttagen lampa eller eldstad - skenet foljde inte med, Chris).
    Raknar om R.lights ur sakerna (LIGHTS), lavan och lagerplatserna, och byter ut punktmolnen. */
-function lightsOf(R){ const out = []; R.items.forEach(it => { const L = LIGHTS[it.key]; if (L && !it.nl) out.push({x: it.x, y: it.y, h: L[0] * it.sc, col: L[1], big: L[2] > 1}); });   /* it.nl: Chris har stangt av skenet */
+function lightsOf(R){ const out = []; R.items.forEach(it => { const L = LIGHTS[it.key]; if (L && !it.nl) out.push({x: it.x, y: it.y, h: L[0] * it.sc + (it.h || 0) * K, col: L[1], big: L[2] > 1}); });   /* it.nl: Chris har stangt av skenet */
   R.flat && R.flat.forEach(f => { if (f.type === 'lava') out.push({x: f.x, y: f.y, h: .1, col: 0xff6a1a, big: true}); });
   /* lagerplatsens extra sken bara om eldstaden star kvar dar (flyttar Chris elden ska inget sken ligga kvar) */
   R.zones.forEach(z => { if (z.i < 5 && R.items.some(it => it.key === 'campfire' && Math.hypot(it.x - z.camp.x, it.y - z.camp.y) < 12)) out.push({x: z.camp.x - 4, y: z.camp.y + 6, h: .35, col: 0xff8a2a, big: true}); }); return out; }
@@ -1678,7 +1692,7 @@ function applyTime(DI){
 
 /* ===== KAMERA ===== */
 const cam = {tx: 0, tz: 0, dist: 200, yaw: 0.0}, camAnim = {on: false}; let shakeT = 0, lastInput = 0, touched = false;
-function camPitch(d){ return lerp(.8, 1.2, clamp((d - 10) / 260, 0, 1)); }
+function camPitch(d){ if (edTop) return 1.5; return lerp(.8, 1.2, clamp((d - 10) / 260, 0, 1)); }
 function applyCam(){ const p = camPitch(cam.dist), cx = Math.sin(cam.yaw) * Math.cos(p) * cam.dist, cz = Math.cos(cam.yaw) * Math.cos(p) * cam.dist, cy = Math.sin(p) * cam.dist;
   const sx = shakeT > 0 ? (Math.random() - .5) * shakeT * .5 : 0, sy = shakeT > 0 ? (Math.random() - .5) * shakeT * .4 : 0;
   camera.position.set(cam.tx + cx + sx, cy + sy, cam.tz + cz); camera.lookAt(cam.tx + sx, 0, cam.tz);
@@ -2828,8 +2842,13 @@ function wolfMesh(){ const g = new THREE.Group(), b = new THREE.Group(); g.add(b
   g.traverse(o => { if (o.isMesh) o.castShadow = true; }); g.scale.setScalar(1.5); return {root: g, model: b, static: true, legs}; }
 const VEIN_GEO = new THREE.OctahedronGeometry(.22), VEIN_MAT = new THREE.MeshStandardMaterial({color: 0x7dd3fc, emissive: 0x38bdf8, emissiveIntensity: .9, roughness: .2, flatShading: true});
 const VEIN_DIM = new THREE.MeshStandardMaterial({color: 0x64748b, roughness: .6, flatShading: true});
-function veinMesh(dim){ const g = new THREE.Group(); const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(.45), M_ORE); rk.scale.set(1.3, .55, 1); rk.position.y = .15; g.add(rk);
-  for (let i = 0; i < 6; i++){ const c = new THREE.Mesh(VEIN_GEO, dim ? VEIN_DIM : VEIN_MAT); const a = i * 1.05; c.position.set(Math.cos(a) * .32, .38 + (i % 2) * .12, Math.sin(a) * .22); c.scale.set(.8, 1.6, .8); c.rotation.z = Math.cos(a) * .4; g.add(c); }
+/* [TILLAGT 2026-11-04] VEINS I FARG (Chris: "inte bara en och samma farg"): kristallerna far farg efter malmen/fibern i namnet; okant = cyan som forut */
+const VEIN_COLS = [[/tin/i, 0xd6dde6, 0x9fb3c8], [/iron/i, 0xe8b894, 0xc2410c], [/platin/i, 0xf8fafc, 0xe2e8f0], [/cobalt/i, 0x60a5fa, 0x2563eb], [/void/i, 0xa78bfa, 0x7c3aed],
+  [/static/i, 0xfde047, 0xeab308], [/carbon/i, 0x94a3b8, 0x475569], [/woven/i, 0x5eead4, 0x14b8a6], [/phase/i, 0xf0abfc, 0xd946ef], [/memory/i, 0xf9a8d4, 0xec4899], [/fib|silk|weave/i, 0x86efac, 0x22c55e]];
+const VEIN_MATS = [VEIN_MAT];
+function veinMat(label){ const v = VEIN_COLS.find(v => v[0].test(label || '')); if (!v) return VEIN_MAT; if (!v[3]){ v[3] = new THREE.MeshStandardMaterial({color: v[1], emissive: v[2], emissiveIntensity: .9, roughness: .2, flatShading: true}); VEIN_MATS.push(v[3]); } return v[3]; }
+function veinMesh(dim, label){ const g = new THREE.Group(); const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(.45), M_ORE); rk.scale.set(1.3, .55, 1); rk.position.y = .15; g.add(rk); const VM = veinMat(label);
+  for (let i = 0; i < 6; i++){ const c = new THREE.Mesh(VEIN_GEO, dim ? VEIN_DIM : VM); const a = i * 1.05; c.position.set(Math.cos(a) * .32, .38 + (i % 2) * .12, Math.sin(a) * .22); c.scale.set(.8, 1.6, .8); c.rotation.z = Math.cos(a) * .4; g.add(c); }
   return g; }
 function eventMesh(){ const g = new THREE.Group(); const p = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.6, 6), M_WOOD2); p.position.y = 1.3; g.add(p);
   const f = new THREE.Mesh(new THREE.PlaneGeometry(1, .6), new THREE.MeshStandardMaterial({color: 0xf472b6, emissive: 0x5a1036, side: THREE.DoubleSide})); f.position.set(.5, 2.3, 0); g.add(f);
@@ -2862,10 +2881,10 @@ function stepPois(dt, t){
       else p.av.mixer.update(dt);
       if (p.av.ring) p.av.ring.material.opacity = .5 + .3 * Math.sin(t * 3); }
     else if (p.kind === 'vein' || p.kind === 'event'){
-      if (!p.mesh){ p.mesh = p.kind === 'vein' ? veinMesh(p.state === 'dim') : eventMesh(); p.mesh.position.set(p.x * K, 0, p.y * K); scene.add(p.mesh); }
+      if (!p.mesh){ p.mesh = p.kind === 'vein' ? veinMesh(p.state === 'dim', p.label) : eventMesh(); p.mesh.position.set(p.x * K, 0, p.y * K); scene.add(p.mesh); }
       p.mesh.visible = cam.dist < 300 || p.R === FR;
       if (p.kind === 'event') p.mesh.userData.ring.scale.setScalar(1 + .2 * Math.sin(t * 3)); else p.mesh.rotation.y = t * .3; } });
-  VEIN_MAT.emissiveIntensity = .6 + .5 * Math.sin(t * 3); }
+  { const k = .6 + .5 * Math.sin(t * 3); VEIN_MATS.forEach(m => { m.emissiveIntensity = k; }); } }
 /* [ANDRAT v5.1427.0] Chris: texten kom fram langt utanfor noden. Med mus galler nu nodens cirkel (18 px); pa telefon behovs storre yta for fingret. Ordet under ikonen raknas bara nar det syns. */
 function poiAt(sx, sy){ const tk = textK(cam.dist); let best = null, bd = MOBILE ? 30 : 18; pois.forEach(p => { if (!p.vis) return; let d = Math.hypot(p.sx - sx, p.sy - sy); if (BC_KIND[p.kind] && tk > .5) d = Math.min(d, Math.hypot((p.sx - sx) * .55, p.sy + 22 - sy));   /* [TILLAGT v5.1385.0] ordet under ikonen ar ocksa en tryckyta */
     if (d < bd){ bd = d; best = p; } }); return best; }
@@ -3014,159 +3033,275 @@ function frame(now){
    Spara skriver assets/world3d/placering.json via den lokala servern (.claude/serve.js); finns ingen server laddas filen ned.
    ====================================================================== */
 if (EDIT) (function editor(){
-  addEventListener('click', e => { if (!e.target || e.target.id !== 'edLm') return; try { localStorage.setItem('genesis.lmSet', LMSET === 'egna' ? 'nya' : 'egna'); sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (x){} location.href = location.pathname + '?edit=1'; });
+  /* [ANDRAT 2026-11-04] EDITORN OMBYGGD efter granskningen (Chris: "jag vill ha alla"): lagesband overst, piltangenter knuffar, PgUp/PgDn hojd,
+     snapp till rutnat och vinkelsteg, riktigt Angra/Gor om utan omladdning (R.auto + applyPlace), flerval med Shift, bildrutnat med
+     favoriter och senaste, kamerahjalp (region, ovanifran, till vald), fargtoning per sak (instanceColor), tangentlista (?). */
+  let leaving = false;
+  addEventListener('click', e => { if (!e.target || e.target.id !== 'edLm') return; leaving = true; try { localStorage.setItem('genesis.lmSet', LMSET === 'egna' ? 'nya' : 'egna'); sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (x){} location.href = location.pathname + '?edit=1'; });
   const css = document.createElement('style');
-  css.textContent = '#edp{position:fixed;left:12px;top:76px;bottom:12px;width:270px;z-index:50;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;' +
-    'background:rgba(8,12,24,.92);border:1px solid rgba(120,200,255,.35);color:#e8ecff;font:13px "Segoe UI",sans-serif;box-shadow:0 0 18px rgba(56,232,255,.18)}' +
-    '#edp h3{margin:0;font:800 14px Orbitron,sans-serif;letter-spacing:.08em;color:#7ff}#edp .t{font-size:12px;color:#b8c2e0;line-height:1.35}' +
-    '#edp input{width:100%;box-sizing:border-box;padding:7px 9px;border-radius:8px;border:1px solid #2c3b5c;background:#0b1224;color:#fff}' +
-    '#edList{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding-right:4px}#edList b{display:block;margin:8px 0 3px;font-size:11px;color:#7ff;letter-spacing:.08em}' +
-    '#edList button{display:block;width:100%;text-align:left;margin:1px 0;padding:4px 7px;border-radius:6px;border:0;background:transparent;color:#dfe6ff;cursor:pointer;font-size:12px}' +
-    '#edList button:hover{background:#16223f}#edList button.on{background:#0e7490;color:#fff}' +
-    '#edSel{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on{display:block}#edSel .n{font-weight:700;margin-bottom:6px}#edPoi{display:none;padding:8px;border-radius:8px;background:#1a1433}#edPoi.on{display:block}#edPoi .n{font-weight:700;margin-bottom:6px}' +
-    '#edp .row{display:flex;gap:5px;flex-wrap:wrap}#edp .row button{flex:1;min-width:52px;padding:6px 4px;border-radius:7px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font-size:12px}' +
-    '#edp .row button:hover{background:#1d3160}#edp .row button.red{border-color:#7f1d1d;background:#3b0f17}#edp .row button.go{border-color:#0e7490;background:#0b3b4b;font-weight:700}' +
+  css.textContent = '#edp{position:fixed;left:12px;top:76px;bottom:12px;width:300px;z-index:50;display:flex;flex-direction:column;gap:7px;padding:10px 12px;border-radius:12px;' +
+    'background:rgba(8,12,24,.94);border:1px solid rgba(120,200,255,.35);color:#e8ecff;font:13px "Segoe UI",sans-serif;box-shadow:0 0 18px rgba(56,232,255,.18)}' +
+    '#edp h3{margin:0;font:800 14px Orbitron,sans-serif;letter-spacing:.08em;color:#7ff;display:flex;align-items:center}#edp h3 button{margin-left:auto;width:26px;padding:2px 0;border-radius:6px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font:700 13px "Segoe UI",sans-serif}' +
+    '#edp .t{font-size:12px;color:#b8c2e0;line-height:1.35}' +
+    '#edp input[type=text],#edp select{box-sizing:border-box;padding:6px 8px;border-radius:8px;border:1px solid #2c3b5c;background:#0b1224;color:#fff;font-size:12px}#edp input[type=text]{width:100%}#edp select{flex:1 1 110px;min-width:0}#edp .row button.k{flex:0 0 auto}' +
+    '#edTabs{display:flex;gap:4px}#edTabs button{flex:1;padding:4px;border-radius:6px;border:1px solid #2c3b5c;background:#0b1224;color:#b8c2e0;cursor:pointer;font-size:11px}#edTabs button.on{background:#0e7490;color:#fff;border-color:#0e7490}' +
+    '#edList{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding-right:4px;min-height:70px}#edList b{display:block;margin:8px 0 3px;font-size:11px;color:#7ff;letter-spacing:.08em;cursor:pointer}' +
+    '#edList .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}' +
+    '#edList .tile{position:relative;border-radius:7px;background:#0f1730;border:1px solid transparent;cursor:pointer;padding:3px 3px 2px;text-align:center}#edList .tile:hover{background:#16223f}#edList .tile.on{border-color:#38e8ff;background:#0e7490}' +
+    '#edList .tile img{width:100%;aspect-ratio:1;display:block;border-radius:5px;background:radial-gradient(circle at 50% 60%,#1b2a4a,#0b1224)}' +
+    '#edList .tile span{display:block;font-size:10px;color:#dfe6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}' +
+    '#edList .tile i{position:absolute;top:2px;right:4px;font-style:normal;font-size:13px;color:#334155;cursor:pointer;line-height:1}#edList .tile:hover i{color:#94a3b8}#edList .tile i.on,#edList .tile:hover i.on{color:#fde047}' +
+    '#edSel,#edPoi{display:none;padding:8px;border-radius:8px;background:#101a33}#edSel.on,#edPoi.on{display:block}#edPoi{background:#1a1433}#edp .n{font-weight:700;margin-bottom:6px;font-size:12px}' +
+    '#edp .row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}#edp .row+.row{margin-top:4px}#edp .row label{font-size:11px;color:#b8c2e0;flex:0 0 auto}' +
+    '#edp .row button{flex:1;min-width:44px;padding:5px 3px;border-radius:7px;border:1px solid #2c3b5c;background:#13203d;color:#fff;cursor:pointer;font-size:12px;white-space:nowrap}' +
+    '#edp .row button:hover{background:#1d3160}#edp .row button.red{border-color:#7f1d1d;background:#3b0f17}#edp .row button.go{border-color:#0e7490;background:#0b3b4b;font-weight:700}#edp .row button.on{background:#0e7490;border-color:#0e7490}' +
     '#edMsg{font-size:12px;color:#fde68a;min-height:16px}#edp button:disabled{opacity:.4;cursor:default}#mapkey,#news{display:none!important}' +
-    /* [TILLAGT 2026-11-04] forhandsvisning av saken man haller musen over i listan (Chris) */
-    '#edPv{position:fixed;left:292px;z-index:51;display:none;background:#0b1224;border:1px solid rgba(56,232,255,.4);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}#edPv.on{display:block}' +
-    '#edPv img{width:150px;height:150px;display:block;border-radius:6px;background:radial-gradient(circle at 50% 60%,#1b2a4a,#0b1224)}#edPv div{font-size:11px;color:#b8c2e0;text-align:center;margin-top:4px;max-width:150px}';
+    '#edPal{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}#edPal i{width:19px;height:19px;border-radius:5px;border:1px solid #2c3b5c;cursor:pointer;display:block;box-sizing:border-box}#edPal i:hover{border-color:#fff}#edPal i.on{border:2px solid #fff}#edPal input{width:26px;height:21px;padding:0;border:0;background:none;cursor:pointer}' +
+    '#edPv{position:fixed;left:324px;z-index:51;display:none;background:#0b1224;border:1px solid rgba(56,232,255,.4);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none}#edPv.on{display:block}' +
+    '#edPv img{width:150px;height:150px;display:block;border-radius:6px;background:radial-gradient(circle at 50% 60%,#1b2a4a,#0b1224)}#edPv div{font-size:11px;color:#b8c2e0;text-align:center;margin-top:4px;max-width:150px}' +
+    /* lagesbandet overst: sager alltid vad som hander och vad nasta klick gor */
+    '#edMode{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:52;padding:7px 14px;border-radius:999px;background:rgba(8,12,24,.9);border:1px solid rgba(120,200,255,.35);color:#b8c2e0;font:12px "Segoe UI",sans-serif;max-width:62vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}' +
+    '#edMode b{color:#7ff;letter-spacing:.06em}#edMode.place{border-color:#38e8ff;color:#e8ecff}#edMode.move{border-color:#fde047;color:#e8ecff}#edMode.move b{color:#fde047}#edMode.poi{border-color:#c084fc;color:#e8ecff}#edMode.poi b{color:#c084fc}#edMode.sel{color:#e8ecff}#edMode.sel b{color:#86efac}' +
+    '#edHelp{position:fixed;inset:0;z-index:60;display:none;background:rgba(3,6,14,.78);align-items:center;justify-content:center}#edHelp.on{display:flex}' +
+    '#edHelp div{background:#0b1224;border:1px solid rgba(120,200,255,.4);border-radius:12px;padding:18px 22px;color:#e8ecff;font:13px "Segoe UI",sans-serif;max-width:560px;line-height:1.7}#edHelp h4{margin:0 0 8px;color:#7ff;font:800 14px Orbitron,sans-serif}' +
+    '#edHelp kbd{display:inline-block;min-width:18px;padding:0 5px;border-radius:4px;background:#1d3160;border:1px solid #2c3b5c;font:12px monospace;text-align:center}';
   document.head.appendChild(css);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'})[c]);
   const P = document.createElement('div'); P.id = 'edp';
-  P.innerHTML = '<h3>EDITOR</h3><div class="t">Välj en sak i listan och klicka på marken för att sätta ut den.<br>Klicka på en sak på kartan: den lyfts och följer musen. Klicka där den ska stå.<br>Q / E vrider · Shift + rullhjul storlek · Delete tar bort · Esc ångrar<br>Quests, möten och expeditioner flyttas på samma sätt.</div>' +
-    '<input id="edQ" placeholder="Sök sak (t.ex. tree, house, lamp)">' +
+  P.innerHTML = '<h3>EDITOR<button data-a="help" title="Tangenter (?)">?</button></h3>' +
+    '<div class="row"><select id="edReg"><option value="">Gå till region…</option>' + LAND.map(R => '<option value="' + esc(R.id) + '">' + esc(R.namn) + '</option>').join('') + '</select><button data-a="top" id="edTop" class="k" title="T">Ovanifrån</button><button data-a="fly" class="k" title="F">Till vald</button></div>' +
+    '<input id="edQ" type="text" placeholder="Sök sak (t.ex. tree, house, lamp)">' +
+    '<div id="edTabs"><button data-tab="alla" class="on">Alla</button><button data-tab="fav">★ Favoriter</button><button data-tab="ny">Senaste</button></div>' +
     '<div id="edList"></div>' +
-    '<div id="edSel"><div class="n" id="edSelN"></div><div class="row"><button data-a="l">⟲ Vrid</button><button data-a="r">Vrid ⟳</button><button data-a="m">− Mindre</button><button data-a="p">+ Större</button></div>' +
-    '<div class="row" style="margin-top:5px"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red">Ta bort</button></div>' +
-    '<div class="row" style="margin-top:5px"><button data-a="lt" id="edLt">Sken: på</button></div></div>' +   /* [TILLAGT 2026-11-04] sken av/pa for lyktor och eldstader (Chris) */
-    /* [TILLAGT 2026-11-04] platser: quests, moten och expeditioner (Chris: "option att flytta nagon som sitter fel") */
-    '<div id="edPoi" class="edpoi"><div class="n" id="edPoiN"></div><div class="t" id="edPoiT"></div><div class="row"><button data-a="pmv">Flytta plats</button><button data-a="prst">Tillbaka till rutnätet</button></div></div>' +
-    '<div id="edMsg"></div><div class="row"><button data-a="undo">Ångra</button><button data-a="save" class="go">Spara</button></div>' +
-    /* [TILLAGT v5.1382.0] bytet mellan nedladdade och egna landmarken */
+    '<div class="row"><label>Snäpp</label><button data-a="grid" id="edGrid" title="G">Av</button><label>Vinkelsteg</label><button data-a="ang" id="edAng">15°</button></div>' +
+    '<div id="edSel"><div class="n" id="edSelN"></div>' +
+      '<div class="row"><button data-a="l" title="Q">⟲ Vrid</button><button data-a="r" title="E">Vrid ⟳</button><button data-a="m" title="−">− Mindre</button><button data-a="p" title="+">+ Större</button></div>' +
+      '<div class="row"><button data-a="hu" title="PgUp">▲ Högre</button><button data-a="hd" title="PgDn">▼ Lägre</button><button data-a="h0">Marken</button><button data-a="lt" id="edLt">Sken: på</button></div>' +
+      '<div class="row"><button data-a="mv">Flytta</button><button data-a="cp">Kopiera</button><button data-a="del" class="red" title="Delete">Ta bort</button></div>' +
+      '<div class="t" style="margin-top:6px">Färg – tonar saken (ljusa färger syns bäst)</div><div id="edPal"></div></div>' +
+    '<div id="edPoi"><div class="n" id="edPoiN"></div><div class="t" id="edPoiT"></div><div class="row"><button data-a="pmv">Flytta plats</button><button data-a="prst">Tillbaka till rutnätet</button></div></div>' +
+    '<div id="edMsg"></div><div class="row"><button data-a="undo" title="Ctrl+Z">↶ Ångra</button><button data-a="redo" title="Ctrl+Y">↷ Gör om</button><button data-a="save" class="go">Spara</button></div>' +
     '<div class="row"><button id="edLm">Landmärken: ' + (LMSET === 'egna' ? 'Claudes egna' : 'nedladdade') + ' ⇄</button></div>';
   document.body.appendChild(P);
   P.addEventListener('pointerdown', e => e.stopPropagation()); P.addEventListener('wheel', e => e.stopPropagation(), {passive: true});
-  /* [TILLAGT 2026-11-04] FORHANDSVISNING: en liten egen ritare ritar modellen en gang per sak (sparas som bild) och visar den bredvid listan nar musen ar over raden */
+  const MODE = document.createElement('div'); MODE.id = 'edMode'; document.body.appendChild(MODE);
+  const HELP = document.createElement('div'); HELP.id = 'edHelp';
+  HELP.innerHTML = '<div><h4>TANGENTER I EDITORN</h4>' + [
+    '<kbd>klick</kbd> på en sak: lyft (följer musen) · <kbd>klick</kbd> igen: ställ ner',
+    '<kbd>Shift</kbd>+<kbd>klick</kbd>: välj fler (flytta, kopiera, ta bort som grupp)',
+    '<kbd>Q</kbd> / <kbd>E</kbd>: vrid (vinkelsteget) · <kbd>+</kbd> / <kbd>−</kbd> eller <kbd>Shift</kbd>+rullhjul: storlek',
+    '<kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd>: knuffa ett steg (<kbd>Shift</kbd>: fem) · <kbd>PgUp</kbd> / <kbd>PgDn</kbd>: höjd',
+    '<kbd>Delete</kbd>: ta bort · <kbd>Esc</kbd>: avbryt / ställ tillbaka',
+    '<kbd>G</kbd>: snäpp av / 2 / 5 / 10 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd>: ångra / gör om',
+    '<kbd>F</kbd>: flyg till vald sak · <kbd>T</kbd>: rakt ovanifrån · <kbd>?</kbd>: den här listan',
+    'Högerknapp + dra: vrid kameran · rullhjul: zoom · <kbd>★</kbd> eller högerklick i listan: favorit'
+  ].join('<br>') + '<br><br><span style="color:#b8c2e0;font-size:12px">Klicka var som helst för att stänga.</span></div>';
+  document.body.appendChild(HELP); HELP.onclick = () => HELP.classList.remove('on');
+  /* FORHANDSVISNING: en liten egen ritare ritar modellen en gang per sak (sparas som bild) - anvands i rutnatet och i den stora rutan bredvid */
   const PV = document.createElement('div'); PV.id = 'edPv'; PV.innerHTML = '<img alt=""><div></div>'; document.body.appendChild(PV);
   let pvR = null, pvScene = null, pvCam = null; const thumbs = {};
-  function thumb(key){ if (thumbs[key] !== undefined) return thumbs[key]; const m = modelInstance(key); if (!m) return thumbs[key] = '';
+  function thumb(key){ if (thumbs[key] !== undefined) return thumbs[key]; const m = modelInstance(key); if (!m) return '';   /* [ANDRAT] inte laddad an: cachas inte */
     if (!pvR){ pvR = new THREE.WebGLRenderer({antialias: true, alpha: true}); pvR.setSize(150, 150); pvR.setPixelRatio(1); pvR.toneMapping = THREE.ACESFilmicToneMapping; pvR.toneMappingExposure = 1.1;
       pvScene = new THREE.Scene(); pvScene.add(new THREE.HemisphereLight(0xdde8ff, 0x3a2f55, 1.6)); const dl = new THREE.DirectionalLight(0xfff1dc, 2); dl.position.set(3, 6, 4); pvScene.add(dl);
       pvCam = new THREE.PerspectiveCamera(28, 1, .01, 2000); }
     pvScene.add(m); const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()), r = Math.max(s.x, s.y, s.z, .01);
     pvCam.position.copy(c).add(new THREE.Vector3(1, .75, 1.4).normalize().multiplyScalar(r * 2.3)); pvCam.lookAt(c); pvCam.updateProjectionMatrix();
     pvR.render(pvScene, pvCam); pvScene.remove(m); return thumbs[key] = pvR.domElement.toDataURL(); }
-  function pvShow(key, btn){ const src = thumb(key); if (!src){ PV.classList.remove('on'); return; } PV.querySelector('img').src = src; PV.querySelector('div').textContent = nice(key);
-    const rb = btn.getBoundingClientRect(); PV.style.top = Math.max(8, Math.min(innerHeight - 190, rb.top - 60)) + 'px'; PV.classList.add('on'); }
+  function pvShow(key, el){ const src = thumb(key); if (!src){ PV.classList.remove('on'); return; } PV.querySelector('img').src = src; PV.querySelector('div').textContent = nice(key);
+    const rb = el.getBoundingClientRect(); PV.style.top = Math.max(8, Math.min(innerHeight - 190, rb.top - 40)) + 'px'; PV.classList.add('on'); }
   const pvHide = () => PV.classList.remove('on');
   const $e = id => document.getElementById(id), msg = t => { $e('edMsg').textContent = t; };
-  let mode = null, ghost = null, gRot = 0, gSc = 1, sel = null, ring = null, dirty = 0;
+  const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e){ return d; } }, lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e){} };
+  let mode = null, ghosts = [], gRot = 0, gSc = 1, sels = [], rings = [], psel = null, tab = 'alla', edTopOn = false, lastShift = false, lastMouse = null;
+  const GRIDS = [0, 2, 5, 10], ANGS = [5, 15, 45, 90];
+  let gridStep = +lsGet('genesis.edGrid', 0) || 0, angStep = +lsGet('genesis.edAng', 15) || 15; if (!GRIDS.includes(gridStep)) gridStep = 0; if (!ANGS.includes(angStep)) angStep = 15;
+  let FAV = lsGet('genesis.edFav', []), RECENT = lsGet('genesis.edRecent', []); if (!Array.isArray(FAV)) FAV = []; if (!Array.isArray(RECENT)) RECENT = [];
+  const sel = () => sels.length ? sels[sels.length - 1] : null, angRad = () => angStep * Math.PI / 180, gsnap = v => gridStep ? Math.round(v / gridStep) * gridStep : v;
   const regionAt = (x, y) => LAND.find(R => inPoly(R.outline, x, y) || (R.landing && (inPoly(R.landing.poly, x, y) || inPoly(R.landing.spur, x, y)))) ||
     LAND.find(R => (R.isles || []).some(pp => inPoly(pp, x, y))) || null;
-  const nice = k => k.replace(/_/g, ' ');
-  /* utkastet sparas lokalt efter varje andring, sa inget forsvinner om fliken stangs */
-  const snaps = [];
+  const nice = k => k.replace(/^(lmx?_|pir_|frm_|grv_|sci_|rui_)/, '').replace(/_/g, ' ');
+  /* ANGRA / GOR OM: ogonblicksbilder av PLACE; applyPlace bygger om sakerna ur R.auto (det automatiska) + PLACE, utan omladdning */
+  const undoS = [], redoS = []; let savedJ = hadDraft ? '' : JSON.stringify(PLACE), savedDepth = 0, lastTag = '', lastT = 0;
   const draft = () => { try { localStorage.setItem('genesis.edDraft', JSON.stringify(PLACE)); } catch (e){} };
-  let lightT = null; const relight = () => { clearTimeout(lightT); lightT = setTimeout(() => LAND.forEach(buildLights), 120); };   /* [ANDRAT 2026-11-04] samlat, inte per hjulsteg */
-  const changed = (what) => { dirty++; draft(); relight(); btns(); msg(what + ' · ' + dirty + ' osparade ändringar'); };
-  /* [TILLAGT 2026-11-04] Spara visar antalet och ar gra nar inget finns; Angra gra nar inget finns att angra (granskning) */
-  function btns(){ const sv = P.querySelector('button[data-a=save]'), un = P.querySelector('button[data-a=undo]'); if (sv){ sv.textContent = dirty ? 'Spara · ' + dirty : 'Spara'; sv.disabled = !dirty; } if (un) un.disabled = !snaps.length; }
-  const snap = () => { if (wheelGest) return; snaps.push(JSON.stringify(PLACE)); if (snaps.length > 40) snaps.shift(); btns(); };
+  function snap(tag){ const now = performance.now(); if (tag && tag === lastTag && now - lastT < 600){ lastT = now; return; } lastTag = tag || ''; lastT = now;
+    undoS.push(JSON.stringify(PLACE)); if (undoS.length > 60){ undoS.shift(); savedDepth--; } redoS.length = 0; }
+  const isDirty = () => JSON.stringify(PLACE) !== savedJ, nChg = () => Math.abs(undoS.length - savedDepth);
+  function btns(){ const b = a => P.querySelector('button[data-a=' + a + ']'), d = isDirty(); b('save').textContent = d ? 'Spara · ' + (nChg() || 1) : 'Spara'; b('save').disabled = !d; b('undo').disabled = !undoS.length; b('redo').disabled = !redoS.length; b('fly').disabled = !sel(); }
+  let lightT = null; const relight = () => { clearTimeout(lightT); lightT = setTimeout(() => LAND.forEach(buildLights), 120); };
+  const changed = what => { draft(); relight(); btns(); banner(); msg(what + (isDirty() ? ' · ' + (nChg() || 1) + ' osparade ändringar' : '')); };
+  function applyPlace(np){ PLACE = np; const keys = new Set();
+    LAND.forEach(R => { R.items.forEach(it => keys.add(it.key)); const del = new Set(PLACE.del.map(String));
+      R.items = (R.auto || []).filter(it => !del.has(itemId(R, it))).map(it => ({...it}));
+      PLACE.add.forEach(a => { if (!a || a.r !== R.id || typeof a.k !== 'string' || !isFinite(+a.x) || !isFinite(+a.y)) return; R.items.push(placedItem(a)); });
+      R.items.forEach(it => keys.add(it.key)); });
+    keys.forEach(buildInstances); rebuildPois(); const keep = sels.map(s => s.it.src ? PLACE.add.indexOf(s.it.src) : -1); unselect();
+    const back = []; LAND.forEach(R => R.items.forEach(it => { if (it.src && keep.includes(PLACE.add.indexOf(it.src))) back.push({R, it}); })); if (back.length){ sels = back; showSel(); } }   /* valet overlever Angra/Gor om */
+  function undo(){ if (!undoS.length){ msg('Inget att ångra'); return; } stopMode(); lastTag = ''; redoS.push(JSON.stringify(PLACE)); applyPlace(JSON.parse(undoS.pop())); changed('Ångrat'); }
+  function redo(){ if (!redoS.length){ msg('Inget att göra om'); return; } stopMode(); lastTag = ''; undoS.push(JSON.stringify(PLACE)); applyPlace(JSON.parse(redoS.pop())); changed('Gjort om'); }
   /* gor en automatisk sak till en egen (tas bort ur det automatiska och laggs till som Chris egen) innan den andras */
-  const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; if (it.nl) a.nl = 1; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
-  const sync = it => { const a = it.src; if (!a) return; a.x = +it.x.toFixed(1); a.y = +it.y.toFixed(1); a.rot = +it.rot.toFixed(3); a.sc = +it.sc.toFixed(2); if (it.nl) a.nl = 1; else delete a.nl; };
-  function list(){ const q = $e('edQ').value.trim().toLowerCase(), L = $e('edList'); L.textContent = ''; const by = {};
-    Object.keys(TPL).filter(k => !/^cloud_/.test(k) && (!q || k.toLowerCase().includes(q) || nice(k).includes(q))).sort().forEach(k => { const p = PACK_OF[k] || 'ovrigt'; (by[p] = by[p] || []).push(k); });
-    let fold = {}; try { fold = JSON.parse(localStorage.getItem('genesis.edFold') || '{}') || {}; } catch (e){}
-    Object.keys(by).sort().forEach(p => { const h = document.createElement('b'); const shut = !q && fold[p]; h.textContent = (shut ? '▸ ' : '▾ ') + p.toUpperCase() + ' (' + by[p].length + ')'; h.style.cursor = 'pointer';
-      h.onclick = () => { fold[p] = !fold[p]; try { localStorage.setItem('genesis.edFold', JSON.stringify(fold)); } catch (e){} list(); }; L.appendChild(h);   /* [TILLAGT 2026-11-04] hopfallbara grupper (granskning) */
-      if (shut) return;
-      by[p].forEach(k => { const b = document.createElement('button'); b.textContent = nice(k); b.className = mode && mode.place === k ? 'on' : ''; b.onclick = () => startPlace(k);
-        b.onmouseenter = () => pvShow(k, b); b.onmouseleave = pvHide; L.appendChild(b); }); });
-    if (q && !L.children.length){ const e0 = document.createElement('div'); e0.className = 't'; e0.textContent = 'Inget hittat för "' + q + '" – namnen är engelska: tree, house, lamp, rock …'; L.appendChild(e0); }
-    L.onmouseleave = pvHide; L.onwheel = pvHide; }
-  $e('edQ').addEventListener('input', list); $e('edQ').addEventListener('keydown', e => e.stopPropagation());
-  function dropGhost(){ if (ghost){ scene.remove(ghost); ghost = null; } }
-  function startPlace(k){ stopMode();   /* [ANDRAT 2026-11-04] en lyft sak stalls tillbaka forst (blev osynlig, granskning) */ dropGhost(); mode = {place: k}; gRot = 0; gSc = 1; ghost = modelInstance(k); if (ghost) scene.add(ghost); unselect(); list(); msg('Klicka på marken för att sätta ut ' + nice(k)); }
-  function stopMode(){ dropGhost(); if (mode && mode.move) buildInstances(mode.move.it.key); mode = null; list(); }
-  function unselect(){ sel = null; psel = null; if (ring) ring.visible = false; $e('edSel').classList.remove('on'); $e('edPoi').classList.remove('on'); }
-  /* [TILLAGT 2026-11-04] PLATSER: quests och moten raknas per zon (1:a, 2:a ...) eftersom deras id byter; expeditioner per id. Rutan visar vad som ar valt. */
-  let psel = null; const poiBox = () => $e('edPoi');
-  function selectPoi(P){ unselect(); psel = P; const own = !!(PLACE.poi && PLACE.poi[P.ovk]);
-    $e('edPoiN').textContent = (P.kind === 'quest' ? 'Quest' : P.kind === 'encounter' ? 'Möte' : 'Expedition') + ': ' + P.label + (own ? '  (din plats)' : '');
-    $e('edPoiT').textContent = P.R.namn + ' · ' + P.zn + (P.kind === 'expedition' ? '' : ' · ' + (P.kind === 'quest' ? 'quest' : 'möte') + ' nr ' + P.ovk.split('#')[1] + ' i zonen');
-    if (!ring){ ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
-      ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
-    ring.scale.setScalar(1.6); ring.position.set(P.x * K, .06, P.y * K); ring.visible = true; poiBox().classList.add('on'); }
-  function poiAct(a){ if (!psel) return; const P = psel;
-    if (a === 'pmv'){ mode = {poi: P}; msg('Flyttar ' + P.label + ' – klicka där den ska ligga. Esc ångrar'); return; }
-    if (a === 'prst'){ if (PLACE.poi && PLACE.poi[P.ovk]){ snap(); delete PLACE.poi[P.ovk]; rebuildPois(); changed('Tillbaka till rutnätet'); } unselect(); } }
-  function select(R, it){ sel = {R, it}; $e('edSelN').textContent = nice(it.key) + (it.ed ? '  (din)' : '');
-    const lt = $e('edLt'); lt.style.display = LIGHTS[it.key] ? '' : 'none'; lt.textContent = it.nl ? 'Sken: av' : 'Sken: på';
-    if (!ring){ ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
-      ring.rotation.x = -Math.PI / 2; ring.renderOrder = 4; scene.add(ring); }
-    const rr = Math.max(.6, footprint(it.key) * K / 2 * it.sc * 1.15); ring.scale.setScalar(rr); ring.position.set(it.x * K, .06, it.y * K); ring.visible = true; $e('edSel').classList.add('on'); }
+  const own = (R, it) => { if (it.ed) return it.src; PLACE.del.push(itemId(R, it)); const a = {r: R.id, k: it.key, x: it.x, y: it.y, rot: it.rot, sc: it.sc}; if (it.nl) a.nl = 1; if (it.h) a.h = it.h; if (it.c) a.c = it.c; PLACE.add.push(a); it.ed = 1; it.src = a; return a; };
+  const sync = it => { const a = it.src; if (!a) return; a.x = +it.x.toFixed(1); a.y = +it.y.toFixed(1); a.rot = +it.rot.toFixed(3); a.sc = +it.sc.toFixed(2); if (it.nl) a.nl = 1; else delete a.nl; if (it.h) a.h = +it.h.toFixed(1); else delete a.h; if (it.c) a.c = it.c; else delete a.c; };
+  /* ===== LISTAN: bildrutnat per paket, flikar Alla / Favoriter / Senaste; bilderna ritas forst nar rutan rullas fram ===== */
+  let io = null;
+  function keysFor(){ const q = $e('edQ').value.trim().toLowerCase(); let ks = Object.keys(TPL).filter(k => !/^cloud_/.test(k));
+    if (tab === 'fav') ks = ks.filter(k => FAV.includes(k)); else if (tab === 'ny') ks = RECENT.filter(k => TPL[k]);
+    if (q) ks = ks.filter(k => k.toLowerCase().includes(q) || nice(k).includes(q)); return ks; }
+  function tile(k){ const d = document.createElement('div'); d.className = 'tile'; d.dataset.k = k; d.title = nice(k);
+    const img = document.createElement('img'); img.alt = ''; img.dataset.k = k; d.appendChild(img); const s = document.createElement('span'); s.textContent = nice(k); d.appendChild(s);
+    const st = document.createElement('i'); st.textContent = '★'; st.className = FAV.includes(k) ? 'on' : ''; st.title = 'Favorit'; st.onclick = ev => { ev.stopPropagation(); favToggle(k); }; d.appendChild(st);
+    d.onclick = () => startPlace(k); d.oncontextmenu = ev => { ev.preventDefault(); favToggle(k); }; d.onmouseenter = () => pvShow(k, d); d.onmouseleave = pvHide; io.observe(img); return d; }
+  function list(){ const L = $e('edList'); L.textContent = ''; if (io) io.disconnect();
+    io = new IntersectionObserver(es => es.forEach(en => { if (!en.isIntersecting) return; const img = en.target, src = thumb(img.dataset.k); if (src){ img.src = src; io.unobserve(img); } }), {root: L, rootMargin: '140px'});
+    const ks = keysFor(), q = $e('edQ').value.trim();
+    if (tab === 'alla' && !q){ const by = {}; ks.sort().forEach(k => { const p = PACK_OF[k] || 'ovrigt'; (by[p] = by[p] || []).push(k); }); const fold = lsGet('genesis.edFold', {});
+      Object.keys(by).sort().forEach(p => { const h = document.createElement('b'), shut = !!fold[p]; h.textContent = (shut ? '▸ ' : '▾ ') + p.toUpperCase() + ' (' + by[p].length + ')';
+        h.onclick = () => { fold[p] = !fold[p]; lsSet('genesis.edFold', fold); list(); }; L.appendChild(h); if (shut) return;
+        const gr = document.createElement('div'); gr.className = 'grid'; by[p].forEach(k => gr.appendChild(tile(k))); L.appendChild(gr); }); }
+    else { const gr = document.createElement('div'); gr.className = 'grid'; (tab === 'ny' ? ks : ks.sort()).forEach(k => gr.appendChild(tile(k))); L.appendChild(gr);
+      if (!ks.length){ const e0 = document.createElement('div'); e0.className = 't'; e0.textContent = tab === 'fav' ? 'Inga favoriter än – tryck på ★ eller högerklicka en sak.' : tab === 'ny' ? 'Inget utsatt än.' : 'Inget hittat för "' + q + '" – namnen är engelska: tree, house, lamp, rock …'; L.appendChild(e0); } }
+    markList(); L.onmouseleave = pvHide; L.onwheel = pvHide; }
+  function markList(){ const k = mode && mode.place && mode.place.length === 1 ? mode.place[0].key : null; $e('edList').querySelectorAll('.tile').forEach(d => d.classList.toggle('on', d.dataset.k === k)); }
+  function favToggle(k){ const i = FAV.indexOf(k); if (i >= 0) FAV.splice(i, 1); else FAV.push(k); lsSet('genesis.edFav', FAV);
+    if (tab === 'fav') list(); else $e('edList').querySelectorAll('.tile').forEach(d => { if (d.dataset.k === k) d.querySelector('i').classList.toggle('on', i < 0); }); }
+  function recent(k){ const i = RECENT.indexOf(k); if (i >= 0) RECENT.splice(i, 1); RECENT.unshift(k); if (RECENT.length > 18) RECENT.pop(); lsSet('genesis.edRecent', RECENT); if (tab === 'ny') list(); }
+  $e('edQ').addEventListener('input', list); $e('edQ').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape' || e.key === 'Enter') e.target.blur(); });
+  P.querySelectorAll('#edTabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; P.querySelectorAll('#edTabs button').forEach(x => x.classList.toggle('on', x === b)); list(); });
+  $e('edReg').onchange = e => { const R = LAND.find(R => R.id === e.target.value); if (R) flyTo(viewFor(regionBox(R)), 900); e.target.value = ''; e.target.blur(); };
+  function setBtns(){ $e('edGrid').textContent = gridStep ? gridStep + ' steg' : 'Av'; $e('edGrid').classList.toggle('on', !!gridStep); $e('edAng').textContent = angStep + '°'; }
+  /* ===== LAGESBANDET ===== */
+  function banner(){ const S = sel(); let cls = '', html = '';
+    if (mode && mode.place){ const n = mode.place.length; cls = 'place'; html = '<b>PLACERAR</b> ' + esc(n > 1 ? n + ' saker' : nice(mode.place[0].key)) + ' · klick sätter ut (igen och igen) · Q/E vrider · Shift+hjul storlek · Esc slutar'; }
+    else if (mode && mode.move){ const n = mode.move.length; cls = 'move'; html = '<b>FLYTTAR</b> ' + esc(n > 1 ? n + ' saker' : nice(mode.move[0].it.key)) + ' · klick ställer ner · Q/E vrider · Esc ställer tillbaka'; }
+    else if (mode && mode.poi){ cls = 'poi'; html = '<b>FLYTTAR PLATS</b> ' + esc(mode.poi.label) + ' · klick där den ska ligga · Esc avbryter'; }
+    else if (S){ cls = 'sel'; html = '<b>VALD</b> ' + esc(sels.length > 1 ? sels.length + ' saker' : nice(S.it.key)) + ' · piltangenter knuffar · PgUp/PgDn höjd · Q/E vrider · Delete tar bort · Shift+klick väljer fler'; }
+    else html = 'Klicka på en sak för att lyfta den, eller välj en i listan · <b>?</b> visar tangenterna';
+    MODE.className = cls; MODE.innerHTML = html; }
+  /* ===== VAL: ringar runt alla valda (gul = den sista, gron = ovriga) ===== */
+  function ringAt(i){ while (rings.length <= i){ const r = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), new THREE.MeshBasicMaterial({color: hdr('#fde047', 2), transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide}));
+      r.rotation.x = -Math.PI / 2; r.renderOrder = 4; r.visible = false; scene.add(r); rings.push(r); } return rings[i]; }
+  function hideRings(from){ for (let i = from; i < rings.length; i++) rings[i].visible = false; }
+  function ringFor(i, x, y, h, rr, col){ const r = ringAt(i); r.scale.setScalar(rr); r.position.set(x * K, .06 + (h || 0) * K, y * K); r.material.color.copy(hdr(col, 2)); r.visible = true; }
+  const ringR = it => Math.max(.6, footprint(it.key) * K / 2 * it.sc * 1.15);
+  function showSel(){ const S = sel(); sels.forEach((s, i) => ringFor(i, s.it.x, s.it.y, s.it.h, ringR(s.it), i === sels.length - 1 ? '#fde047' : '#86efac')); hideRings(sels.length);
+    if (!S){ $e('edSel').classList.remove('on'); btns(); banner(); return; }
+    const it = S.it; $e('edSelN').textContent = (sels.length > 1 ? sels.length + ' valda · sist: ' : '') + nice(it.key) + (it.ed ? ' (din)' : '') + (it.h ? ' · höjd ' + it.h : '');
+    const lt = $e('edLt'); lt.style.display = sels.some(s => LIGHTS[s.it.key]) ? '' : 'none'; lt.textContent = it.nl ? 'Sken: av' : 'Sken: på';
+    palette(S.R, it.c); $e('edSel').classList.add('on'); $e('edPoi').classList.remove('on'); btns(); banner(); }
+  function unselect(){ sels = []; psel = null; hideRings(0); $e('edSel').classList.remove('on'); $e('edPoi').classList.remove('on'); btns(); banner(); }
+  function select(R, it, add){ if (add){ const i = sels.findIndex(s => s.it === it); if (i >= 0) sels.splice(i, 1); else sels.push({R, it}); } else sels = [{R, it}]; psel = null; showSel(); }
+  /* ===== FARG: tonar saken (instanceColor multiplicerar materialets farg) - palett per region + egen farg ===== */
+  const PAL = {voxholm: ['#b7f27a', '#6fcf5a', '#e6c76a', '#c99a5b', '#f2e6c8', '#8fc7ff'], cutlassbay: ['#fff0c2', '#7fe9d9', '#6cc9ff', '#ffc45c', '#e0905a', '#f5f7fa'],
+    drakemark: ['#c9b3ff', '#9a7bff', '#9aa6b8', '#6b7a90', '#ff7a94', '#7a6fb0'], novacommand: ['#8ff5ff', '#f0f4ff', '#b5c0d0', '#8fb8ff', '#ff9ed6', '#fff08a'],
+    quarantine: ['#c7f26a', '#d9ff7a', '#ffab5c', '#b8ada0', '#857d74', '#ffe25c'], windfall: ['#fff6d8', '#ffeca0', '#bcd7ff', '#eaf6ff', '#ffd16b', '#ffffff']};
+  const PAL_ALL = ['#ffffff', '#ff8a8a', '#ffc27a', '#fff07a', '#9dff9d', '#7fdcff', '#aa9dff', '#ff9cf0', '#9a9a9a', '#555555'];
+  function palette(R, cur){ const E = $e('edPal'); E.textContent = ''; [...(PAL[R.id] || []), ...PAL_ALL].forEach(c => { const i = document.createElement('i'); i.style.background = c; i.title = c === '#ffffff' ? 'Ingen färg' : c; if ((cur || '#ffffff').toLowerCase() === c) i.className = 'on'; i.onclick = () => tint(c === '#ffffff' ? '' : c); E.appendChild(i); });
+    const inp = document.createElement('input'); inp.type = 'color'; inp.value = cur || '#ffffff'; inp.title = 'Egen färg'; inp.oninput = () => tint(inp.value); E.appendChild(inp); }
+  function tint(c){ each('tint', it => { if (c) it.c = c; else delete it.c; }, c ? 'Färg ' + c : 'Färg borttagen'); }
+  function tintObj(g, c){ const col = new THREE.Color(c); g.traverse(o => { if (o.isMesh){ o.material = o.material.clone(); o.material.color.multiply(col); o.userData.ownMat = true; } }); }
+  /* ===== SPOKEN: det som foljer musen (en eller flera saker) ===== */
+  function ghostOf(key, c){ const g = modelInstance(key); if (g && c) tintObj(g, c); return g; }
+  function dropGhosts(){ ghosts.forEach(g => { scene.remove(g); g.traverse(o => { if (o.isMesh && o.userData.ownMat) o.material.dispose(); }); }); ghosts = []; }
+  function ghostsAt(x, y){ const ax = gsnap(x), ay = gsnap(y);
+    ghosts.forEach(g => { const m = g.userData.m, h = m.it ? (m.it.h || 0) : (m.h || 0); g.position.set((ax + m.dx) * K, h * K, (ay + m.dy) * K); });
+    if (mode && mode.move) mode.move.forEach((m, i) => { const r = rings[i]; if (r) r.position.set((ax + m.dx) * K, .06 + (m.it.h || 0) * K, (ay + m.dy) * K); }); }
+  function ghostsAtScreen(sx, sy){ const g = groundAt(sx, sy); if (g) ghostsAt(g.x / K, g.z / K); }
+  function ghostsSync(){ ghosts.forEach(g => { const m = g.userData.m; if (m.it){ g.rotation.y = m.it.rot; g.scale.setScalar(m.it.sc); } else { g.rotation.y = m.rot + gRot; g.scale.setScalar(m.sc * gSc); } }); }
+  function startPlace(specs){ stopMode(); unselect();
+    if (typeof specs === 'string') specs = [{key: specs, rot: 0, sc: 1, h: 0, x: 0, y: 0}];
+    const a = specs[specs.length - 1]; specs.forEach(s => { s.dx = (s.x || 0) - (a.x || 0); s.dy = (s.y || 0) - (a.y || 0); });
+    gRot = 0; gSc = 1; mode = {place: specs};
+    specs.forEach(s => { const g = ghostOf(s.key, s.c); if (g){ g.userData.m = s; g.rotation.y = s.rot; g.scale.setScalar(s.sc); scene.add(g); ghosts.push(g); } });
+    if (lastMouse) ghostsAtScreen(lastMouse.x, lastMouse.y); markList(); banner(); msg(''); }
+  function stopMode(){ dropGhosts(); if (mode && mode.move){ const ks = new Set(); mode.move.forEach(m => { m.it.hid = 0; ks.add(m.it.key); }); ks.forEach(buildInstances); } mode = null; markList(); banner(); }
+  function pickUp(list){ stopMode(); const A = list[list.length - 1].it, ax = A.x, ay = A.y;
+    mode = {move: list.map(({R, it}) => ({R, it, dx: it.x - ax, dy: it.y - ay}))};
+    const ks = new Set(); list.forEach(({it}) => { it.hid = 1; ks.add(it.key); }); ks.forEach(buildInstances);
+    mode.move.forEach(m => { const g = ghostOf(m.it.key, m.it.c); if (g){ g.userData.m = m; g.rotation.y = m.it.rot; g.scale.setScalar(m.it.sc); scene.add(g); ghosts.push(g); } });
+    sels = list.slice(); showSel(); ghostsAt(ax, ay); msg(''); }
+  /* ===== PLATSER (quests, moten, expeditioner): valj genom att trycka pa ikonen, flytta med nasta klick ===== */
+  function selectPoi(Pp){ unselect(); psel = Pp; const o = !!(PLACE.poi && PLACE.poi[Pp.ovk]);
+    $e('edPoiN').textContent = (Pp.kind === 'quest' ? 'Quest' : Pp.kind === 'encounter' ? 'Möte' : 'Expedition') + ': ' + Pp.label + (o ? '  (din plats)' : '');
+    $e('edPoiT').textContent = Pp.R.namn + ' · ' + Pp.zn + (Pp.kind === 'expedition' ? '' : ' · ' + (Pp.kind === 'quest' ? 'quest' : 'möte') + ' nr ' + Pp.ovk.split('#')[1] + ' i zonen');
+    ringFor(0, Pp.x, Pp.y, 0, 1.6, '#fde047'); hideRings(1); $e('edPoi').classList.add('on'); banner(); }
+  function poiAct(a){ if (!psel) return; const Pp = psel;
+    if (a === 'pmv'){ mode = {poi: Pp}; banner(); return; }
+    if (a === 'prst'){ if (PLACE.poi && PLACE.poi[Pp.ovk]){ snap(); delete PLACE.poi[Pp.ovk]; rebuildPois(); changed('Tillbaka till rutnätet'); } unselect(); } }
+  function hitAt(sx, sy){ v2.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); camera.updateMatrixWorld(); ray.setFromCamera(v2, camera);   /* [TILLAGT 2026-11-04] strale mot instanserna: klick pa en tradkrona traffar tradet */
+    const ms = []; Object.keys(INST).forEach(k => INST[k].forEach(im => { if (im.parent && im.visible && im.userData.items) ms.push(im); }));
+    const hs = ray.intersectObjects(ms, false); for (const h of hs){ const it = h.object.userData.items[h.instanceId]; if (it && !it.hid && !it.fog) return {R: h.object.userData.R, it}; } return null; }
   function nearest(x, y){ let best = null, bd = 1e9;
-    LAND.forEach(R => R.items.forEach(it => { const rad = Math.max(footprint(it.key) / 2 * it.sc, 5), d = Math.hypot(it.x - x, it.y - y);   /* [ANDRAT 2026-11-04] trycket maste traffa saken (granskning: klick i marken lyfte nagot) */ if (d < rad && d / rad < bd){ bd = d / rad; best = {R, it}; } }));
+    LAND.forEach(R => R.items.forEach(it => { if (it.hid) return; const rad = Math.max(footprint(it.key) / 2 * it.sc, 5), d = Math.hypot(it.x - x, it.y - y); if (d < rad && d / rad < bd){ bd = d / rad; best = {R, it}; } }));
     return best; }
-  function act(a){ if (a === 'save') return save(); if (a === 'undo') return undo();
+  /* en andring pa alla valda: snap (sammanslagen per tagg), own, andra, sync, rita om */
+  function each(tag, fn, what){ if (!sels.length) return; snap(tag); sels.forEach(({R, it}) => { own(R, it); fn(it, R); sync(it); });
+    if (mode && mode.move) ghostsSync(); else new Set(sels.map(s => s.it.key)).forEach(buildInstances); showSel(); changed(what); }
+  function nudge(dx, dy){ if (mode) return; const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw), st = gridStep || 1;
+    const mx = (rx * dx + fx * dy) * st, my = (rz * dx + fz * dy) * st; each('nudge', it => { it.x = +(it.x + mx).toFixed(1); it.y = +(it.y + my).toFixed(1); }, 'Knuffad'); }
+  function act(a){
+    if (a === 'save') return save(); if (a === 'undo') return undo(); if (a === 'redo') return redo();
+    if (a === 'help'){ HELP.classList.toggle('on'); return; }
+    if (a === 'top'){ edTopOn = !edTopOn; edTop = edTopOn; $e('edTop').classList.toggle('on', edTopOn); return; }
+    if (a === 'fly'){ const S = sel(); if (!S) return; flyTo({tx: S.it.x * K, tz: S.it.y * K, dist: Math.max(14, footprint(S.it.key) * K * S.it.sc * 4), yaw: cam.yaw}, 700); return; }
+    if (a === 'grid'){ gridStep = GRIDS[(GRIDS.indexOf(gridStep) + 1) % GRIDS.length]; lsSet('genesis.edGrid', gridStep); setBtns(); if (lastMouse) ghostsAtScreen(lastMouse.x, lastMouse.y); return; }
+    if (a === 'ang'){ angStep = ANGS[(ANGS.indexOf(angStep) + 1) % ANGS.length]; lsSet('genesis.edAng', angStep); setBtns(); return; }
     if (a === 'pmv' || a === 'prst') return poiAct(a);
-    if (!sel) return; const {R, it} = sel;
-    if (a === 'del'){ snap(); if (it.ed){ const i = PLACE.add.indexOf(it.src); if (i >= 0) PLACE.add.splice(i, 1); } else PLACE.del.push(itemId(R, it));
-      R.items.splice(R.items.indexOf(it), 1); dropGhost(); mode = null; buildInstances(it.key); unselect(); changed('Borttagen'); return; }
-    if (a === 'mv'){ pickUp(R, it); return; }
-    if (a === 'lt'){ snap(); own(R, it); it.nl = it.nl ? 0 : 1; sync(it); select(R, it); changed(it.nl ? 'Sken av' : 'Sken på'); return; }
-    if (a === 'cp'){ startPlace(it.key); gRot = it.rot; gSc = it.sc; if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
-    snap(); own(R, it);
-    if (a === 'l') it.rot -= Math.PI / 12; if (a === 'r') it.rot += Math.PI / 12;
-    if (a === 'm') it.sc = Math.max(.2, it.sc / 1.15); if (a === 'p') it.sc = Math.min(6, it.sc * 1.15);
-    sync(it); if (mode && mode.move && mode.move.it === it){ if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); } }   /* [ANDRAT 2026-11-04] under flytt: bara spoket andras */
-    else buildInstances(it.key);
-    select(R, it); changed(a === 'l' || a === 'r' ? 'Vriden' : 'Ny storlek'); }
-  /* [TILLAGT 2026-11-04] ENKLARE HANTERING (Chris): klick pa en sak = den lyfts och foljer musen; klick pa marken = den stalls ner och ar fortfarande
-     vald (Q/E vrider, Shift+rullhjul storlek, Delete tar bort); klick pa den igen = lyft igen. Esc staller tillbaka den. */
-  function pickUp(R, it){ sel = {R, it};   /* [ANDRAT 2026-11-04] snap/own forst vid nerstallning - Esc lamnar da inget spar (granskning) */ mode = {move: sel}; R.items.splice(R.items.indexOf(it), 1); buildInstances(it.key); R.items.push(it);
-    dropGhost(); ghost = modelInstance(it.key); if (ghost){ ghost.rotation.y = it.rot; ghost.scale.setScalar(it.sc); ghost.position.set(it.x * K, 0, it.y * K); scene.add(ghost); }
-    select(R, it); msg('Flyttar ' + nice(it.key) + ' – klicka där den ska stå. Q/E vrider, Shift+rullhjul ändrar storlek, Esc ångrar'); }
+    if (mode && mode.place){ if (a === 'l') gRot -= angRad(); if (a === 'r') gRot += angRad(); if (a === 'm') gSc = Math.max(.2, gSc / 1.15); if (a === 'p') gSc = Math.min(6, gSc * 1.15); ghostsSync(); return; }
+    if (!sels.length) return;
+    if (a === 'del'){ snap(); const ks = new Set(); sels.forEach(({R, it}) => { if (it.ed){ const i = PLACE.add.indexOf(it.src); if (i >= 0) PLACE.add.splice(i, 1); } else PLACE.del.push(itemId(R, it)); R.items.splice(R.items.indexOf(it), 1); ks.add(it.key); });
+      const n = sels.length; dropGhosts(); mode = null; ks.forEach(buildInstances); unselect(); changed(n > 1 ? n + ' borttagna' : 'Borttagen'); return; }
+    if (a === 'mv'){ if (!(mode && mode.move)) pickUp(sels.slice()); return; }
+    if (a === 'cp'){ startPlace(sels.map(s => ({key: s.it.key, rot: s.it.rot, sc: s.it.sc, h: s.it.h || 0, c: s.it.c, nl: s.it.nl, x: s.it.x, y: s.it.y}))); return; }
+    if (a === 'lt'){ const on = !sel().it.nl; each('', it => { if (LIGHTS[it.key]) it.nl = on ? 1 : 0; }, on ? 'Sken av' : 'Sken på'); return; }
+    const st = angRad();
+    if (a === 'l' || a === 'r') each('rot', it => { it.rot += a === 'l' ? -st : st; if (gridStep) it.rot = Math.round(it.rot / st) * st; }, 'Vriden');
+    if (a === 'm' || a === 'p') each('sc', it => { it.sc = a === 'm' ? Math.max(.2, it.sc / 1.15) : Math.min(6, it.sc * 1.15); }, 'Ny storlek');
+    if (a === 'hu' || a === 'hd') each('h', it => { it.h = Math.max(0, +((it.h || 0) + (a === 'hu' ? 5 : -5)).toFixed(1)); }, 'Ny höjd');
+    if (a === 'h0') each('', it => { it.h = 0; }, 'Ner på marken'); }
   P.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => act(b.dataset.a));
-  edTap = (sx, sy) => { const g = groundAt(sx, sy); if (!g) return; const x = g.x / K, y = g.z / K, R = regionAt(x, y);
-    /* [TILLAGT 2026-11-04] platser: flytta den valda, eller valj en genom att trycka pa dess ikon */
-    if (mode && mode.poi){ const P = mode.poi; if (!R || R !== P.R){ msg('Bara inne i ' + P.R.namn); return; } snap(); PLACE.poi = PLACE.poi || {}; PLACE.poi[P.ovk] = {x: +x.toFixed(1), y: +y.toFixed(1)};
-      mode = null; rebuildPois(); const P2 = pois.find(p => p.ovk === P.ovk); changed('Platsen flyttad'); if (P2) selectPoi(P2); return; }
-    if (!mode){ const P = poiAt(sx, sy); if (P && P.ovk){ selectPoi(P); mode = {poi: P}; msg('Flyttar ' + P.label + ' – klicka där den ska ligga. Esc ångrar'); return; } }   /* [ANDRAT 2026-11-04] klick = lyft direkt */
-    if (mode && mode.place){ if (!R){ msg('Bara på land'); return; } snap(); const a = {r: R.id, k: mode.place, x: +x.toFixed(1), y: +y.toFixed(1), rot: +gRot.toFixed(3), sc: +gSc.toFixed(2)};
-      PLACE.add.push(a); const it = {key: a.k, x: a.x, y: a.y, rot: a.rot, sc: a.sc, ed: 1, src: a}; R.items.push(it); buildInstances(a.k); changed('Utsatt: ' + nice(a.k)); return; }
-    if (mode && mode.move){ const {R: R0, it} = mode.move; if (!R){ msg('Bara på land'); return; } snap(); own(R0, it);
-      if (R !== R0){ R0.items.splice(R0.items.indexOf(it), 1); R.items.push(it); it.src.r = R.id; }
-      it.x = x; it.y = y; sync(it); dropGhost(); mode = null; buildInstances(it.key); select(R, it); changed('Flyttad'); msg('Nerställd · ' + dirty + ' osparade ändringar · klicka på den igen för att flytta den, Q/E vrider, Shift+rullhjul storlek'); return; }
-    const n = nearest(x, y); if (n) pickUp(n.R, n.it); else unselect(); };   /* [ANDRAT 2026-11-04] klick = lyft direkt */
-  glc.addEventListener('pointermove', e => { if (mode && mode.poi && ring){ const g = groundAt(e.clientX, e.clientY); if (g) ring.position.set(g.x, .06, g.z); return; }
-    if (!ghost) return; const g = groundAt(e.clientX, e.clientY); if (!g) return; ghost.position.set(g.x, 0, g.z); if (ring && mode && mode.move) ring.position.set(g.x, .06, g.z);
-    ghost.rotation.y = mode && mode.move ? mode.move.it.rot : gRot; ghost.scale.setScalar(mode && mode.move ? mode.move.it.sc : gSc); });
-  /* [TILLAGT 2026-11-04] Shift + rullhjul = storre/mindre pa den valda (eller den som satts ut). Tar hjulet fore kartans zoom. */
-  glc.addEventListener('wheel', e => { if (!e.shiftKey || !(sel || (mode && mode.place))) return; e.preventDefault(); e.stopImmediatePropagation();
-    const up = (e.deltaY || e.deltaX) < 0;
-    if (mode && mode.place){ gSc = up ? Math.min(6, gSc * 1.1) : Math.max(.2, gSc / 1.1); if (ghost) ghost.scale.setScalar(gSc); return; }
-    const now = performance.now(); wheelGest = now - wheelT < 400; wheelT = now; act(up ? 'p' : 'm'); wheelGest = false; }, {capture: true, passive: false});
-  let wheelT = 0, wheelGest = false;   /* [TILLAGT 2026-11-04] flera hjulsteg i rad = en angrapunkt (granskning) */
-  addEventListener('keydown', e => { const t = e.target; if (t && t.tagName === 'INPUT') return; const k = e.key;
-    if (k === 'Escape'){ if (mode && mode.poi){ mode = null; if (psel) selectPoi(psel); msg(''); return; } const was = mode && mode.move; stopMode(); unselect(); msg(was ? 'Avbrutet – saken ställdes tillbaka' : ''); return; }
-    if (mode && mode.place){ if (k === 'q' || k === 'Q') gRot -= Math.PI / 12; if (k === 'e' || k === 'E') gRot += Math.PI / 12; if (k === '+') gSc = Math.min(6, gSc * 1.15); if (k === '-') gSc = Math.max(.2, gSc / 1.15);
-      if (ghost){ ghost.rotation.y = gRot; ghost.scale.setScalar(gSc); } return; }
-    if (k === 'q' || k === 'Q') act('l'); if (k === 'e' || k === 'E') act('r'); if (k === '+') act('p'); if (k === '-') act('m');
-    if (k === 'Delete') act('del'); });   /* [ANDRAT 2026-11-04] inte Backspace (granskning: raderade av misstag) */
-  function undo(){ if (!snaps.length){ msg('Inget att ångra'); return; } try { localStorage.setItem('genesis.edDraft', snaps.pop());
-      sessionStorage.setItem('genesis.edCam', JSON.stringify({tx: cam.tx, tz: cam.tz, dist: cam.dist, yaw: cam.yaw})); } catch (e){} msg('Ångrar…'); location.reload(); }
+  glc.addEventListener('pointerdown', e => { lastShift = e.shiftKey; }, true);
+  edTap = (sx, sy) => { const g = groundAt(sx, sy); if (!g) return; const x = g.x / K, y = g.z / K, shift = lastShift;
+    if (mode && mode.poi){ const Pp = mode.poi, R = regionAt(x, y); if (!R || R !== Pp.R){ msg('Bara inne i ' + Pp.R.namn); return; } snap(); PLACE.poi = PLACE.poi || {}; PLACE.poi[Pp.ovk] = {x: +x.toFixed(1), y: +y.toFixed(1)};
+      mode = null; rebuildPois(); const P2 = pois.find(p => p.ovk === Pp.ovk); changed('Platsen flyttad'); if (P2) selectPoi(P2); return; }
+    if (!mode){ const Pp = poiAt(sx, sy); if (Pp && Pp.ovk){ selectPoi(Pp); mode = {poi: Pp}; banner(); return; } }
+    if (mode && mode.place){ const ax = gsnap(x), ay = gsnap(y), st = angRad(), puts = mode.place.map(s => ({s, x: ax + s.dx, y: ay + s.dy, R: regionAt(ax + s.dx, ay + s.dy)}));
+      if (puts.some(p => !p.R)){ msg('Bara på land'); return; }
+      snap(); const made = []; puts.forEach(p => { const s = p.s, rot = s.rot + gRot, a = {r: p.R.id, k: s.key, x: +p.x.toFixed(1), y: +p.y.toFixed(1), rot: +(gridStep ? Math.round(rot / st) * st : rot).toFixed(3), sc: +(s.sc * gSc).toFixed(2)};
+        if (s.h) a.h = +s.h; if (s.c) a.c = s.c; if (s.nl) a.nl = 1; PLACE.add.push(a); const it = placedItem(a); p.R.items.push(it); made.push({R: p.R, it}); recent(s.key); });
+      new Set(made.map(m => m.it.key)).forEach(buildInstances); changed(made.length > 1 ? made.length + ' utsatta' : 'Utsatt: ' + nice(made[0].it.key)); return; }
+    if (mode && mode.move){ const ax = gsnap(x), ay = gsnap(y), dest = mode.move.map(m => ({m, x: ax + m.dx, y: ay + m.dy, R: regionAt(ax + m.dx, ay + m.dy)}));
+      if (dest.some(d => !d.R)){ msg('Bara på land'); return; }
+      snap(); const ks = new Set(); dest.forEach(({m, x: nx, y: ny, R: R2}) => { const {R: R0, it} = m; own(R0, it); if (R2 !== R0){ R0.items.splice(R0.items.indexOf(it), 1); R2.items.push(it); it.src.r = R2.id; }
+        it.x = +nx.toFixed(1); it.y = +ny.toFixed(1); it.hid = 0; sync(it); ks.add(it.key); });
+      const list2 = dest.map(d => ({R: d.R, it: d.m.it})); dropGhosts(); mode = null; ks.forEach(buildInstances); sels = list2; showSel(); changed(list2.length > 1 ? list2.length + ' flyttade' : 'Flyttad'); return; }
+    const n = hitAt(sx, sy) || nearest(x, y);
+    if (n){ if (shift){ select(n.R, n.it, true); return; } if (sels.length > 1 && sels.some(s => s.it === n.it)) pickUp(sels.slice()); else pickUp([{R: n.R, it: n.it}]); }
+    else if (!shift) unselect(); };
+  glc.addEventListener('pointermove', e => { lastMouse = {x: e.clientX, y: e.clientY};
+    if (mode && mode.poi){ const g = groundAt(e.clientX, e.clientY); if (g && rings[0]) rings[0].position.set(g.x, .06, g.z); return; }
+    if (ghosts.length) ghostsAtScreen(e.clientX, e.clientY); });
+  /* Shift + rullhjul = storre/mindre pa den valda (eller den som satts ut). Tar hjulet fore kartans zoom. */
+  glc.addEventListener('wheel', e => { if (!e.shiftKey || !(sels.length || (mode && mode.place))) return; e.preventDefault(); e.stopImmediatePropagation(); act(((e.deltaY || e.deltaX) < 0) ? 'p' : 'm'); }, {capture: true, passive: false});
+  addEventListener('keydown', e => { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT')) return; const k = e.key, ctl = e.ctrlKey || e.metaKey;
+    if (ctl && (k === 'z' || k === 'Z')){ e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; } if (ctl && (k === 'y' || k === 'Y')){ e.preventDefault(); redo(); return; } if (ctl || e.altKey) return;
+    if (k === 'Escape'){ if (HELP.classList.contains('on')){ HELP.classList.remove('on'); return; } if (mode && mode.poi){ mode = null; if (psel) selectPoi(psel); else banner(); msg(''); return; }
+      const was = mode && mode.move; stopMode(); if (was) showSel(); else unselect(); msg(was ? 'Avbrutet – saken ställdes tillbaka' : ''); return; }
+    if (k === '?'){ HELP.classList.toggle('on'); return; }
+    if (k === 'g' || k === 'G'){ act('grid'); return; } if (k === 't' || k === 'T'){ act('top'); return; } if (k === 'f' || k === 'F'){ act('fly'); return; }
+    if (k === 'q' || k === 'Q') act('l'); else if (k === 'e' || k === 'E') act('r'); else if (k === '+') act('p'); else if (k === '-') act('m');
+    else if (k === 'Delete') act('del'); else if (k === 'PageUp'){ e.preventDefault(); act('hu'); } else if (k === 'PageDown'){ e.preventDefault(); act('hd'); }
+    else if (/^Arrow/.test(k)){ e.preventDefault(); const m = e.shiftKey ? 5 : 1; nudge(k === 'ArrowRight' ? m : k === 'ArrowLeft' ? -m : 0, k === 'ArrowUp' ? m : k === 'ArrowDown' ? -m : 0); } });
   function save(){ const body = JSON.stringify({v: 1, sparad: new Date().toISOString(), add: PLACE.add, del: PLACE.del, poi: PLACE.poi || {}}, null, 1);
     fetch('/__spara-placering', {method: 'POST', headers: {'Content-Type': 'application/json'}, body}).then(r => { if (!r.ok) throw new Error(r.status);
-      try { localStorage.removeItem('genesis.edDraft'); } catch (e){} dirty = 0; snaps.length = 0; btns(); msg('Sparat! Säg till Claude att det finns nya placeringar.'); })
+      try { localStorage.removeItem('genesis.edDraft'); } catch (e){} savedJ = JSON.stringify(PLACE); savedDepth = undoS.length; btns(); msg('Sparat! Säg till Claude att det finns nya placeringar.'); })
       .catch(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], {type: 'application/json'})); a.download = 'placering.json'; a.click(); msg('Ingen lokal server: filen placering.json laddades NED i stället – skicka den till Claude.'); }); }
-  /* kameran tillbaka dar den var fore Angra */
+  addEventListener('beforeunload', e => { if (!leaving && isDirty()){ e.preventDefault(); e.returnValue = ''; } });
+  /* kameran tillbaka dar den var fore bytet av landmarken */
   try { const c = JSON.parse(sessionStorage.getItem('genesis.edCam') || 'null'); if (c){ sessionStorage.removeItem('genesis.edCam'); Object.assign(cam, c); touched = true; } } catch (e){}
-  const waitList = setInterval(() => { if (worldReady){ clearInterval(waitList); list(); } }, 500); list();
+  const waitList = setInterval(() => { if (worldReady){ clearInterval(waitList); list(); } }, 500); list(); setBtns(); banner();
   msg(PLACE.add.length || PLACE.del.length ? 'Laddade ' + PLACE.add.length + ' utsatta och ' + PLACE.del.length + ' borttagna' : ''); btns();
-  /* [TILLAGT 2026-11-04] ett osparat utkast fran forra gangen vinner tyst over filen - sag det och ge en knapp att slanga det (granskning) */
+  /* ett osparat utkast fran forra gangen vinner tyst over filen - sag det och ge en knapp att slanga det */
   if (hadDraft){ const d = document.createElement('div'); d.className = 'row'; d.id = 'edDraftRow'; d.innerHTML = '<span class="t" style="flex:1">OSPARAT UTKAST från förra gången är laddat.</span><button class="red" id="edDropDraft">Släng utkastet</button>';
-    $e('edMsg').before(d); $e('edDropDraft').onclick = () => { try { localStorage.removeItem('genesis.edDraft'); } catch (e){} location.reload(); }; }
+    $e('edMsg').before(d); $e('edDropDraft').onclick = () => { leaving = true; try { localStorage.removeItem('genesis.edDraft'); } catch (e){} location.reload(); }; }
 })();
 /* [TILLAGT v5.1384.0] TESTSIDAN (oppnad direkt, inte i spelet): pahittade quests och moten i varje zon sa att Chris ser hur de ser ut.
    I spelet skickar spelet de riktiga och de har raderna kors aldrig. */
