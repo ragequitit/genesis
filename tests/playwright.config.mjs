@@ -36,7 +36,7 @@ export default defineConfig({
     { name: 'data', testMatch: /data\.spec\.mjs/ },
     ...SKARMAR.map(s => ({
       name: s.name,
-      testMatch: /(ui|windfall)\.spec\.mjs/,
+      testMatch: /(ui|windfall|karta3d)\.spec\.mjs/,
       use: { viewport: { width: s.width, height: s.height }, hasTouch: !!s.touch, isMobile: false },
     })),
   ],
