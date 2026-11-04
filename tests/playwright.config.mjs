@@ -8,6 +8,7 @@ export const SKARMAR = [
   { name: '1920x1080', width: 1920, height: 1080 },
   { name: '1440x900', width: 1440, height: 900 },
   { name: '1280x800', width: 1280, height: 800 },
+  { name: '1000x800', width: 1000, height: 800 },   // mellan 820 och 1280 ar karaktarsrutan som smalast
   { name: '820x1180', width: 820, height: 1180, touch: true },
   { name: '390x844', width: 390, height: 844, touch: true },
   { name: '360x740', width: 360, height: 740, touch: true },

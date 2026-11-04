@@ -202,6 +202,37 @@ for (const f of FONSTER) {
 }
 
 // Kartan: pa smala skarmar finns "Open map" (helskarm) och "Close". Pa breda skarmar ar kartan alltid oppen i sin panel.
+// Karaktarsrutan blir smal mellan 821 och 1279 px. Kors bara i 1000-projektet, som provar fyra bredder i spannet.
+test('karaktarsrutan: flikar och stats gar inte ihop mellan 821 och 1279 px', async ({ page, context }, info) => {
+  test.skip(info.project.name !== '1000x800', 'galler bara mellanbredderna');
+  const spel = await startaSpelet(page, context);
+  for (const width of [900, 1000, 1100, 1200]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.waitForTimeout(300);
+    const krockar = await page.evaluate(() => {
+      const ruta = el => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect(); };
+      const fel = [];
+      const P = document.getElementById('panel-character');
+      for (const t of P.querySelectorAll('.ct-tab')) {
+        // Bara flikens text raknas: poangbrickan ligger i flikens horn.
+        const r = document.createRange(); r.selectNode(t.firstChild);
+        const b = t.getBoundingClientRect(), x = r.getBoundingClientRect();
+        if (x.left < b.left + 0.5 || x.right > b.right - 0.5) fel.push(`flik ${t.dataset.cttab}: text ${x.width.toFixed(1)} i ${b.width.toFixed(1)}`);
+      }
+      const rader = [...P.querySelectorAll('#cs-rows .cs-row')];
+      if (!rader.length) fel.push('inga stats-rader att prova');
+      for (const rad of rader) {
+        const a = ruta(rad.querySelector('.k')), c = ruta(rad.querySelector('.v')), b = rad.getBoundingClientRect();
+        if (a.right > c.left + 0.5 && a.bottom > c.top + 0.5 && c.bottom > a.top + 0.5) fel.push(`rad ${rad.textContent.trim()}: namn och tal krockar`);
+        if (a.right > b.right + 0.5 || c.right > b.right + 0.5) fel.push(`rad ${rad.textContent.trim()}: utanfor raden`);
+      }
+      return fel;
+    });
+    expect(krockar, 'bredd ' + width).toEqual([]);
+  }
+  expect(spel.fel()).toEqual([]);
+});
+
 test('fonster: map oppnas och stangs', async ({ page, context }) => {
   const spel = await startaSpelet(page, context);
   const frame = page.locator('#map-frame');

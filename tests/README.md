@@ -23,7 +23,7 @@ En färdig rapport med skärmbilder från de röda testerna öppnas med `npx pla
 - Varje bildsökväg i klientens katalog (`genesis-catalog`) finns på disken.
 - Varje hjälpare i `PETS` har en bild, och katalogens hjälparlista är densamma som `PETS`.
 
-**I webbläsaren, på sex skärmar** (1920x1080, 1440x900, 1280x800, 820x1180, 390x844, 360x740):
+**I webbläsaren, på sju skärmar** (1920x1080, 1440x900, 1280x800, 1000x800, 820x1180, 390x844, 360x740):
 - Sidan laddar utan JS-fel, utan saknade filer och utan sidledsskroll.
 - Dessa fönster öppnas med sin riktiga knapp, visar testdatan och stängs med krysset – utan fel:
   inventory, vault, helpers, achievements, events, How to play, auction house, mail, map och Mission Board.
