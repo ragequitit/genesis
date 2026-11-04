@@ -1124,6 +1124,12 @@ try { const pr = await fetch('assets/world3d/placering.json', {cache: 'no-store'
 let hadDraft = false;
 if (EDIT){ try { const d = okPlace(JSON.parse(localStorage.getItem('genesis.edDraft') || 'null')); if (d){ PLACE = d; hadDraft = true; } } catch (e){} }
 let edTap = null;
+/* [TILLAGT 2026-11-04] EXTRA MODELLPAKET (Kenney CC0, assets/world3d/paket/, byggda med .claude/tools/paket-bygg.mjs): i editorn laddas alla,
+   i spelet bara de paket som nagon utsatt sak faktiskt anvander - sa kartan blir inte tyngre for spelarna i onodan (Chris: fler modeller per region). */
+try { const r = await fetch('assets/world3d/paket/paket.json', {cache: 'no-store'}); if (r.ok){ const PK = await r.json(), used = new Set(PLACE.add.map(a => a && a.k));
+  Object.entries(PK).forEach(([name, p]) => { if (!p || !p.keys || !p.file) return; if (!EDIT && !Object.keys(p.keys).some(k => used.has(k))) return;
+    PACKS[name] = 'paket/' + p.file; Object.entries(p.keys).forEach(([k, v]) => { SIZE[k] = v; });
+    Object.entries(p.lights || {}).forEach(([k, v]) => { LIGHTS[k] = [+v[0], typeof v[1] === 'string' ? parseInt(v[1], 16) : +v[1], +v[2] || 1]; }); }); } } catch (e){}
 const itemId = (R, it) => R.id + '|' + String(it.key).replace(/^lmx_/, 'lm_') + '|' + Math.round(it.x) + '|' + Math.round(it.y);   /* [ANDRAT 2026-11-04] lm_/lmx_ ar samma landmarke - annars dubblett vid byte av set (granskning) */
 /* [TILLAGT 2026-11-04] en post i placering.json -> sak. Landmarken: posten kan ha nedladdad (lmx_) eller egen (lm_) nyckel - visa den som galler for valt set.
    h = hojd over marken (varldsenheter), c = fargton (#rrggbb), nl = utan sken. Anvands av laddaren och av editorns Angra/Gor om. */
