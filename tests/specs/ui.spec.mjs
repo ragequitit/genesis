@@ -203,10 +203,12 @@ for (const f of FONSTER) {
 
 // Kartan: pa smala skarmar finns "Open map" (helskarm) och "Close". Pa breda skarmar ar kartan alltid oppen i sin panel.
 // Karaktarsrutan blir smal mellan 821 och 1279 px. Kors bara i 1000-projektet, som provar fyra bredder i spannet.
-test('karaktarsrutan: flikar och stats gar inte ihop mellan 821 och 1279 px', async ({ page, context }, info) => {
+test('karaktarsrutan: flikar och stats gar inte ihop, och lang yrkestext ger ingen sidledsskroll', async ({ page, context }, info) => {
   test.skip(info.project.name !== '1000x800', 'galler bara mellanbredderna');
   const spel = await startaSpelet(page, context);
-  for (const width of [900, 1000, 1100, 1200]) {
+  // Den fejkade serverns yrkesrader ar korta. Felet kom fran en lang rad, sa en sadan satts in.
+  await page.evaluate(() => { for (const s of document.querySelectorAll('.prof-card .jc-status')) s.textContent = 'Paused — Fuel Refinery storage full and then some'; });
+  for (const width of [830, 900, 979, 980, 1000, 1100, 1200, 1280, 1281, 1440, 1500]) {
     await page.setViewportSize({ width, height: 800 });
     await page.waitForTimeout(300);
     const krockar = await page.evaluate(() => {
@@ -229,6 +231,7 @@ test('karaktarsrutan: flikar och stats gar inte ihop mellan 821 och 1279 px', as
       return fel;
     });
     expect(krockar, 'bredd ' + width).toEqual([]);
+    expect(await horisontelltOverflow(page), 'sidledsskroll vid ' + width).toBeNull();
   }
   expect(spel.fel()).toEqual([]);
 });
