@@ -3155,7 +3155,11 @@ resize(); if (SOFT_GPU) lowSet(2);   /* [TILLAGT v5.1456.0] mjukvaruritning: spa
 Object.assign(cam, viewOverview()); applyCam(); if (!EDIT) globeEnter(null, true);   /* [ANDRAT v5.1380.0] kartan borjar pa jordgloben */
 Object.keys(PACKS).forEach(loadPack); loadChars();
 /* [TILLAGT v5.1382.0] de nedladdade landmarken laddas bara nar de anvands; klotets bilder tas om nar de kommit */
-if (LMSET !== 'egna'){ let left = 0; LMS.forEach(l => { if (!l.nkey) return; left++; loader.loadAsync(BASE + 'lm/' + l.id + '.glb').then(g => { makeTemplate(l.nkey, g.scene); buildInstances(l.nkey); })
+/* [TILLAGT v5.1485.0] Pa telefon laddas en regions landmarken forst nar man gar in i den, 17 MB vid start var for mycket (Chris). */
+const LM_LAZY = LMSET !== 'egna' && Math.min(innerWidth, innerHeight) < 820, lmLaddad = new Set();
+if (LM_LAZY) setInterval(() => { if (GLB.on || !FR || lmLaddad.has(FR.id)) return; lmLaddad.add(FR.id);
+  LMS.forEach(l => { if (!l.nkey || l.r !== FR.id) return; loader.loadAsync(BASE + 'lm/' + l.id + '.glb').then(g => { makeTemplate(l.nkey, g.scene); buildInstances(l.nkey); }).catch(e => console.warn('landmarke', l.id, e && e.message)); }); }, 500);
+if (LMSET !== 'egna' && !LM_LAZY){ let left = 0; LMS.forEach(l => { if (!l.nkey) return; left++; loader.loadAsync(BASE + 'lm/' + l.id + '.glb').then(g => { makeTemplate(l.nkey, g.scene); buildInstances(l.nkey); })
   .catch(e => console.warn('landmarke', l.id, e && e.message)).finally(() => { if (--left === 0){ GLB.snapAt = -1; GLB.snapReady = false; if (GLB.on) globeSnap(); } }); }); }
 if (SRC) poll();   /* i spelets ram kommer datan med setWorld */
 renderStatus(); renderChips();
