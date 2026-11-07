@@ -2,6 +2,8 @@
 // [TILLAGT v5.1381.0] GENESIS-AI (Chris 2026-10-30): Claude i Genesis - Nixie svarar pa fragor, rapporterna sorteras,
 // chatten granskas. Se cloud/ai-server.sql. Nyckeln ar hemligheten ANTHROPIC_API_KEY. Saknas den: Nixie svarar att
 // hon vilar, chatten slapps direkt (fail-open) och rapporterna vantar.
+// [ANDRAT v5.1505.0] Chris 2026-11-07 (2A): chattgranskningen gar pa den billigaste modellen (Haiku) - den gors pa varje
+// publikt meddelande. Dagstaket sitter i databasen (ai_chat_budget_take).
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -10,6 +12,7 @@ const SB_SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
 const MODEL = "claude-opus-5-5";
+const CHEAP_MODEL = "claude-haiku-5-5";
 const SITE = "https://games.chriswhippit.com";
 
 const admin = createClient(SB_URL, SB_SERVICE, { auth: { persistSession: false } });
@@ -58,7 +61,23 @@ async function ask(system: any[], messages: any[],
   } as any) as any;
   const text = r.stop_reason === "refusal" ? "" :
     r.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("").trim();
-  return { text, refusal: r.stop_reason === "refusal", usage: (r.usage || {}) as Usage };
+  // [ANDRAT v5.1486.0] Cachade tokens raknas med - annars sag Nixies kostnad ut som nastan ingenting i loggen.
+  const u = r.usage || {};
+  const usage: Usage = { input_tokens: (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0), output_tokens: u.output_tokens };
+  return { text, refusal: r.stop_reason === "refusal", usage };
+}
+
+// [TILLAGT v5.1505.0] Enkel och billig fraga (Haiku) for chattgranskningen.
+async function askCheap(system: string, user: string, maxTokens: number) {
+  const r = await client!.messages.create({
+    model: CHEAP_MODEL, max_tokens: maxTokens, system,
+    messages: [{ role: "user", content: user }],
+  } as any) as any;
+  const text = r.stop_reason === "refusal" ? "" :
+    r.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("").trim();
+  const u = r.usage || {};
+  const usage: Usage = { input_tokens: u.input_tokens || 0, output_tokens: u.output_tokens };
+  return { text, refusal: r.stop_reason === "refusal", usage };
 }
 
 // ---------- 1. NIXIE ----------
@@ -163,7 +182,7 @@ async function chatguard(body: Record<string, unknown>) {
   if (!client) { await release("ok"); return json({ allow: true, off: true }); }
   const t0 = Date.now();
   try {
-    const a = await ask([{ type: "text", text: GUARD }], [{ role: "user", content: "Channel: " + msg.channel + "\nMessage: " + msg.body }], 1500, "low");
+    const a = await askCheap(GUARD, "Channel: " + msg.channel + "\nMessage: " + msg.body, 200);
     let allow = true, reason = "";
     try { const j = JSON.parse((a.text.match(/\{[\s\S]*\}/) || ["{}"])[0]); allow = j.allow !== false; reason = String(j.reason || ""); } catch (_e) { allow = true; }
     if (a.refusal) allow = true;   // fail-open
