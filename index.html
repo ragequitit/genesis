@@ -30029,7 +30029,8 @@ function mailItemNorm(it){
     qty: Math.max(1, +it.qty || 1),
     rar: it.rarity == null ? undefined : (it.rarity | 0),
     itemKey: it.item_key || undefined,
-    itemId: it.item_id || undefined
+    itemId: it.item_id || undefined,
+    lvl: it.lvl == null ? undefined : (+it.lvl || 0)   /* [TILLAGT v5.1520.0] pjas som rullas forst vid hamtning - nivan for kortet */
   };
 }
 /* [v5.659.0] EN byggsten for bilden av en bilaga - brevets rader och inkorgens stora ruta. */
@@ -30059,17 +30060,27 @@ function mailBigHTML(m){
   const src = artUnlessMissing('assets/ui/parcel.webp');
   return '<span class="mail-big art-wrap">' + (src ? artWithFallback(src, '\ud83c\udf81') : '<i class="art-fall" style="display:block">\ud83c\udf81</i>') + '</span>';
 }
+/* [TILLAGT v5.1520.0] Pjasen i en bilaga: den riktiga, eller en enkel pjas av nyckel + raritet + niva (rullas vid hamtning). */
+function mailGearOf(it){
+  if (!it) return null;
+  if (it.gear) return it.gear;
+  if (it.itemKey && ITEMS[it.itemKey] && it.rar != null)
+    return {t: it.itemKey, r: it.rar | 0, a: [], hp: 0, pw: 0, dm: 0, lv: it.lvl || 0, g: 0, s: ITEMS[it.itemKey].slot, mailPreview: true};
+  return null;
+}
 function mailItemHTML(it, mid, i){
   /* [ANDRAT v5.122.0] Brevet toms i ETT svep pa servern, sa raderna visar bara
      vad som ligger i kuvertet - EN knapp langst ner hamtar allt. Forut fanns en
      Take-knapp per rad, men forsta trycket tog hela brevet och stangde det, sa
      de ovriga knapparna var vilseledande. */
-  if (it.gear){
-    /* [ANDRAT v5.1519.0] Chris 2026-11-10: rariteten syns (fargat namn + ord) och pjasens kort visas vid hovring/tryck */
-    const rn = (RARITIES[it.gear.r | 0] || {}).name || '';
-    return '<div class="mail-item" data-mailgear="' + i + '" style="--rc:' + gearRarCol(it.gear) + '">' + mailArtHTML(it) +
-      '<span class="mi-name" style="color:' + gearRarCol(it.gear) + '">' + gearName(it.gear) + '</span>' +
-      (rn ? '<span class="mi-take" style="color:' + gearRarCol(it.gear) + '">' + esc(rn) + '</span>' : '') + '</div>';
+  const mg = mailGearOf(it);
+  if (mg){
+    /* [ANDRAT v5.1519.0] Chris 2026-11-10: rariteten syns (fargat namn + ord) och pjasens kort visas vid hovring/tryck.
+       [ANDRAT v5.1520.0] aven pjaser som rullas forst vid hamtning (veckans operation) - de har bara nyckel, raritet och niva. */
+    const rn = (RARITIES[mg.r | 0] || {}).name || '';
+    return '<div class="mail-item" data-mailgear="' + i + '" style="--rc:' + gearRarCol(mg) + '">' + mailArtHTML(it) +
+      '<span class="mi-name" style="color:' + gearRarCol(mg) + '">' + (it.gear ? gearName(it.gear) : esc(it.name || it.key)) + '</span>' +
+      (rn ? '<span class="mi-take" style="color:' + gearRarCol(mg) + '">' + esc(rn) + '</span>' : '') + '</div>';
   }
   const art = mailArtHTML(it);
   return '<div class="mail-item">' + art +
@@ -30349,12 +30360,15 @@ function openMailNote(id){
   makeDraggable(note, [note.querySelector('.iw-head'), note]);
   note.querySelector('.iw-x').addEventListener('click', () => note.remove());
   /* [TILLAGT v5.1519.0] PJASENS KORT I BREVET (Chris 2026-11-10): hovra med musen, tryck pa telefon. */
-  const mgTip = (row, ev) => { const mm = findMail(id), g = mm && mm.items[+row.dataset.mailgear] && mm.items[+row.dataset.mailgear].gear;
-    if (!g) return; const r = row.getBoundingClientRect(); showGearTip(g, ev && ev.clientX ? ev.clientX : r.right, ev && ev.clientY ? ev.clientY : r.top); };
+  const mgTip = (row, ev) => { const mm = findMail(id), g = mm && mailGearOf(mm.items[+row.dataset.mailgear]);
+    if (!g) return;
+    /* [TILLAGT v5.1520.0] pjas som rullas vid hamtning: inga varden an - en enkel ruta i stallet for kortet med nollor */
+    if (g.mailPreview){ const D = ITEMS[g.t] || {}; showBagTip(row, '<b>' + esc(D.name || g.t) + '</b><br>' + esc(((RARITIES[g.r] || {}).name || '') + ' · ' + ((GEAR_SLOTS[D.slot] || {}).name || 'Gear') + (g.lv ? ' · Level ' + g.lv : '')) + '<br>Stats are rolled when you claim it.'); return; }
+    const r = row.getBoundingClientRect(); showGearTip(g, ev && ev.clientX ? ev.clientX : r.right, ev && ev.clientY ? ev.clientY : r.top); };
   note.querySelectorAll('[data-mailgear]').forEach(row => {
     row.addEventListener('mouseenter', ev => { if (!isTouchInput()) mgTip(row, ev); });
-    row.addEventListener('mouseleave', () => { if (!isTouchInput()) hideGearTip(); });
-    row.addEventListener('click', ev => { ev.stopPropagation(); if (gearTip.classList.contains('on') && gtLast && gtLast.it === ((findMail(id) || {}).items || [])[+row.dataset.mailgear]?.gear) hideGearTip(); else mgTip(row, ev); });
+    row.addEventListener('mouseleave', () => { if (!isTouchInput()) { hideGearTip(); try { hideBagTip(); } catch (e){} } });
+    row.addEventListener('click', ev => { ev.stopPropagation(); if (row.dataset.tipOn === '1'){ hideGearTip(); try { hideBagTip(); } catch (e){} row.dataset.tipOn = ''; return; } row.dataset.tipOn = '1'; mgTip(row, ev); });
   });
   const claimAll = note.querySelector('[data-claimall]');
   if (claimAll) claimAll.addEventListener('click', e => {
