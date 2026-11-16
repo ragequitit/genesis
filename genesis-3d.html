@@ -2585,7 +2585,7 @@ addEventListener('message', ev => { if (MSG_OK.indexOf(ev.origin) < 0) return; c
    ====================================================================== */
 const LANDING = 'The Landing';      // TRADE_ZONE / VAULT_ZONE i index.html
 const ME = '\u0000me';
-const G = {state: null, travel: null, veins: [], exps: null, events: [], flags: {}, players: [], lastZone: null};
+const G = {state: null, travel: null, veins: [], exps: null, events: [], gifts: [], giftSig: '', flags: {}, players: [], lastZone: null};
 let poisDirty = true, viaPost = false, postOrigin = null;
 const splitKey = k => { const s = String(k || ''), i = s.indexOf('|'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)]; };
 function zoneState(rid, zn){ const st = G.state && G.state.zones; return st && st[rid + '|' + zn] || 'visited'; }
@@ -2600,6 +2600,8 @@ const API = window.genesisMap = {
   setState(st){ if (!st || typeof st !== 'object') return; G.state = st; poisDirty = true; soonSync(st.regions); zoneFog(); onGameState(); renderStatus(); },
   setTravel(v){ G.travel = v && typeof v === 'object' ? v : null; renderTravel(); },
   setVeins(list){ G.veins = Array.isArray(list) ? list.slice(0, 40) : []; poisDirty = true; },
+  /* [TILLAGT v5.1530.0] KLAPPAR (Chris 2026-11-16): julklappar och paskagg i varlden. Spelet skickar listan varje sekund - bara en ny lista bygger om. */
+  setGifts(list){ const l = Array.isArray(list) ? list.slice(0, 60) : [], sig = JSON.stringify(l); if (sig === G.giftSig) return; G.giftSig = sig; G.gifts = l; poisDirty = true; },
   setPlayers(list){ G.players = Array.isArray(list) ? list.slice(0, 60) : []; },
   setNodeFlags(f){ G.flags = f && typeof f === 'object' ? f : {}; poisDirty = true; },
   showRegion(id){ const R = REG_BY[id]; if (R && !R.locked && follow !== ME && !me.R) focusRegion(R); },
@@ -2631,7 +2633,7 @@ const API = window.genesisMap = {
 /* KOPPLINGSPUNKT 2 (alternativ): postMessage. {genesisMapCall:{fn:'setState', args:[...]}} in, {genesisMapPick:{...}} ut. */
 const BRIDGE_OK = [location.origin, Q.get('from')].filter(Boolean);
 addEventListener('message', ev => { if (BRIDGE_OK.indexOf(ev.origin) < 0) return; const m = ev.data && ev.data.genesisMapCall; if (!m || typeof m.fn !== 'string') return;
-  if (!/^(setState|setTravel|setVeins|setPlayers|setNodeFlags|showRegion|showZone|setExpeditions|setMe|setEvents|setLive|bubble|setWorld)$/.test(m.fn)) return;
+  if (!/^(setState|setTravel|setVeins|setGifts|setPlayers|setNodeFlags|showRegion|showZone|setExpeditions|setMe|setEvents|setLive|bubble|setWorld)$/.test(m.fn)) return;
   viaPost = true; postOrigin = ev.origin; try { API[m.fn].apply(API, Array.isArray(m.args) ? m.args : []); } catch (err){ console.warn(err); } });
 const linked = () => typeof API.onPick === 'function' || viaPost;
 /* ALLA klick gar har. Spelet (onPick = gmPick) bestammer. Utan spel hander ingenting - kartan har inga egna regler. */
@@ -2814,7 +2816,9 @@ function updateMe(dt, t){
     me.spd = sp;
     if (!me.path.length && me.goal){ const P = me.goal.poi; me.goal = null;
       /* [ANDRAT v5.1353.0] rutan oppnades redan vid trycket (onPoi) - har bara gesten nar man ar framme */
-      if (P){ me.face = Math.atan2(P.x - me.x, P.y - me.y); meAct(P.kind === 'encounter' ? figOf(me).atk : P.kind === 'vein' ? 'PickUp' : 'Interact', .8); } } }
+      if (P){ me.face = Math.atan2(P.x - me.x, P.y - me.y); meAct(P.kind === 'encounter' ? figOf(me).atk : P.kind === 'vein' || P.kind === 'gift' ? 'PickUp' : 'Interact', .8); if (P.kind === 'gift') giftArrive(P); } } }
+  /* [TILLAGT v5.1530.0] GAR MAN RAKT PA EN KLAPP tas den ocksa, utan tryck */
+  if (me.spd > 0) pois.forEach(P => { if (P.kind === 'gift' && P.R === me.R && Math.hypot(P.x - me.x, P.y - me.y) < 14) giftArrive(P); });
   if (me.actT > 0){ me.actT -= dt; if (me.actT <= 0) me.act = null; }
   const zn = zoneAt(me.R, me.x, me.y);
   if (zn !== me.zn){ me.zn = zn; pick({kind: 'zoneenter', region: me.R.id, zone: zn}); renderTravel(); }
@@ -2825,6 +2829,10 @@ function updateMe(dt, t){
     pick({kind: 'pos', region: me.R.id, zone: zn, x: Math.round(me.x), y: Math.round(me.y), face: Math.round(me.face * 100) / 100, mv}); }
 }
 let posSentAt = 0, posMvSent = false;
+/* [TILLAGT v5.1530.0] framme vid klappen: spelet fragar servern. Samma klapp hogst var tredje sekund. */
+const giftTried = {};
+function giftArrive(P){ const k = P.key, nu = performance.now(); if (giftTried[k] && nu - giftTried[k] < 3000) return; giftTried[k] = nu;
+  if (me.spd > 0) meAct('PickUp', .8); pick(Object.assign({}, P.pick, {arrived: true})); }
 function meAct(name, secs){ me.act = name; me.actT = secs; me.actNew = true; }
 function ensureMeAv(){ if (me.av || !CLIPS) return; const C = figOf(me); if (!CHAR[C.f]) return;
   me.av = makeAvatar(C.f, C.keep, 1.75); if (!me.av) return; skinAv(me.av, me);
@@ -2874,14 +2882,15 @@ function expDefault(){ const out = []; for (const rid in EXP_DEF) for (const zn 
 /* [ANDRAT v5.1389.0] FARGERNA SOM PA 2D-KARTAN (Chris): moten vita, expeditioner neonbla, dungeons roda - cirkel, pelare och namn */
 $('mapkey').innerHTML = [['EXPEDITION', MK.exp], ['DUNGEON', MK.dungeon], ['QUEST', MK.quest], ['VAULT', MK.vault], ['VENDOR', MK.vendor], ['MISSIONS', MK.board], ['ENCOUNTER', MK.enc], ['WORLD BOSS', MK.boss]].map(x => '<span><i style="background:' + x[1] + '"></i>' + x[0] + '</span>').join('');
 const POI_COL = {quest: MK.quest, encounter: MK.enc, expedition: MK.exp, gather: '#f59e0b', fiber: '#d946ef', vein: '#38e8ff', landing: '#e8ecff',
-  vendor: MK.vendor, vault: MK.vault, board: MK.board, dungeon: MK.dungeon, event: '#ff4fd8', boss: MK.boss};
+  vendor: MK.vendor, vault: MK.vault, board: MK.board, dungeon: MK.dungeon, event: '#ff4fd8', boss: MK.boss, gift: '#ff5a6e', egg: '#f5a8d0'};
 /* ritade ikoner (inga emoji: de ser olika ut pa olika telefoner - samma tanke som spelets egna ikoner) */
 /* [TILLAGT v5.1353.0] KARTIKONERNA (Chris 2026-10-29): de tolv godkanda ikonerna i spelets ikonstil, assets/ui/map3d/<namn>.webp.
    Strecken i drawIcon finns kvar som reserv tills bilden laddats (eller om den saknas). */
 const MAP_ICO = {};
 ['landing', 'vendor', 'vault', 'quest_new', 'quest_done', 'encounter', 'vein', 'gather', 'expedition', 'dungeon', 'worldboss', 'event'].forEach(k => {
   const im = new Image(); im.decoding = 'async'; im.src = 'assets/ui/map3d/' + k + '.webp'; MAP_ICO[k] = im; });
-{ const im = new Image(); im.decoding = 'async'; im.src = 'assets/ui/ico/mission_board.webp'; MAP_ICO.board = im; }   /* [TILLAGT v5.1424.0] */
+{ const im = new Image(); im.decoding = 'async'; im.src = 'assets/ui/ico/mission_board.webp'; MAP_ICO.board = im; }
+[['gift', 'gift_xmas'], ['egg', 'gift_easter']].forEach(([k, f]) => { const im = new Image(); im.decoding = 'async'; im.src = 'assets/items/caches/' + f + '.webp'; MAP_ICO[k] = im; });   /* [TILLAGT v5.1530.0] klappens egen bild */   /* [TILLAGT v5.1424.0] */
 const MAP_ICO_KEY = {boss: 'worldboss', rest: 'encounter', fiber: 'gather'};
 function mapIco(kind){ const im = MAP_ICO[MAP_ICO_KEY[kind] || kind]; return im && im.complete && im.naturalWidth > 0 ? im : null; }
 function drawIcon(c, kind, x, y, r, col){
@@ -2953,6 +2962,10 @@ function rebuildPois(){
     const k = vk[v.zone] = (vk[v.zone] || 0) + 1, nl = z.nodes ? z.nodes.filter(q => edgeDist(z, q) >= 40) : [], nd = nl.length ? nl[(k - 1) % nl.length] : null, s = (nd && k <= nl.length) ? nd : slotFor(z, 'v' + v.id);
     add({key: 'v#' + v.id, kind: 'vein', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 1.3, label: str(v.label, 40) || 'Vein', sub: str(v.sub, 40) || 'Tap to gather', state: v.dim ? 'dim' : 'ready',
       pick: {kind: 'vein', region: rid, zone: z.namn, id: String(v.id)}}); });
+  /* [TILLAGT v5.1530.0] KLAPPARNA: pa en egen plats i zonen. Ingen kartlaggning kravs - man ser dem och reser dit. */
+  G.gifts.forEach(g => { if (!g || g.id == null) return; const z = zoneOf(g.region, g.zone); if (!z) return; const s = slotFor(z, 'gift' + g.id), st = g.style === 'egg' ? 'egg' : 'gift';
+    add({key: 'g#' + g.id, kind: 'gift', ico: st, style: st, R: z.R, zn: z.namn, x: s.x, y: s.y, h: 1.6, label: str(g.label, 40) || 'Gift',
+      sub: g.here ? 'Walk up to pick it up' : 'Travel here to pick it up', pick: {kind: 'gift', region: z.R.id, zone: z.namn, id: String(g.id)}}); });
   G.events.forEach(ev => { if (!ev || ev.id == null) return; const z = zoneOf(ev.region, ev.zone); if (!z) return; const s = slotFor(z, 'ev' + ev.id);
     add({key: 'ev#' + ev.id, kind: 'event', R: z.R, zn: z.namn, x: s.x, y: s.y, h: 3, label: str(ev.label, 40) || 'Event', sub: str(ev.sub, 40) || 'Event',
       pick: {kind: 'event', region: z.R.id, zone: z.namn, id: ev.id}}); });
@@ -3017,6 +3030,21 @@ function veinMat(label){ const v = VEIN_COLS.find(v => v[0].test(label || '')); 
 function veinMesh(dim, label){ const g = new THREE.Group(); const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(.45), M_ORE); rk.scale.set(1.3, .55, 1); rk.position.y = .15; g.add(rk); const VM = veinMat(label);
   for (let i = 0; i < 6; i++){ const c = new THREE.Mesh(VEIN_GEO, dim ? VEIN_DIM : VM); const a = i * 1.05; c.position.set(Math.cos(a) * .32, .38 + (i % 2) * .12, Math.sin(a) * .22); c.scale.set(.8, 1.6, .8); c.rotation.z = Math.cos(a) * .4; g.add(c); }
   return g; }
+/* [TILLAGT v5.1530.0] klappen i 3D: rott paket med guldband, eller rosa agg med lila band. Snurrar och guppar lite, med en ljusring. */
+const GIFT_MATS = {gift: [0xd21f3c, 0x5a0a14, 0xf2c24b], egg: [0xf5a8d0, 0x5a1a40, 0xb08cf0]};
+function giftMesh(style){ const g = new THREE.Group(), body = new THREE.Group(), C = GIFT_MATS[style] || GIFT_MATS.gift;
+  const M1 = new THREE.MeshStandardMaterial({color: C[0], emissive: C[1], emissiveIntensity: .6, roughness: .5, flatShading: true}),
+        M2 = new THREE.MeshStandardMaterial({color: C[2], emissive: C[2], emissiveIntensity: .45, roughness: .35, flatShading: true});
+  if (style === 'egg'){ const e = new THREE.Mesh(new THREE.SphereGeometry(.5, 14, 12), M1); e.scale.set(1, 1.35, 1); e.position.y = .68; body.add(e);
+    const b = new THREE.Mesh(new THREE.TorusGeometry(.5, .06, 6, 24), M2); b.rotation.x = Math.PI / 2; b.position.y = .68; body.add(b);
+    const k = new THREE.Mesh(new THREE.SphereGeometry(.12, 8, 6), M2); k.position.set(0, .7, .5); body.add(k); }
+  else { const bx = new THREE.Mesh(new THREE.BoxGeometry(.85, .7, .85), M1); bx.position.y = .35; body.add(bx);
+    const r1 = new THREE.Mesh(new THREE.BoxGeometry(.9, .72, .14), M2); r1.position.y = .35; body.add(r1);
+    const r2 = new THREE.Mesh(new THREE.BoxGeometry(.14, .72, .9), M2); r2.position.y = .35; body.add(r2);
+    [-1, 1].forEach(sd => { const l = new THREE.Mesh(new THREE.TorusGeometry(.17, .05, 6, 12), M2); l.position.set(sd * .17, .78, 0); l.rotation.y = Math.PI / 2; l.scale.set(1, .8, 1); body.add(l); }); }
+  body.traverse(o => { if (o.isMesh) o.castShadow = true; }); body.scale.setScalar(1.3); g.add(body); g.userData.body = body;
+  const r = new THREE.Mesh(new THREE.RingGeometry(.9, 1.1, 32), new THREE.MeshBasicMaterial({color: C[0], transparent: true, opacity: .7, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending}));
+  r.rotation.x = -Math.PI / 2; r.position.y = .05; g.add(r); g.userData.ring = r; return g; }
 function eventMesh(){ const g = new THREE.Group(); const p = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.6, 6), M_WOOD2); p.position.y = 1.3; g.add(p);
   const f = new THREE.Mesh(new THREE.PlaneGeometry(1, .6), new THREE.MeshStandardMaterial({color: 0xf472b6, emissive: 0x5a1036, side: THREE.DoubleSide})); f.position.set(.5, 2.3, 0); g.add(f);
   const r = new THREE.Mesh(new THREE.RingGeometry(.9, 1.1, 32), new THREE.MeshBasicMaterial({color: 0xf472b6, transparent: true, opacity: .7, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending}));
@@ -3047,6 +3075,10 @@ function stepPois(dt, t){
       if (p.av.static){ m.position.y = Math.abs(Math.sin(t * 2 + p.x)) * .04; p.av.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 3 + i) * .1; }); }
       else p.av.mixer.update(dt);
       if (p.av.ring) p.av.ring.material.opacity = .5 + .3 * Math.sin(t * 3); }
+    else if (p.kind === 'gift'){   /* [TILLAGT v5.1530.0] */
+      if (!p.mesh){ p.mesh = giftMesh(p.style); p.mesh.position.set(p.x * K, 0, p.y * K); scene.add(p.mesh); }
+      p.mesh.visible = cam.dist < 300 || p.R === FR;
+      const b = p.mesh.userData.body; b.rotation.y = t * .8; b.position.y = .15 + Math.abs(Math.sin(t * 2 + p.x)) * .25; p.mesh.userData.ring.scale.setScalar(1 + .2 * Math.sin(t * 3)); }
     else if (p.kind === 'vein' || p.kind === 'event'){
       if (!p.mesh){ p.mesh = p.kind === 'vein' ? veinMesh(p.state === 'dim', p.label) : eventMesh(); p.mesh.position.set(p.x * K, 0, p.y * K); scene.add(p.mesh); }
       p.mesh.visible = cam.dist < 300 || p.R === FR;
@@ -3054,6 +3086,7 @@ function stepPois(dt, t){
   { const k = .6 + .5 * Math.sin(t * 3); VEIN_MATS.forEach(m => { m.emissiveIntensity = k; }); } }
 /* [ANDRAT v5.1427.0] Chris: texten kom fram langt utanfor noden. Med mus galler nu nodens cirkel (18 px); pa telefon behovs storre yta for fingret. Ordet under ikonen raknas bara nar det syns. */
 function poiAt(sx, sy){ const tk = textK(cam.dist); let best = null, bd = MOBILE ? 30 : 18; pois.forEach(p => { if (!p.vis) return; let d = Math.hypot(p.sx - sx, p.sy - sy); if (BC_KIND[p.kind] && tk > .5) d = Math.min(d, Math.hypot((p.sx - sx) * .55, p.sy + 22 - sy));   /* [TILLAGT v5.1385.0] ordet under ikonen ar ocksa en tryckyta */
+    if (p.kind === 'gift') d *= .55;   /* [TILLAGT v5.1530.0] klappen ar latt att trycka pa */
     if (d < bd){ bd = d; best = p; } }); return best; }
 /* [ANDRAT v5.1353.0] DIREKT + GA (Chris 9): rutan oppnas i samma ogonblick som man trycker, och figuren borjar ga dit
    samtidigt - som i 2D men med rorelse som stamning. Veins skickar med skarmpunkten sa matarne ritas dar man tryckte. */
@@ -3061,9 +3094,9 @@ function onPoi(P){
   const o = P.kind === 'vein' ? Object.assign({}, P.pick, {clientX: P.sx, clientY: P.sy}) : P.pick;
   pick(o);
   if (!me.R || P.R !== me.R || me.fly) return;
-  const stop = {quest: 18, encounter: 26, vendor: 46, vault: 46, board: 22, landing: 10, dungeon: 40, boss: 70, event: 22, vein: 14}[P.kind] || 16;
+  const stop = {quest: 18, encounter: 26, vendor: 46, vault: 46, board: 22, landing: 10, dungeon: 40, boss: 70, event: 22, vein: 14, gift: 10}[P.kind] || 16;
   const dx = me.x - P.x, dy = me.y - P.y, L = Math.hypot(dx, dy) || 1;
-  if (L < stop + 6){ me.face = Math.atan2(P.x - me.x, P.y - me.y); meAct(P.kind === 'encounter' ? figOf(me).atk : P.kind === 'vein' ? 'PickUp' : 'Interact', .8); return; }
+  if (L < stop + 6){ me.face = Math.atan2(P.x - me.x, P.y - me.y); meAct(P.kind === 'encounter' ? figOf(me).atk : P.kind === 'vein' || P.kind === 'gift' ? 'PickUp' : 'Interact', .8); if (P.kind === 'gift') giftArrive(P); return; }
   walkTo(P.x + dx / L * stop, P.y + dy / L * stop, P); }
 /* etiketter ovanpa platserna (ritas i drawOverlay) */
 const actHits = []; let mouseXY = null, nodeBox = null;
@@ -3086,7 +3119,7 @@ function drawPois(c, W, H, D, placed){
     const ik = p.state === 'cooldown' ? 'rest' : p.ico || p.kind, col = POI_COL[p.ico || p.kind] || '#fff', dim = p.state === 'cooldown' || p.state === 'dim' || p.state === 'running' || p.state === 'locked' || zoneState(p.R.id, p.zn) === 'uncharted';
     const hov = !!hoverPoi && hoverPoi.key === p.key, big = D < 80 ? 1 : .8;   /* [ANDRAT v5.1353.0] jamfor pa nyckeln: markena byggs om nar ny data kommer, och da krympte ikonen under musen efter nagon sekund (Chris) */
     /* [ANDRAT v5.1419.0] UTZOOMAD: FARGAD NOD OCH RUTA SOM I 2D-KARTAN (Chris): ingen ikon och ingen text, bara noden. Musen over visar en ruta med namn och slag. */
-    const ia = p.kind === 'boss' || p.kind === 'event' ? 1 : iconA;
+    const ia = p.kind === 'boss' || p.kind === 'event' || p.kind === 'gift' ? 1 : iconA;   /* [ANDRAT v5.1530.0] + klappar */
     if (ia < 1){ const g0 = toScreen(p.x * K, .05, p.y * K), nc = dim ? '#8b93a7' : p.kind === 'quest' ? MK.quest : col, ns = clamp(W / 1100, .8, 1.15) * (hov ? 1.15 : 1);   /* [ANDRAT v5.1423.0] exakt 2D-kartans nod (Chris): skugga, tva skivor i nodens farg, romb med ljus kant */
       c.save(); const fa = 1 - ia; c.translate(g0.x, g0.y); c.scale(ns, ns); c.globalAlpha = fa * .5; c.fillStyle = '#000'; c.beginPath(); c.ellipse(0, 13, 10, 3.2, 0, 0, 6.2832); c.fill();
       c.fillStyle = nc; c.globalAlpha = fa * .13; c.beginPath(); c.arc(0, 0, 18, 0, 6.2832); c.fill(); c.globalAlpha = fa * .3; c.beginPath(); c.arc(0, 0, 9, 0, 6.2832); c.fill();
@@ -3108,7 +3141,7 @@ function drawPois(c, W, H, D, placed){
         c.drawImage(im, q.x - sz / 2, q.y - sz / 2, sz, sz); c.filter = 'none'; }
       else { c.fillStyle = 'rgba(10,14,22,.82)'; c.beginPath(); c.arc(q.x, q.y, r, 0, 6.2832); c.fill();
       c.lineWidth = 2.2; c.strokeStyle = col; c.stroke(); drawIcon(c, ik, q.x, q.y, r, col); } }
-    const ta = hov || p.kind === 'boss' || p.kind === 'event' ? 1 : textA; if (ta <= .01){ c.globalAlpha = 1; return; }   /* [TILLAGT v5.1427.0] texten kommer ett steg efter ikonerna */
+    const ta = hov || p.kind === 'boss' || p.kind === 'event' || p.kind === 'gift' ? 1 : textA; if (ta <= .01){ c.globalAlpha = 1; return; }   /* [TILLAGT v5.1427.0] texten kommer ett steg efter ikonerna */
     c.globalAlpha = ia * ta;
     /* [TILLAGT v5.1383.0] VAD AR DET (Chris: som 2D-kartans noder): ett kort ord i platsens farg under ikonen */
     if (BC_KIND[p.kind] && (D < 300 || inF)){ const tag = p.kind === 'quest' ? (p.mark === '?' ? 'TURN IN' : 'QUEST') : p.kind === 'encounter' ? (p.state === 'cooldown' ? 'RESTING' : 'ENCOUNTER') : p.kind === 'dungeon' ? 'DUNGEON' : p.kind === 'vendor' ? 'VENDOR' : p.kind === 'vault' ? 'VAULT' : p.kind === 'board' ? 'MISSIONS' : 'EXPEDITION';
